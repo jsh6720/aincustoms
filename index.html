@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>아인합동관세사무소 - 전문 관세 서비스</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+        
+        /* 히어로 섹션 배경 이미지를 로컬 이미지로 변경 */
+        .hero-section {
+            background: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url('./images/hero-background.jpg');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+        
+        .navbar {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            position: fixed;
+            top: 0;
+            width: 100%;
+            z-index: 1000;
+            border-bottom: 1px solid rgba(0,0,0,0.08);
+        }
+        
+        .logo img {
+            height: 50px;
+            width: auto;
+            object-fit: contain;
+        }
+        
+        .scroll-offset {
+            scroll-margin-top: 100px;
+        }
+        
+        .fade-in {
+            opacity: 0;
+            transform: translateY(24px);
+            transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .fade-in.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        .team-member img {
+            width: 200px;
+            height: 300px;
+            object-fit: cover;
+            border-radius: 16px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.12);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .team-member img:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 32px 64px rgba(0,0,0,0.16);
+        }
+        
+        .analysis-example img {
+            width: 100%;
+            max-width: 600px;
+            height: auto;
+            object-fit: contain;
+            border-radius: 16px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        
+        .service-card {
+            background: white;
+            border-radius: 20px;
+            padding: 32px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.06);
+            border: 1px solid rgba(0,0,0,0.04);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            height: 100%;
+        }
+        
+        .service-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 48px rgba(0,0,0,0.12);
+        }
+        
+        .specialty-item {
+            background: white;
+            border-radius: 20px;
+            padding: 32px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.06);
+            border: 1px solid rgba(0,0,0,0.04);
+            margin-bottom: 24px;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .specialty-item:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 16px 40px rgba(0,0,0,0.1);
+        }
+        
+        .hero-text {
+            text-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            color: white;
+            padding: 16px 32px;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 18px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 8px 24px rgba(59, 130, 246, 0.3);
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 32px rgba(59, 130, 246, 0.4);
+        }
+        
+        /* 8px 기반 spacing 시스템 */
+        .spacing-xs { margin: 8px; }
+        .spacing-sm { margin: 16px; }
+        .spacing-md { margin: 24px; }
+        .spacing-lg { margin: 32px; }
+        .spacing-xl { margin: 40px; }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+        
+        @media (max-width: 768px) {
+            .logo img {
+                height: 40px;
+            }
+            .team-member img {
+                width: 160px;
+                height: 240px;
+            }
+            .hero-section {
+                background-attachment: scroll;
+                padding: 40px 20px;
+            }
+            .container {
+                padding: 0 16px;
+            }
+            .scroll-offset {
+                scroll-margin-top: 80px;
+            }
+        }
+        
+        /* 완벽한 그리드 정렬 */
+        .perfect-grid {
+            display: grid;
+            gap: 24px;
+            align-items: stretch;
+        }
+        
+        .grid-4 { grid-template-columns: repeat(4, 1fr); }
+        .grid-3 { grid-template-columns: repeat(3, 1fr); }
+        .grid-2 { grid-template-columns: repeat(2, 1fr); }
+        
+        @media (max-width: 1024px) {
+            .grid-4 { grid-template-columns: repeat(2, 1fr); }
+            .grid-3 { grid-template-columns: repeat(2, 1fr); }
+        }
+        
+        @media (max-width: 640px) {
+            .grid-4 { grid-template-columns: repeat(2, 1fr); }
+            .grid-3 { grid-template-columns: 1fr; }
+            .grid-2 { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <!-- 네비게이션 -->
+    <nav class="navbar">
+        <div class="container flex justify-between items-center py-12">
+            <!-- 로고 -->
+            <div class="logo">
+                <img src="./images/logo.png" alt="아인합동관세사무소 로고">
+            </div>
+            
+            <!-- 메뉴 -->
+            <div class="hidden md:flex space-x-8">
+                <a href="#home" class="text-gray-700 hover:text-blue-600 font-medium text-lg transition-colors">홈</a>
+                <a href="#about" class="text-gray-700 hover:text-blue-600 font-medium text-lg transition-colors">회사소개</a>
+                <a href="#services" class="text-gray-700 hover:text-blue-600 font-medium text-lg transition-colors">전문서비스</a>
+                <a href="#team" class="text-gray-700 hover:text-blue-600 font-medium text-lg transition-colors">구성원소개</a>
+                <a href="#specialty" class="text-gray-700 hover:text-blue-600 font-medium text-lg transition-colors">AI 통관</a>
+                <a href="#contact" class="text-gray-700 hover:text-blue-600 font-medium text-lg transition-colors">연락처</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 히어로 섹션 -->
+    <section id="home" class="hero-section">
+        <div class="text-center text-white hero-text">
+            <h1 class="text-5xl md:text-6xl font-bold mb-6 leading-tight">아인합동관세사무소</h1>
+            <p class="text-xl md:text-2xl mb-4 font-medium">Maximized Efficiency, Minimized Risk</p>
+            <p class="text-lg md:text-xl mb-8 leading-relaxed max-w-4xl mx-auto">4대 회계법인 출신 관세사들의 신속한 통관 서비스와<br>국내 최고 수준의 AI Compliance, Risk 관리를 함께</p>
+            <button onclick="document.getElementById('contact').scrollIntoView({behavior: 'smooth', block: 'start'})" class="btn-primary">
+                상담 및 문의
+            </button>
+        </div>
+    </section>
+
+    <!-- 회사 소개 -->
+    <section id="about" class="scroll-offset py-20 bg-gray-50">
+        <div class="container">
+            <div class="text-center mb-16 fade-in">
+                <h2 class="text-4xl font-bold text-gray-800 mb-6">회사 소개</h2>
+                <p class="text-xl text-gray-600 max-w-4xl mx-auto leading-relaxed">
+                    아인합동관세사무소는 통관 서비스뿐만 아니라, 수출입과 관련된 요건, 외국환 등 관세 무역과 관련한 Risk 관리에 최적화된 통합 솔루션을 제공하는 전문가입니다.
+                </p>
+            </div>
+            
+            <div class="perfect-grid grid-3">
+                <div class="text-center fade-in">
+                    <div class="bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <i class="fas fa-shield-alt text-blue-600 text-2xl"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold mb-4">전문성</h3>
+                    <p class="text-gray-600 leading-relaxed">4대 회계법인 출신 관세사들의 전문적인 서비스</p>
+                </div>
+                
+                <div class="text-center fade-in">
+                    <div class="bg-green-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <i class="fas fa-chart-line text-green-600 text-2xl"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold mb-4">효율성</h3>
+                    <p class="text-gray-600 leading-relaxed">AI 기술을 활용한 스마트 관세 솔루션</p>
+                </div>
+                
+                <div class="text-center fade-in">
+                    <div class="bg-red-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <i class="fas fa-handshake text-red-600 text-2xl"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold mb-4">신뢰성</h3>
+                    <p class="text-gray-600 leading-relaxed">고객의 리스크를 최소화하는 통합 관리</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 전문 서비스 -->
+    <section id="services" class="scroll-offset py-20 bg-white">
+        <div class="container">
+            <div class="text-center mb-16 fade-in">
+                <h2 class="text-4xl font-bold text-gray-800 mb-6">전문 서비스</h2>
+                <p class="text-xl text-gray-600">관세 전 분야에 걸친 종합적인 전문 서비스를 제공합니다</p>
+            </div>
+            
+            <div class="perfect-grid grid-3">
+                <div class="service-card fade-in">
+                    <div class="text-blue-600 text-3xl mb-6">
+                        <i class="fas fa-ship"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold mb-4">수출입 통관</h3>
+                    <p class="text-gray-600 leading-relaxed">FTA 활용, 세관장확인대상, 개별법령 요건 검토를 통한 신속하고 정확한 통관 서비스</p>
+                </div>
+                
+                <div class="service-card fade-in">
+                    <div class="text-green-600 text-3xl mb-6">
+                        <i class="fas fa-tags"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold mb-4">품목분류 및 경정청구</h3>
+                    <p class="text-gray-600 leading-relaxed">고도의 전문성이 요구되는 품목분류 분야의 최상의 결과 제공</p>
+                </div>
+                
+                <div class="service-card fade-in">
+                    <div class="text-purple-600 text-3xl mb-6">
+                        <i class="fas fa-certificate"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold mb-4">AEO 대리</h3>
+                    <p class="text-gray-600 leading-relaxed">인증 및 종합심사 전문 대리 서비스</p>
+                </div>
+                
+                <div class="service-card fade-in">
+                    <div class="text-red-600 text-3xl mb-6">
+                        <i class="fas fa-search"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold mb-4">관세심사 및 조사대리</h3>
+                    <p class="text-gray-600 leading-relaxed">실지심사 전문 대응 및 포괄적인 심사 지원 서비스</p>
+                </div>
+                
+                <div class="service-card fade-in">
+                    <div class="text-yellow-600 text-3xl mb-6">
+                        <i class="fas fa-dollar-sign"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold mb-4">외환진단 및 검사대응</h3>
+                    <p class="text-gray-600 leading-relaxed">외국환거래 분야의 전문적인 진단 및 조사 대응</p>
+                </div>
+                
+                <div class="service-card fade-in">
+                    <div class="text-indigo-600 text-3xl mb-6">
+                        <i class="fas fa-gavel"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold mb-4">관세, 외국환 통상 자문</h3>
+                    <p class="text-gray-600 leading-relaxed">관세 및 무역 관련 다양한 분야의 상시 자문 서비스</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 구성원 소개 -->
+    <section id="team" class="scroll-offset py-20 bg-gray-50">
+        <div class="container">
+            <div class="text-center mb-16 fade-in">
+                <h2 class="text-4xl font-bold text-gray-800 mb-6">구성원 소개</h2>
+                <p class="text-xl text-gray-600">4대 회계법인 출신 관세사들의 전문적인 서비스</p>
+            </div>
+            
+            <div class="perfect-grid grid-4">
+                <!-- 조재호 관세사 -->
+                <div class="team-member text-center fade-in">
+                    <img src="./images/cho-jaeho.jpg" alt="조재호 관세사" class="mx-auto mb-4">
+                    <h3 class="text-lg font-bold text-gray-800 mb-2">조재호 관세사</h3>
+                    <p class="text-blue-600 font-semibold text-sm mb-2">4대 회계법인 출신</p>
+                    <p class="text-gray-600 text-sm">수출입통관, 관세심사, 외국환, 이전가격</p>
+                </div>
+                
+                <!-- 정석현 관세사 -->
+                <div class="team-member text-center fade-in">
+                    <img src="./images/jung-seokhyeon.jpg" alt="정석현 관세사" class="mx-auto mb-4">
+                    <h3 class="text-lg font-bold text-gray-800 mb-2">정석현 관세사</h3>
+                    <p class="text-blue-600 font-semibold text-sm mb-2">4대 회계법인 출신</p>
+                    <p class="text-gray-600 text-sm">수출입요건, 외국환, 관세심사, 품목분류</p>
+                </div>
+                
+                <!-- 박종욱 관세사 -->
+                <div class="team-member text-center fade-in">
+                    <img src="./images/park-jongwook.jpg" alt="박종욱 관세사" class="mx-auto mb-4">
+                    <h3 class="text-lg font-bold text-gray-800 mb-2">박종욱 관세사</h3>
+                    <p class="text-blue-600 font-semibold text-sm mb-2">4대 관세법인 출신</p>
+                    <p class="text-gray-600 text-sm">수출입통관, 품목분류, 외국환거래, FTA</p>
+                </div>
+                
+                <!-- 김로언 관세사 -->
+                <div class="team-member text-center fade-in">
+                    <img src="./images/kim-roeun.jpg" alt="김로언 관세사" class="mx-auto mb-4">
+                    <h3 class="text-lg font-bold text-gray-800 mb-2">김로언 관세사</h3>
+                    <p class="text-blue-600 font-semibold text-sm mb-2">관세 전문가</p>
+                    <p class="text-gray-600 text-sm">수출입통관, 수출입요건, 품목분류, 관세감면</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Ain's Specialty -->
+    <section id="specialty" class="scroll-offset py-20 bg-white">
+        <div class="container">
+            <div class="text-center mb-16 fade-in">
+                <h2 class="text-4xl font-bold text-gray-800 mb-6">Ain's Specialty</h2>
+                <p class="text-xl text-gray-600">아인만의 차별화된 전문 서비스</p>
+            </div>
+            
+            <!-- AI and Customs -->
+            <div class="specialty-item fade-in">
+                <h3 class="text-2xl font-bold text-gray-800 mb-6 text-center">
+                    <i class="fas fa-robot text-blue-600 mr-3"></i>AI and Customs
+                </h3>
+                
+                <!-- 분석 자료 예시 이미지 -->
+                <div class="analysis-example text-center mb-8">
+                    <img src="./images/analysis-data.png" alt="수출입 통관 데이터 분석 예시" class="mx-auto mb-4">
+                </div>
+                
+                <div class="perfect-grid grid-2">
+                    <div>
+                        <h4 class="text-xl font-semibold text-gray-800 mb-4">빅데이터 분석</h4>
+                        <ul class="text-gray-600 space-y-2">
+                            <li>• 수출입 통관 패턴 및 트렌드 분석</li>
+                            <li>• 과거 데이터 기반 최적화 방안 제시</li>
+                            <li>• 업종별, 품목별 맞춤 분석</li>
+                        </ul>
+                    </div>
+                    
+                    <div>
+                        <h4 class="text-xl font-semibold text-gray-800 mb-4">AI 기반 위험 분석</h4>
+                        <ul class="text-gray-600 space-y-2">
+                            <li>• 사전 예방적 리스크 예측 모델</li>
+                            <li>• 실시간 법령 변경사항 모니터링</li>
+                            <li>• 맞춤형 컴플라이언스 솔루션</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 기타 전문 서비스들 -->
+            <div class="perfect-grid grid-2">
+                <div class="specialty-item fade-in">
+                    <h3 class="text-xl font-bold text-gray-800 mb-4">
+                        <i class="fas fa-cog text-green-600 mr-3"></i>Compliance 특화 서비스
+                    </h3>
+                    <p class="text-gray-600 mb-4">품목분류 관리를 통한 세율, 요건 관리의 기초 구축</p>
+                    <ul class="text-gray-600 space-y-2">
+                        <li>• 인보이스상 기재사항 2차 검토</li>
+                        <li>• AI 기반 품목분류 검증</li>
+                        <li>• Risk Check by Database</li>
+                    </ul>
+                </div>
+                
+                <div class="specialty-item fade-in">
+                    <h3 class="text-xl font-bold text-gray-800 mb-4">
+                        <i class="fas fa-balance-scale text-blue-600 mr-3"></i>수출입요건 전문 관세사
+                    </h3>
+                    <p class="text-gray-600 mb-4">69개 개별 법령에 대한 전문적 검토</p>
+                    <ul class="text-gray-600 space-y-2">
+                        <li>• 의료기기법, 약사법 전문 대응</li>
+                        <li>• 화학물질관리법 요건 검토</li>
+                        <li>• 전파법 적용대상 사전 점검</li>
+                    </ul>
+                </div>
+                
+                <div class="specialty-item fade-in">
+                    <h3 class="text-xl font-bold text-gray-800 mb-4">
+                        <i class="fas fa-dollar-sign text-purple-600 mr-3"></i>외국환거래법 전문 관세사
+                    </h3>
+                    <p class="text-gray-600 mb-4">경상거래, 자본거래 관련 신고 절차 이행 자문</p>
+                    <ul class="text-gray-600 space-y-2">
+                        <li>• 상계, 3자지급, 기간초과지급 검토</li>
+                        <li>• 사후보고 가능성 판단</li>
+                        <li>• 위반건 소명논리 개발</li>
+                    </ul>
+                </div>
+                
+                <div class="specialty-item fade-in">
+                    <h3 class="text-xl font-bold text-gray-800 mb-4">
+                        <i class="fas fa-chart-bar text-red-600 mr-3"></i>지속적인 Risk 분석 제공
+                    </h3>
+                    <p class="text-gray-600 mb-4">반기별 수출입 통관 현황 및 위험 요소 분석</p>
+                    <ul class="text-gray-600 space-y-2">
+                        <li>• 누적 데이터 기반 분석</li>
+                        <li>• 대용량 분석 지원</li>
+                        <li>• 맞춤형 리포트 제공</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 연락처 -->
+    <section id="contact" class="scroll-offset py-20 bg-gray-50">
+        <div class="container">
+            <div class="text-center mb-16 fade-in">
+                <h2 class="text-4xl font-bold text-gray-800 mb-6">연락처</h2>
+                <p class="text-xl text-gray-600">전문적인 관세 서비스가 필요하시면 언제든 연락주세요</p>
+            </div>
+            
+            <div class="perfect-grid grid-3">
+                <div class="text-center fade-in">
+                    <div class="bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <i class="fas fa-map-marker-alt text-blue-600 text-2xl"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold mb-4">주소</h3>
+                    <p class="text-gray-600 leading-relaxed">서울특별시 강남구<br>학동로 43길 38, 145호</p>
+                </div>
+                
+                <div class="text-center fade-in">
+                    <div class="bg-green-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <i class="fas fa-phone text-green-600 text-2xl"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold mb-4">전화 / 팩스</h3>
+                    <p class="text-gray-600 leading-relaxed">전화: 02-518-5434<br>팩스: 02-518-5436</p>
+                </div>
+                
+                <div class="text-center fade-in">
+                    <div class="bg-red-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <i class="fas fa-envelope text-red-600 text-2xl"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold mb-4">이메일</h3>
+                    <p class="text-gray-600 text-sm leading-relaxed">
+                        정석현 대표관세사: jsh@aincustoms.com<br>
+                        조재호 대표관세사: jhcho@aincustoms.com<br>
+                        박종욱 대표관세사: jwpark@aincustoms.com
+                    </p>
+                </div>
+            </div>
+            
+            <div class="text-center mt-16 fade-in">
+                <div class="bg-white inline-block px-8 py-8 rounded-2xl shadow-lg max-w-2xl">
+                    <h3 class="text-2xl font-bold text-gray-800 mb-4">전문 상담 신청</h3>
+                    <p class="text-gray-600 mb-6">4대 회계법인 출신 관세사가 직접 상담해드립니다</p>
+                    <div class="flex flex-wrap justify-center gap-3">
+                        <span class="bg-blue-100 text-blue-800 px-4 py-2 rounded-full text-sm font-semibold">관세심사 대응</span>
+                        <span class="bg-green-100 text-green-800 px-4 py-2 rounded-full text-sm font-semibold">수출입통관</span>
+                        <span class="bg-purple-100 text-purple-800 px-4 py-2 rounded-full text-sm font-semibold">AI 통관 솔루션</span>
+                        <span class="bg-red-100 text-red-800 px-4 py-2 rounded-full text-sm font-semibold">외환 진단</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- JavaScript -->
+    <script>
+        // 스크롤 애니메이션
+        function handleScrollAnimation() {
+            const elements = document.querySelectorAll('.fade-in');
+            elements.forEach(element => {
+                const elementTop = element.getBoundingClientRect().top;
+                const elementVisible = 150;
+                
+                if (elementTop < window.innerHeight - elementVisible) {
+                    element.classList.add('visible');
+                }
+            });
+        }
+
+        // 스무스 스크롤
+        function smoothScroll() {
+            const links = document.querySelectorAll('nav a[href^="#"]');
+            links.forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const targetId = this.getAttribute('href');
+                    const targetElement = document.querySelector(targetId);
+                    if (targetElement) {
+                        const offsetTop = targetElement.offsetTop - 90;
+                        window.scrollTo({
+                            top: offsetTop,
+                            behavior: 'smooth'
+                        });
+                    }
+                });
+            });
+        }
+
+        // 초기 실행
+        document.addEventListener('DOMContentLoaded', function() {
+            handleScrollAnimation();
+            smoothScroll();
+            
+            window.addEventListener('scroll', handleScrollAnimation);
+        });
+    </script>
+</body>
+</html>
