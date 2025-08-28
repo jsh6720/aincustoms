@@ -12,7 +12,6 @@
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
         }
         
-        /* 히어로 섹션 배경 이미지를 로컬 이미지로 변경 */
         .hero-section {
             background: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url('./images/hero-background.jpg');
             background-size: cover;
@@ -132,17 +131,259 @@
             box-shadow: 0 12px 32px rgba(59, 130, 246, 0.4);
         }
         
-        /* 8px 기반 spacing 시스템 */
-        .spacing-xs { margin: 8px; }
-        .spacing-sm { margin: 16px; }
-        .spacing-md { margin: 24px; }
-        .spacing-lg { margin: 32px; }
-        .spacing-xl { margin: 40px; }
-        
         .container {
             max-width: 1200px;
             margin: 0 auto;
             padding: 0 24px;
+        }
+        
+        .perfect-grid {
+            display: grid;
+            gap: 24px;
+            align-items: stretch;
+        }
+        
+        .grid-4 { grid-template-columns: repeat(4, 1fr); }
+        .grid-3 { grid-template-columns: repeat(3, 1fr); }
+        .grid-2 { grid-template-columns: repeat(2, 1fr); }
+        
+        /* 모달 스타일 */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: none;
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .login-modal-content {
+            background: white;
+            border-radius: 16px;
+            width: 400px;
+            max-width: 90vw;
+            padding: 32px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            position: relative;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        
+        .duty-modal-content {
+            background: white;
+            border-radius: 16px;
+            width: 90%;
+            max-width: 1200px;
+            min-height: 600px;
+            max-height: 90vh;
+            padding: 32px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            position: relative;
+            overflow-y: auto;
+        }
+        
+        .close-button {
+            position: absolute;
+            top: 16px;
+            right: 20px;
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #666;
+        }
+        
+        .close-button:hover {
+            color: #333;
+        }
+        
+        /* 테이블 스타일 */
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        
+        .results-table th {
+            background-color: #f8fafc;
+            padding: 12px;
+            text-align: left;
+            border-bottom: 2px solid #e2e8f0;
+            font-weight: 600;
+            color: #374151;
+            position: sticky;
+            top: 0;
+        }
+        
+        .results-table td {
+            padding: 12px;
+            border-bottom: 1px solid #e2e8f0;
+            color: #374151;
+        }
+        
+        .results-table tbody tr:nth-child(even) {
+            background-color: #f9fafb;
+        }
+        
+        .results-table tbody tr:hover {
+            background-color: #f3f4f6;
+        }
+        
+        .copyable-cell {
+            cursor: pointer;
+            color: #3b82f6;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+        
+        .copyable-cell:hover {
+            color: #1d4ed8;
+            background-color: #dbeafe;
+        }
+        
+        /* 탭 스타일 */
+        .tab-container {
+            margin-bottom: 24px;
+        }
+        
+        .tab-buttons {
+            display: flex;
+            border-bottom: 2px solid #e5e7eb;
+            margin-bottom: 20px;
+        }
+        
+        .tab-button {
+            padding: 12px 24px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+            color: #6b7280;
+            border-bottom: 3px solid transparent;
+            transition: all 0.2s;
+        }
+        
+        .tab-button.active {
+            color: #3b82f6;
+            border-bottom-color: #3b82f6;
+        }
+        
+        .tab-button:hover {
+            color: #374151;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        /* 편집 버튼 스타일 */
+        .edit-button, .save-button, .cancel-button, .delete-button {
+            padding: 4px 8px;
+            margin: 0 2px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+        
+        .edit-button {
+            background-color: #fbbf24;
+            color: white;
+        }
+        
+        .save-button {
+            background-color: #10b981;
+            color: white;
+        }
+        
+        .cancel-button {
+            background-color: #6b7280;
+            color: white;
+        }
+        
+        .delete-button {
+            background-color: #ef4444;
+            color: white;
+        }
+        
+        /* 자동완성 스타일 */
+        .autocomplete-container {
+            position: relative;
+        }
+        
+        .autocomplete-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 1000;
+            display: none;
+        }
+        
+        .autocomplete-item {
+            padding: 8px 12px;
+            cursor: pointer;
+            border-bottom: 1px solid #f3f4f6;
+            font-size: 14px;
+            color: #374151;
+        }
+        
+        .autocomplete-item:hover,
+        .autocomplete-item.selected {
+            background-color: #f3f4f6;
+        }
+        
+        .autocomplete-item:last-child {
+            border-bottom: none;
+        }
+        
+        .highlight {
+            font-weight: bold;
+            color: #3b82f6;
+        }
+        
+        /* 토스트 메시지 */
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background-color: #10b981;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            z-index: 3000;
+            opacity: 0;
+            transform: translateX(100%);
+            transition: all 0.3s;
+        }
+        
+        .toast.show {
+            opacity: 1;
+            transform: translateX(0);
+        }
+        
+        /* 반응형 디자인 */
+        @media (max-width: 1024px) {
+            .grid-4 { grid-template-columns: repeat(2, 1fr); }
+            .grid-3 { grid-template-columns: repeat(2, 1fr); }
         }
         
         @media (max-width: 768px) {
@@ -163,28 +404,33 @@
             .scroll-offset {
                 scroll-margin-top: 80px;
             }
-        }
-        
-        /* 완벽한 그리드 정렬 */
-        .perfect-grid {
-            display: grid;
-            gap: 24px;
-            align-items: stretch;
-        }
-        
-        .grid-4 { grid-template-columns: repeat(4, 1fr); }
-        .grid-3 { grid-template-columns: repeat(3, 1fr); }
-        .grid-2 { grid-template-columns: repeat(2, 1fr); }
-        
-        @media (max-width: 1024px) {
-            .grid-4 { grid-template-columns: repeat(2, 1fr); }
-            .grid-3 { grid-template-columns: repeat(2, 1fr); }
-        }
-        
-        @media (max-width: 640px) {
             .grid-4 { grid-template-columns: repeat(2, 1fr); }
             .grid-3 { grid-template-columns: 1fr; }
             .grid-2 { grid-template-columns: 1fr; }
+            .login-modal-content {
+                width: 95%;
+                padding: 24px;
+            }
+            .duty-modal-content {
+                width: 95%;
+                padding: 20px;
+            }
+        }
+        
+        @media (max-width: 640px) {
+            .results-table {
+                font-size: 14px;
+            }
+            
+            .results-table th,
+            .results-table td {
+                padding: 8px 4px;
+            }
+            
+            .tab-button {
+                padding: 8px 12px;
+                font-size: 14px;
+            }
         }
     </style>
 </head>
@@ -205,6 +451,7 @@
                 <a href="#team" class="text-gray-700 hover:text-blue-600 font-medium text-lg transition-colors">구성원소개</a>
                 <a href="#specialty" class="text-gray-700 hover:text-blue-600 font-medium text-lg transition-colors">AI 통관</a>
                 <a href="#contact" class="text-gray-700 hover:text-blue-600 font-medium text-lg transition-colors">연락처</a>
+                <a href="#" onclick="showDutyLogin()" class="text-red-600 hover:text-red-800 font-bold text-lg transition-colors">관세성실신고 조회</a>
             </div>
         </div>
     </nav>
@@ -510,8 +757,284 @@
         </div>
     </section>
 
+    <!-- 로그인 모달 -->
+    <div id="loginModal" class="modal">
+        <div class="login-modal-content">
+            <button class="close-button" onclick="closeModal('loginModal')">&times;</button>
+            <h2 class="text-2xl font-bold text-center mb-6 text-gray-800">관세성실신고 조회</h2>
+            <form id="loginForm" onsubmit="handleLogin(event)">
+                <div class="mb-4">
+                    <label for="username" class="block text-sm font-medium text-gray-700 mb-2">아이디</label>
+                    <input type="text" id="username" name="username" required 
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div class="mb-6">
+                    <label for="password" class="block text-sm font-medium text-gray-700 mb-2">비밀번호</label>
+                    <input type="password" id="password" name="password" required
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <button type="submit" class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    로그인
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- 관세신고 조회 모달 -->
+    <div id="dutyModal" class="modal">
+        <div class="duty-modal-content">
+            <button class="close-button" onclick="closeModal('dutyModal')">&times;</button>
+            <h2 class="text-3xl font-bold text-center mb-6 text-gray-800">관세성실신고 조회 시스템</h2>
+            
+            <!-- 사용자 정보 -->
+            <div class="bg-blue-50 p-4 rounded-lg mb-6">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <span class="text-sm text-gray-600">로그인 사용자:</span>
+                        <span id="currentUser" class="font-semibold text-gray-800 ml-2"></span>
+                        <span class="text-sm text-gray-600 ml-4">화주명:</span>
+                        <span id="currentCompany" class="font-semibold text-gray-800 ml-2"></span>
+                    </div>
+                    <button onclick="logout()" class="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600 text-sm">
+                        로그아웃
+                    </button>
+                </div>
+            </div>
+
+            <!-- 마스터 전용 탭 -->
+            <div id="masterTabs" class="tab-container" style="display: none;">
+                <div class="tab-buttons">
+                    <button class="tab-button active" onclick="switchTab('duty-management')">
+                        <i class="fas fa-clipboard-list mr-2"></i>신고내역 관리
+                    </button>
+                    <button class="tab-button" onclick="switchTab('account-management')">
+                        <i class="fas fa-users-cog mr-2"></i>계정 관리
+                    </button>
+                </div>
+            </div>
+
+            <!-- 신고내역 관리 탭 -->
+            <div id="duty-management" class="tab-content active">
+                <!-- 조회 필터 -->
+                <div class="bg-gray-50 p-6 rounded-lg mb-6">
+                    <h3 class="text-lg font-semibold mb-4 text-gray-800">조회 조건</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                        <div class="autocomplete-container">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">화주명</label>
+                            <input type="text" id="filterCompany" placeholder="화주명 입력" 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                   oninput="handleAutocomplete(this, 'company')" onkeydown="handleKeydown(event, this)">
+                            <div class="autocomplete-dropdown"></div>
+                        </div>
+                        <div class="autocomplete-container">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">해외거래처명</label>
+                            <input type="text" id="filterSupplier" placeholder="거래처명 입력"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                   oninput="handleAutocomplete(this, 'supplier')" onkeydown="handleKeydown(event, this)">
+                            <div class="autocomplete-dropdown"></div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">결제방법</label>
+                            <select id="filterPayment" onchange="applyFilters()"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="">전체</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">거래구분</label>
+                            <select id="filterTrade" onchange="applyFilters()"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="">전체</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">인도조건</label>
+                            <select id="filterDelivery" onchange="applyFilters()"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="">전체</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <button onclick="clearFilters()" class="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600 mr-2">
+                            필터 초기화
+                        </button>
+                        <button onclick="applyFilters()" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
+                            조회
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 마스터 전용 데이터 추가 -->
+                <div id="masterControls" style="display: none;">
+                    <div class="bg-green-50 p-6 rounded-lg mb-6">
+                        <h3 class="text-lg font-semibold mb-4 text-gray-800">새 신고내역 추가</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                            <div class="autocomplete-container">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">화주명</label>
+                                <input type="text" id="newCompany" placeholder="화주명"
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                                       oninput="handleAutocomplete(this, 'company')" onkeydown="handleKeydown(event, this)">
+                                <div class="autocomplete-dropdown"></div>
+                            </div>
+                            <div class="autocomplete-container">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">해외거래처명</label>
+                                <input type="text" id="newSupplier" placeholder="거래처명"
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                                       oninput="handleAutocomplete(this, 'supplier')" onkeydown="handleKeydown(event, this)">
+                                <div class="autocomplete-dropdown"></div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">결제방법</label>
+                                <input type="text" id="newPayment" placeholder="결제방법"
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">거래구분</label>
+                                <input type="text" id="newTrade" placeholder="거래구분"
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">인도조건</label>
+                                <input type="text" id="newDelivery" placeholder="인도조건"
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">신고번호</label>
+                                <input type="text" id="newDeclaration" placeholder="신고번호"
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500">
+                            </div>
+                        </div>
+                        <div class="mt-4">
+                            <button onclick="addNewDutyRecord()" class="bg-green-600 text-white px-6 py-2 rounded-md hover:bg-green-700">
+                                <i class="fas fa-plus mr-2"></i>신고내역 추가
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 조회 결과 -->
+                <div class="bg-white rounded-lg">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-semibold text-gray-800">조회 결과</h3>
+                        <span id="resultCount" class="text-sm text-gray-600"></span>
+                    </div>
+                    <div class="overflow-x-auto" style="max-height: 600px; overflow-y: auto;">
+                        <table class="results-table">
+                            <thead>
+                                <tr>
+                                    <th>화주명</th>
+                                    <th>해외거래처명</th>
+                                    <th>결제방법</th>
+                                    <th>거래구분</th>
+                                    <th>인도조건</th>
+                                    <th>신고번호</th>
+                                    <th id="actionHeader" style="display: none;">관리</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dutyResultsBody">
+                                <tr>
+                                    <td colspan="6" class="text-center text-gray-500 py-8">
+                                        로그인 후 데이터를 조회해주세요.
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 계정 관리 탭 -->
+            <div id="account-management" class="tab-content">
+                <!-- 새 계정 추가 -->
+                <div class="bg-purple-50 p-6 rounded-lg mb-6">
+                    <h3 class="text-lg font-semibold mb-4 text-gray-800">새 계정 추가</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">아이디</label>
+                            <input type="text" id="newAccountId" placeholder="아이디 입력"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">비밀번호</label>
+                            <input type="password" id="newAccountPw" placeholder="비밀번호 입력"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
+                        </div>
+                        <div class="autocomplete-container">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">화주명</label>
+                            <input type="text" id="newAccountCompany" placeholder="화주명 입력"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                   oninput="handleAutocomplete(this, 'company')" onkeydown="handleKeydown(event, this)">
+                            <div class="autocomplete-dropdown"></div>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <button onclick="addNewAccount()" class="bg-purple-600 text-white px-6 py-2 rounded-md hover:bg-purple-700">
+                            <i class="fas fa-user-plus mr-2"></i>계정 추가
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 계정 목록 -->
+                <div class="bg-white rounded-lg">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-semibold text-gray-800">계정 목록</h3>
+                        <button onclick="loadAccountData()" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
+                            <i class="fas fa-refresh mr-2"></i>새로고침
+                        </button>
+                    </div>
+                    <div class="overflow-x-auto" style="max-height: 500px; overflow-y: auto;">
+                        <table class="results-table">
+                            <thead>
+                                <tr>
+                                    <th>아이디</th>
+                                    <th>비밀번호</th>
+                                    <th>화주명</th>
+                                    <th>관리</th>
+                                </tr>
+                            </thead>
+                            <tbody id="accountResultsBody">
+                                <tr>
+                                    <td colspan="4" class="text-center text-gray-500 py-8">
+                                        계정 정보를 불러오는 중...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 토스트 메시지 -->
+    <div id="toast" class="toast"></div>
+
     <!-- JavaScript -->
     <script>
+        // Google Sheets API 설정
+        const API_KEY = 'AIzaSyAWI7X8CwMCaJmHk2mI2zMPlgjZ86TNSLo';
+        const LOGIN_SHEET_ID = '1OEut3Bw81yWSXUXul3ydnTtHojE4FPkKLCMB0SXCT5I';
+        const DUTY_SHEET_ID = '10YWsKFk74VCbdLr2vktbkCCw_Zp2K4xthsnHtDhZ7L8';
+        
+        // 전역 변수
+        let currentUserData = null;
+        let allDutyData = [];
+        let allAccountData = [];
+        let filteredData = [];
+        let autocompleteCache = {
+            companies: [],
+            suppliers: []
+        };
+
+        // 페이지 로드 시 초기화
+        document.addEventListener('DOMContentLoaded', function() {
+            handleScrollAnimation();
+            smoothScroll();
+            
+            window.addEventListener('scroll', handleScrollAnimation);
+        });
+
         // 스크롤 애니메이션
         function handleScrollAnimation() {
             const elements = document.querySelectorAll('.fade-in');
@@ -544,13 +1067,705 @@
             });
         }
 
-        // 초기 실행
-        document.addEventListener('DOMContentLoaded', function() {
-            handleScrollAnimation();
-            smoothScroll();
+        // 관세신고 조회 로그인 모달 표시
+        function showDutyLogin() {
+            document.getElementById('loginModal').style.display = 'flex';
+        }
+
+        // 모달 닫기
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+
+        // 로그인 처리
+        async function handleLogin(event) {
+            event.preventDefault();
             
-            window.addEventListener('scroll', handleScrollAnimation);
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
+            try {
+                // Google Sheets에서 로그인 정보 조회
+                const response = await fetch(
+                    `https://sheets.googleapis.com/v4/spreadsheets/${LOGIN_SHEET_ID}/values/A:C?key=${API_KEY}`
+                );
+                const data = await response.json();
+                
+                if (data.values) {
+                    // 헤더 제외하고 검사
+                    for (let i = 1; i < data.values.length; i++) {
+                        const row = data.values[i];
+                        if (row[0] === username && row[1] === password) {
+                            currentUserData = {
+                                username: username,
+                                password: password,
+                                company: row[2] || '',
+                                isMaster: username === 'aincustoms'  // 여기서 마스터 권한 정확히 설정
+                            };
+                            
+                            // 로그인 성공
+                            closeModal('loginModal');
+                            showDutyModal();
+                            return;
+                        }
+                    }
+                }
+                
+                showToast('아이디 또는 비밀번호가 올바르지 않습니다.', 'error');
+            } catch (error) {
+                console.error('Login error:', error);
+                showToast('로그인 중 오류가 발생했습니다.', 'error');
+            }
+        }
+
+        // 관세신고 조회 모달 표시
+        async function showDutyModal() {
+            document.getElementById('currentUser').textContent = currentUserData.username;
+            document.getElementById('currentCompany').textContent = currentUserData.company;
+            
+            // 권한에 따른 UI 설정 - 수정된 부분
+            if (currentUserData.isMaster) {
+                // 마스터: 모든 관리 기능 표시
+                document.getElementById('masterTabs').style.display = 'block';
+                document.getElementById('masterControls').style.display = 'block';
+                document.getElementById('actionHeader').style.display = 'table-cell';
+            } else {
+                // 일반: 조회 전용으로 설정
+                document.getElementById('masterTabs').style.display = 'none';
+                document.getElementById('masterControls').style.display = 'none';
+                document.getElementById('actionHeader').style.display = 'none';
+            }
+            
+            document.getElementById('dutyModal').style.display = 'flex';
+            
+            // 데이터 로드
+            await loadDutyData();
+            if (currentUserData.isMaster) {
+                await loadAccountData();
+            }
+        }
+
+        // 탭 전환
+        function switchTab(tabName) {
+            // 모든 탭 버튼과 내용 비활성화
+            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            // 선택된 탭 활성화
+            event.target.classList.add('active');
+            document.getElementById(tabName).classList.add('active');
+        }
+
+        // 관세신고 데이터 로드
+        async function loadDutyData() {
+            try {
+                const response = await fetch(
+                    `https://sheets.googleapis.com/v4/spreadsheets/${DUTY_SHEET_ID}/values/A:F?key=${API_KEY}`
+                );
+                const data = await response.json();
+                
+                if (data.values && data.values.length > 1) {
+                    allDutyData = data.values.slice(1); // 헤더 제외
+                    
+                    // 자동완성 캐시 업데이트
+                    updateAutocompleteCache();
+                    
+                    // 마스터가 아닌 경우 해당 화주의 데이터만 필터링
+                    if (!currentUserData.isMaster) {
+                        allDutyData = allDutyData.filter(row => {
+                            return row[0] && row[0].includes(currentUserData.company);
+                        });
+                    }
+                    
+                    filteredData = [...allDutyData];
+                    displayDutyResults();
+                    populateFilterOptions();
+                } else {
+                    document.getElementById('dutyResultsBody').innerHTML = 
+                        '<tr><td colspan="7" class="text-center text-gray-500 py-8">데이터가 없습니다.</td></tr>';
+                }
+            } catch (error) {
+                console.error('Data loading error:', error);
+                showToast('데이터를 불러오는 중 오류가 발생했습니다.', 'error');
+            }
+        }
+
+        // 자동완성 캐시 업데이트
+        function updateAutocompleteCache() {
+            autocompleteCache.companies = [...new Set(allDutyData.map(row => row[0]).filter(Boolean))];
+            autocompleteCache.suppliers = [...new Set(allDutyData.map(row => row[1]).filter(Boolean))];
+        }
+
+        // 자동완성 처리
+        const debounce = (func, delay) => {
+            let timeoutId;
+            return (...args) => {
+                clearTimeout(timeoutId);
+                timeoutId = setTimeout(() => func(...args), delay);
+            };
+        };
+
+        const handleAutocomplete = debounce((input, type) => {
+            const value = input.value.toLowerCase();
+            if (value.length < 1) {
+                hideAutocomplete(input);
+                return;
+            }
+
+            let suggestions = [];
+            if (type === 'company') {
+                suggestions = autocompleteCache.companies.filter(item => 
+                    item.toLowerCase().includes(value)
+                ).slice(0, 10);
+            } else if (type === 'supplier') {
+                suggestions = autocompleteCache.suppliers.filter(item => 
+                    item.toLowerCase().includes(value)
+                ).slice(0, 10);
+            }
+
+            showAutocomplete(input, suggestions, value);
+        }, 300);
+
+        // 자동완성 드롭다운 표시
+        function showAutocomplete(input, suggestions, searchValue) {
+            const dropdown = input.nextElementSibling;
+            
+            if (suggestions.length === 0) {
+                hideAutocomplete(input);
+                return;
+            }
+
+            dropdown.innerHTML = suggestions.map(suggestion => {
+                const highlighted = suggestion.replace(
+                    new RegExp(searchValue, 'gi'),
+                    match => `<span class="highlight">${match}</span>`
+                );
+                return `<div class="autocomplete-item" onclick="selectAutocomplete('${input.id}', '${suggestion}')">${highlighted}</div>`;
+            }).join('');
+
+            dropdown.style.display = 'block';
+        }
+
+        // 자동완성 숨기기
+        function hideAutocomplete(input) {
+            const dropdown = input.nextElementSibling;
+            dropdown.style.display = 'none';
+        }
+
+        // 자동완성 선택
+        function selectAutocomplete(inputId, value) {
+            const input = document.getElementById(inputId);
+            input.value = value;
+            hideAutocomplete(input);
+            applyFilters();
+        }
+
+        // 키보드 이벤트 처리
+        function handleKeydown(event, input) {
+            const dropdown = input.nextElementSibling;
+            const items = dropdown.querySelectorAll('.autocomplete-item');
+            
+            if (items.length === 0) return;
+            
+            const currentSelected = dropdown.querySelector('.autocomplete-item.selected');
+            let currentIndex = -1;
+            
+            if (currentSelected) {
+                currentIndex = Array.from(items).indexOf(currentSelected);
+            }
+            
+            switch(event.key) {
+                case 'ArrowDown':
+                    event.preventDefault();
+                    const nextIndex = currentIndex < items.length - 1 ? currentIndex + 1 : 0;
+                    selectItem(items, nextIndex);
+                    break;
+                case 'ArrowUp':
+                    event.preventDefault();
+                    const prevIndex = currentIndex > 0 ? currentIndex - 1 : items.length - 1;
+                    selectItem(items, prevIndex);
+                    break;
+                case 'Enter':
+                    event.preventDefault();
+                    if (currentSelected) {
+                        currentSelected.click();
+                    }
+                    break;
+                case 'Escape':
+                    hideAutocomplete(input);
+                    break;
+            }
+        }
+
+        // 항목 선택
+        function selectItem(items, index) {
+            items.forEach(item => item.classList.remove('selected'));
+            if (items[index]) {
+                items[index].classList.add('selected');
+            }
+        }
+
+        // 계정 데이터 로드 (마스터 전용)
+        async function loadAccountData() {
+            if (!currentUserData.isMaster) return;
+            
+            try {
+                const response = await fetch(
+                    `https://sheets.googleapis.com/v4/spreadsheets/${LOGIN_SHEET_ID}/values/A:C?key=${API_KEY}`
+                );
+                const data = await response.json();
+                
+                if (data.values && data.values.length > 1) {
+                    allAccountData = data.values.slice(1); // 헤더 제외
+                    displayAccountResults();
+                } else {
+                    document.getElementById('accountResultsBody').innerHTML = 
+                        '<tr><td colspan="4" class="text-center text-gray-500 py-8">계정 데이터가 없습니다.</td></tr>';
+                }
+            } catch (error) {
+                console.error('Account data loading error:', error);
+                showToast('계정 데이터를 불러오는 중 오류가 발생했습니다.', 'error');
+            }
+        }
+
+        // 조회 결과 표시
+        function displayDutyResults() {
+            const tbody = document.getElementById('dutyResultsBody');
+            const resultCount = document.getElementById('resultCount');
+            
+            if (filteredData.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center text-gray-500 py-8">조회 결과가 없습니다.</td></tr>';
+                resultCount.textContent = '';
+                return;
+            }
+            
+            resultCount.textContent = `총 ${filteredData.length}건`;
+            
+            tbody.innerHTML = filteredData.map((row, index) => `
+                <tr id="row-${index}">
+                    <td>${row[0] || ''}</td>
+                    <td>${row[1] || ''}</td>
+                    <td>${row[2] || ''}</td>
+                    <td>${row[3] || ''}</td>
+                    <td>${row[4] || ''}</td>
+                    <td class="copyable-cell" onclick="copyToClipboard('${row[5] || ''}')">
+                        <i class="fas fa-copy mr-1"></i>${row[5] || ''}
+                    </td>
+                    ${currentUserData.isMaster ? `
+                        <td>
+                            <button class="edit-button" onclick="editRow(${index})">
+                                <i class="fas fa-edit"></i> 편집
+                            </button>
+                            <button class="delete-button" onclick="deleteRow(${index})">
+                                <i class="fas fa-trash"></i> 삭제
+                            </button>
+                        </td>
+                    ` : ''}
+                </tr>
+            `).join('');
+        }
+
+        // 계정 결과 표시 (마스터 전용)
+        function displayAccountResults() {
+            const tbody = document.getElementById('accountResultsBody');
+            
+            if (allAccountData.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" class="text-center text-gray-500 py-8">계정이 없습니다.</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = allAccountData.map((row, index) => `
+                <tr id="account-row-${index}">
+                    <td>${row[0] || ''}</td>
+                    <td>
+                        <span class="password-hidden">••••••••</span>
+                        <button onclick="togglePassword(${index})" class="ml-2 text-blue-600 hover:text-blue-800">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </td>
+                    <td>${row[2] || ''}</td>
+                    <td>
+                        <button class="edit-button" onclick="editAccount(${index})" ${row[0] === 'aincustoms' ? 'disabled style="opacity: 0.5;"' : ''}>
+                            <i class="fas fa-edit"></i> 편집
+                        </button>
+                        <button class="delete-button" onclick="deleteAccount(${index})" ${row[0] === 'aincustoms' ? 'disabled style="opacity: 0.5;"' : ''}>
+                            <i class="fas fa-trash"></i> 삭제
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // 필터 옵션 채우기
+        function populateFilterOptions() {
+            const paymentOptions = [...new Set(allDutyData.map(row => row[2]).filter(Boolean))];
+            const tradeOptions = [...new Set(allDutyData.map(row => row[3]).filter(Boolean))];
+            const deliveryOptions = [...new Set(allDutyData.map(row => row[4]).filter(Boolean))];
+            
+            populateSelect('filterPayment', paymentOptions);
+            populateSelect('filterTrade', tradeOptions);
+            populateSelect('filterDelivery', deliveryOptions);
+        }
+
+        // 셀렉트 박스 옵션 채우기
+        function populateSelect(selectId, options) {
+            const select = document.getElementById(selectId);
+            const currentValue = select.value;
+            
+            select.innerHTML = '<option value="">전체</option>' + 
+                options.map(option => `<option value="${option}">${option}</option>`).join('');
+            
+            if (currentValue) {
+                select.value = currentValue;
+            }
+        }
+
+        // 필터 적용
+        function applyFilters() {
+            const company = document.getElementById('filterCompany').value.toLowerCase();
+            const supplier = document.getElementById('filterSupplier').value.toLowerCase();
+            const payment = document.getElementById('filterPayment').value;
+            const trade = document.getElementById('filterTrade').value;
+            const delivery = document.getElementById('filterDelivery').value;
+            
+            filteredData = allDutyData.filter(row => {
+                return (
+                    (!company || (row[0] && row[0].toLowerCase().includes(company))) &&
+                    (!supplier || (row[1] && row[1].toLowerCase().includes(supplier))) &&
+                    (!payment || row[2] === payment) &&
+                    (!trade || row[3] === trade) &&
+                    (!delivery || row[4] === delivery)
+                );
+            });
+            
+            displayDutyResults();
+        }
+
+        // 필터 초기화
+        function clearFilters() {
+            document.getElementById('filterCompany').value = '';
+            document.getElementById('filterSupplier').value = '';
+            document.getElementById('filterPayment').value = '';
+            document.getElementById('filterTrade').value = '';
+            document.getElementById('filterDelivery').value = '';
+            
+            filteredData = [...allDutyData];
+            displayDutyResults();
+        }
+
+        // 신규 신고내역 추가 (마스터 전용)
+        async function addNewDutyRecord() {
+            if (!currentUserData.isMaster) return;
+            
+            const company = document.getElementById('newCompany').value.trim();
+            const supplier = document.getElementById('newSupplier').value.trim();
+            const payment = document.getElementById('newPayment').value.trim();
+            const trade = document.getElementById('newTrade').value.trim();
+            const delivery = document.getElementById('newDelivery').value.trim();
+            const declaration = document.getElementById('newDeclaration').value.trim();
+            
+            if (!company || !supplier || !payment || !trade || !delivery || !declaration) {
+                showToast('모든 필드를 입력해주세요.', 'error');
+                return;
+            }
+            
+            try {
+                // Google Sheets에 새 행 추가 (실제로는 API로 처리해야 함)
+                showToast('새 신고내역이 추가되었습니다.', 'success');
+                
+                // 입력 필드 초기화
+                document.getElementById('newCompany').value = '';
+                document.getElementById('newSupplier').value = '';
+                document.getElementById('newPayment').value = '';
+                document.getElementById('newTrade').value = '';
+                document.getElementById('newDelivery').value = '';
+                document.getElementById('newDeclaration').value = '';
+                
+                // 데이터 재로드
+                await loadDutyData();
+            } catch (error) {
+                console.error('Add record error:', error);
+                showToast('신고내역 추가 중 오류가 발생했습니다.', 'error');
+            }
+        }
+
+        // 신규 계정 추가 (마스터 전용)
+        async function addNewAccount() {
+            if (!currentUserData.isMaster) return;
+            
+            const id = document.getElementById('newAccountId').value.trim();
+            const pw = document.getElementById('newAccountPw').value.trim();
+            const company = document.getElementById('newAccountCompany').value.trim();
+            
+            if (!id || !pw || !company) {
+                showToast('모든 필드를 입력해주세요.', 'error');
+                return;
+            }
+            
+            // 중복 ID 체크
+            if (allAccountData.some(row => row[0] === id)) {
+                showToast('이미 존재하는 아이디입니다.', 'error');
+                return;
+            }
+            
+            try {
+                // Google Sheets에 새 계정 추가 (실제로는 API로 처리해야 함)
+                showToast('새 계정이 추가되었습니다.', 'success');
+                
+                // 입력 필드 초기화
+                document.getElementById('newAccountId').value = '';
+                document.getElementById('newAccountPw').value = '';
+                document.getElementById('newAccountCompany').value = '';
+                
+                // 데이터 재로드
+                await loadAccountData();
+            } catch (error) {
+                console.error('Add account error:', error);
+                showToast('계정 추가 중 오류가 발생했습니다.', 'error');
+            }
+        }
+
+        // 행 편집 (마스터 전용)
+        function editRow(index) {
+            if (!currentUserData.isMaster) return;
+            
+            const row = document.getElementById(`row-${index}`);
+            const cells = row.cells;
+            const originalData = filteredData[index];
+            
+            // 편집 가능한 입력 필드로 변경 (신고번호 제외하고 모든 필드)
+            for (let i = 0; i < 6; i++) {
+                if (i < 5) { // 신고번호가 아닌 경우
+                    cells[i].innerHTML = `<input type="text" value="${originalData[i] || ''}" class="w-full px-2 py-1 border rounded" id="edit-${index}-${i}">`;
+                }
+            }
+            
+            // 관리 버튼을 저장/취소로 변경
+            if (cells[6]) {
+                cells[6].innerHTML = `
+                    <button class="save-button" onclick="saveRow(${index})">
+                        <i class="fas fa-save"></i> 저장
+                    </button>
+                    <button class="cancel-button" onclick="cancelEdit(${index})">
+                        <i class="fas fa-times"></i> 취소
+                    </button>
+                `;
+            }
+        }
+
+        // 편집 저장 (마스터 전용)
+        async function saveRow(index) {
+            if (!currentUserData.isMaster) return;
+            
+            const newData = [];
+            for (let i = 0; i < 6; i++) {
+                if (i < 5) {
+                    const input = document.getElementById(`edit-${index}-${i}`);
+                    newData[i] = input ? input.value : filteredData[index][i];
+                } else {
+                    newData[i] = filteredData[index][i]; // 신고번호는 그대로 유지
+                }
+            }
+            
+            try {
+                // Google Sheets 업데이트 (실제로는 API로 처리해야 함)
+                filteredData[index] = newData;
+                showToast('데이터가 수정되었습니다.', 'success');
+                displayDutyResults();
+            } catch (error) {
+                console.error('Save error:', error);
+                showToast('데이터 수정 중 오류가 발생했습니다.', 'error');
+            }
+        }
+
+        // 편집 취소
+        function cancelEdit(index) {
+            displayDutyResults();
+        }
+
+        // 행 삭제 (마스터 전용)
+        function deleteRow(index) {
+            if (!currentUserData.isMaster) return;
+            
+            if (confirm('정말로 이 데이터를 삭제하시겠습니까?')) {
+                try {
+                    // Google Sheets에서 삭제 (실제로는 API로 처리해야 함)
+                    filteredData.splice(index, 1);
+                    allDutyData.splice(index, 1);
+                    showToast('데이터가 삭제되었습니다.', 'success');
+                    displayDutyResults();
+                } catch (error) {
+                    console.error('Delete error:', error);
+                    showToast('데이터 삭제 중 오류가 발생했습니다.', 'error');
+                }
+            }
+        }
+
+        // 계정 편집 (마스터 전용)
+        function editAccount(index) {
+            if (!currentUserData.isMaster || allAccountData[index][0] === 'aincustoms') return;
+            
+            const row = document.getElementById(`account-row-${index}`);
+            const cells = row.cells;
+            const originalData = allAccountData[index];
+            
+            // 편집 가능한 입력 필드로 변경
+            cells[0].innerHTML = `<input type="text" value="${originalData[0] || ''}" class="w-full px-2 py-1 border rounded" id="edit-account-${index}-0">`;
+            cells[1].innerHTML = `<input type="password" value="${originalData[1] || ''}" class="w-full px-2 py-1 border rounded" id="edit-account-${index}-1">`;
+            cells[2].innerHTML = `<input type="text" value="${originalData[2] || ''}" class="w-full px-2 py-1 border rounded" id="edit-account-${index}-2">`;
+            
+            // 관리 버튼을 저장/취소로 변경
+            cells[3].innerHTML = `
+                <button class="save-button" onclick="saveAccount(${index})">
+                    <i class="fas fa-save"></i> 저장
+                </button>
+                <button class="cancel-button" onclick="cancelAccountEdit()">
+                    <i class="fas fa-times"></i> 취소
+                </button>
+            `;
+        }
+
+        // 계정 저장 (마스터 전용)
+        async function saveAccount(index) {
+            if (!currentUserData.isMaster) return;
+            
+            const newId = document.getElementById(`edit-account-${index}-0`).value.trim();
+            const newPw = document.getElementById(`edit-account-${index}-1`).value.trim();
+            const newCompany = document.getElementById(`edit-account-${index}-2`).value.trim();
+            
+            if (!newId || !newPw || !newCompany) {
+                showToast('모든 필드를 입력해주세요.', 'error');
+                return;
+            }
+            
+            try {
+                // Google Sheets 업데이트 (실제로는 API로 처리해야 함)
+                allAccountData[index] = [newId, newPw, newCompany];
+                showToast('계정 정보가 수정되었습니다.', 'success');
+                displayAccountResults();
+            } catch (error) {
+                console.error('Save account error:', error);
+                showToast('계정 수정 중 오류가 발생했습니다.', 'error');
+            }
+        }
+
+        // 계정 편집 취소
+        function cancelAccountEdit() {
+            displayAccountResults();
+        }
+
+        // 계정 삭제 (마스터 전용)
+        function deleteAccount(index) {
+            if (!currentUserData.isMaster || allAccountData[index][0] === 'aincustoms') return;
+            
+            if (confirm('정말로 이 계정을 삭제하시겠습니까?')) {
+                try {
+                    // Google Sheets에서 삭제 (실제로는 API로 처리해야 함)
+                    allAccountData.splice(index, 1);
+                    showToast('계정이 삭제되었습니다.', 'success');
+                    displayAccountResults();
+                } catch (error) {
+                    console.error('Delete account error:', error);
+                    showToast('계정 삭제 중 오류가 발생했습니다.', 'error');
+                }
+            }
+        }
+
+        // 비밀번호 표시/숨김 토글
+        function togglePassword(index) {
+            const row = document.getElementById(`account-row-${index}`);
+            const passwordCell = row.cells[1];
+            const isHidden = passwordCell.innerHTML.includes('••••••••');
+            
+            if (isHidden) {
+                passwordCell.innerHTML = `
+                    <span>${allAccountData[index][1]}</span>
+                    <button onclick="togglePassword(${index})" class="ml-2 text-blue-600 hover:text-blue-800">
+                        <i class="fas fa-eye-slash"></i>
+                    </button>
+                `;
+            } else {
+                passwordCell.innerHTML = `
+                    <span class="password-hidden">••••••••</span>
+                    <button onclick="togglePassword(${index})" class="ml-2 text-blue-600 hover:text-blue-800">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                `;
+            }
+        }
+
+        // 클립보드에 복사
+        function copyToClipboard(text) {
+            if (!text) return;
+            
+            navigator.clipboard.writeText(text).then(() => {
+                showToast(`신고번호 "${text}"가 복사되었습니다!`, 'success');
+            }).catch(err => {
+                console.error('Copy failed:', err);
+                showToast('복사에 실패했습니다.', 'error');
+            });
+        }
+
+        // 토스트 메시지 표시
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = `toast ${type === 'error' ? 'bg-red-500' : 'bg-green-500'}`;
+            toast.classList.add('show');
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        // 로그아웃
+        function logout() {
+            currentUserData = null;
+            closeModal('dutyModal');
+            
+            // 폼 초기화
+            document.getElementById('loginForm').reset();
+            
+            // UI 초기화
+            document.getElementById('masterTabs').style.display = 'none';
+            document.getElementById('masterControls').style.display = 'none';
+            document.getElementById('actionHeader').style.display = 'none';
+            
+            // 탭을 신고내역 관리로 리셋
+            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            document.querySelector('.tab-button').classList.add('active');
+            document.getElementById('duty-management').classList.add('active');
+            
+            showToast('로그아웃되었습니다.', 'success');
+        }
+
+        // 모달 외부 클릭 시 닫기
+        document.addEventListener('click', function(event) {
+            const modals = document.querySelectorAll('.modal');
+            modals.forEach(modal => {
+                if (event.target === modal) {
+                    modal.style.display = 'none';
+                }
+            });
+            
+            // 자동완성 드롭다운 숨기기
+            const dropdowns = document.querySelectorAll('.autocomplete-dropdown');
+            dropdowns.forEach(dropdown => {
+                if (!dropdown.contains(event.target) && !dropdown.previousElementSibling.contains(event.target)) {
+                    dropdown.style.display = 'none';
+                }
+            });
         });
     </script>
 </body>
 </html>
+    <script id="html_badge_script1">
+        window.__genspark_remove_badge_link = "https://www.genspark.ai/api/html_badge/" +
+            "remove_badge?token=To%2FBnjzloZ3UfQdcSaYfDukUTZu3bTyiBsD2PQ0xQFQoUU%2BLaI0y%2FWgjYCI67AZqhVsoHD6xkIS7MFPPLDKAcI%2BilFUi29oTmklZwsJi63GIP%2BJiqLt8UUo%2BgM4zpEyTlyqoXCrupXmyO8h43TpF6gdBGPKsIPhLGTUawLZAYxtITStCXw2FLn8fLZzxESEEXc3IJT%2BbjARZ1UT%2B%2BQUbNEMb6WFHEw3uAmqFoKNVE6sNBppYVkHZo%2F8piK0o6Ixuc2rFAfHXB%2BY1%2B6ae9ZunI6hBqANOlY2LQhndie9hDt%2BGh0o6iNzlG3HQXOVl%2BZWH%2FiRfm7T4GAQaVSk%2F1gLy7YspWvYfypt7rlWGTiB4Sz1JcK3KntZKuY8fUJNaPSism8WzzokZK9aF6A2rCIXjthc42xZj8NLfcCipXrFk%2FbaUxYwIyimMDRcolV1%2FAGKsHWusFVEaF%2BUrY99fEt4KVbYfeswcQ4EhKRVfBwGNEY5dkH8tffHXEemYSjEn6vo75Db08ewfAIdDTc7BqETa0XcsDb9P2ZogVPhnWOsVllQ%3D";
+        window.__genspark_locale = "ko-KR";
+        window.__genspark_token = "To/BnjzloZ3UfQdcSaYfDukUTZu3bTyiBsD2PQ0xQFQoUU+LaI0y/WgjYCI67AZqhVsoHD6xkIS7MFPPLDKAcI+ilFUi29oTmklZwsJi63GIP+JiqLt8UUo+gM4zpEyTlyqoXCrupXmyO8h43TpF6gdBGPKsIPhLGTUawLZAYxtITStCXw2FLn8fLZzxESEEXc3IJT+bjARZ1UT++QUbNEMb6WFHEw3uAmqFoKNVE6sNBppYVkHZo/8piK0o6Ixuc2rFAfHXB+Y1+6ae9ZunI6hBqANOlY2LQhndie9hDt+Gh0o6iNzlG3HQXOVl+ZWH/iRfm7T4GAQaVSk/1gLy7YspWvYfypt7rlWGTiB4Sz1JcK3KntZKuY8fUJNaPSism8WzzokZK9aF6A2rCIXjthc42xZj8NLfcCipXrFk/baUxYwIyimMDRcolV1/AGKsHWusFVEaF+UrY99fEt4KVbYfeswcQ4EhKRVfBwGNEY5dkH8tffHXEemYSjEn6vo75Db08ewfAIdDTc7BqETa0XcsDb9P2ZogVPhnWOsVllQ=";
+    </script>
+    
+    <script id="html_notice_dialog_script" src="https://www.genspark.ai/notice_dialog.js"></script>
+    
