@@ -195,6 +195,7 @@
             font-size: 24px;
             cursor: pointer;
             color: #666;
+            z-index: 1000;
         }
         
         .close-button:hover {
@@ -287,13 +288,14 @@
         
         /* 편집 버튼 스타일 */
         .edit-button, .save-button, .cancel-button, .delete-button {
-            padding: 4px 8px;
+            padding: 6px 12px;
             margin: 0 2px;
             border: none;
             border-radius: 4px;
             cursor: pointer;
             font-size: 12px;
             transition: all 0.2s;
+            font-weight: 500;
         }
         
         .edit-button {
@@ -301,9 +303,17 @@
             color: white;
         }
         
+        .edit-button:hover {
+            background-color: #f59e0b;
+        }
+        
         .save-button {
             background-color: #10b981;
             color: white;
+        }
+        
+        .save-button:hover {
+            background-color: #059669;
         }
         
         .cancel-button {
@@ -311,9 +321,37 @@
             color: white;
         }
         
+        .cancel-button:hover {
+            background-color: #4b5563;
+        }
+        
         .delete-button {
             background-color: #ef4444;
             color: white;
+        }
+        
+        .delete-button:hover {
+            background-color: #dc2626;
+        }
+        
+        /* 편집 중인 셀 스타일 */
+        .editing-cell {
+            padding: 4px !important;
+        }
+        
+        .editing-input {
+            width: 100%;
+            padding: 8px;
+            border: 2px solid #3b82f6;
+            border-radius: 4px;
+            font-size: 14px;
+            background-color: #f8faff;
+            outline: none;
+        }
+        
+        .editing-input:focus {
+            border-color: #1d4ed8;
+            background-color: white;
         }
         
         /* 자동완성 스타일 */
@@ -380,6 +418,31 @@
             transform: translateX(0);
         }
         
+        .toast.error {
+            background-color: #ef4444;
+        }
+        
+        /* 로딩 상태 */
+        .loading {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+        
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
         /* 반응형 디자인 */
         @media (max-width: 1024px) {
             .grid-4 { grid-template-columns: repeat(2, 1fr); }
@@ -430,6 +493,11 @@
             .tab-button {
                 padding: 8px 12px;
                 font-size: 14px;
+            }
+            
+            .edit-button, .save-button, .cancel-button, .delete-button {
+                padding: 4px 8px;
+                font-size: 10px;
             }
         }
     </style>
@@ -774,7 +842,8 @@
                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                 </div>
                 <button type="submit" class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    로그인
+                    <span id="loginButtonText">로그인</span>
+                    <div id="loginSpinner" class="loading-spinner" style="display: none;"></div>
                 </button>
             </form>
         </div>
@@ -833,26 +902,26 @@
                                    oninput="handleAutocomplete(this, 'supplier')" onkeydown="handleKeydown(event, this)">
                             <div class="autocomplete-dropdown"></div>
                         </div>
-                        <div>
+                        <div class="autocomplete-container">
                             <label class="block text-sm font-medium text-gray-700 mb-1">결제방법</label>
-                            <select id="filterPayment" onchange="applyFilters()"
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                <option value="">전체</option>
-                            </select>
+                            <input type="text" id="filterPayment" placeholder="결제방법 입력"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                   oninput="handleAutocomplete(this, 'payment')" onkeydown="handleKeydown(event, this)">
+                            <div class="autocomplete-dropdown"></div>
                         </div>
-                        <div>
+                        <div class="autocomplete-container">
                             <label class="block text-sm font-medium text-gray-700 mb-1">거래구분</label>
-                            <select id="filterTrade" onchange="applyFilters()"
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                <option value="">전체</option>
-                            </select>
+                            <input type="text" id="filterTrade" placeholder="거래구분 입력"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                   oninput="handleAutocomplete(this, 'trade')" onkeydown="handleKeydown(event, this)">
+                            <div class="autocomplete-dropdown"></div>
                         </div>
-                        <div>
+                        <div class="autocomplete-container">
                             <label class="block text-sm font-medium text-gray-700 mb-1">인도조건</label>
-                            <select id="filterDelivery" onchange="applyFilters()"
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                <option value="">전체</option>
-                            </select>
+                            <input type="text" id="filterDelivery" placeholder="인도조건 입력"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                   oninput="handleAutocomplete(this, 'delivery')" onkeydown="handleKeydown(event, this)">
+                            <div class="autocomplete-dropdown"></div>
                         </div>
                     </div>
                     <div class="mt-4">
@@ -884,20 +953,26 @@
                                        oninput="handleAutocomplete(this, 'supplier')" onkeydown="handleKeydown(event, this)">
                                 <div class="autocomplete-dropdown"></div>
                             </div>
-                            <div>
+                            <div class="autocomplete-container">
                                 <label class="block text-sm font-medium text-gray-700 mb-1">결제방법</label>
                                 <input type="text" id="newPayment" placeholder="결제방법"
-                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500">
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                                       oninput="handleAutocomplete(this, 'payment')" onkeydown="handleKeydown(event, this)">
+                                <div class="autocomplete-dropdown"></div>
                             </div>
-                            <div>
+                            <div class="autocomplete-container">
                                 <label class="block text-sm font-medium text-gray-700 mb-1">거래구분</label>
                                 <input type="text" id="newTrade" placeholder="거래구분"
-                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500">
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                                       oninput="handleAutocomplete(this, 'trade')" onkeydown="handleKeydown(event, this)">
+                                <div class="autocomplete-dropdown"></div>
                             </div>
-                            <div>
+                            <div class="autocomplete-container">
                                 <label class="block text-sm font-medium text-gray-700 mb-1">인도조건</label>
                                 <input type="text" id="newDelivery" placeholder="인도조건"
-                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500">
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                                       oninput="handleAutocomplete(this, 'delivery')" onkeydown="handleKeydown(event, this)">
+                                <div class="autocomplete-dropdown"></div>
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">신고번호</label>
@@ -934,8 +1009,9 @@
                             </thead>
                             <tbody id="dutyResultsBody">
                                 <tr>
-                                    <td colspan="6" class="text-center text-gray-500 py-8">
-                                        로그인 후 데이터를 조회해주세요.
+                                    <td colspan="7" class="text-center text-gray-500 py-8">
+                                        <div class="loading-spinner mx-auto mb-2"></div>
+                                        로딩 중...
                                     </td>
                                 </tr>
                             </tbody>
@@ -1012,10 +1088,8 @@
 
     <!-- JavaScript -->
     <script>
-        // Google Sheets API 설정
-        const API_KEY = 'AIzaSyAWI7X8CwMCaJmHk2mI2zMPlgjZ86TNSLo';
-        const LOGIN_SHEET_ID = '1OEut3Bw81yWSXUXul3ydnTtHojE4FPkKLCMB0SXCT5I';
-        const DUTY_SHEET_ID = '10YWsKFk74VCbdLr2vktbkCCw_Zp2K4xthsnHtDhZ7L8';
+        // Google Apps Script API 엔드포인트
+        const API_ENDPOINT = 'https://script.google.com/macros/s/AKfycbykEtTCbdsjk_7aj31gDT5UW8zolDphnasd7bNEzFL5zOEB-KblBJLCpgCIaL8_duwrDQ/exec';
         
         // 전역 변수
         let currentUserData = null;
@@ -1024,8 +1098,13 @@
         let filteredData = [];
         let autocompleteCache = {
             companies: [],
-            suppliers: []
+            suppliers: [],
+            payments: [],
+            trades: [],
+            deliveries: []
         };
+        let editingRowIndex = -1;
+        let editingOriginalData = null;
 
         // 페이지 로드 시 초기화
         document.addEventListener('DOMContentLoaded', function() {
@@ -1067,54 +1146,83 @@
             });
         }
 
+        // API 호출 헬퍼 함수
+        async function callAPI(action, data = {}) {
+            try {
+                const formData = new FormData();
+                formData.append('action', action);
+                
+                // 데이터 추가
+                Object.keys(data).forEach(key => {
+                    formData.append(key, data[key]);
+                });
+                
+                const response = await fetch(API_ENDPOINT, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                return await response.json();
+            } catch (error) {
+                console.error('API call error:', error);
+                return { success: false, message: 'API 호출 중 오류가 발생했습니다.' };
+            }
+        }
+
         // 관세신고 조회 로그인 모달 표시
         function showDutyLogin() {
             document.getElementById('loginModal').style.display = 'flex';
         }
 
-        // 모달 닫기
+        // 모달 닫기 (X 버튼으로만)
         function closeModal(modalId) {
             document.getElementById(modalId).style.display = 'none';
+            
+            // 로그인 모달 닫을 때 폼 리셋
+            if (modalId === 'loginModal') {
+                document.getElementById('loginForm').reset();
+            }
+            
+            // 관세신고 모달 닫을 때 상태 초기화
+            if (modalId === 'dutyModal') {
+                currentUserData = null;
+                allDutyData = [];
+                allAccountData = [];
+                filteredData = [];
+                editingRowIndex = -1;
+                editingOriginalData = null;
+            }
         }
 
         // 로그인 처리
         async function handleLogin(event) {
             event.preventDefault();
             
+            const loginButton = document.querySelector('#loginForm button[type="submit"]');
+            const loginText = document.getElementById('loginButtonText');
+            const loginSpinner = document.getElementById('loginSpinner');
+            
+            // 로딩 상태 표시
+            loginButton.disabled = true;
+            loginText.style.display = 'none';
+            loginSpinner.style.display = 'inline-block';
+            
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
 
-            try {
-                // Google Sheets에서 로그인 정보 조회
-                const response = await fetch(
-                    `https://sheets.googleapis.com/v4/spreadsheets/${LOGIN_SHEET_ID}/values/A:C?key=${API_KEY}`
-                );
-                const data = await response.json();
-                
-                if (data.values) {
-                    // 헤더 제외하고 검사
-                    for (let i = 1; i < data.values.length; i++) {
-                        const row = data.values[i];
-                        if (row[0] === username && row[1] === password) {
-                            currentUserData = {
-                                username: username,
-                                password: password,
-                                company: row[2] || '',
-                                isMaster: username === 'aincustoms'  // 여기서 마스터 권한 정확히 설정
-                            };
-                            
-                            // 로그인 성공
-                            closeModal('loginModal');
-                            showDutyModal();
-                            return;
-                        }
-                    }
-                }
-                
-                showToast('아이디 또는 비밀번호가 올바르지 않습니다.', 'error');
-            } catch (error) {
-                console.error('Login error:', error);
-                showToast('로그인 중 오류가 발생했습니다.', 'error');
+            const result = await callAPI('login', { username, password });
+            
+            // 로딩 상태 해제
+            loginButton.disabled = false;
+            loginText.style.display = 'inline';
+            loginSpinner.style.display = 'none';
+            
+            if (result.success) {
+                currentUserData = result.user;
+                closeModal('loginModal');
+                showDutyModal();
+            } else {
+                showToast(result.message, 'error');
             }
         }
 
@@ -1123,14 +1231,12 @@
             document.getElementById('currentUser').textContent = currentUserData.username;
             document.getElementById('currentCompany').textContent = currentUserData.company;
             
-            // 권한에 따른 UI 설정 - 수정된 부분
+            // 권한에 따른 UI 설정
             if (currentUserData.isMaster) {
-                // 마스터: 모든 관리 기능 표시
                 document.getElementById('masterTabs').style.display = 'block';
                 document.getElementById('masterControls').style.display = 'block';
                 document.getElementById('actionHeader').style.display = 'table-cell';
             } else {
-                // 일반: 조회 전용으로 설정
                 document.getElementById('masterTabs').style.display = 'none';
                 document.getElementById('masterControls').style.display = 'none';
                 document.getElementById('actionHeader').style.display = 'none';
@@ -1138,7 +1244,7 @@
             
             document.getElementById('dutyModal').style.display = 'flex';
             
-            // 데이터 로드
+            // 데이터 로드 (로딩 완료 후 표시)
             await loadDutyData();
             if (currentUserData.isMaster) {
                 await loadAccountData();
@@ -1158,35 +1264,21 @@
 
         // 관세신고 데이터 로드
         async function loadDutyData() {
-            try {
-                const response = await fetch(
-                    `https://sheets.googleapis.com/v4/spreadsheets/${DUTY_SHEET_ID}/values/A:F?key=${API_KEY}`
-                );
-                const data = await response.json();
-                
-                if (data.values && data.values.length > 1) {
-                    allDutyData = data.values.slice(1); // 헤더 제외
-                    
-                    // 자동완성 캐시 업데이트
-                    updateAutocompleteCache();
-                    
-                    // 마스터가 아닌 경우 해당 화주의 데이터만 필터링
-                    if (!currentUserData.isMaster) {
-                        allDutyData = allDutyData.filter(row => {
-                            return row[0] && row[0].includes(currentUserData.company);
-                        });
-                    }
-                    
-                    filteredData = [...allDutyData];
-                    displayDutyResults();
-                    populateFilterOptions();
-                } else {
-                    document.getElementById('dutyResultsBody').innerHTML = 
-                        '<tr><td colspan="7" class="text-center text-gray-500 py-8">데이터가 없습니다.</td></tr>';
-                }
-            } catch (error) {
-                console.error('Data loading error:', error);
-                showToast('데이터를 불러오는 중 오류가 발생했습니다.', 'error');
+            const result = await callAPI('getDutyData', {
+                isMaster: currentUserData.isMaster,
+                company: currentUserData.company
+            });
+            
+            if (result.success) {
+                allDutyData = result.data;
+                updateAutocompleteCache();
+                filteredData = [...allDutyData];
+                displayDutyResults();
+                populateFilterOptions();
+            } else {
+                showToast(result.message, 'error');
+                document.getElementById('dutyResultsBody').innerHTML = 
+                    '<tr><td colspan="7" class="text-center text-red-500 py-8">데이터를 불러오는데 실패했습니다.</td></tr>';
             }
         }
 
@@ -1194,6 +1286,9 @@
         function updateAutocompleteCache() {
             autocompleteCache.companies = [...new Set(allDutyData.map(row => row[0]).filter(Boolean))];
             autocompleteCache.suppliers = [...new Set(allDutyData.map(row => row[1]).filter(Boolean))];
+            autocompleteCache.payments = [...new Set(allDutyData.map(row => row[2]).filter(Boolean))];
+            autocompleteCache.trades = [...new Set(allDutyData.map(row => row[3]).filter(Boolean))];
+            autocompleteCache.deliveries = [...new Set(allDutyData.map(row => row[4]).filter(Boolean))];
         }
 
         // 자동완성 처리
@@ -1213,15 +1308,27 @@
             }
 
             let suggestions = [];
-            if (type === 'company') {
-                suggestions = autocompleteCache.companies.filter(item => 
-                    item.toLowerCase().includes(value)
-                ).slice(0, 10);
-            } else if (type === 'supplier') {
-                suggestions = autocompleteCache.suppliers.filter(item => 
-                    item.toLowerCase().includes(value)
-                ).slice(0, 10);
+            switch(type) {
+                case 'company':
+                    suggestions = autocompleteCache.companies;
+                    break;
+                case 'supplier':
+                    suggestions = autocompleteCache.suppliers;
+                    break;
+                case 'payment':
+                    suggestions = autocompleteCache.payments;
+                    break;
+                case 'trade':
+                    suggestions = autocompleteCache.trades;
+                    break;
+                case 'delivery':
+                    suggestions = autocompleteCache.deliveries;
+                    break;
             }
+
+            suggestions = suggestions.filter(item => 
+                item.toLowerCase().includes(value)
+            ).slice(0, 10);
 
             showAutocomplete(input, suggestions, value);
         }, 300);
@@ -1240,7 +1347,7 @@
                     new RegExp(searchValue, 'gi'),
                     match => `<span class="highlight">${match}</span>`
                 );
-                return `<div class="autocomplete-item" onclick="selectAutocomplete('${input.id}', '${suggestion}')">${highlighted}</div>`;
+                return `<div class="autocomplete-item" onclick="selectAutocomplete('${input.id}', '${suggestion.replace(/'/g, "\\\'")}')">${highlighted}</div>`;
             }).join('');
 
             dropdown.style.display = 'block';
@@ -1249,7 +1356,9 @@
         // 자동완성 숨기기
         function hideAutocomplete(input) {
             const dropdown = input.nextElementSibling;
-            dropdown.style.display = 'none';
+            if (dropdown && dropdown.classList.contains('autocomplete-dropdown')) {
+                dropdown.style.display = 'none';
+            }
         }
 
         // 자동완성 선택
@@ -1257,12 +1366,18 @@
             const input = document.getElementById(inputId);
             input.value = value;
             hideAutocomplete(input);
-            applyFilters();
+            
+            // 필터 입력인 경우 자동 조회
+            if (inputId.startsWith('filter')) {
+                applyFilters();
+            }
         }
 
         // 키보드 이벤트 처리
         function handleKeydown(event, input) {
             const dropdown = input.nextElementSibling;
+            if (!dropdown || !dropdown.classList.contains('autocomplete-dropdown')) return;
+            
             const items = dropdown.querySelectorAll('.autocomplete-item');
             
             if (items.length === 0) return;
@@ -1309,22 +1424,17 @@
         async function loadAccountData() {
             if (!currentUserData.isMaster) return;
             
-            try {
-                const response = await fetch(
-                    `https://sheets.googleapis.com/v4/spreadsheets/${LOGIN_SHEET_ID}/values/A:C?key=${API_KEY}`
-                );
-                const data = await response.json();
-                
-                if (data.values && data.values.length > 1) {
-                    allAccountData = data.values.slice(1); // 헤더 제외
-                    displayAccountResults();
-                } else {
-                    document.getElementById('accountResultsBody').innerHTML = 
-                        '<tr><td colspan="4" class="text-center text-gray-500 py-8">계정 데이터가 없습니다.</td></tr>';
-                }
-            } catch (error) {
-                console.error('Account data loading error:', error);
-                showToast('계정 데이터를 불러오는 중 오류가 발생했습니다.', 'error');
+            const result = await callAPI('getAccountData', {
+                isMaster: currentUserData.isMaster
+            });
+            
+            if (result.success) {
+                allAccountData = result.data;
+                displayAccountResults();
+            } else {
+                showToast(result.message, 'error');
+                document.getElementById('accountResultsBody').innerHTML = 
+                    '<tr><td colspan="4" class="text-center text-red-500 py-8">계정 데이터를 불러오는데 실패했습니다.</td></tr>';
             }
         }
 
@@ -1398,43 +1508,24 @@
 
         // 필터 옵션 채우기
         function populateFilterOptions() {
-            const paymentOptions = [...new Set(allDutyData.map(row => row[2]).filter(Boolean))];
-            const tradeOptions = [...new Set(allDutyData.map(row => row[3]).filter(Boolean))];
-            const deliveryOptions = [...new Set(allDutyData.map(row => row[4]).filter(Boolean))];
-            
-            populateSelect('filterPayment', paymentOptions);
-            populateSelect('filterTrade', tradeOptions);
-            populateSelect('filterDelivery', deliveryOptions);
-        }
-
-        // 셀렉트 박스 옵션 채우기
-        function populateSelect(selectId, options) {
-            const select = document.getElementById(selectId);
-            const currentValue = select.value;
-            
-            select.innerHTML = '<option value="">전체</option>' + 
-                options.map(option => `<option value="${option}">${option}</option>`).join('');
-            
-            if (currentValue) {
-                select.value = currentValue;
-            }
+            // 필터링을 위한 자동완성이 이미 적용되어 있으므로 추가 작업 불필요
         }
 
         // 필터 적용
         function applyFilters() {
             const company = document.getElementById('filterCompany').value.toLowerCase();
             const supplier = document.getElementById('filterSupplier').value.toLowerCase();
-            const payment = document.getElementById('filterPayment').value;
-            const trade = document.getElementById('filterTrade').value;
-            const delivery = document.getElementById('filterDelivery').value;
+            const payment = document.getElementById('filterPayment').value.toLowerCase();
+            const trade = document.getElementById('filterTrade').value.toLowerCase();
+            const delivery = document.getElementById('filterDelivery').value.toLowerCase();
             
             filteredData = allDutyData.filter(row => {
                 return (
                     (!company || (row[0] && row[0].toLowerCase().includes(company))) &&
                     (!supplier || (row[1] && row[1].toLowerCase().includes(supplier))) &&
-                    (!payment || row[2] === payment) &&
-                    (!trade || row[3] === trade) &&
-                    (!delivery || row[4] === delivery)
+                    (!payment || (row[2] && row[2].toLowerCase().includes(payment))) &&
+                    (!trade || (row[3] && row[3].toLowerCase().includes(trade))) &&
+                    (!delivery || (row[4] && row[4].toLowerCase().includes(delivery)))
                 );
             });
             
@@ -1469,9 +1560,13 @@
                 return;
             }
             
-            try {
-                // Google Sheets에 새 행 추가 (실제로는 API로 처리해야 함)
-                showToast('새 신고내역이 추가되었습니다.', 'success');
+            const result = await callAPI('addDutyRecord', {
+                isMaster: currentUserData.isMaster,
+                company, supplier, payment, trade, delivery, declaration
+            });
+            
+            if (result.success) {
+                showToast(result.message, 'success');
                 
                 // 입력 필드 초기화
                 document.getElementById('newCompany').value = '';
@@ -1483,9 +1578,8 @@
                 
                 // 데이터 재로드
                 await loadDutyData();
-            } catch (error) {
-                console.error('Add record error:', error);
-                showToast('신고내역 추가 중 오류가 발생했습니다.', 'error');
+            } else {
+                showToast(result.message, 'error');
             }
         }
 
@@ -1494,23 +1588,21 @@
             if (!currentUserData.isMaster) return;
             
             const id = document.getElementById('newAccountId').value.trim();
-            const pw = document.getElementById('newAccountPw').value.trim();
+            const password = document.getElementById('newAccountPw').value.trim();
             const company = document.getElementById('newAccountCompany').value.trim();
             
-            if (!id || !pw || !company) {
+            if (!id || !password || !company) {
                 showToast('모든 필드를 입력해주세요.', 'error');
                 return;
             }
             
-            // 중복 ID 체크
-            if (allAccountData.some(row => row[0] === id)) {
-                showToast('이미 존재하는 아이디입니다.', 'error');
-                return;
-            }
+            const result = await callAPI('addAccount', {
+                isMaster: currentUserData.isMaster,
+                id, password, company
+            });
             
-            try {
-                // Google Sheets에 새 계정 추가 (실제로는 API로 처리해야 함)
-                showToast('새 계정이 추가되었습니다.', 'success');
+            if (result.success) {
+                showToast(result.message, 'success');
                 
                 // 입력 필드 초기화
                 document.getElementById('newAccountId').value = '';
@@ -1519,25 +1611,26 @@
                 
                 // 데이터 재로드
                 await loadAccountData();
-            } catch (error) {
-                console.error('Add account error:', error);
-                showToast('계정 추가 중 오류가 발생했습니다.', 'error');
+            } else {
+                showToast(result.message, 'error');
             }
         }
 
         // 행 편집 (마스터 전용)
         function editRow(index) {
-            if (!currentUserData.isMaster) return;
+            if (!currentUserData.isMaster || editingRowIndex !== -1) return;
+            
+            editingRowIndex = index;
+            editingOriginalData = [...filteredData[index]];
             
             const row = document.getElementById(`row-${index}`);
             const cells = row.cells;
-            const originalData = filteredData[index];
             
-            // 편집 가능한 입력 필드로 변경 (신고번호 제외하고 모든 필드)
+            // 모든 필드를 편집 가능하게 변경 (신고번호 포함)
             for (let i = 0; i < 6; i++) {
-                if (i < 5) { // 신고번호가 아닌 경우
-                    cells[i].innerHTML = `<input type="text" value="${originalData[i] || ''}" class="w-full px-2 py-1 border rounded" id="edit-${index}-${i}">`;
-                }
+                const originalValue = editingOriginalData[i] || '';
+                cells[i].classList.add('editing-cell');
+                cells[i].innerHTML = `<input type="text" value="${originalValue}" class="editing-input" id="edit-${index}-${i}">`;
             }
             
             // 관리 버튼을 저장/취소로 변경
@@ -1555,49 +1648,71 @@
 
         // 편집 저장 (마스터 전용)
         async function saveRow(index) {
-            if (!currentUserData.isMaster) return;
+            if (!currentUserData.isMaster || editingRowIndex !== index) return;
             
             const newData = [];
             for (let i = 0; i < 6; i++) {
-                if (i < 5) {
-                    const input = document.getElementById(`edit-${index}-${i}`);
-                    newData[i] = input ? input.value : filteredData[index][i];
-                } else {
-                    newData[i] = filteredData[index][i]; // 신고번호는 그대로 유지
-                }
+                const input = document.getElementById(`edit-${index}-${i}`);
+                newData[i] = input ? input.value.trim() : '';
             }
             
-            try {
-                // Google Sheets 업데이트 (실제로는 API로 처리해야 함)
+            const result = await callAPI('updateDutyRecord', {
+                isMaster: currentUserData.isMaster,
+                rowIndex: index,
+                company: newData[0],
+                supplier: newData[1],
+                payment: newData[2],
+                trade: newData[3],
+                delivery: newData[4],
+                declaration: newData[5]
+            });
+            
+            if (result.success) {
+                // 로컬 데이터 업데이트
                 filteredData[index] = newData;
-                showToast('데이터가 수정되었습니다.', 'success');
+                const originalIndex = allDutyData.findIndex(row => 
+                    JSON.stringify(row) === JSON.stringify(editingOriginalData)
+                );
+                if (originalIndex !== -1) {
+                    allDutyData[originalIndex] = newData;
+                }
+                
+                editingRowIndex = -1;
+                editingOriginalData = null;
+                
+                showToast(result.message, 'success');
                 displayDutyResults();
-            } catch (error) {
-                console.error('Save error:', error);
-                showToast('데이터 수정 중 오류가 발생했습니다.', 'error');
+                updateAutocompleteCache();
+            } else {
+                showToast(result.message, 'error');
             }
         }
 
         // 편집 취소
         function cancelEdit(index) {
+            if (editingRowIndex !== index) return;
+            
+            editingRowIndex = -1;
+            editingOriginalData = null;
             displayDutyResults();
         }
 
         // 행 삭제 (마스터 전용)
-        function deleteRow(index) {
+        async function deleteRow(index) {
             if (!currentUserData.isMaster) return;
             
-            if (confirm('정말로 이 데이터를 삭제하시겠습니까?')) {
-                try {
-                    // Google Sheets에서 삭제 (실제로는 API로 처리해야 함)
-                    filteredData.splice(index, 1);
-                    allDutyData.splice(index, 1);
-                    showToast('데이터가 삭제되었습니다.', 'success');
-                    displayDutyResults();
-                } catch (error) {
-                    console.error('Delete error:', error);
-                    showToast('데이터 삭제 중 오류가 발생했습니다.', 'error');
-                }
+            if (!confirm('정말로 이 데이터를 삭제하시겠습니까?')) return;
+            
+            const result = await callAPI('deleteDutyRecord', {
+                isMaster: currentUserData.isMaster,
+                rowIndex: index
+            });
+            
+            if (result.success) {
+                showToast(result.message, 'success');
+                await loadDutyData(); // 전체 데이터 재로드
+            } else {
+                showToast(result.message, 'error');
             }
         }
 
@@ -1605,69 +1720,27 @@
         function editAccount(index) {
             if (!currentUserData.isMaster || allAccountData[index][0] === 'aincustoms') return;
             
-            const row = document.getElementById(`account-row-${index}`);
-            const cells = row.cells;
-            const originalData = allAccountData[index];
-            
-            // 편집 가능한 입력 필드로 변경
-            cells[0].innerHTML = `<input type="text" value="${originalData[0] || ''}" class="w-full px-2 py-1 border rounded" id="edit-account-${index}-0">`;
-            cells[1].innerHTML = `<input type="password" value="${originalData[1] || ''}" class="w-full px-2 py-1 border rounded" id="edit-account-${index}-1">`;
-            cells[2].innerHTML = `<input type="text" value="${originalData[2] || ''}" class="w-full px-2 py-1 border rounded" id="edit-account-${index}-2">`;
-            
-            // 관리 버튼을 저장/취소로 변경
-            cells[3].innerHTML = `
-                <button class="save-button" onclick="saveAccount(${index})">
-                    <i class="fas fa-save"></i> 저장
-                </button>
-                <button class="cancel-button" onclick="cancelAccountEdit()">
-                    <i class="fas fa-times"></i> 취소
-                </button>
-            `;
-        }
-
-        // 계정 저장 (마스터 전용)
-        async function saveAccount(index) {
-            if (!currentUserData.isMaster) return;
-            
-            const newId = document.getElementById(`edit-account-${index}-0`).value.trim();
-            const newPw = document.getElementById(`edit-account-${index}-1`).value.trim();
-            const newCompany = document.getElementById(`edit-account-${index}-2`).value.trim();
-            
-            if (!newId || !newPw || !newCompany) {
-                showToast('모든 필드를 입력해주세요.', 'error');
-                return;
-            }
-            
-            try {
-                // Google Sheets 업데이트 (실제로는 API로 처리해야 함)
-                allAccountData[index] = [newId, newPw, newCompany];
-                showToast('계정 정보가 수정되었습니다.', 'success');
-                displayAccountResults();
-            } catch (error) {
-                console.error('Save account error:', error);
-                showToast('계정 수정 중 오류가 발생했습니다.', 'error');
-            }
-        }
-
-        // 계정 편집 취소
-        function cancelAccountEdit() {
-            displayAccountResults();
+            // 계정 편집 구현 (생략 - 필요시 추가)
+            showToast('계정 편집 기능은 추후 구현 예정입니다.', 'error');
         }
 
         // 계정 삭제 (마스터 전용)
-        function deleteAccount(index) {
+        async function deleteAccount(index) {
             if (!currentUserData.isMaster || allAccountData[index][0] === 'aincustoms') return;
             
-            if (confirm('정말로 이 계정을 삭제하시겠습니까?')) {
-                try {
-                    // Google Sheets에서 삭제 (실제로는 API로 처리해야 함)
-                    allAccountData.splice(index, 1);
-                    showToast('계정이 삭제되었습니다.', 'success');
-                    displayAccountResults();
-                } catch (error) {
-                    console.error('Delete account error:', error);
-                    showToast('계정 삭제 중 오류가 발생했습니다.', 'error');
-                }
+            if (!confirm('정말로 이 계정을 삭제하시겠습니까?')) return;
+            
+            const result = await callAPI('deleteAccount', {
+                isMaster: currentUserData.isMaster,
+                rowIndex: index,
+                id: allAccountData[index][0]
+            });
+            
+            if (result.success) {
+                showToast(result.message, 'success');
+                await loadAccountData();
+            } else {
+                showToast(result.message, 'error');
             }
         }
 
@@ -1702,7 +1775,19 @@
                 showToast(`신고번호 "${text}"가 복사되었습니다!`, 'success');
             }).catch(err => {
                 console.error('Copy failed:', err);
-                showToast('복사에 실패했습니다.', 'error');
+                
+                // 폴백 방식
+                const textArea = document.createElement('textarea');
+                textArea.value = text;
+                document.body.appendChild(textArea);
+                textArea.select();
+                try {
+                    document.execCommand('copy');
+                    showToast(`신고번호 "${text}"가 복사되었습니다!`, 'success');
+                } catch (fallbackErr) {
+                    showToast('복사에 실패했습니다.', 'error');
+                }
+                document.body.removeChild(textArea);
             });
         }
 
@@ -1710,7 +1795,7 @@
         function showToast(message, type = 'success') {
             const toast = document.getElementById('toast');
             toast.textContent = message;
-            toast.className = `toast ${type === 'error' ? 'bg-red-500' : 'bg-green-500'}`;
+            toast.className = `toast ${type === 'error' ? 'error' : ''}`;
             toast.classList.add('show');
             
             setTimeout(() => {
@@ -1726,29 +1811,12 @@
             // 폼 초기화
             document.getElementById('loginForm').reset();
             
-            // UI 초기화
-            document.getElementById('masterTabs').style.display = 'none';
-            document.getElementById('masterControls').style.display = 'none';
-            document.getElementById('actionHeader').style.display = 'none';
-            
-            // 탭을 신고내역 관리로 리셋
-            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-            document.querySelector('.tab-button').classList.add('active');
-            document.getElementById('duty-management').classList.add('active');
-            
             showToast('로그아웃되었습니다.', 'success');
         }
 
-        // 모달 외부 클릭 시 닫기
+        // 모달 외부 클릭 방지 - 제거됨 (X 버튼으로만 닫기)
+        // 자동완성 드롭다운은 여전히 바깥 클릭으로 닫힘
         document.addEventListener('click', function(event) {
-            const modals = document.querySelectorAll('.modal');
-            modals.forEach(modal => {
-                if (event.target === modal) {
-                    modal.style.display = 'none';
-                }
-            });
-            
             // 자동완성 드롭다운 숨기기
             const dropdowns = document.querySelectorAll('.autocomplete-dropdown');
             dropdowns.forEach(dropdown => {
@@ -1760,12 +1828,3 @@
     </script>
 </body>
 </html>
-    <script id="html_badge_script1">
-        window.__genspark_remove_badge_link = "https://www.genspark.ai/api/html_badge/" +
-            "remove_badge?token=To%2FBnjzloZ3UfQdcSaYfDukUTZu3bTyiBsD2PQ0xQFQoUU%2BLaI0y%2FWgjYCI67AZqhVsoHD6xkIS7MFPPLDKAcI%2BilFUi29oTmklZwsJi63GIP%2BJiqLt8UUo%2BgM4zpEyTlyqoXCrupXmyO8h43TpF6gdBGPKsIPhLGTUawLZAYxtITStCXw2FLn8fLZzxESEEXc3IJT%2BbjARZ1UT%2B%2BQUbNEMb6WFHEw3uAmqFoKNVE6sNBppYVkHZo%2F8piK0o6Ixuc2rFAfHXB%2BY1%2B6ae9ZunI6hBqANOlY2LQhndie9hDt%2BGh0o6iNzlG3HQXOVl%2BZWH%2FiRfm7T4GAQaVSk%2F1gLy7YspWvYfypt7rlWGTiB4Sz1JcK3KntZKuY8fUJNaPSism8WzzokZK9aF6A2rCIXjthc42xZj8NLfcCipXrFk%2FbaUxYwIyimMDRcolV1%2FAGKsHWusFVEaF%2BUrY99fEt4KVbYfeswcQ4EhKRVfBwGNEY5dkH8tffHXEemYSjEn6vo75Db08ewfAIdDTc7BqETa0XcsDb9P2ZogVPhnWOsVllQ%3D";
-        window.__genspark_locale = "ko-KR";
-        window.__genspark_token = "To/BnjzloZ3UfQdcSaYfDukUTZu3bTyiBsD2PQ0xQFQoUU+LaI0y/WgjYCI67AZqhVsoHD6xkIS7MFPPLDKAcI+ilFUi29oTmklZwsJi63GIP+JiqLt8UUo+gM4zpEyTlyqoXCrupXmyO8h43TpF6gdBGPKsIPhLGTUawLZAYxtITStCXw2FLn8fLZzxESEEXc3IJT+bjARZ1UT++QUbNEMb6WFHEw3uAmqFoKNVE6sNBppYVkHZo/8piK0o6Ixuc2rFAfHXB+Y1+6ae9ZunI6hBqANOlY2LQhndie9hDt+Gh0o6iNzlG3HQXOVl+ZWH/iRfm7T4GAQaVSk/1gLy7YspWvYfypt7rlWGTiB4Sz1JcK3KntZKuY8fUJNaPSism8WzzokZK9aF6A2rCIXjthc42xZj8NLfcCipXrFk/baUxYwIyimMDRcolV1/AGKsHWusFVEaF+UrY99fEt4KVbYfeswcQ4EhKRVfBwGNEY5dkH8tffHXEemYSjEn6vo75Db08ewfAIdDTc7BqETa0XcsDb9P2ZogVPhnWOsVllQ=";
-    </script>
-    
-    <script id="html_notice_dialog_script" src="https://www.genspark.ai/notice_dialog.js"></script>
-    
