@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ko">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,7 +12,7 @@
         * {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
         }
-        
+
         .hero-section {
             background: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url('./images/hero-background.jpg');
             background-size: cover;
@@ -23,96 +24,96 @@
             justify-content: center;
             position: relative;
         }
-        
+
         .navbar {
             background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(10px);
-            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
             position: fixed;
             top: 0;
             width: 100%;
             z-index: 1000;
-            border-bottom: 1px solid rgba(0,0,0,0.08);
+            border-bottom: 1px solid rgba(0, 0, 0, 0.08);
         }
-        
+
         .logo img {
-            height: 50px;
+            height: 44px;
             width: auto;
             object-fit: contain;
         }
-        
+
         .scroll-offset {
             scroll-margin-top: 100px;
         }
-        
+
         .fade-in {
             opacity: 0;
             transform: translateY(24px);
             transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
         }
-        
+
         .fade-in.visible {
             opacity: 1;
             transform: translateY(0);
         }
-        
+
         .team-member img {
             width: 200px;
             height: 300px;
             object-fit: cover;
             border-radius: 16px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.12);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.12);
             transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         }
-        
+
         .team-member img:hover {
             transform: translateY(-8px);
-            box-shadow: 0 32px 64px rgba(0,0,0,0.16);
+            box-shadow: 0 32px 64px rgba(0, 0, 0, 0.16);
         }
-        
+
         .analysis-example img {
             width: 100%;
             max-width: 600px;
             height: auto;
             object-fit: contain;
             border-radius: 16px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
         }
-        
+
         .service-card {
             background: white;
             border-radius: 20px;
             padding: 32px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.06);
-            border: 1px solid rgba(0,0,0,0.04);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.06);
+            border: 1px solid rgba(0, 0, 0, 0.04);
             transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
             height: 100%;
         }
-        
+
         .service-card:hover {
             transform: translateY(-8px);
-            box-shadow: 0 20px 48px rgba(0,0,0,0.12);
+            box-shadow: 0 20px 48px rgba(0, 0, 0, 0.12);
         }
-        
+
         .specialty-item {
             background: white;
             border-radius: 20px;
             padding: 32px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.06);
-            border: 1px solid rgba(0,0,0,0.04);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.06);
+            border: 1px solid rgba(0, 0, 0, 0.04);
             margin-bottom: 24px;
             transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         }
-        
+
         .specialty-item:hover {
             transform: translateY(-4px);
-            box-shadow: 0 16px 40px rgba(0,0,0,0.1);
+            box-shadow: 0 16px 40px rgba(0, 0, 0, 0.1);
         }
-        
+
         .hero-text {
-            text-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
         }
-        
+
         .btn-primary {
             background: linear-gradient(135deg, #3b82f6, #1d4ed8);
             color: white;
@@ -125,28 +126,36 @@
             cursor: pointer;
             box-shadow: 0 8px 24px rgba(59, 130, 246, 0.3);
         }
-        
+
         .btn-primary:hover {
             transform: translateY(-2px);
             box-shadow: 0 12px 32px rgba(59, 130, 246, 0.4);
         }
-        
+
         .container {
             max-width: 1200px;
             margin: 0 auto;
             padding: 0 24px;
         }
-        
+
         .perfect-grid {
             display: grid;
             gap: 24px;
             align-items: stretch;
         }
-        
-        .grid-4 { grid-template-columns: repeat(4, 1fr); }
-        .grid-3 { grid-template-columns: repeat(3, 1fr); }
-        .grid-2 { grid-template-columns: repeat(2, 1fr); }
-        
+
+        .grid-4 {
+            grid-template-columns: repeat(4, 1fr);
+        }
+
+        .grid-3 {
+            grid-template-columns: repeat(3, 1fr);
+        }
+
+        .grid-2 {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
         /* 모달 스타일 */
         .modal {
             position: fixed;
@@ -160,7 +169,7 @@
             justify-content: center;
             align-items: center;
         }
-        
+
         .login-modal-content {
             background: white;
             border-radius: 16px;
@@ -172,7 +181,7 @@
             max-height: 90vh;
             overflow-y: auto;
         }
-        
+
         .duty-modal-content {
             background: white;
             border-radius: 16px;
@@ -185,7 +194,7 @@
             position: relative;
             overflow-y: auto;
         }
-        
+
         .close-button {
             position: absolute;
             top: 16px;
@@ -197,18 +206,18 @@
             color: #666;
             z-index: 1000;
         }
-        
+
         .close-button:hover {
             color: #333;
         }
-        
+
         /* 테이블 스타일 */
         .results-table {
             width: 100%;
             border-collapse: collapse;
             margin-top: 20px;
         }
-        
+
         .results-table th {
             background-color: #f8fafc;
             padding: 12px;
@@ -219,44 +228,44 @@
             position: sticky;
             top: 0;
         }
-        
+
         .results-table td {
             padding: 12px;
             border-bottom: 1px solid #e2e8f0;
             color: #374151;
         }
-        
+
         .results-table tbody tr:nth-child(even) {
             background-color: #f9fafb;
         }
-        
+
         .results-table tbody tr:hover {
             background-color: #f3f4f6;
         }
-        
+
         .copyable-cell {
             cursor: pointer;
             color: #3b82f6;
             font-weight: 500;
             transition: color 0.2s;
         }
-        
+
         .copyable-cell:hover {
             color: #1d4ed8;
             background-color: #dbeafe;
         }
-        
+
         /* 탭 스타일 */
         .tab-container {
             margin-bottom: 24px;
         }
-        
+
         .tab-buttons {
             display: flex;
             border-bottom: 2px solid #e5e7eb;
             margin-bottom: 20px;
         }
-        
+
         .tab-button {
             padding: 12px 24px;
             background: none;
@@ -268,26 +277,29 @@
             border-bottom: 3px solid transparent;
             transition: all 0.2s;
         }
-        
+
         .tab-button.active {
             color: #3b82f6;
             border-bottom-color: #3b82f6;
         }
-        
+
         .tab-button:hover {
             color: #374151;
         }
-        
+
         .tab-content {
             display: none;
         }
-        
+
         .tab-content.active {
             display: block;
         }
-        
+
         /* 편집 버튼 스타일 */
-        .edit-button, .save-button, .cancel-button, .delete-button {
+        .edit-button,
+        .save-button,
+        .cancel-button,
+        .delete-button {
             padding: 6px 12px;
             margin: 0 2px;
             border: none;
@@ -297,48 +309,48 @@
             transition: all 0.2s;
             font-weight: 500;
         }
-        
+
         .edit-button {
             background-color: #fbbf24;
             color: white;
         }
-        
+
         .edit-button:hover {
             background-color: #f59e0b;
         }
-        
+
         .save-button {
             background-color: #10b981;
             color: white;
         }
-        
+
         .save-button:hover {
             background-color: #059669;
         }
-        
+
         .cancel-button {
             background-color: #6b7280;
             color: white;
         }
-        
+
         .cancel-button:hover {
             background-color: #4b5563;
         }
-        
+
         .delete-button {
             background-color: #ef4444;
             color: white;
         }
-        
+
         .delete-button:hover {
             background-color: #dc2626;
         }
-        
+
         /* 편집 중인 셀 스타일 */
         .editing-cell {
             padding: 4px !important;
         }
-        
+
         .editing-input {
             width: 100%;
             padding: 8px;
@@ -348,17 +360,17 @@
             background-color: #f8faff;
             outline: none;
         }
-        
+
         .editing-input:focus {
             border-color: #1d4ed8;
             background-color: white;
         }
-        
+
         /* 자동완성 스타일 */
         .autocomplete-container {
             position: relative;
         }
-        
+
         .autocomplete-dropdown {
             position: absolute;
             top: 100%;
@@ -374,7 +386,7 @@
             z-index: 1000;
             display: none;
         }
-        
+
         .autocomplete-item {
             padding: 8px 12px;
             cursor: pointer;
@@ -382,21 +394,21 @@
             font-size: 14px;
             color: #374151;
         }
-        
+
         .autocomplete-item:hover,
         .autocomplete-item.selected {
             background-color: #f3f4f6;
         }
-        
+
         .autocomplete-item:last-child {
             border-bottom: none;
         }
-        
+
         .highlight {
             font-weight: bold;
             color: #3b82f6;
         }
-        
+
         /* 토스트 메시지 */
         .toast {
             position: fixed;
@@ -412,22 +424,22 @@
             transform: translateX(100%);
             transition: all 0.3s;
         }
-        
+
         .toast.show {
             opacity: 1;
             transform: translateX(0);
         }
-        
+
         .toast.error {
             background-color: #ef4444;
         }
-        
+
         /* 로딩 상태 */
         .loading {
             opacity: 0.5;
             pointer-events: none;
         }
-        
+
         .loading-spinner {
             display: inline-block;
             width: 20px;
@@ -437,90 +449,126 @@
             border-radius: 50%;
             animation: spin 1s linear infinite;
         }
-        
+
         @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
         }
-        
+
         /* 반응형 디자인 */
         @media (max-width: 1024px) {
-            .grid-4 { grid-template-columns: repeat(2, 1fr); }
-            .grid-3 { grid-template-columns: repeat(2, 1fr); }
+            .grid-4 {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .grid-3 {
+                grid-template-columns: repeat(2, 1fr);
+            }
         }
-        
+
         @media (max-width: 768px) {
             .logo img {
                 height: 40px;
             }
+
             .team-member img {
                 width: 160px;
                 height: 240px;
             }
+
             .hero-section {
                 background-attachment: scroll;
                 padding: 40px 20px;
             }
+
             .container {
                 padding: 0 16px;
             }
+
             .scroll-offset {
                 scroll-margin-top: 80px;
             }
-            .grid-4 { grid-template-columns: repeat(2, 1fr); }
-            .grid-3 { grid-template-columns: 1fr; }
-            .grid-2 { grid-template-columns: 1fr; }
+
+            .grid-4 {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .grid-3 {
+                grid-template-columns: 1fr;
+            }
+
+            .grid-2 {
+                grid-template-columns: 1fr;
+            }
+
             .login-modal-content {
                 width: 95%;
                 padding: 24px;
             }
+
             .duty-modal-content {
                 width: 95%;
                 padding: 20px;
             }
         }
-        
+
         @media (max-width: 640px) {
             .results-table {
                 font-size: 14px;
             }
-            
+
             .results-table th,
             .results-table td {
                 padding: 8px 4px;
             }
-            
+
             .tab-button {
                 padding: 8px 12px;
                 font-size: 14px;
             }
-            
-            .edit-button, .save-button, .cancel-button, .delete-button {
+
+            .edit-button,
+            .save-button,
+            .cancel-button,
+            .delete-button {
                 padding: 4px 8px;
                 font-size: 10px;
             }
         }
     </style>
 </head>
+
 <body>
     <!-- 네비게이션 -->
     <nav class="navbar">
-        <div class="container flex justify-between items-center py-12">
+        <div class="container flex justify-between items-center py-16">
             <!-- 로고 -->
             <div class="logo">
                 <img src="./images/logo.png" alt="아인합동관세사무소 로고">
             </div>
-            
+
             <!-- 메뉴 -->
-            <div class="hidden md:flex space-x-8">
-                <a href="#home" class="text-gray-700 hover:text-blue-600 font-medium text-lg transition-colors">홈</a>
-                <a href="#about" class="text-gray-700 hover:text-blue-600 font-medium text-lg transition-colors">회사소개</a>
-                <a href="#services" class="text-gray-700 hover:text-blue-600 font-medium text-lg transition-colors">전문서비스</a>
-                <a href="#team" class="text-gray-700 hover:text-blue-600 font-medium text-lg transition-colors">구성원소개</a>
-                <a href="#specialty" class="text-gray-700 hover:text-blue-600 font-medium text-lg transition-colors">AI 통관</a>
-                <a href="#contact" class="text-gray-700 hover:text-blue-600 font-medium text-lg transition-colors">연락처</a>
-                <a href="#" onclick="showDutyLogin()" class="text-red-600 hover:text-red-800 font-bold text-lg transition-colors">관세성실신고 조회</a>
-                <a href="https://zxjqwehj.gensparkspace.com/" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 font-bold text-lg transition-colors">AIN 요건관리</a>
+            <div class="hidden md:flex space-x-12 items-center">
+                <a href="#home" class="text-gray-800 hover:text-blue-600 font-semibold text-lg transition-colors">홈</a>
+                <a href="#about"
+                    class="text-gray-800 hover:text-blue-600 font-semibold text-lg transition-colors">회사소개</a>
+                <a href="#services"
+                    class="text-gray-800 hover:text-blue-600 font-semibold text-lg transition-colors">전문서비스</a>
+                <a href="#team"
+                    class="text-gray-800 hover:text-blue-600 font-semibold text-lg transition-colors">구성원소개</a>
+                <a href="#specialty"
+                    class="text-gray-800 hover:text-blue-600 font-semibold text-lg transition-colors">AI 통관</a>
+                <a href="#contact"
+                    class="text-gray-800 hover:text-blue-600 font-semibold text-lg transition-colors">연락처</a>
+                <a href="#" onclick="showDutyLogin()"
+                    class="text-red-600 hover:text-red-800 font-bold text-lg transition-colors">관세성실신고 조회</a>
+                <a href="https://zxjqwehj.gensparkspace.com/" target="_blank" rel="noopener noreferrer"
+                    class="text-blue-600 hover:text-blue-800 font-bold text-lg transition-colors">AIN 요건관리</a>
             </div>
         </div>
     </nav>
@@ -530,8 +578,10 @@
         <div class="text-center text-white hero-text">
             <h1 class="text-5xl md:text-6xl font-bold mb-6 leading-tight">아인합동관세사무소</h1>
             <p class="text-xl md:text-2xl mb-4 font-medium">Maximized Efficiency, Minimized Risk</p>
-            <p class="text-lg md:text-xl mb-8 leading-relaxed max-w-4xl mx-auto">4대 회계법인 출신 관세사들의 신속한 통관 서비스와<br>국내 최고 수준의 AI Compliance, Risk 관리를 함께</p>
-            <button onclick="document.getElementById('contact').scrollIntoView({behavior: 'smooth', block: 'start'})" class="btn-primary">
+            <p class="text-lg md:text-xl mb-8 leading-relaxed max-w-4xl mx-auto">4대 회계법인 출신 관세사들의 신속한 통관 서비스와<br>국내 최고
+                수준의 AI Compliance, Risk 관리를 함께</p>
+            <button onclick="document.getElementById('contact').scrollIntoView({behavior: 'smooth', block: 'start'})"
+                class="btn-primary">
                 상담 및 문의
             </button>
         </div>
@@ -546,7 +596,7 @@
                     아인합동관세사무소는 통관 서비스뿐만 아니라, 수출입과 관련된 요건, 외국환 등 관세 무역과 관련한 Risk 관리에 최적화된 통합 솔루션을 제공하는 전문가입니다.
                 </p>
             </div>
-            
+
             <div class="perfect-grid grid-3">
                 <div class="text-center fade-in">
                     <div class="bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -555,7 +605,7 @@
                     <h3 class="text-xl font-semibold mb-4">전문성</h3>
                     <p class="text-gray-600 leading-relaxed">4대 회계법인 출신 관세사들의 전문적인 서비스</p>
                 </div>
-                
+
                 <div class="text-center fade-in">
                     <div class="bg-green-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6">
                         <i class="fas fa-chart-line text-green-600 text-2xl"></i>
@@ -563,7 +613,7 @@
                     <h3 class="text-xl font-semibold mb-4">효율성</h3>
                     <p class="text-gray-600 leading-relaxed">AI 기술을 활용한 스마트 관세 솔루션</p>
                 </div>
-                
+
                 <div class="text-center fade-in">
                     <div class="bg-red-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6">
                         <i class="fas fa-handshake text-red-600 text-2xl"></i>
@@ -582,7 +632,7 @@
                 <h2 class="text-4xl font-bold text-gray-800 mb-6">전문 서비스</h2>
                 <p class="text-xl text-gray-600">관세 전 분야에 걸친 종합적인 전문 서비스를 제공합니다</p>
             </div>
-            
+
             <div class="perfect-grid grid-3">
                 <div class="service-card fade-in">
                     <div class="text-blue-600 text-3xl mb-6">
@@ -591,7 +641,7 @@
                     <h3 class="text-xl font-semibold mb-4">수출입 통관</h3>
                     <p class="text-gray-600 leading-relaxed">FTA 활용, 세관장확인대상, 개별법령 요건 검토를 통한 신속하고 정확한 통관 서비스</p>
                 </div>
-                
+
                 <div class="service-card fade-in">
                     <div class="text-green-600 text-3xl mb-6">
                         <i class="fas fa-tags"></i>
@@ -599,7 +649,7 @@
                     <h3 class="text-xl font-semibold mb-4">품목분류 및 경정청구</h3>
                     <p class="text-gray-600 leading-relaxed">고도의 전문성이 요구되는 품목분류 분야의 최상의 결과 제공</p>
                 </div>
-                
+
                 <div class="service-card fade-in">
                     <div class="text-purple-600 text-3xl mb-6">
                         <i class="fas fa-certificate"></i>
@@ -607,7 +657,7 @@
                     <h3 class="text-xl font-semibold mb-4">AEO 대리</h3>
                     <p class="text-gray-600 leading-relaxed">인증 및 종합심사 전문 대리 서비스</p>
                 </div>
-                
+
                 <div class="service-card fade-in">
                     <div class="text-red-600 text-3xl mb-6">
                         <i class="fas fa-search"></i>
@@ -615,7 +665,7 @@
                     <h3 class="text-xl font-semibold mb-4">관세심사 및 조사대리</h3>
                     <p class="text-gray-600 leading-relaxed">실지심사 전문 대응 및 포괄적인 심사 지원 서비스</p>
                 </div>
-                
+
                 <div class="service-card fade-in">
                     <div class="text-yellow-600 text-3xl mb-6">
                         <i class="fas fa-dollar-sign"></i>
@@ -623,7 +673,7 @@
                     <h3 class="text-xl font-semibold mb-4">외환진단 및 검사대응</h3>
                     <p class="text-gray-600 leading-relaxed">외국환거래 분야의 전문적인 진단 및 조사 대응</p>
                 </div>
-                
+
                 <div class="service-card fade-in">
                     <div class="text-indigo-600 text-3xl mb-6">
                         <i class="fas fa-gavel"></i>
@@ -642,7 +692,7 @@
                 <h2 class="text-4xl font-bold text-gray-800 mb-6">구성원 소개</h2>
                 <p class="text-xl text-gray-600">4대 회계법인 출신 관세사들의 전문적인 서비스</p>
             </div>
-            
+
             <div class="perfect-grid grid-4">
                 <!-- 조재호 관세사 -->
                 <div class="team-member text-center fade-in">
@@ -651,7 +701,7 @@
                     <p class="text-blue-600 font-semibold text-sm mb-2">4대 회계법인 출신</p>
                     <p class="text-gray-600 text-sm">수출입통관, 관세심사, 외국환, 이전가격</p>
                 </div>
-                
+
                 <!-- 정석현 관세사 -->
                 <div class="team-member text-center fade-in">
                     <img src="./images/jung-seokhyeon.jpg" alt="정석현 관세사" class="mx-auto mb-4">
@@ -659,7 +709,7 @@
                     <p class="text-blue-600 font-semibold text-sm mb-2">4대 회계법인 출신</p>
                     <p class="text-gray-600 text-sm">수출입요건, 외국환, 관세심사, 품목분류</p>
                 </div>
-                
+
                 <!-- 박종욱 관세사 -->
                 <div class="team-member text-center fade-in">
                     <img src="./images/park-jongwook.jpg" alt="박종욱 관세사" class="mx-auto mb-4">
@@ -667,7 +717,7 @@
                     <p class="text-blue-600 font-semibold text-sm mb-2">4대 관세법인 출신</p>
                     <p class="text-gray-600 text-sm">수출입통관, 품목분류, 외국환거래, FTA</p>
                 </div>
-                
+
                 <!-- 김로언 관세사 -->
                 <div class="team-member text-center fade-in">
                     <img src="./images/kim-roeun.jpg" alt="김로언 관세사" class="mx-auto mb-4">
@@ -686,18 +736,18 @@
                 <h2 class="text-4xl font-bold text-gray-800 mb-6">Ain's Specialty</h2>
                 <p class="text-xl text-gray-600">아인만의 차별화된 전문 서비스</p>
             </div>
-            
+
             <!-- AI and Customs -->
             <div class="specialty-item fade-in">
                 <h3 class="text-2xl font-bold text-gray-800 mb-6 text-center">
                     <i class="fas fa-robot text-blue-600 mr-3"></i>AI and Customs
                 </h3>
-                
+
                 <!-- 분석 자료 예시 이미지 -->
                 <div class="analysis-example text-center mb-8">
                     <img src="./images/analysis-data.png" alt="수출입 통관 데이터 분석 예시" class="mx-auto mb-4">
                 </div>
-                
+
                 <div class="perfect-grid grid-2">
                     <div>
                         <h4 class="text-xl font-semibold text-gray-800 mb-4">빅데이터 분석</h4>
@@ -707,7 +757,7 @@
                             <li>• 업종별, 품목별 맞춤 분석</li>
                         </ul>
                     </div>
-                    
+
                     <div>
                         <h4 class="text-xl font-semibold text-gray-800 mb-4">AI 기반 위험 분석</h4>
                         <ul class="text-gray-600 space-y-2">
@@ -718,7 +768,7 @@
                     </div>
                 </div>
             </div>
-            
+
             <!-- 기타 전문 서비스들 -->
             <div class="perfect-grid grid-2">
                 <div class="specialty-item fade-in">
@@ -732,7 +782,7 @@
                         <li>• Risk Check by Database</li>
                     </ul>
                 </div>
-                
+
                 <div class="specialty-item fade-in">
                     <h3 class="text-xl font-bold text-gray-800 mb-4">
                         <i class="fas fa-balance-scale text-blue-600 mr-3"></i>수출입요건 전문 관세사
@@ -744,7 +794,7 @@
                         <li>• 전파법 적용대상 사전 점검</li>
                     </ul>
                 </div>
-                
+
                 <div class="specialty-item fade-in">
                     <h3 class="text-xl font-bold text-gray-800 mb-4">
                         <i class="fas fa-dollar-sign text-purple-600 mr-3"></i>외국환거래법 전문 관세사
@@ -756,7 +806,7 @@
                         <li>• 위반건 소명논리 개발</li>
                     </ul>
                 </div>
-                
+
                 <div class="specialty-item fade-in">
                     <h3 class="text-xl font-bold text-gray-800 mb-4">
                         <i class="fas fa-chart-bar text-red-600 mr-3"></i>지속적인 Risk 분석 제공
@@ -779,7 +829,7 @@
                 <h2 class="text-4xl font-bold text-gray-800 mb-6">연락처</h2>
                 <p class="text-xl text-gray-600">전문적인 관세 서비스가 필요하시면 언제든 연락주세요</p>
             </div>
-            
+
             <div class="perfect-grid grid-3">
                 <div class="text-center fade-in">
                     <div class="bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -789,7 +839,7 @@
                     <p class="text-gray-600 leading-relaxed">서울본사: 서울특별시 강남구 학동로 43길 38, 145호</p>
                     <p class="text-gray-600 leading-relaxed">인천지사: 인천시 부평구 부평대로 337, 325호</p>
                 </div>
-                
+
                 <div class="text-center fade-in">
                     <div class="bg-green-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6">
                         <i class="fas fa-phone text-green-600 text-2xl"></i>
@@ -797,7 +847,7 @@
                     <h3 class="text-xl font-semibold mb-4">전화 / 팩스</h3>
                     <p class="text-gray-600 leading-relaxed">전화: 02-518-5434, 032-265-2750<br>팩스: 02-518-5436</p>
                 </div>
-                
+
                 <div class="text-center fade-in">
                     <div class="bg-red-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6">
                         <i class="fas fa-envelope text-red-600 text-2xl"></i>
@@ -810,15 +860,18 @@
                     </p>
                 </div>
             </div>
-            
+
             <div class="text-center mt-16 fade-in">
                 <div class="bg-white inline-block px-8 py-8 rounded-2xl shadow-lg max-w-2xl">
                     <h3 class="text-2xl font-bold text-gray-800 mb-4">전문 상담 신청</h3>
                     <p class="text-gray-600 mb-6">4대 회계법인 출신 관세사가 직접 상담해드립니다</p>
                     <div class="flex flex-wrap justify-center gap-3">
-                        <span class="bg-blue-100 text-blue-800 px-4 py-2 rounded-full text-sm font-semibold">관세심사 대응</span>
-                        <span class="bg-green-100 text-green-800 px-4 py-2 rounded-full text-sm font-semibold">수출입통관</span>
-                        <span class="bg-purple-100 text-purple-800 px-4 py-2 rounded-full text-sm font-semibold">AI 통관 솔루션</span>
+                        <span class="bg-blue-100 text-blue-800 px-4 py-2 rounded-full text-sm font-semibold">관세심사
+                            대응</span>
+                        <span
+                            class="bg-green-100 text-green-800 px-4 py-2 rounded-full text-sm font-semibold">수출입통관</span>
+                        <span class="bg-purple-100 text-purple-800 px-4 py-2 rounded-full text-sm font-semibold">AI 통관
+                            솔루션</span>
                         <span class="bg-red-100 text-red-800 px-4 py-2 rounded-full text-sm font-semibold">외환 진단</span>
                     </div>
                 </div>
@@ -834,15 +887,16 @@
             <form id="loginForm" onsubmit="handleLogin(event)">
                 <div class="mb-4">
                     <label for="username" class="block text-sm font-medium text-gray-700 mb-2">아이디</label>
-                    <input type="text" id="username" name="username" required 
-                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <input type="text" id="username" name="username" required
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                 </div>
                 <div class="mb-6">
                     <label for="password" class="block text-sm font-medium text-gray-700 mb-2">비밀번호</label>
                     <input type="password" id="password" name="password" required
-                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                 </div>
-                <button type="submit" class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <button type="submit"
+                    class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
                     <span id="loginButtonText">로그인</span>
                     <div id="loginSpinner" class="loading-spinner" style="display: none;"></div>
                 </button>
@@ -855,7 +909,7 @@
         <div class="duty-modal-content">
             <button class="close-button" onclick="closeModal('dutyModal')">&times;</button>
             <h2 class="text-3xl font-bold text-center mb-6 text-gray-800">관세성실신고 조회 시스템</h2>
-            
+
             <!-- 사용자 정보 -->
             <div class="bg-blue-50 p-4 rounded-lg mb-6">
                 <div class="flex justify-between items-center">
@@ -865,7 +919,8 @@
                         <span class="text-sm text-gray-600 ml-4">화주명:</span>
                         <span id="currentCompany" class="font-semibold text-gray-800 ml-2"></span>
                     </div>
-                    <button onclick="logout()" class="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600 text-sm">
+                    <button onclick="logout()"
+                        class="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600 text-sm">
                         로그아웃
                     </button>
                 </div>
@@ -891,45 +946,47 @@
                     <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
                         <div class="autocomplete-container">
                             <label class="block text-sm font-medium text-gray-700 mb-1">화주명</label>
-                            <input type="text" id="filterCompany" placeholder="화주명 입력" 
-                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                   oninput="handleAutocomplete(this, 'company')" onkeydown="handleKeydown(event, this)">
+                            <input type="text" id="filterCompany" placeholder="화주명 입력"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                oninput="handleAutocomplete(this, 'company')" onkeydown="handleKeydown(event, this)">
                             <div class="autocomplete-dropdown"></div>
                         </div>
                         <div class="autocomplete-container">
                             <label class="block text-sm font-medium text-gray-700 mb-1">해외거래처명</label>
                             <input type="text" id="filterSupplier" placeholder="거래처명 입력"
-                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                   oninput="handleAutocomplete(this, 'supplier')" onkeydown="handleKeydown(event, this)">
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                oninput="handleAutocomplete(this, 'supplier')" onkeydown="handleKeydown(event, this)">
                             <div class="autocomplete-dropdown"></div>
                         </div>
                         <div class="autocomplete-container">
                             <label class="block text-sm font-medium text-gray-700 mb-1">결제방법</label>
                             <input type="text" id="filterPayment" placeholder="결제방법 입력"
-                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                   oninput="handleAutocomplete(this, 'payment')" onkeydown="handleKeydown(event, this)">
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                oninput="handleAutocomplete(this, 'payment')" onkeydown="handleKeydown(event, this)">
                             <div class="autocomplete-dropdown"></div>
                         </div>
                         <div class="autocomplete-container">
                             <label class="block text-sm font-medium text-gray-700 mb-1">거래구분</label>
                             <input type="text" id="filterTrade" placeholder="거래구분 입력"
-                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                   oninput="handleAutocomplete(this, 'trade')" onkeydown="handleKeydown(event, this)">
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                oninput="handleAutocomplete(this, 'trade')" onkeydown="handleKeydown(event, this)">
                             <div class="autocomplete-dropdown"></div>
                         </div>
                         <div class="autocomplete-container">
                             <label class="block text-sm font-medium text-gray-700 mb-1">인도조건</label>
                             <input type="text" id="filterDelivery" placeholder="인도조건 입력"
-                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                   oninput="handleAutocomplete(this, 'delivery')" onkeydown="handleKeydown(event, this)">
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                oninput="handleAutocomplete(this, 'delivery')" onkeydown="handleKeydown(event, this)">
                             <div class="autocomplete-dropdown"></div>
                         </div>
                     </div>
                     <div class="mt-4">
-                        <button onclick="clearFilters()" class="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600 mr-2">
+                        <button onclick="clearFilters()"
+                            class="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600 mr-2">
                             필터 초기화
                         </button>
-                        <button onclick="applyFilters()" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
+                        <button onclick="applyFilters()"
+                            class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
                             조회
                         </button>
                     </div>
@@ -943,46 +1000,51 @@
                             <div class="autocomplete-container">
                                 <label class="block text-sm font-medium text-gray-700 mb-1">화주명</label>
                                 <input type="text" id="newCompany" placeholder="화주명"
-                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                                       oninput="handleAutocomplete(this, 'company')" onkeydown="handleKeydown(event, this)">
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                                    oninput="handleAutocomplete(this, 'company')"
+                                    onkeydown="handleKeydown(event, this)">
                                 <div class="autocomplete-dropdown"></div>
                             </div>
                             <div class="autocomplete-container">
                                 <label class="block text-sm font-medium text-gray-700 mb-1">해외거래처명</label>
                                 <input type="text" id="newSupplier" placeholder="거래처명"
-                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                                       oninput="handleAutocomplete(this, 'supplier')" onkeydown="handleKeydown(event, this)">
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                                    oninput="handleAutocomplete(this, 'supplier')"
+                                    onkeydown="handleKeydown(event, this)">
                                 <div class="autocomplete-dropdown"></div>
                             </div>
                             <div class="autocomplete-container">
                                 <label class="block text-sm font-medium text-gray-700 mb-1">결제방법</label>
                                 <input type="text" id="newPayment" placeholder="결제방법"
-                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                                       oninput="handleAutocomplete(this, 'payment')" onkeydown="handleKeydown(event, this)">
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                                    oninput="handleAutocomplete(this, 'payment')"
+                                    onkeydown="handleKeydown(event, this)">
                                 <div class="autocomplete-dropdown"></div>
                             </div>
                             <div class="autocomplete-container">
                                 <label class="block text-sm font-medium text-gray-700 mb-1">거래구분</label>
                                 <input type="text" id="newTrade" placeholder="거래구분"
-                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                                       oninput="handleAutocomplete(this, 'trade')" onkeydown="handleKeydown(event, this)">
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                                    oninput="handleAutocomplete(this, 'trade')" onkeydown="handleKeydown(event, this)">
                                 <div class="autocomplete-dropdown"></div>
                             </div>
                             <div class="autocomplete-container">
                                 <label class="block text-sm font-medium text-gray-700 mb-1">인도조건</label>
                                 <input type="text" id="newDelivery" placeholder="인도조건"
-                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                                       oninput="handleAutocomplete(this, 'delivery')" onkeydown="handleKeydown(event, this)">
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                                    oninput="handleAutocomplete(this, 'delivery')"
+                                    onkeydown="handleKeydown(event, this)">
                                 <div class="autocomplete-dropdown"></div>
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">신고번호</label>
                                 <input type="text" id="newDeclaration" placeholder="신고번호"
-                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500">
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500">
                             </div>
                         </div>
                         <div class="mt-4">
-                            <button onclick="addNewDutyRecord()" class="bg-green-600 text-white px-6 py-2 rounded-md hover:bg-green-700">
+                            <button onclick="addNewDutyRecord()"
+                                class="bg-green-600 text-white px-6 py-2 rounded-md hover:bg-green-700">
                                 <i class="fas fa-plus mr-2"></i>신고내역 추가
                             </button>
                         </div>
@@ -1030,23 +1092,24 @@
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">아이디</label>
                             <input type="text" id="newAccountId" placeholder="아이디 입력"
-                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">비밀번호</label>
                             <input type="password" id="newAccountPw" placeholder="비밀번호 입력"
-                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
                         </div>
                         <div class="autocomplete-container">
                             <label class="block text-sm font-medium text-gray-700 mb-1">화주명</label>
                             <input type="text" id="newAccountCompany" placeholder="화주명 입력"
-                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-                                   oninput="handleAutocomplete(this, 'company')" onkeydown="handleKeydown(event, this)">
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                oninput="handleAutocomplete(this, 'company')" onkeydown="handleKeydown(event, this)">
                             <div class="autocomplete-dropdown"></div>
                         </div>
                     </div>
                     <div class="mt-4">
-                        <button onclick="addNewAccount()" class="bg-purple-600 text-white px-6 py-2 rounded-md hover:bg-purple-700">
+                        <button onclick="addNewAccount()"
+                            class="bg-purple-600 text-white px-6 py-2 rounded-md hover:bg-purple-700">
                             <i class="fas fa-user-plus mr-2"></i>계정 추가
                         </button>
                     </div>
@@ -1056,7 +1119,8 @@
                 <div class="bg-white rounded-lg">
                     <div class="flex justify-between items-center mb-4">
                         <h3 class="text-lg font-semibold text-gray-800">계정 목록</h3>
-                        <button onclick="loadAccountData()" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
+                        <button onclick="loadAccountData()"
+                            class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
                             <i class="fas fa-refresh mr-2"></i>새로고침
                         </button>
                     </div>
@@ -1091,7 +1155,7 @@
     <script>
         // Google Apps Script API 엔드포인트
         const API_ENDPOINT = 'https://script.google.com/macros/s/AKfycbykEtTCbdsjk_7aj31gDT5UW8zolDphnasd7bNEzFL5zOEB-KblBJLCpgCIaL8_duwrDQ/exec';
-        
+
         // 전역 변수
         let currentUserData = null;
         let allDutyData = [];
@@ -1108,10 +1172,10 @@
         let editingOriginalData = null;
 
         // 페이지 로드 시 초기화
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             handleScrollAnimation();
             smoothScroll();
-            
+
             window.addEventListener('scroll', handleScrollAnimation);
         });
 
@@ -1121,7 +1185,7 @@
             elements.forEach(element => {
                 const elementTop = element.getBoundingClientRect().top;
                 const elementVisible = 150;
-                
+
                 if (elementTop < window.innerHeight - elementVisible) {
                     element.classList.add('visible');
                 }
@@ -1132,7 +1196,7 @@
         function smoothScroll() {
             const links = document.querySelectorAll('nav a[href^="#"]');
             links.forEach(link => {
-                link.addEventListener('click', function(e) {
+                link.addEventListener('click', function (e) {
                     e.preventDefault();
                     const targetId = this.getAttribute('href');
                     const targetElement = document.querySelector(targetId);
@@ -1152,17 +1216,17 @@
             try {
                 const formData = new FormData();
                 formData.append('action', action);
-                
+
                 // 데이터 추가
                 Object.keys(data).forEach(key => {
                     formData.append(key, data[key]);
                 });
-                
+
                 const response = await fetch(API_ENDPOINT, {
                     method: 'POST',
                     body: formData
                 });
-                
+
                 return await response.json();
             } catch (error) {
                 console.error('API call error:', error);
@@ -1178,12 +1242,12 @@
         // 모달 닫기 (X 버튼으로만)
         function closeModal(modalId) {
             document.getElementById(modalId).style.display = 'none';
-            
+
             // 로그인 모달 닫을 때 폼 리셋
             if (modalId === 'loginModal') {
                 document.getElementById('loginForm').reset();
             }
-            
+
             // 관세신고 모달 닫을 때 상태 초기화
             if (modalId === 'dutyModal') {
                 currentUserData = null;
@@ -1198,26 +1262,26 @@
         // 로그인 처리
         async function handleLogin(event) {
             event.preventDefault();
-            
+
             const loginButton = document.querySelector('#loginForm button[type="submit"]');
             const loginText = document.getElementById('loginButtonText');
             const loginSpinner = document.getElementById('loginSpinner');
-            
+
             // 로딩 상태 표시
             loginButton.disabled = true;
             loginText.style.display = 'none';
             loginSpinner.style.display = 'inline-block';
-            
+
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
 
             const result = await callAPI('login', { username, password });
-            
+
             // 로딩 상태 해제
             loginButton.disabled = false;
             loginText.style.display = 'inline';
             loginSpinner.style.display = 'none';
-            
+
             if (result.success) {
                 currentUserData = result.user;
                 closeModal('loginModal');
@@ -1231,7 +1295,7 @@
         async function showDutyModal() {
             document.getElementById('currentUser').textContent = currentUserData.username;
             document.getElementById('currentCompany').textContent = currentUserData.company;
-            
+
             // 권한에 따른 UI 설정
             if (currentUserData.isMaster) {
                 document.getElementById('masterTabs').style.display = 'block';
@@ -1242,9 +1306,9 @@
                 document.getElementById('masterControls').style.display = 'none';
                 document.getElementById('actionHeader').style.display = 'none';
             }
-            
+
             document.getElementById('dutyModal').style.display = 'flex';
-            
+
             // 데이터 로드 (로딩 완료 후 표시)
             await loadDutyData();
             if (currentUserData.isMaster) {
@@ -1257,7 +1321,7 @@
             // 모든 탭 버튼과 내용 비활성화
             document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-            
+
             // 선택된 탭 활성화
             event.target.classList.add('active');
             document.getElementById(tabName).classList.add('active');
@@ -1269,7 +1333,7 @@
                 isMaster: currentUserData.isMaster,
                 company: currentUserData.company
             });
-            
+
             if (result.success) {
                 // 원본 인덱스를 포함하도록 데이터 구조화
                 allDutyData = result.data.map((row, index) => ({
@@ -1282,7 +1346,7 @@
                 populateFilterOptions();
             } else {
                 showToast(result.message, 'error');
-                document.getElementById('dutyResultsBody').innerHTML = 
+                document.getElementById('dutyResultsBody').innerHTML =
                     '<tr><td colspan="7" class="text-center text-red-500 py-8">데이터를 불러오는데 실패했습니다.</td></tr>';
             }
         }
@@ -1313,7 +1377,7 @@
             }
 
             let suggestions = [];
-            switch(type) {
+            switch (type) {
                 case 'company':
                     suggestions = autocompleteCache.companies;
                     break;
@@ -1331,7 +1395,7 @@
                     break;
             }
 
-            suggestions = suggestions.filter(item => 
+            suggestions = suggestions.filter(item =>
                 item.toLowerCase().includes(value)
             ).slice(0, 10);
 
@@ -1341,7 +1405,7 @@
         // 자동완성 드롭다운 표시
         function showAutocomplete(input, suggestions, searchValue) {
             const dropdown = input.nextElementSibling;
-            
+
             if (suggestions.length === 0) {
                 hideAutocomplete(input);
                 return;
@@ -1371,7 +1435,7 @@
             const input = document.getElementById(inputId);
             input.value = value;
             hideAutocomplete(input);
-            
+
             // 필터 입력인 경우 자동 조회
             if (inputId.startsWith('filter')) {
                 applyFilters();
@@ -1382,19 +1446,19 @@
         function handleKeydown(event, input) {
             const dropdown = input.nextElementSibling;
             if (!dropdown || !dropdown.classList.contains('autocomplete-dropdown')) return;
-            
+
             const items = dropdown.querySelectorAll('.autocomplete-item');
-            
+
             if (items.length === 0) return;
-            
+
             const currentSelected = dropdown.querySelector('.autocomplete-item.selected');
             let currentIndex = -1;
-            
+
             if (currentSelected) {
                 currentIndex = Array.from(items).indexOf(currentSelected);
             }
-            
-            switch(event.key) {
+
+            switch (event.key) {
                 case 'ArrowDown':
                     event.preventDefault();
                     const nextIndex = currentIndex < items.length - 1 ? currentIndex + 1 : 0;
@@ -1428,17 +1492,17 @@
         // 계정 데이터 로드 (마스터 전용)
         async function loadAccountData() {
             if (!currentUserData.isMaster) return;
-            
+
             const result = await callAPI('getAccountData', {
                 isMaster: currentUserData.isMaster
             });
-            
+
             if (result.success) {
                 allAccountData = result.data;
                 displayAccountResults();
             } else {
                 showToast(result.message, 'error');
-                document.getElementById('accountResultsBody').innerHTML = 
+                document.getElementById('accountResultsBody').innerHTML =
                     '<tr><td colspan="4" class="text-center text-red-500 py-8">계정 데이터를 불러오는데 실패했습니다.</td></tr>';
             }
         }
@@ -1447,15 +1511,15 @@
         function displayDutyResults() {
             const tbody = document.getElementById('dutyResultsBody');
             const resultCount = document.getElementById('resultCount');
-            
+
             if (filteredData.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="7" class="text-center text-gray-500 py-8">조회된 내역이 없습니다.</td></tr>';
                 resultCount.textContent = '';
                 return;
             }
-            
+
             resultCount.textContent = `총 ${filteredData.length}건`;
-            
+
             tbody.innerHTML = filteredData.map((item) => {
                 const row = item.data;
                 const index = item.originalIndex;
@@ -1487,12 +1551,12 @@
         // 계정 결과 표시 (마스터 전용)
         function displayAccountResults() {
             const tbody = document.getElementById('accountResultsBody');
-            
+
             if (allAccountData.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="4" class="text-center text-gray-500 py-8">계정이 없습니다.</td></tr>';
                 return;
             }
-            
+
             tbody.innerHTML = allAccountData.map((row, index) => `
                 <tr id="account-row-${index}">
                     <td>${row[0] || ''}</td>
@@ -1527,7 +1591,7 @@
             const payment = document.getElementById('filterPayment').value.toLowerCase();
             const trade = document.getElementById('filterTrade').value.toLowerCase();
             const delivery = document.getElementById('filterDelivery').value.toLowerCase();
-            
+
             filteredData = allDutyData.filter(item => {
                 const row = item.data;
                 return (
@@ -1538,7 +1602,7 @@
                     (!delivery || (row[4] && row[4].toLowerCase().includes(delivery)))
                 );
             });
-            
+
             displayDutyResults();
         }
 
@@ -1549,7 +1613,7 @@
             document.getElementById('filterPayment').value = '';
             document.getElementById('filterTrade').value = '';
             document.getElementById('filterDelivery').value = '';
-            
+
             filteredData = [...allDutyData];
             displayDutyResults();
         }
@@ -1557,27 +1621,27 @@
         // 신규 신고내역 추가 (마스터 전용)
         async function addNewDutyRecord() {
             if (!currentUserData.isMaster) return;
-            
+
             const company = document.getElementById('newCompany').value.trim();
             const supplier = document.getElementById('newSupplier').value.trim();
             const payment = document.getElementById('newPayment').value.trim();
             const trade = document.getElementById('newTrade').value.trim();
             const delivery = document.getElementById('newDelivery').value.trim();
             const declaration = document.getElementById('newDeclaration').value.trim();
-            
+
             if (!company || !supplier || !payment || !trade || !delivery || !declaration) {
                 showToast('모든 필드를 입력해주세요.', 'error');
                 return;
             }
-            
+
             const result = await callAPI('addDutyRecord', {
                 isMaster: currentUserData.isMaster,
                 company, supplier, payment, trade, delivery, declaration
             });
-            
+
             if (result.success) {
                 showToast(result.message, 'success');
-                
+
                 // 입력 필드 초기화
                 document.getElementById('newCompany').value = '';
                 document.getElementById('newSupplier').value = '';
@@ -1585,7 +1649,7 @@
                 document.getElementById('newTrade').value = '';
                 document.getElementById('newDelivery').value = '';
                 document.getElementById('newDeclaration').value = '';
-                
+
                 // 데이터 재로드
                 await loadDutyData();
             } else {
@@ -1596,29 +1660,29 @@
         // 신규 계정 추가 (마스터 전용)
         async function addNewAccount() {
             if (!currentUserData.isMaster) return;
-            
+
             const id = document.getElementById('newAccountId').value.trim();
             const password = document.getElementById('newAccountPw').value.trim();
             const company = document.getElementById('newAccountCompany').value.trim();
-            
+
             if (!id || !password || !company) {
                 showToast('모든 필드를 입력해주세요.', 'error');
                 return;
             }
-            
+
             const result = await callAPI('addAccount', {
                 isMaster: currentUserData.isMaster,
                 id, password, company
             });
-            
+
             if (result.success) {
                 showToast(result.message, 'success');
-                
+
                 // 입력 필드 초기화
                 document.getElementById('newAccountId').value = '';
                 document.getElementById('newAccountPw').value = '';
                 document.getElementById('newAccountCompany').value = '';
-                
+
                 // 데이터 재로드
                 await loadAccountData();
             } else {
@@ -1629,23 +1693,23 @@
         // 행 편집 (마스터 전용)
         function editRow(index) {
             if (!currentUserData.isMaster || editingRowIndex !== -1) return;
-            
+
             editingRowIndex = index;
             // originalIndex를 통해 전체 데이터에서 해당 항목 찾기
             const item = allDutyData[index];
             if (!item) return;
             editingOriginalData = [...item.data];
-            
+
             const row = document.getElementById(`row-${index}`);
             const cells = row.cells;
-            
+
             // 모든 필드를 편집 가능하게 변경 (신고번호 포함)
             for (let i = 0; i < 6; i++) {
                 const originalValue = editingOriginalData[i] || '';
                 cells[i].classList.add('editing-cell');
                 cells[i].innerHTML = `<input type="text" value="${originalValue}" class="editing-input" id="edit-${index}-${i}">`;
             }
-            
+
             // 관리 버튼을 저장/취소로 변경
             if (cells[6]) {
                 cells[6].innerHTML = `
@@ -1662,13 +1726,13 @@
         // 편집 저장 (마스터 전용)
         async function saveRow(index) {
             if (!currentUserData.isMaster || editingRowIndex !== index) return;
-            
+
             const newData = [];
             for (let i = 0; i < 6; i++) {
                 const input = document.getElementById(`edit-${index}-${i}`);
                 newData[i] = input ? input.value.trim() : '';
             }
-            
+
             const result = await callAPI('updateDutyRecord', {
                 isMaster: currentUserData.isMaster,
                 rowIndex: index,
@@ -1679,14 +1743,14 @@
                 delivery: newData[4],
                 declaration: newData[5]
             });
-            
+
             if (result.success) {
                 // 로컬 데이터 업데이트
                 allDutyData[index].data = newData;
-                
+
                 editingRowIndex = -1;
                 editingOriginalData = null;
-                
+
                 showToast(result.message, 'success');
                 displayDutyResults();
                 updateAutocompleteCache();
@@ -1698,7 +1762,7 @@
         // 편집 취소
         function cancelEdit(index) {
             if (editingRowIndex !== index) return;
-            
+
             editingRowIndex = -1;
             editingOriginalData = null;
             displayDutyResults();
@@ -1707,14 +1771,14 @@
         // 행 삭제 (마스터 전용)
         async function deleteRow(index) {
             if (!currentUserData.isMaster) return;
-            
+
             if (!confirm('정말로 이 데이터를 삭제하시겠습니까?')) return;
-            
+
             const result = await callAPI('deleteDutyRecord', {
                 isMaster: currentUserData.isMaster,
                 rowIndex: index
             });
-            
+
             if (result.success) {
                 showToast(result.message, 'success');
                 await loadDutyData(); // 전체 데이터 재로드
@@ -1726,7 +1790,7 @@
         // 계정 편집 (마스터 전용)
         function editAccount(index) {
             if (!currentUserData.isMaster || allAccountData[index][0] === 'aincustoms') return;
-            
+
             // 계정 편집 구현 (생략 - 필요시 추가)
             showToast('계정 편집 기능은 추후 구현 예정입니다.', 'error');
         }
@@ -1734,15 +1798,15 @@
         // 계정 삭제 (마스터 전용)
         async function deleteAccount(index) {
             if (!currentUserData.isMaster || allAccountData[index][0] === 'aincustoms') return;
-            
+
             if (!confirm('정말로 이 계정을 삭제하시겠습니까?')) return;
-            
+
             const result = await callAPI('deleteAccount', {
                 isMaster: currentUserData.isMaster,
                 rowIndex: index,
                 id: allAccountData[index][0]
             });
-            
+
             if (result.success) {
                 showToast(result.message, 'success');
                 await loadAccountData();
@@ -1756,7 +1820,7 @@
             const row = document.getElementById(`account-row-${index}`);
             const passwordCell = row.cells[1];
             const isHidden = passwordCell.innerHTML.includes('••••••••');
-            
+
             if (isHidden) {
                 passwordCell.innerHTML = `
                     <span>${allAccountData[index][1]}</span>
@@ -1777,12 +1841,12 @@
         // 클립보드에 복사
         function copyToClipboard(text) {
             if (!text) return;
-            
+
             navigator.clipboard.writeText(text).then(() => {
                 showToast(`신고번호 "${text}"가 복사되었습니다!`, 'success');
             }).catch(err => {
                 console.error('Copy failed:', err);
-                
+
                 // 폴백 방식
                 const textArea = document.createElement('textarea');
                 textArea.value = text;
@@ -1804,7 +1868,7 @@
             toast.textContent = message;
             toast.className = `toast ${type === 'error' ? 'error' : ''}`;
             toast.classList.add('show');
-            
+
             setTimeout(() => {
                 toast.classList.remove('show');
             }, 3000);
@@ -1814,16 +1878,16 @@
         function logout() {
             currentUserData = null;
             closeModal('dutyModal');
-            
+
             // 폼 초기화
             document.getElementById('loginForm').reset();
-            
+
             showToast('로그아웃되었습니다.', 'success');
         }
 
         // 모달 외부 클릭 방지 - 제거됨 (X 버튼으로만 닫기)
         // 자동완성 드롭다운은 여전히 바깥 클릭으로 닫힘
-        document.addEventListener('click', function(event) {
+        document.addEventListener('click', function (event) {
             // 자동완성 드롭다운 숨기기
             const dropdowns = document.querySelectorAll('.autocomplete-dropdown');
             dropdowns.forEach(dropdown => {
@@ -1834,4 +1898,5 @@
         });
     </script>
 </body>
+
 </html>
