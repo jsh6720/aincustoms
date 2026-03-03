@@ -1271,7 +1271,11 @@
             });
             
             if (result.success) {
-                allDutyData = result.data;
+                // 원본 인덱스를 포함하도록 데이터 구조화
+                allDutyData = result.data.map((row, index) => ({
+                    data: row,
+                    originalIndex: index
+                }));
                 updateAutocompleteCache();
                 filteredData = [...allDutyData];
                 displayDutyResults();
@@ -1285,11 +1289,11 @@
 
         // 자동완성 캐시 업데이트
         function updateAutocompleteCache() {
-            autocompleteCache.companies = [...new Set(allDutyData.map(row => row[0]).filter(Boolean))];
-            autocompleteCache.suppliers = [...new Set(allDutyData.map(row => row[1]).filter(Boolean))];
-            autocompleteCache.payments = [...new Set(allDutyData.map(row => row[2]).filter(Boolean))];
-            autocompleteCache.trades = [...new Set(allDutyData.map(row => row[3]).filter(Boolean))];
-            autocompleteCache.deliveries = [...new Set(allDutyData.map(row => row[4]).filter(Boolean))];
+            autocompleteCache.companies = [...new Set(allDutyData.map(item => item.data[0]).filter(Boolean))];
+            autocompleteCache.suppliers = [...new Set(allDutyData.map(item => item.data[1]).filter(Boolean))];
+            autocompleteCache.payments = [...new Set(allDutyData.map(item => item.data[2]).filter(Boolean))];
+            autocompleteCache.trades = [...new Set(allDutyData.map(item => item.data[3]).filter(Boolean))];
+            autocompleteCache.deliveries = [...new Set(allDutyData.map(item => item.data[4]).filter(Boolean))];
         }
 
         // 자동완성 처리
@@ -1445,35 +1449,39 @@
             const resultCount = document.getElementById('resultCount');
             
             if (filteredData.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" class="text-center text-gray-500 py-8">조회 결과가 없습니다.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center text-gray-500 py-8">조회된 내역이 없습니다.</td></tr>';
                 resultCount.textContent = '';
                 return;
             }
             
             resultCount.textContent = `총 ${filteredData.length}건`;
             
-            tbody.innerHTML = filteredData.map((row, index) => `
-                <tr id="row-${index}">
-                    <td>${row[0] || ''}</td>
-                    <td>${row[1] || ''}</td>
-                    <td>${row[2] || ''}</td>
-                    <td>${row[3] || ''}</td>
-                    <td>${row[4] || ''}</td>
-                    <td class="copyable-cell" onclick="copyToClipboard('${row[5] || ''}')">
-                        <i class="fas fa-copy mr-1"></i>${row[5] || ''}
-                    </td>
-                    ${currentUserData.isMaster ? `
-                        <td>
-                            <button class="edit-button" onclick="editRow(${index})">
-                                <i class="fas fa-edit"></i> 편집
-                            </button>
-                            <button class="delete-button" onclick="deleteRow(${index})">
-                                <i class="fas fa-trash"></i> 삭제
-                            </button>
+            tbody.innerHTML = filteredData.map((item) => {
+                const row = item.data;
+                const index = item.originalIndex;
+                return `
+                    <tr id="row-${index}">
+                        <td>${row[0] || ''}</td>
+                        <td>${row[1] || ''}</td>
+                        <td>${row[2] || ''}</td>
+                        <td>${row[3] || ''}</td>
+                        <td>${row[4] || ''}</td>
+                        <td class="copyable-cell" onclick="copyToClipboard('${row[5] || ''}')">
+                            <i class="fas fa-copy mr-1"></i>${row[5] || ''}
                         </td>
-                    ` : ''}
-                </tr>
-            `).join('');
+                        ${currentUserData.isMaster ? `
+                            <td>
+                                <button class="edit-button" onclick="editRow(${index})">
+                                    <i class="fas fa-edit"></i> 편집
+                                </button>
+                                <button class="delete-button" onclick="deleteRow(${index})">
+                                    <i class="fas fa-trash"></i> 삭제
+                                </button>
+                            </td>
+                        ` : ''}
+                    </tr>
+                `;
+            }).join('');
         }
 
         // 계정 결과 표시 (마스터 전용)
@@ -1520,7 +1528,8 @@
             const trade = document.getElementById('filterTrade').value.toLowerCase();
             const delivery = document.getElementById('filterDelivery').value.toLowerCase();
             
-            filteredData = allDutyData.filter(row => {
+            filteredData = allDutyData.filter(item => {
+                const row = item.data;
                 return (
                     (!company || (row[0] && row[0].toLowerCase().includes(company))) &&
                     (!supplier || (row[1] && row[1].toLowerCase().includes(supplier))) &&
@@ -1622,7 +1631,10 @@
             if (!currentUserData.isMaster || editingRowIndex !== -1) return;
             
             editingRowIndex = index;
-            editingOriginalData = [...filteredData[index]];
+            // originalIndex를 통해 전체 데이터에서 해당 항목 찾기
+            const item = allDutyData[index];
+            if (!item) return;
+            editingOriginalData = [...item.data];
             
             const row = document.getElementById(`row-${index}`);
             const cells = row.cells;
@@ -1670,13 +1682,7 @@
             
             if (result.success) {
                 // 로컬 데이터 업데이트
-                filteredData[index] = newData;
-                const originalIndex = allDutyData.findIndex(row => 
-                    JSON.stringify(row) === JSON.stringify(editingOriginalData)
-                );
-                if (originalIndex !== -1) {
-                    allDutyData[originalIndex] = newData;
-                }
+                allDutyData[index].data = newData;
                 
                 editingRowIndex = -1;
                 editingOriginalData = null;
