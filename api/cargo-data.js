@@ -1,6 +1,138 @@
 const { verifySession, supabaseFetch } = require("./_cargo-auth");
 
 const STAGE_ORDER = ["입항전", "입항", "반입", "수입신고", "반출"];
+const IMPORT_DECLARE_DAYS = 30;
+const QUOTA_RELEASE_DAYS = 40;
+const WARN_BEFORE_DAYS = 7;
+
+function isoDate(value) {
+  if (!value) return "";
+  return String(value).slice(0, 10);
+}
+
+function addDays(value, days) {
+  const dateText = isoDate(value);
+  if (!dateText) return null;
+  const date = new Date(`${dateText}T00:00:00Z`);
+  if (Number.isNaN(date.getTime())) return null;
+  date.setUTCDate(date.getUTCDate() + days);
+  return date;
+}
+
+function todayUtc() {
+  const now = new Date();
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+}
+
+function daysLeft(deadline) {
+  return Math.floor((deadline.getTime() - todayUtc().getTime()) / 86400000);
+}
+
+function formatDate(date) {
+  return date.toISOString().slice(0, 10);
+}
+
+function computeQuotaMessages(card) {
+  if (!card.is_quota) {
+    return {
+      ...card,
+      quota_permit_date: "",
+      import_declare_deadline: null,
+      import_declare_message: "",
+      import_declare_alert: "",
+      quota_release_deadline: null,
+      quota_release_message: "",
+      quota_release_alert: "",
+      quota_alert: "",
+    };
+  }
+
+  let importDeclareDeadline = null;
+  let importDeclareMessage = "";
+  let importDeclareAlert = "";
+  const arrivalDeadline = addDays(card.warehouse_arrival_date, IMPORT_DECLARE_DAYS);
+  if (arrivalDeadline) {
+    importDeclareDeadline = formatDate(arrivalDeadline);
+    const left = daysLeft(arrivalDeadline);
+    if (card.import_declared) {
+      importDeclareMessage = `수입신고 완료 (${isoDate(card.import_declared_date) || "-"})`;
+    } else if (left < 0) {
+      importDeclareAlert = "over";
+      importDeclareMessage = `수입신고 가산세 부과 대상: 반입 후 ${IMPORT_DECLARE_DAYS}일 초과 (${-left}일 경과)`;
+    } else {
+      importDeclareAlert = left <= WARN_BEFORE_DAYS ? "warn" : "";
+      importDeclareMessage = `수입신고 기한 ${importDeclareDeadline} (D-${left})`;
+    }
+  } else {
+    importDeclareMessage = "보세구역 반입일 미확정";
+  }
+
+  let quotaReleaseDeadline = null;
+  let quotaReleaseMessage = "";
+  let quotaReleaseAlert = "";
+  const permitDeadline = addDays(card.quota_permit_date, QUOTA_RELEASE_DAYS);
+  const remaining = Number(card.remaining_weight || 0);
+  const unit = card.weight_unit || "KG";
+  if (permitDeadline) {
+    quotaReleaseDeadline = formatDate(permitDeadline);
+    const left = daysLeft(permitDeadline);
+    if (card.fully_released || remaining <= 0) {
+      quotaReleaseMessage = "전량 반출 완료";
+    } else if (left < 0) {
+      quotaReleaseAlert = "over";
+      quotaReleaseMessage = `할당 취소 대상: 교부일 후 ${QUOTA_RELEASE_DAYS}일 초과, 미반출 잔량 ${remaining.toLocaleString("ko-KR")}${unit} (${-left}일 경과)`;
+    } else if (left <= WARN_BEFORE_DAYS) {
+      quotaReleaseAlert = "warn";
+      quotaReleaseMessage = `할당 취소 기한 D-${left} / 잔량 ${remaining.toLocaleString("ko-KR")}${unit}`;
+    } else {
+      quotaReleaseMessage = `할당 취소 기한 ${quotaReleaseDeadline} (D-${left})`;
+    }
+  } else {
+    quotaReleaseAlert = "warn";
+    quotaReleaseMessage = "추천서 교부일로부터 40일 이내 보세구역 미반출 시 해당연도 할당 물량 전체 취소";
+  }
+
+  const alerts = [importDeclareAlert, quotaReleaseAlert];
+  const quotaAlert = alerts.includes("over") ? "over" : (alerts.includes("warn") ? "warn" : "");
+
+  return {
+    ...card,
+    import_declare_deadline: importDeclareDeadline,
+    import_declare_message: importDeclareMessage,
+    import_declare_alert: importDeclareAlert,
+    quota_release_deadline: quotaReleaseDeadline,
+    quota_release_message: quotaReleaseMessage,
+    quota_release_alert: quotaReleaseAlert,
+    quota_alert: quotaAlert,
+  };
+}
+
+async function fetchUserInputs(accountId) {
+  try {
+    return await supabaseFetch(
+      `/rest/v1/cargo_card_user_inputs?select=bl_number,is_quota,quota_permit_date,updated_at&account_id=eq.${accountId}`
+    );
+  } catch (error) {
+    if (String(error.message || "").includes("cargo_card_user_inputs")) {
+      return [];
+    }
+    throw error;
+  }
+}
+
+function applyUserInputs(cards, inputs) {
+  const byBl = new Map((inputs || []).map((item) => [item.bl_number, item]));
+  return (cards || []).map((card) => {
+    const input = byBl.get(card.bl_number);
+    if (!input) return card;
+    return computeQuotaMessages({
+      ...card,
+      is_quota: !!input.is_quota,
+      quota_permit_date: input.quota_permit_date || "",
+      quota_input_updated_at: input.updated_at || null,
+    });
+  });
+}
 
 function sortCards(a, b) {
   const alertRank = { over: 0, warn: 1, "": 2, null: 2, undefined: 2 };
@@ -34,8 +166,9 @@ module.exports = async function handler(req, res) {
     const cards = await supabaseFetch(
       `/rest/v1/cargo_cards?select=*&account_id=eq.${accountId}&order=synced_at.desc`
     );
+    const userInputs = await fetchUserInputs(accountId);
 
-    const sorted = (cards || []).sort(sortCards);
+    const sorted = applyUserInputs(cards || [], userInputs).sort(sortCards);
     const counts = {};
     STAGE_ORDER.forEach((stage) => {
       counts[stage] = 0;
