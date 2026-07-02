@@ -11,6 +11,10 @@ function sortCards(a, b) {
   const sr = STAGE_ORDER.indexOf(a.stage) - STAGE_ORDER.indexOf(b.stage);
   if (sr !== 0) return sr;
 
+  const ap = a.stage === "수입신고" && a.import_permitted ? 1 : 0;
+  const bp = b.stage === "수입신고" && b.import_permitted ? 1 : 0;
+  if (ap !== bp) return ap - bp;
+
   return String(a.warehouse_arrival_date || "9999").localeCompare(String(b.warehouse_arrival_date || "9999"));
 }
 
