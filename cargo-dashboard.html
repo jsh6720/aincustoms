@@ -27,10 +27,10 @@
     .toolbar { display:none; align-items:center; justify-content:space-between; padding:12px 16px 0; }
     .summary { font-size:12.5px; color:#4b5663; font-weight:700; }
     #boardWrap { overflow-x:auto; overflow-y:hidden; }
-    .board { display:none; grid-template-columns:repeat(5, minmax(330px, 1fr)); gap:12px; padding:14px 16px 10px; align-items:start; min-width:1730px; width:100%; }
+    .board { display:none; grid-template-columns:repeat(5, minmax(310px, 1fr)); gap:10px; padding:12px 14px 8px; align-items:start; min-width:1610px; width:100%; }
     .column { border:1px solid #d6dde5; border-radius:8px; min-height:200px; display:flex; flex-direction:column; overflow:hidden; }
-    .col-head { padding:10px 12px; font-weight:700; font-size:14px; color:#fff; display:flex; justify-content:space-between; align-items:center; }
-    .count { background:rgba(255,255,255,.18); border-radius:999px; padding:1px 9px; font-size:12px; min-width:26px; text-align:center; }
+    .col-head { padding:8px 10px; font-weight:700; font-size:13px; color:#fff; display:flex; justify-content:space-between; align-items:center; }
+    .count { background:rgba(255,255,255,.18); border-radius:999px; padding:1px 8px; font-size:11px; min-width:24px; text-align:center; }
     .stage-arrival-before { background:#eef1f4; border-color:#cfd6de; }
     .stage-arrival { background:#edf4f8; border-color:#c8d9e3; }
     .stage-warehouse { background:#f7f2e8; border-color:#e4d8bd; }
@@ -41,10 +41,10 @@
     .stage-warehouse .col-head { background:#8b7138; }
     .stage-declare .col-head { background:#4a765c; }
     .stage-release .col-head { background:#625984; }
-    .col-body { padding:10px; display:flex; flex-direction:column; gap:10px; overflow-y:auto; max-height:calc(100vh - 165px); }
-    .empty { text-align:center; color:#8b95a1; font-size:12px; padding:28px 0; }
+    .col-body { padding:7px; display:flex; flex-direction:column; gap:7px; overflow-y:auto; max-height:calc(100vh - 150px); }
+    .empty { text-align:center; color:#8b95a1; font-size:10px; padding:22px 0; }
 
-    .card { background:#fff; border-radius:8px; border:1px solid #dce2e8; padding:12px; font-size:12.5px; position:relative; box-shadow:0 1px 2px rgba(15,23,42,.06); }
+    .card { background:#fff; border-radius:7px; border:1px solid #dce2e8; padding:7px 8px; font-size:10.4px; position:relative; box-shadow:0 1px 2px rgba(15,23,42,.05); }
     .stage-arrival-before .card { border-left:4px solid #6b747f; }
     .stage-arrival .card { border-left:4px solid #5f8faa; }
     .stage-warehouse .card { border-left:4px solid #aa8f4b; }
@@ -52,41 +52,42 @@
     .stage-release .card { border-left:4px solid #8176a5; }
     .card.over { border:2px solid #fa5252; border-left-width:4px; background:#fff5f5; }
     .card.warn { border:2px solid #fd7e14; border-left-width:4px; background:#fff9f0; }
-    .revision-badge { position:absolute; top:-7px; right:8px; background:#495057; color:#fff; font-size:10px; padding:1px 7px; border-radius:7px; font-weight:700; }
+    .stage-declare .card.permit-ready { background:#f3f8f5; border-color:#b9d4c3; border-left-color:#2f7d52; }
+    .revision-badge { position:absolute; top:-6px; right:7px; background:#495057; color:#fff; font-size:9px; padding:1px 6px; border-radius:6px; font-weight:700; }
 
-    .top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:7px; gap:8px; }
-    .consignee { font-weight:700; font-size:13.5px; color:#1f2933; word-break:keep-all; line-height:1.25; }
-    .bl { font-family:Consolas,monospace; font-size:12px; color:#26313d; font-weight:700; word-break:break-all; margin-top:2px; }
+    .top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:4px; gap:6px; }
+    .consignee { font-weight:700; font-size:11.4px; color:#1f2933; word-break:keep-all; line-height:1.18; }
+    .bl { font-family:Consolas,monospace; font-size:10px; color:#26313d; font-weight:700; word-break:break-all; margin-top:1px; }
     .cat { font-size:10px; color:#64707d; background:#f5f7f9; border:1px solid #e2e8ee; padding:2px 7px; border-radius:6px; white-space:nowrap; }
 
-    .grid { display:grid; grid-template-columns:68px 1fr; row-gap:4px; column-gap:8px; margin:7px 0; }
-    .k { color:#7b8794; font-size:11.5px; white-space:nowrap; font-weight:600; }
-    .v { color:#26313d; word-break:keep-all; overflow-wrap:anywhere; line-height:1.32; font-weight:500; }
+    .grid { display:grid; grid-template-columns:56px 1fr; row-gap:2px; column-gap:6px; margin:4px 0; }
+    .k { color:#7b8794; font-size:9.8px; white-space:nowrap; font-weight:600; }
+    .v { color:#26313d; word-break:keep-all; overflow-wrap:anywhere; line-height:1.24; font-weight:500; }
     .v.strong { font-weight:700; }
 
-    .badges { display:flex; flex-wrap:wrap; gap:5px; margin:8px 0 4px; }
-    .badge { font-size:11px; padding:2px 8px; border-radius:6px; font-weight:600; background:#f5f7f9; color:#495057; border:1px solid #e2e8ee; }
+    .badges { display:flex; flex-wrap:wrap; gap:3px; margin:5px 0 2px; }
+    .badge { font-size:9.7px; padding:1px 5px; border-radius:5px; font-weight:600; background:#f5f7f9; color:#495057; border:1px solid #e2e8ee; }
     .b-pass { background:#edf5ef; color:#3f6f50; border-color:#c9dccf; }
     .b-fail { background:#fff5f5; color:#c92a2a; border-color:#ffc9c9; }
     .b-wait { background:#f8f9fa; color:#495057; }
     .b-none { background:#f8f9fa; color:#9aa1a9; }
     .b-permit { background:#f1f3f5; color:#495057; }
 
-    .quota-box { margin-top:8px; padding-top:8px; border-top:1px solid #edf1f4; font-size:11.5px; line-height:1.35; }
-    .quota-title { color:#495057; font-weight:700; margin-bottom:3px; }
+    .quota-box { margin-top:5px; padding-top:5px; border-top:1px solid #edf1f4; font-size:9.9px; line-height:1.28; }
+    .quota-title { color:#495057; font-weight:700; margin-bottom:2px; }
     .quota-detail { display:block; margin-top:2px; }
     .quota-detail.danger { color:#c92a2a; font-weight:700; }
     .quota-detail.warn { color:#e8590c; font-weight:700; }
 
-    .revision-box { margin-top:8px; border-top:1px solid #edf1f4; padding-top:8px; }
-    .revision-title { color:#495057; font-weight:700; font-size:11.5px; margin-bottom:5px; }
+    .revision-box { margin-top:5px; border-top:1px solid #edf1f4; padding-top:5px; }
+    .revision-title { color:#495057; font-weight:700; font-size:10px; margin-bottom:3px; }
     .revision-list { display:flex; flex-direction:column; gap:4px; }
-    .revision-item { background:#f8f9fa; border:1px solid #edf0f2; border-radius:5px; padding:5px 6px; line-height:1.35; word-break:break-word; }
-    .revision-date { color:#adb5bd; font-size:10px; margin-top:2px; }
+    .revision-item { background:#f8f9fa; border:1px solid #edf0f2; border-radius:5px; padding:4px 5px; line-height:1.28; word-break:break-word; }
+    .revision-date { color:#adb5bd; font-size:9px; margin-top:1px; }
 
-    .release-bar { height:5px; background:#e9ecef; border-radius:3px; margin-top:4px; overflow:hidden; }
+    .release-bar { height:4px; background:#e9ecef; border-radius:3px; margin-top:3px; overflow:hidden; }
     .release-bar > div { height:100%; background:#495057; border-radius:3px; }
-    @media (max-width:1700px){ .board { grid-template-columns:repeat(5, 330px); } }
+    @media (max-width:1700px){ .board { grid-template-columns:repeat(5, 310px); } }
   </style>
 </head>
 <body>
@@ -259,15 +260,15 @@
 
     function cardHtml(card) {
       const alertClass = card.quota_alert === "over" ? " over" : (card.quota_alert === "warn" ? " warn" : "");
+      const permitClass = card.stage === "수입신고" && card.import_permitted ? " permit-ready" : "";
       return `
-        <article class="card${alertClass}">
+        <article class="card${alertClass}${permitClass}">
           ${(card.revisions || []).length ? '<span class="revision-badge">확인사항</span>' : ""}
           <div class="top">
             <div>
               <div class="consignee">${esc(card.consignee)}</div>
               <div class="bl">${esc(card.bl_number)}</div>
             </div>
-            <span class="cat">${esc(card.category || "")}</span>
           </div>
           <div class="grid">
             <div class="k">반출처</div><div class="v">${esc(card.destination || "-")}</div>
