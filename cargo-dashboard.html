@@ -3,174 +3,102 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>축산물 통관조회</title>
+  <title>축산물 통관 대시보드</title>
   <style>
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      background: #f3f5f7;
-      color: #26313d;
-      font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    }
-    header {
-      height: 68px;
-      padding: 0 28px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      background: #28313a;
-      color: #fff;
-      border-bottom: 1px solid #202830;
-    }
-    h1 { margin: 0; font-size: 21px; letter-spacing: 0; }
-    .sub { margin-top: 5px; color: #b6c0ca; font-size: 12px; font-weight: 600; }
-    main { padding: 18px; min-width: 1600px; }
-    .login-panel {
-      width: 380px;
-      margin: 110px auto 0;
-      background: #fff;
-      border: 1px solid #d9dee4;
-      border-radius: 8px;
-      padding: 24px;
-      box-shadow: 0 12px 28px rgba(27, 39, 51, .08);
-    }
-    .login-panel h2 { margin: 0 0 16px; font-size: 20px; }
-    label { display: block; margin: 12px 0 6px; font-size: 12px; font-weight: 700; color: #4b5663; }
-    input {
-      width: 100%;
-      height: 38px;
-      border: 1px solid #ccd3da;
-      border-radius: 5px;
-      padding: 0 10px;
-      font-size: 14px;
-      background: #fff;
-    }
-    button {
-      border: 0;
-      border-radius: 5px;
-      background: #28313a;
-      color: #fff;
-      font-weight: 700;
-      height: 36px;
-      padding: 0 14px;
-      cursor: pointer;
-    }
-    button.secondary { background: #687481; }
-    .login-panel button { width: 100%; margin-top: 18px; }
-    .error { margin-top: 12px; color: #c92a2a; font-size: 13px; font-weight: 700; }
-    .toolbar {
-      display: none;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 14px;
-    }
-    .summary { font-size: 13px; color: #5c6672; font-weight: 700; }
-    .board {
-      display: none;
-      grid-template-columns: repeat(5, minmax(300px, 1fr));
-      gap: 12px;
-      align-items: start;
-    }
-    .column {
-      border: 1px solid #d5dce3;
-      border-radius: 7px;
-      overflow: hidden;
-      background: #e9edf1;
-      min-height: calc(100vh - 126px);
-    }
-    .col-head {
-      height: 38px;
-      padding: 0 12px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      color: #fff;
-      font-weight: 800;
-      font-size: 14px;
-    }
-    .stage-arrival-before .col-head { background: #47515c; }
-    .stage-arrival .col-head { background: #3f6f8f; }
-    .stage-warehouse .col-head { background: #8b7138; }
-    .stage-declare .col-head { background: #4a765c; }
-    .stage-release .col-head { background: #625984; }
-    .count {
-      min-width: 24px;
-      height: 22px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 12px;
-      background: rgba(255, 255, 255, .2);
-      font-size: 12px;
-    }
-    .col-body { padding: 9px; }
-    .empty { padding: 28px 0; color: #8d97a3; text-align: center; font-size: 13px; }
-    .card {
-      position: relative;
-      margin-bottom: 9px;
-      padding: 11px;
-      border-radius: 7px;
-      background: #fff;
-      border: 1px solid #dfe4e8;
-      border-left: 4px solid #8b949e;
-      box-shadow: 0 2px 6px rgba(31, 41, 55, .06);
-      font-size: 12px;
-    }
-    .card.over { border-color: #fa5252; background: #fff5f5; }
-    .card.warn { border-color: #fd7e14; background: #fff9f0; }
-    .stage-arrival-before .card { border-left-color: #47515c; }
-    .stage-arrival .card { border-left-color: #3f6f8f; }
-    .stage-warehouse .card { border-left-color: #8b7138; }
-    .stage-declare .card { border-left-color: #4a765c; }
-    .stage-release .card { border-left-color: #625984; }
-    .top { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
-    .consignee { font-weight: 900; font-size: 14px; color: #1f2933; }
-    .bl { margin-top: 2px; font-weight: 800; font-size: 11px; color: #344154; }
-    .cat {
-      height: 22px;
-      padding: 3px 7px;
-      border-radius: 11px;
-      background: #eef2f5;
-      color: #64707d;
-      font-size: 11px;
-      font-weight: 800;
-      white-space: nowrap;
-    }
-    .grid {
-      display: grid;
-      grid-template-columns: 78px 1fr;
-      gap: 4px 8px;
-      line-height: 1.35;
-    }
-    .k { color: #7a8590; font-weight: 800; }
-    .v { color: #2f3b46; font-weight: 650; word-break: keep-all; }
-    .badges { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
-    .badge {
-      display: inline-flex;
-      align-items: center;
-      height: 22px;
-      padding: 0 7px;
-      border-radius: 5px;
-      border: 1px solid #d8dee5;
-      background: #f8fafb;
-      color: #52606d;
-      font-weight: 800;
-      font-size: 11px;
-    }
-    .danger { color: #c92a2a; font-weight: 900; }
-    .quota { margin-top: 8px; padding-top: 7px; border-top: 1px solid #edf1f4; line-height: 1.35; }
-    .release-bar { height: 6px; margin-top: 6px; border-radius: 4px; background: #e5e9ed; overflow: hidden; }
-    .release-bar div { height: 100%; background: #4a765c; }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:'Segoe UI','Malgun Gothic',sans-serif; background:#f4f6f8; color:#26313d; overflow-x:hidden; }
+
+    .header { background:#2b323a; color:#fff; padding:14px 20px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid #1f252b; position:sticky; top:0; z-index:100; }
+    .header h1 { font-size:19px; font-weight:700; letter-spacing:0; }
+    .header .sub { font-size:12px; opacity:.72; margin-top:2px; }
+    .header .right { display:flex; align-items:center; gap:10px; }
+    .btn { background:#343a40; color:#fff; border:none; border-radius:5px; padding:7px 12px; font-size:12px; cursor:pointer; font-weight:700; }
+    .btn:hover { background:#212529; }
+    .btn.gray { background:#6b7684; }
+    .btn.gray:hover { background:#58616d; }
+
+    .login-panel { width:380px; margin:110px auto 0; background:#fff; border:1px solid #d9dee4; border-radius:8px; padding:24px; box-shadow:0 12px 28px rgba(27,39,51,.08); }
+    .login-panel h2 { margin:0 0 16px; font-size:20px; color:#1f2933; }
+    label { display:block; margin:12px 0 6px; font-size:12px; font-weight:700; color:#4b5663; }
+    input { width:100%; height:38px; border:1px solid #ccd3da; border-radius:5px; padding:0 10px; font-size:14px; background:#fff; }
+    .login-panel .btn { width:100%; height:39px; margin-top:18px; font-size:13px; }
+    .error { margin-top:12px; color:#c92a2a; font-size:13px; font-weight:700; line-height:1.45; }
+
+    .toolbar { display:none; align-items:center; justify-content:space-between; padding:12px 16px 0; }
+    .summary { font-size:12.5px; color:#4b5663; font-weight:700; }
+    #boardWrap { overflow-x:auto; overflow-y:hidden; }
+    .board { display:none; grid-template-columns:repeat(5, minmax(330px, 1fr)); gap:12px; padding:14px 16px 10px; align-items:start; min-width:1730px; width:100%; }
+    .column { border:1px solid #d6dde5; border-radius:8px; min-height:200px; display:flex; flex-direction:column; overflow:hidden; }
+    .col-head { padding:10px 12px; font-weight:700; font-size:14px; color:#fff; display:flex; justify-content:space-between; align-items:center; }
+    .count { background:rgba(255,255,255,.18); border-radius:999px; padding:1px 9px; font-size:12px; min-width:26px; text-align:center; }
+    .stage-arrival-before { background:#eef1f4; border-color:#cfd6de; }
+    .stage-arrival { background:#edf4f8; border-color:#c8d9e3; }
+    .stage-warehouse { background:#f7f2e8; border-color:#e4d8bd; }
+    .stage-declare { background:#edf5ef; border-color:#c9dccf; }
+    .stage-release { background:#f0eef6; border-color:#d6d0e4; }
+    .stage-arrival-before .col-head { background:#47515c; }
+    .stage-arrival .col-head { background:#3f6f8f; }
+    .stage-warehouse .col-head { background:#8b7138; }
+    .stage-declare .col-head { background:#4a765c; }
+    .stage-release .col-head { background:#625984; }
+    .col-body { padding:10px; display:flex; flex-direction:column; gap:10px; overflow-y:auto; max-height:calc(100vh - 165px); }
+    .empty { text-align:center; color:#8b95a1; font-size:12px; padding:28px 0; }
+
+    .card { background:#fff; border-radius:8px; border:1px solid #dce2e8; padding:12px; font-size:12.5px; position:relative; box-shadow:0 1px 2px rgba(15,23,42,.06); }
+    .stage-arrival-before .card { border-left:4px solid #6b747f; }
+    .stage-arrival .card { border-left:4px solid #5f8faa; }
+    .stage-warehouse .card { border-left:4px solid #aa8f4b; }
+    .stage-declare .card { border-left:4px solid #679675; }
+    .stage-release .card { border-left:4px solid #8176a5; }
+    .card.over { border:2px solid #fa5252; border-left-width:4px; background:#fff5f5; }
+    .card.warn { border:2px solid #fd7e14; border-left-width:4px; background:#fff9f0; }
+    .revision-badge { position:absolute; top:-7px; right:8px; background:#495057; color:#fff; font-size:10px; padding:1px 7px; border-radius:7px; font-weight:700; }
+
+    .top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:7px; gap:8px; }
+    .consignee { font-weight:700; font-size:13.5px; color:#1f2933; word-break:keep-all; line-height:1.25; }
+    .bl { font-family:Consolas,monospace; font-size:12px; color:#26313d; font-weight:700; word-break:break-all; margin-top:2px; }
+    .cat { font-size:10px; color:#64707d; background:#f5f7f9; border:1px solid #e2e8ee; padding:2px 7px; border-radius:6px; white-space:nowrap; }
+
+    .grid { display:grid; grid-template-columns:68px 1fr; row-gap:4px; column-gap:8px; margin:7px 0; }
+    .k { color:#7b8794; font-size:11.5px; white-space:nowrap; font-weight:600; }
+    .v { color:#26313d; word-break:keep-all; overflow-wrap:anywhere; line-height:1.32; font-weight:500; }
+    .v.strong { font-weight:700; }
+
+    .badges { display:flex; flex-wrap:wrap; gap:5px; margin:8px 0 4px; }
+    .badge { font-size:11px; padding:2px 8px; border-radius:6px; font-weight:600; background:#f5f7f9; color:#495057; border:1px solid #e2e8ee; }
+    .b-pass { background:#edf5ef; color:#3f6f50; border-color:#c9dccf; }
+    .b-fail { background:#fff5f5; color:#c92a2a; border-color:#ffc9c9; }
+    .b-wait { background:#f8f9fa; color:#495057; }
+    .b-none { background:#f8f9fa; color:#9aa1a9; }
+    .b-permit { background:#f1f3f5; color:#495057; }
+
+    .quota-box { margin-top:8px; padding-top:8px; border-top:1px solid #edf1f4; font-size:11.5px; line-height:1.35; }
+    .quota-title { color:#495057; font-weight:700; margin-bottom:3px; }
+    .quota-detail { display:block; margin-top:2px; }
+    .quota-detail.danger { color:#c92a2a; font-weight:700; }
+    .quota-detail.warn { color:#e8590c; font-weight:700; }
+
+    .revision-box { margin-top:8px; border-top:1px solid #edf1f4; padding-top:8px; }
+    .revision-title { color:#495057; font-weight:700; font-size:11.5px; margin-bottom:5px; }
+    .revision-list { display:flex; flex-direction:column; gap:4px; }
+    .revision-item { background:#f8f9fa; border:1px solid #edf0f2; border-radius:5px; padding:5px 6px; line-height:1.35; word-break:break-word; }
+    .revision-date { color:#adb5bd; font-size:10px; margin-top:2px; }
+
+    .release-bar { height:5px; background:#e9ecef; border-radius:3px; margin-top:4px; overflow:hidden; }
+    .release-bar > div { height:100%; background:#495057; border-radius:3px; }
+    @media (max-width:1700px){ .board { grid-template-columns:repeat(5, 330px); } }
   </style>
 </head>
 <body>
-  <header>
+  <div class="header">
     <div>
-      <h1>축산물 통관조회</h1>
-      <div class="sub">화주별 B/L 통관 마일스톤 조회</div>
+      <h1>축산물 통관 대시보드</h1>
+      <div class="sub">BL별 통관 마일스톤 · 유니패스 실시간 조회</div>
     </div>
-    <button id="logoutBtn" class="secondary" style="display:none" onclick="logout()">로그아웃</button>
-  </header>
+    <div class="right">
+      <button id="logoutBtn" class="btn gray" style="display:none" onclick="logout()">로그아웃</button>
+    </div>
+  </div>
 
   <section id="loginPanel" class="login-panel">
     <h2>화주 로그인</h2>
@@ -179,7 +107,7 @@
       <input id="loginId" autocomplete="username" value="HCH">
       <label for="password">비밀번호</label>
       <input id="password" type="password" autocomplete="current-password">
-      <button type="submit">조회하기</button>
+      <button class="btn" type="submit">조회하기</button>
       <div id="loginError" class="error"></div>
     </form>
   </section>
@@ -187,9 +115,11 @@
   <main>
     <div id="toolbar" class="toolbar">
       <div id="summary" class="summary"></div>
-      <button onclick="loadData()">새로고침</button>
+      <button class="btn" onclick="loadData()">새로고침</button>
     </div>
-    <div id="board" class="board"></div>
+    <div id="boardWrap">
+      <div id="board" class="board"></div>
+    </div>
   </main>
 
   <script>
@@ -210,6 +140,19 @@
     function fmtWeight(value, unit) {
       if (value === null || value === undefined || value === "" || Number.isNaN(Number(value))) return "-";
       return Number(value).toLocaleString("ko-KR", { maximumFractionDigits: 1 }) + (unit || "KG");
+    }
+
+    function displayDate(value) {
+      if (!value) return "-";
+      return String(value).replace("T", " ").replace(/\.\d+(\+00:00|Z)?$/, "").replace("+00:00", "");
+    }
+
+    function qBadge(label, value) {
+      const text = value || "-";
+      if (!value) return `<span class="badge b-none">${label} -</span>`;
+      if (String(value).includes("불합격")) return `<span class="badge b-fail">${label} 불합격</span>`;
+      if (String(value).includes("합격")) return `<span class="badge b-pass">${label} 합격</span>`;
+      return `<span class="badge b-wait">${label} ${esc(text)}</span>`;
     }
 
     async function login(event) {
@@ -248,7 +191,7 @@
       }
 
       document.getElementById("summary").textContent =
-        `${result.user.display_name} 통관 현황 · 총 ${result.total}건 · 마지막 동기화 ${result.last_update || "-"}`;
+        `${result.user.display_name} 통관 현황 · 총 ${result.total}건 · 마지막 동기화 ${displayDate(result.last_update)}`;
 
       const board = document.getElementById("board");
       board.innerHTML = result.stages.map(stage => {
@@ -264,27 +207,61 @@
       }).join("");
     }
 
+    function permitBadge(card) {
+      if (card.import_permitted) return `<span class="badge b-permit">수입신고 ${esc(card.import_permit_date || "-")}</span>`;
+      if (card.import_declared) return `<span class="badge b-wait">수입신고 (수리대기)</span>`;
+      return `<span class="badge b-none">수입신고 -</span>`;
+    }
+
+    function quotaHtml(card) {
+      if (!card.is_quota && !card.import_declare_message && !card.quota_release_message) return "";
+      const importMsg = card.import_declare_message ? `<span class="quota-detail danger">${esc(card.import_declare_message)}</span>` : "";
+      const releaseClass = card.quota_release_alert ? "danger" : (card.quota_release_message ? "danger" : "");
+      const releaseMsg = card.quota_release_message ? `<span class="quota-detail ${releaseClass}">${esc(card.quota_release_message)}</span>` : "";
+      return `
+        <div class="quota-box">
+          <div class="quota-title">할당관세</div>
+          ${importMsg}${releaseMsg}
+        </div>
+      `;
+    }
+
+    function revisionsHtml(card) {
+      const revisions = card.revisions || [];
+      if (!revisions.length) return "";
+      return `
+        <div class="revision-box">
+          <div class="revision-title">확인사항</div>
+          <div class="revision-list">
+            ${revisions.map(item => `
+              <div class="revision-item">
+                <div>${esc(item.text || item)}</div>
+                ${item.created_at ? `<div class="revision-date">${esc(item.created_at)}${item.updated_at ? " · 수정 " + esc(item.updated_at) : ""}</div>` : ""}
+              </div>
+            `).join("")}
+          </div>
+        </div>
+      `;
+    }
+
+    function releaseHtml(card) {
+      if (!(card.base_weight > 0)) return "";
+      const pct = Math.min(100, Math.round((card.released_weight || 0) / card.base_weight * 100));
+      return `
+        <div class="grid" style="margin-top:7px">
+          <div class="k">반출합계</div><div class="v">${fmtWeight(card.released_weight, card.weight_unit)} / ${fmtWeight(card.base_weight, card.weight_unit)} (${pct}%)</div>
+          <div class="k">반출상태</div><div class="v strong">${esc(card.release_status || "-")}</div>
+          <div class="k">잔량</div><div class="v strong">${card.fully_released ? "반출완료" : fmtWeight(card.remaining_weight, card.weight_unit)}</div>
+        </div>
+        <div class="release-bar"><div style="width:${pct}%"></div></div>
+      `;
+    }
+
     function cardHtml(card) {
       const alertClass = card.quota_alert === "over" ? " over" : (card.quota_alert === "warn" ? " warn" : "");
-      const releasePct = card.base_weight > 0
-        ? Math.min(100, Math.round((card.released_weight || 0) / card.base_weight * 100))
-        : 0;
-      const releaseBlock = card.base_weight > 0 ? `
-        <div class="grid" style="margin-top:7px">
-          <div class="k">반출합계</div><div class="v">${fmtWeight(card.released_weight, card.weight_unit)} / ${fmtWeight(card.base_weight, card.weight_unit)} (${releasePct}%)</div>
-          <div class="k">잔량</div><div class="v">${card.fully_released ? "반출완료" : fmtWeight(card.remaining_weight, card.weight_unit)}</div>
-        </div>
-        <div class="release-bar"><div style="width:${releasePct}%"></div></div>
-      ` : "";
-      const quotaBlock = card.is_quota ? `
-        <div class="quota">
-          ${card.import_declare_message ? `<div class="danger">${esc(card.import_declare_message)}</div>` : ""}
-          ${card.quota_release_message ? `<div class="danger">${esc(card.quota_release_message)}</div>` : ""}
-        </div>
-      ` : "";
-
       return `
         <article class="card${alertClass}">
+          ${(card.revisions || []).length ? '<span class="revision-badge">확인사항</span>' : ""}
           <div class="top">
             <div>
               <div class="consignee">${esc(card.consignee)}</div>
@@ -297,18 +274,19 @@
             <div class="k">품명</div><div class="v">${esc(card.product_name || "-")}</div>
             <div class="k">적출국</div><div class="v">${esc(card.load_country_name || "-")} ${card.load_country ? "(" + esc(card.load_country) + ")" : ""}</div>
             <div class="k">총중량</div><div class="v">${fmtWeight(card.total_weight, card.weight_unit)}</div>
-            <div class="k">최초반입</div><div class="v">${esc(card.first_arrival_date || "-")}</div>
-            <div class="k">창고반입</div><div class="v">${esc(card.warehouse_arrival_date || "-")}</div>
-            <div class="k">장치장</div><div class="v">${esc(card.shed_name || "-")}</div>
-            <div class="k">진행상태</div><div class="v">${esc(card.prgs_stts || "-")}</div>
+            <div class="k">최초반입</div><div class="v"><b>${esc(card.first_arrival_date || "-")}</b></div>
+            ${card.warehouse_arrival_date && card.warehouse_arrival_date !== card.first_arrival_date ? `<div class="k">창고반입</div><div class="v">${esc(card.warehouse_arrival_date)}</div>` : ""}
+            ${card.shed_name ? `<div class="k">장치장</div><div class="v">${esc(card.shed_name)}</div>` : ""}
+            <div class="k">진행상태</div><div class="v">${esc(card.prgs_stts || (card.stage === "입항전" ? "조회 전" : "-"))}</div>
           </div>
           <div class="badges">
-            <span class="badge">동물검역 ${esc(card.animal_quarantine || "-")}</span>
-            <span class="badge">식품검역 ${esc(card.food_quarantine || "-")}</span>
-            <span class="badge">수입신고 ${esc(card.import_declared_date || "-")}</span>
+            ${qBadge("동물검역", card.animal_quarantine)}
+            ${qBadge("식품검역", card.food_quarantine)}
+            ${permitBadge(card)}
           </div>
-          ${releaseBlock}
-          ${quotaBlock}
+          ${releaseHtml(card)}
+          ${quotaHtml(card)}
+          ${revisionsHtml(card)}
         </article>
       `;
     }
