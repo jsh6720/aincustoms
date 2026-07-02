@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>축산물 통관조회</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #f3f5f7;
+      color: #26313d;
+      font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    header {
+      height: 68px;
+      padding: 0 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #28313a;
+      color: #fff;
+      border-bottom: 1px solid #202830;
+    }
+    h1 { margin: 0; font-size: 21px; letter-spacing: 0; }
+    .sub { margin-top: 5px; color: #b6c0ca; font-size: 12px; font-weight: 600; }
+    main { padding: 18px; min-width: 1600px; }
+    .login-panel {
+      width: 380px;
+      margin: 110px auto 0;
+      background: #fff;
+      border: 1px solid #d9dee4;
+      border-radius: 8px;
+      padding: 24px;
+      box-shadow: 0 12px 28px rgba(27, 39, 51, .08);
+    }
+    .login-panel h2 { margin: 0 0 16px; font-size: 20px; }
+    label { display: block; margin: 12px 0 6px; font-size: 12px; font-weight: 700; color: #4b5663; }
+    input {
+      width: 100%;
+      height: 38px;
+      border: 1px solid #ccd3da;
+      border-radius: 5px;
+      padding: 0 10px;
+      font-size: 14px;
+      background: #fff;
+    }
+    button {
+      border: 0;
+      border-radius: 5px;
+      background: #28313a;
+      color: #fff;
+      font-weight: 700;
+      height: 36px;
+      padding: 0 14px;
+      cursor: pointer;
+    }
+    button.secondary { background: #687481; }
+    .login-panel button { width: 100%; margin-top: 18px; }
+    .error { margin-top: 12px; color: #c92a2a; font-size: 13px; font-weight: 700; }
+    .toolbar {
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+    .summary { font-size: 13px; color: #5c6672; font-weight: 700; }
+    .board {
+      display: none;
+      grid-template-columns: repeat(5, minmax(300px, 1fr));
+      gap: 12px;
+      align-items: start;
+    }
+    .column {
+      border: 1px solid #d5dce3;
+      border-radius: 7px;
+      overflow: hidden;
+      background: #e9edf1;
+      min-height: calc(100vh - 126px);
+    }
+    .col-head {
+      height: 38px;
+      padding: 0 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: #fff;
+      font-weight: 800;
+      font-size: 14px;
+    }
+    .stage-arrival-before .col-head { background: #47515c; }
+    .stage-arrival .col-head { background: #3f6f8f; }
+    .stage-warehouse .col-head { background: #8b7138; }
+    .stage-declare .col-head { background: #4a765c; }
+    .stage-release .col-head { background: #625984; }
+    .count {
+      min-width: 24px;
+      height: 22px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, .2);
+      font-size: 12px;
+    }
+    .col-body { padding: 9px; }
+    .empty { padding: 28px 0; color: #8d97a3; text-align: center; font-size: 13px; }
+    .card {
+      position: relative;
+      margin-bottom: 9px;
+      padding: 11px;
+      border-radius: 7px;
+      background: #fff;
+      border: 1px solid #dfe4e8;
+      border-left: 4px solid #8b949e;
+      box-shadow: 0 2px 6px rgba(31, 41, 55, .06);
+      font-size: 12px;
+    }
+    .card.over { border-color: #fa5252; background: #fff5f5; }
+    .card.warn { border-color: #fd7e14; background: #fff9f0; }
+    .stage-arrival-before .card { border-left-color: #47515c; }
+    .stage-arrival .card { border-left-color: #3f6f8f; }
+    .stage-warehouse .card { border-left-color: #8b7138; }
+    .stage-declare .card { border-left-color: #4a765c; }
+    .stage-release .card { border-left-color: #625984; }
+    .top { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+    .consignee { font-weight: 900; font-size: 14px; color: #1f2933; }
+    .bl { margin-top: 2px; font-weight: 800; font-size: 11px; color: #344154; }
+    .cat {
+      height: 22px;
+      padding: 3px 7px;
+      border-radius: 11px;
+      background: #eef2f5;
+      color: #64707d;
+      font-size: 11px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 78px 1fr;
+      gap: 4px 8px;
+      line-height: 1.35;
+    }
+    .k { color: #7a8590; font-weight: 800; }
+    .v { color: #2f3b46; font-weight: 650; word-break: keep-all; }
+    .badges { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      height: 22px;
+      padding: 0 7px;
+      border-radius: 5px;
+      border: 1px solid #d8dee5;
+      background: #f8fafb;
+      color: #52606d;
+      font-weight: 800;
+      font-size: 11px;
+    }
+    .danger { color: #c92a2a; font-weight: 900; }
+    .quota { margin-top: 8px; padding-top: 7px; border-top: 1px solid #edf1f4; line-height: 1.35; }
+    .release-bar { height: 6px; margin-top: 6px; border-radius: 4px; background: #e5e9ed; overflow: hidden; }
+    .release-bar div { height: 100%; background: #4a765c; }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>축산물 통관조회</h1>
+      <div class="sub">화주별 B/L 통관 마일스톤 조회</div>
+    </div>
+    <button id="logoutBtn" class="secondary" style="display:none" onclick="logout()">로그아웃</button>
+  </header>
+
+  <section id="loginPanel" class="login-panel">
+    <h2>화주 로그인</h2>
+    <form onsubmit="login(event)">
+      <label for="loginId">아이디</label>
+      <input id="loginId" autocomplete="username" value="HCH">
+      <label for="password">비밀번호</label>
+      <input id="password" type="password" autocomplete="current-password">
+      <button type="submit">조회하기</button>
+      <div id="loginError" class="error"></div>
+    </form>
+  </section>
+
+  <main>
+    <div id="toolbar" class="toolbar">
+      <div id="summary" class="summary"></div>
+      <button onclick="loadData()">새로고침</button>
+    </div>
+    <div id="board" class="board"></div>
+  </main>
+
+  <script>
+    const stageClasses = {
+      "입항전": "stage-arrival-before",
+      "입항": "stage-arrival",
+      "반입": "stage-warehouse",
+      "수입신고": "stage-declare",
+      "반출": "stage-release"
+    };
+
+    function esc(value) {
+      return String(value ?? "").replace(/[&<>"']/g, ch => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+      }[ch]));
+    }
+
+    function fmtWeight(value, unit) {
+      if (value === null || value === undefined || value === "" || Number.isNaN(Number(value))) return "-";
+      return Number(value).toLocaleString("ko-KR", { maximumFractionDigits: 1 }) + (unit || "KG");
+    }
+
+    async function login(event) {
+      event.preventDefault();
+      document.getElementById("loginError").textContent = "";
+      const response = await fetch("/api/cargo-login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          login_id: document.getElementById("loginId").value.trim(),
+          password: document.getElementById("password").value.trim()
+        })
+      });
+      const result = await response.json();
+      if (!result.success) {
+        document.getElementById("loginError").textContent = result.message || "로그인에 실패했습니다.";
+        return;
+      }
+      document.getElementById("loginPanel").style.display = "none";
+      document.getElementById("toolbar").style.display = "flex";
+      document.getElementById("board").style.display = "grid";
+      document.getElementById("logoutBtn").style.display = "";
+      await loadData();
+    }
+
+    async function loadData() {
+      const response = await fetch("/api/cargo-data");
+      const result = await response.json();
+      if (!result.success) {
+        document.getElementById("loginPanel").style.display = "";
+        document.getElementById("toolbar").style.display = "none";
+        document.getElementById("board").style.display = "none";
+        document.getElementById("logoutBtn").style.display = "none";
+        document.getElementById("loginError").textContent = result.message || "";
+        return;
+      }
+
+      document.getElementById("summary").textContent =
+        `${result.user.display_name} 통관 현황 · 총 ${result.total}건 · 마지막 동기화 ${result.last_update || "-"}`;
+
+      const board = document.getElementById("board");
+      board.innerHTML = result.stages.map(stage => {
+        const cards = result.cards.filter(card => card.stage === stage);
+        return `
+          <section class="column ${stageClasses[stage] || ""}">
+            <div class="col-head"><span>${stage}</span><span class="count">${cards.length}</span></div>
+            <div class="col-body">
+              ${cards.length ? cards.map(cardHtml).join("") : '<div class="empty">해당 없음</div>'}
+            </div>
+          </section>
+        `;
+      }).join("");
+    }
+
+    function cardHtml(card) {
+      const alertClass = card.quota_alert === "over" ? " over" : (card.quota_alert === "warn" ? " warn" : "");
+      const releasePct = card.base_weight > 0
+        ? Math.min(100, Math.round((card.released_weight || 0) / card.base_weight * 100))
+        : 0;
+      const releaseBlock = card.base_weight > 0 ? `
+        <div class="grid" style="margin-top:7px">
+          <div class="k">반출합계</div><div class="v">${fmtWeight(card.released_weight, card.weight_unit)} / ${fmtWeight(card.base_weight, card.weight_unit)} (${releasePct}%)</div>
+          <div class="k">잔량</div><div class="v">${card.fully_released ? "반출완료" : fmtWeight(card.remaining_weight, card.weight_unit)}</div>
+        </div>
+        <div class="release-bar"><div style="width:${releasePct}%"></div></div>
+      ` : "";
+      const quotaBlock = card.is_quota ? `
+        <div class="quota">
+          ${card.import_declare_message ? `<div class="danger">${esc(card.import_declare_message)}</div>` : ""}
+          ${card.quota_release_message ? `<div class="danger">${esc(card.quota_release_message)}</div>` : ""}
+        </div>
+      ` : "";
+
+      return `
+        <article class="card${alertClass}">
+          <div class="top">
+            <div>
+              <div class="consignee">${esc(card.consignee)}</div>
+              <div class="bl">${esc(card.bl_number)}</div>
+            </div>
+            <span class="cat">${esc(card.category || "")}</span>
+          </div>
+          <div class="grid">
+            <div class="k">반출처</div><div class="v">${esc(card.destination || "-")}</div>
+            <div class="k">품명</div><div class="v">${esc(card.product_name || "-")}</div>
+            <div class="k">적출국</div><div class="v">${esc(card.load_country_name || "-")} ${card.load_country ? "(" + esc(card.load_country) + ")" : ""}</div>
+            <div class="k">총중량</div><div class="v">${fmtWeight(card.total_weight, card.weight_unit)}</div>
+            <div class="k">최초반입</div><div class="v">${esc(card.first_arrival_date || "-")}</div>
+            <div class="k">창고반입</div><div class="v">${esc(card.warehouse_arrival_date || "-")}</div>
+            <div class="k">장치장</div><div class="v">${esc(card.shed_name || "-")}</div>
+            <div class="k">진행상태</div><div class="v">${esc(card.prgs_stts || "-")}</div>
+          </div>
+          <div class="badges">
+            <span class="badge">동물검역 ${esc(card.animal_quarantine || "-")}</span>
+            <span class="badge">식품검역 ${esc(card.food_quarantine || "-")}</span>
+            <span class="badge">수입신고 ${esc(card.import_declared_date || "-")}</span>
+          </div>
+          ${releaseBlock}
+          ${quotaBlock}
+        </article>
+      `;
+    }
+
+    async function logout() {
+      await fetch("/api/cargo-logout", { method: "POST" });
+      location.reload();
+    }
+
+    loadData();
+  </script>
+</body>
+</html>
