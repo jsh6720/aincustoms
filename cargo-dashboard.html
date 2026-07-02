@@ -92,6 +92,24 @@
 
     .release-bar { height:4px; background:#e9ecef; border-radius:3px; margin-top:3px; overflow:hidden; }
     .release-bar > div { height:100%; background:#495057; border-radius:3px; }
+    .card-actions { display:flex; justify-content:flex-end; margin-top:6px; border-top:1px solid #edf1f4; padding-top:6px; }
+    .request-btn { background:#2f5f46; color:#fff; border:none; border-radius:5px; padding:4px 8px; font-size:10px; font-weight:700; cursor:pointer; }
+    .request-btn:hover { background:#254d39; }
+    .modal-bg { display:none; position:fixed; inset:0; background:rgba(15,23,42,.42); z-index:200; align-items:center; justify-content:center; }
+    .modal { width:430px; background:#fff; border:1px solid #d9dee4; border-radius:8px; box-shadow:0 18px 42px rgba(15,23,42,.2); padding:18px; }
+    .modal h2 { font-size:17px; margin-bottom:10px; color:#1f2933; }
+    .modal-card { background:#f8f9fa; border:1px solid #edf0f2; border-radius:6px; padding:9px; margin-bottom:10px; font-size:11px; line-height:1.45; }
+    .modal-row { display:grid; grid-template-columns:68px 1fr; gap:5px; }
+    .modal-options { display:flex; gap:12px; align-items:center; margin:10px 0; font-size:12px; font-weight:700; color:#495057; }
+    .modal-options label { display:flex; align-items:center; gap:5px; margin:0; cursor:pointer; }
+    .modal-options input { width:13px; height:13px; margin:0; padding:0; }
+    .modal-field { margin-top:8px; }
+    .modal-field label { display:block; margin:0 0 4px; font-size:11px; color:#495057; font-weight:700; }
+    .modal-field input, .modal-field textarea { width:100%; border:1px solid #ccd3da; border-radius:5px; padding:6px 8px; font-size:12px; font-family:inherit; }
+    .modal-field input { height:31px; }
+    .modal-field textarea { min-height:62px; resize:vertical; }
+    .modal-actions { display:flex; justify-content:flex-end; gap:7px; margin-top:12px; }
+    .modal-actions .btn { padding:6px 10px; font-size:12px; }
     @media (max-width:1700px){ .board { grid-template-columns:repeat(5, 310px); } }
   </style>
 </head>
@@ -128,6 +146,29 @@
     </div>
   </main>
 
+  <div id="releaseModalBg" class="modal-bg">
+    <div class="modal">
+      <h2>출고요청</h2>
+      <div id="releaseModalCard" class="modal-card"></div>
+      <div class="modal-options">
+        <label><input type="radio" name="releaseType" value="full" checked onchange="toggleReleaseType()"> 전량</label>
+        <label><input type="radio" name="releaseType" value="partial" onchange="toggleReleaseType()"> 일부 물량</label>
+      </div>
+      <div class="modal-field" id="releaseWeightWrap" style="display:none">
+        <label for="releaseWeight">요청물량</label>
+        <input id="releaseWeight" type="number" min="0" step="0.1">
+      </div>
+      <div class="modal-field">
+        <label for="releaseMemo">요청사항</label>
+        <textarea id="releaseMemo" placeholder="출고 희망일, 차량/운송 관련 요청사항 등을 입력하세요."></textarea>
+      </div>
+      <div class="modal-actions">
+        <button class="btn gray" onclick="closeReleaseModal()">취소</button>
+        <button class="btn" onclick="submitReleaseRequest()">요청 발송</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     const stageClasses = {
       "입항전": "stage-arrival-before",
@@ -136,6 +177,7 @@
       "수입신고": "stage-declare",
       "반출": "stage-release"
     };
+    let releaseRequestCard = null;
 
     function esc(value) {
       return String(value ?? "").replace(/[&<>"']/g, ch => ({
@@ -150,6 +192,12 @@
     function fmtWeight(value, unit) {
       if (value === null || value === undefined || value === "" || Number.isNaN(Number(value))) return "-";
       return Number(value).toLocaleString("ko-KR", { maximumFractionDigits: 1 }) + (unit || "KG");
+    }
+
+    function numberValue(value) {
+      if (value === null || value === undefined || value === "") return null;
+      const parsed = Number(String(value).replace(/,/g, ""));
+      return Number.isFinite(parsed) ? parsed : null;
     }
 
     function displayDate(value) {
@@ -280,6 +328,15 @@
       `;
     }
 
+    function releaseRequestButton(card) {
+      if (card.stage !== "수입신고") return "";
+      return `
+        <div class="card-actions">
+          <button class="request-btn" onclick="openReleaseModal('${jsStr(card.bl_number)}')">출고요청</button>
+        </div>
+      `;
+    }
+
     function cardHtml(card) {
       const alertClass = card.quota_alert === "over" ? " over" : (card.quota_alert === "warn" ? " warn" : "");
       const permitClass = card.stage === "수입신고" && card.import_permitted ? " permit-ready" : "";
@@ -310,6 +367,7 @@
           ${releaseHtml(card)}
           ${quotaHtml(card)}
           ${revisionsHtml(card)}
+          ${releaseRequestButton(card)}
         </article>
       `;
     }
@@ -335,6 +393,67 @@
         return;
       }
       await loadData();
+    }
+
+    async function openReleaseModal(blNumber) {
+      const response = await fetch("/api/cargo-data");
+      const result = await response.json();
+      if (!result.success) {
+        alert(result.message || "카드 정보를 불러오지 못했습니다.");
+        return;
+      }
+      releaseRequestCard = result.cards.find(card => card.bl_number === blNumber);
+      if (!releaseRequestCard) {
+        alert("카드 정보를 찾지 못했습니다.");
+        return;
+      }
+      const available = numberValue(releaseRequestCard.remaining_weight) || numberValue(releaseRequestCard.base_weight) || numberValue(releaseRequestCard.total_weight);
+      document.querySelector('input[name="releaseType"][value="full"]').checked = true;
+      document.getElementById("releaseWeight").value = available || "";
+      document.getElementById("releaseMemo").value = "";
+      document.getElementById("releaseModalCard").innerHTML = `
+        <div class="modal-row"><b>화주명</b><span>${esc(releaseRequestCard.consignee || "-")}</span></div>
+        <div class="modal-row"><b>B/L</b><span>${esc(releaseRequestCard.bl_number || "-")}</span></div>
+        <div class="modal-row"><b>반출처</b><span>${esc(releaseRequestCard.destination || "-")}</span></div>
+        <div class="modal-row"><b>품명</b><span>${esc(releaseRequestCard.product_name || "-")}</span></div>
+        <div class="modal-row"><b>잔량</b><span>${fmtWeight(available, releaseRequestCard.weight_unit)}</span></div>
+      `;
+      toggleReleaseType();
+      document.getElementById("releaseModalBg").style.display = "flex";
+    }
+
+    function closeReleaseModal() {
+      document.getElementById("releaseModalBg").style.display = "none";
+      releaseRequestCard = null;
+    }
+
+    function toggleReleaseType() {
+      const type = document.querySelector('input[name="releaseType"]:checked').value;
+      document.getElementById("releaseWeightWrap").style.display = type === "partial" ? "" : "none";
+    }
+
+    async function submitReleaseRequest() {
+      if (!releaseRequestCard) return;
+      const type = document.querySelector('input[name="releaseType"]:checked').value;
+      const weight = document.getElementById("releaseWeight").value;
+      const memo = document.getElementById("releaseMemo").value;
+      const response = await fetch("/api/cargo-release-request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          bl_number: releaseRequestCard.bl_number,
+          request_type: type,
+          requested_weight: type === "partial" ? weight : "",
+          memo
+        })
+      });
+      const result = await response.json();
+      if (!result.success) {
+        alert(result.message || "출고요청에 실패했습니다.");
+        return;
+      }
+      closeReleaseModal();
+      alert(result.email_sent ? "출고요청이 발송되었습니다." : "출고요청은 저장되었습니다. 메일 발송 환경변수를 확인해 주세요.");
     }
 
     loadData();
