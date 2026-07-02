@@ -75,6 +75,11 @@
 
     .quota-box { margin-top:5px; padding-top:5px; border-top:1px solid #edf1f4; font-size:9.9px; line-height:1.28; }
     .quota-title { color:#495057; font-weight:700; margin-bottom:2px; }
+    .quota-line { display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-bottom:3px; }
+    .quota-check { display:flex; align-items:center; gap:4px; margin:0; font-size:9.9px; font-weight:700; color:#495057; cursor:pointer; }
+    .quota-check input { width:12px; height:12px; padding:0; margin:0; }
+    .quota-date { display:flex; align-items:center; gap:5px; margin:3px 0; color:#495057; }
+    .quota-date input { width:108px; height:24px; border:1px solid #ced4da; border-radius:4px; padding:2px 5px; font-size:10px; background:#fff; }
     .quota-detail { display:block; margin-top:2px; }
     .quota-detail.danger { color:#c92a2a; font-weight:700; }
     .quota-detail.warn { color:#e8590c; font-weight:700; }
@@ -136,6 +141,10 @@
       return String(value ?? "").replace(/[&<>"']/g, ch => ({
         "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
       }[ch]));
+    }
+
+    function jsStr(value) {
+      return String(value ?? "").replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/\r/g, "\\r").replace(/\n/g, "\\n");
     }
 
     function fmtWeight(value, unit) {
@@ -215,13 +224,26 @@
     }
 
     function quotaHtml(card) {
-      if (!card.is_quota && !card.import_declare_message && !card.quota_release_message) return "";
-      const importMsg = card.import_declare_message ? `<span class="quota-detail danger">${esc(card.import_declare_message)}</span>` : "";
-      const releaseClass = card.quota_release_alert ? "danger" : (card.quota_release_message ? "danger" : "");
+      const checked = card.is_quota ? "checked" : "";
+      const dateLine = card.is_quota ? `
+        <div class="quota-date">
+          <span>추천서 교부일</span>
+          <input type="date" value="${esc(card.quota_permit_date || "")}" onchange="saveQuotaInput('${jsStr(card.bl_number)}', true, this.value)">
+        </div>
+      ` : "";
+      const importClass = card.import_declare_alert || (card.is_quota && card.import_declare_message && !String(card.import_declare_message).includes("완료")) ? "danger" : "";
+      const importMsg = card.import_declare_message ? `<span class="quota-detail ${importClass}">${esc(card.import_declare_message)}</span>` : "";
+      const releaseClass = card.quota_release_alert ? "danger" : (card.is_quota && card.quota_release_message && !String(card.quota_release_message).includes("완료") ? "danger" : "");
       const releaseMsg = card.quota_release_message ? `<span class="quota-detail ${releaseClass}">${esc(card.quota_release_message)}</span>` : "";
       return `
         <div class="quota-box">
-          <div class="quota-title">할당관세</div>
+          <div class="quota-line">
+            <label class="quota-check">
+              <input type="checkbox" ${checked} onchange="saveQuotaInput('${jsStr(card.bl_number)}', this.checked, this.checked ? '${jsStr(card.quota_permit_date || "")}' : '')">
+              할당관세
+            </label>
+          </div>
+          ${dateLine}
           ${importMsg}${releaseMsg}
         </div>
       `;
@@ -295,6 +317,24 @@
     async function logout() {
       await fetch("/api/cargo-logout", { method: "POST" });
       location.reload();
+    }
+
+    async function saveQuotaInput(blNumber, isQuota, quotaPermitDate) {
+      const response = await fetch("/api/cargo-quota", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          bl_number: blNumber,
+          is_quota: !!isQuota,
+          quota_permit_date: isQuota ? (quotaPermitDate || "") : ""
+        })
+      });
+      const result = await response.json();
+      if (!result.success) {
+        alert(result.message || "할당관세 저장에 실패했습니다.");
+        return;
+      }
+      await loadData();
     }
 
     loadData();
