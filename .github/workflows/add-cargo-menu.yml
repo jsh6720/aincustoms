@@ -1,11 +1,6 @@
-name: Add cargo dashboard menu
+name: Add Cargo Dashboard Menu
 
-on:
-  push:
-    branches: [main]
-    paths:
-      - .github/workflows/add-cargo-menu.yml
-  workflow_dispatch:
+on: workflow_dispatch
 
 permissions:
   contents: write
@@ -15,38 +10,32 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Insert cargo dashboard menu link
+      - name: Patch index
+        shell: python
         run: |
-          python - <<'PY'
           from pathlib import Path
-
           path = Path('index.html')
           text = path.read_text(encoding='utf-8')
-          link = '''                <a href="./cargo-dashboard.html"
-                    class="text-green-600 hover:text-green-800 font-bold text-base transition-colors">축산물 통관조회</a>
-'''
           if 'cargo-dashboard.html' in text:
               print('cargo dashboard menu already exists')
               raise SystemExit(0)
-
           marker = '''                <a href="https://zxjqwehj.gensparkspace.com/" target="_blank" rel="noopener noreferrer"
                     class="text-blue-600 hover:text-blue-800 font-bold text-base transition-colors">AIN 요건관리</a>
 '''
+          link = '''                <a href="./cargo-dashboard.html"
+                    class="text-green-600 hover:text-green-800 font-bold text-base transition-colors">축산물 통관조회</a>
+'''
           if marker not in text:
               raise SystemExit('AIN menu marker not found')
-
-          text = text.replace(marker, marker + link, 1)
-          path.write_text(text, encoding='utf-8')
-          print('inserted cargo dashboard menu')
-          PY
-      - name: Commit menu update
+          path.write_text(text.replace(marker, marker + link, 1), encoding='utf-8')
+      - name: Commit index
         run: |
-          if git diff --quiet -- index.html; then
-            echo "No index.html change"
-            exit 0
-          fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet -- index.html; then
+            echo "No changes"
+            exit 0
+          fi
           git add index.html
           git commit -m "Add cargo dashboard menu link"
           git push
