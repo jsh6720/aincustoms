@@ -182,6 +182,7 @@ module.exports = async function handler(req, res) {
       user: {
         login_id: session.login_id,
         display_name: session.display_name,
+        role: session.role || "shipper",
       },
       stages: STAGE_ORDER,
       counts,
