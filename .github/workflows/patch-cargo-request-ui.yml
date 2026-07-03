@@ -1,0 +1,197 @@
+name: Patch cargo request UI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/patch-cargo-request-ui.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch cargo dashboard HTML
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const path = 'cargo-dashboard.html';
+          let html = fs.readFileSync(path, 'utf8');
+          const original = html;
+
+          function replaceOnce(from, to, label) {
+            if (!html.includes(from)) {
+              if (html.includes(to)) return;
+              throw new Error(`Pattern not found: ${label}`);
+            }
+            html = html.replace(from, to);
+          }
+
+          replaceOnce(
+            '    .modal-field label { display:block; margin:0 0 4px; font-size:11px; color:#495057; font-weight:700; }\n    .modal-actions',
+            '    .modal-field label { display:block; margin:0 0 4px; font-size:11px; color:#495057; font-weight:700; }\n    .field-hint { display:inline-block; margin-left:5px; color:#8b95a1; font-size:10px; font-weight:600; }\n    .modal-actions',
+            'field hint css'
+          );
+
+          replaceOnce('<h2>출고요청</h2>', '<h2 id="requestModalTitle">출고요청</h2>', 'modal title id');
+          replaceOnce('<div class="modal-options">', '<div class="modal-options" id="releaseTypeOptions">', 'release options id');
+          replaceOnce(
+            `      <div class="modal-field">\n        <label for="releaseRequester">요청담당자</label>\n        <input id="releaseRequester" placeholder="이름 / 연락처">\n      </div>\n      <div class="modal-field">\n        <label for="releaseAddress">출고지주소</label>`,
+            `      <div class="modal-field">\n        <label for="releaseRequester">요청담당자</label>\n        <input id="releaseRequester" placeholder="이름 / 연락처">\n      </div>\n      <div class="modal-field">\n        <label for="requesterEmail">요청인 메일<span class="field-hint">요청 메일의 참조(CC)에 들어갑니다.</span></label>\n        <input id="requesterEmail" type="email" placeholder="name@example.com">\n      </div>\n      <div class="modal-field">\n        <label for="releaseAddress">출고지주소</label>`,
+            'requester email field'
+          );
+
+          replaceOnce('    let releaseRequestCard = null;\n    let adminAccounts = [];', '    let releaseRequestCard = null;\n    let requestMode = "release";\n    let adminAccounts = [];', 'request mode state');
+
+          replaceOnce(
+            `    function releaseRequestButton(card) {\n      if (card.stage !== "수입신고") return "";\n      return \`\n        <div class="card-actions">\n          <button class="request-btn" onclick="openReleaseModal('\${jsStr(card.bl_number)}')">출고요청</button>\n        </div>\n      \`;\n    }\n    function cardHtml(card) {`,
+            `    function releaseRequestButton(card) {\n      if (card.stage !== "수입신고") return "";\n      return \`\n        <div class="card-actions">\n          <button class="request-btn" onclick="openReleaseModal('\${jsStr(card.bl_number)}')">출고요청</button>\n        </div>\n      \`;\n    }\n    function importRequestButton(card) {\n      if (card.stage !== "반입") return "";\n      return \`\n        <div class="card-actions">\n          <button class="request-btn" onclick="openImportModal('\${jsStr(card.bl_number)}')">수입신고요청</button>\n        </div>\n      \`;\n    }\n    function cardHtml(card) {`,
+            'import request button function'
+          );
+
+          replaceOnce(
+            '          ${quotaHtml(card)}\n          ${revisionsHtml(card)}\n          ${releaseRequestButton(card)}',
+            '          ${quotaHtml(card)}\n          ${revisionsHtml(card)}\n          ${importRequestButton(card)}\n          ${releaseRequestButton(card)}',
+            'render import request button'
+          );
+
+          const start = html.indexOf('    async function openReleaseModal(blNumber) {');
+          const end = html.indexOf('    async function loadAdmin() {', start);
+          if (start === -1 || end === -1) throw new Error('request modal function block not found');
+          const block = `    async function openReleaseModal(blNumber) {
+      const response = await fetch("/api/cargo-data");
+      const result = await response.json();
+      if (!result.success) {
+        alert(result.message || "카드 정보를 불러오지 못했습니다.");
+        return;
+      }
+      releaseRequestCard = result.cards.find(card => card.bl_number === blNumber);
+      if (!releaseRequestCard) {
+        alert("카드 정보를 찾지 못했습니다.");
+        return;
+      }
+      const available = numberValue(releaseRequestCard.remaining_weight) || numberValue(releaseRequestCard.base_weight) || numberValue(releaseRequestCard.total_weight);
+      requestMode = "release";
+      document.getElementById("requestModalTitle").textContent = "출고요청";
+      document.getElementById("releaseTypeOptions").style.display = "flex";
+      document.getElementById("releaseWeightWrap").style.display = "none";
+      document.querySelector("label[for='releaseAddress']").textContent = "출고지주소";
+      document.querySelector("label[for='releaseDate']").textContent = "출고일자";
+      document.getElementById("releaseAddress").placeholder = "출고지 주소를 입력하세요.";
+      document.getElementById("releaseDate").placeholder = "";
+      document.querySelector('input[name="releaseType"][value="full"]').checked = true;
+      document.getElementById("releaseWeight").value = available || "";
+      document.getElementById("releaseRequester").value = releaseRequestCard.last_import_requester_name || "";
+      document.getElementById("requesterEmail").value = releaseRequestCard.last_import_requester_email || "";
+      document.getElementById("releaseAddress").value = releaseRequestCard.last_import_delivery_address || "";
+      document.getElementById("releaseDate").value = releaseRequestCard.last_import_requested_release_date || "";
+      document.getElementById("releaseMemo").value = "";
+      document.getElementById("releaseModalCard").innerHTML = \`
+        <div class="modal-row"><b>화주명</b><span>\${esc(displayConsignee(releaseRequestCard.consignee))}</span></div>
+        <div class="modal-row"><b>B/L</b><span>\${esc(releaseRequestCard.bl_number || "-")}</span></div>
+        <div class="modal-row"><b>반출처</b><span>\${esc(releaseRequestCard.destination || "-")}</span></div>
+        <div class="modal-row"><b>품명</b><span>\${esc(releaseRequestCard.product_name || "-")}</span></div>
+        <div class="modal-row"><b>잔량</b><span>\${fmtWeight(available, releaseRequestCard.weight_unit)}</span></div>
+      \`;
+      toggleReleaseType();
+      document.getElementById("releaseModalBg").style.display = "flex";
+    }
+    async function openImportModal(blNumber) {
+      const response = await fetch("/api/cargo-data");
+      const result = await response.json();
+      if (!result.success) {
+        alert(result.message || "카드 정보를 불러오지 못했습니다.");
+        return;
+      }
+      releaseRequestCard = result.cards.find(card => card.bl_number === blNumber);
+      if (!releaseRequestCard) {
+        alert("카드 정보를 찾지 못했습니다.");
+        return;
+      }
+      requestMode = "import";
+      document.getElementById("requestModalTitle").textContent = "수입신고요청";
+      document.getElementById("releaseTypeOptions").style.display = "none";
+      document.getElementById("releaseWeightWrap").style.display = "none";
+      document.querySelector("label[for='releaseAddress']").textContent = "출고지주소";
+      document.querySelector("label[for='releaseDate']").textContent = "출고일자";
+      document.getElementById("releaseWeight").value = "";
+      document.getElementById("releaseRequester").value = releaseRequestCard.last_import_requester_name || "";
+      document.getElementById("requesterEmail").value = releaseRequestCard.last_import_requester_email || "";
+      document.getElementById("releaseAddress").value = releaseRequestCard.last_import_delivery_address || "";
+      document.getElementById("releaseAddress").placeholder = "미정";
+      document.getElementById("releaseDate").value = releaseRequestCard.last_import_requested_release_date || "";
+      document.getElementById("releaseMemo").value = "";
+      document.getElementById("releaseModalCard").innerHTML = \`
+        <div class="modal-row"><b>화주명</b><span>\${esc(displayConsignee(releaseRequestCard.consignee))}</span></div>
+        <div class="modal-row"><b>B/L</b><span>\${esc(releaseRequestCard.bl_number || "-")}</span></div>
+        <div class="modal-row"><b>반출처</b><span>\${esc(releaseRequestCard.destination || "-")}</span></div>
+        <div class="modal-row"><b>품명</b><span>\${esc(releaseRequestCard.product_name || "-")}</span></div>
+        <div class="modal-row"><b>총중량</b><span>\${fmtWeight(releaseRequestCard.total_weight, releaseRequestCard.weight_unit)}</span></div>
+      \`;
+      document.getElementById("releaseModalBg").style.display = "flex";
+    }
+    function closeReleaseModal() {
+      document.getElementById("releaseModalBg").style.display = "none";
+      releaseRequestCard = null;
+      requestMode = "release";
+    }
+    function toggleReleaseType() {
+      const type = document.querySelector('input[name="releaseType"]:checked').value;
+      document.getElementById("releaseWeightWrap").style.display = type === "partial" ? "" : "none";
+    }
+    async function submitReleaseRequest() {
+      if (!releaseRequestCard) return;
+      const type = document.querySelector('input[name="releaseType"]:checked').value;
+      const commonBody = {
+        bl_number: releaseRequestCard.bl_number,
+        requester_name: document.getElementById("releaseRequester").value,
+        requester_email: document.getElementById("requesterEmail").value,
+        delivery_address: document.getElementById("releaseAddress").value,
+        requested_release_date: document.getElementById("releaseDate").value,
+        memo: document.getElementById("releaseMemo").value
+      };
+      const body = requestMode === "import" ? commonBody : {
+        ...commonBody,
+        request_type: type,
+        requested_weight: type === "partial" ? document.getElementById("releaseWeight").value : ""
+      };
+      const endpoint = requestMode === "import" ? "/api/cargo-import-request" : "/api/cargo-release-request";
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+      });
+      const result = await response.json();
+      if (!result.success) {
+        alert(result.message || (requestMode === "import" ? "수입신고요청에 실패했습니다." : "출고요청에 실패했습니다."));
+        return;
+      }
+      const successText = requestMode === "import" ? "수입신고요청" : "출고요청";
+      closeReleaseModal();
+      alert(result.email_sent ? `${successText}이 발송되었습니다.` : `${successText}은 저장되었습니다. 메일 발송 환경변수를 확인해 주세요.`);
+    }
+
+`;
+          html = html.slice(0, start) + block + html.slice(end);
+
+          if (html === original) {
+            console.log('No changes needed.');
+            process.exit(0);
+          }
+          fs.writeFileSync(path, html);
+          NODE
+      - name: Commit patched HTML
+        run: |
+          if git diff --quiet cargo-dashboard.html; then
+            echo "No HTML diff."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add cargo-dashboard.html
+          git commit -m "Add import clearance request UI"
+          git push
