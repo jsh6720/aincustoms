@@ -109,8 +109,11 @@ function computeQuotaMessages(card) {
 
 async function fetchUserInputs(accountId) {
   try {
+    const query = accountId
+      ? `/rest/v1/cargo_card_user_inputs?select=account_id,bl_number,is_quota,quota_permit_date,updated_at&account_id=eq.${accountId}`
+      : "/rest/v1/cargo_card_user_inputs?select=account_id,bl_number,is_quota,quota_permit_date,updated_at";
     return await supabaseFetch(
-      `/rest/v1/cargo_card_user_inputs?select=bl_number,is_quota,quota_permit_date,updated_at&account_id=eq.${accountId}`
+      query
     );
   } catch (error) {
     if (String(error.message || "").includes("cargo_card_user_inputs")) {
@@ -122,8 +125,11 @@ async function fetchUserInputs(accountId) {
 
 async function fetchImportRequests(accountId) {
   try {
+    const query = accountId
+      ? `/rest/v1/cargo_import_requests?select=account_id,bl_number,requester_name,requester_email,delivery_address,requested_release_date,memo,created_at&account_id=eq.${accountId}&order=created_at.desc`
+      : "/rest/v1/cargo_import_requests?select=account_id,bl_number,requester_name,requester_email,delivery_address,requested_release_date,memo,created_at&order=created_at.desc";
     return await supabaseFetch(
-      `/rest/v1/cargo_import_requests?select=bl_number,requester_name,requester_email,delivery_address,requested_release_date,memo,created_at&account_id=eq.${accountId}&order=created_at.desc`
+      query
     );
   } catch (error) {
     if (String(error.message || "").includes("cargo_import_requests")) {
@@ -134,9 +140,9 @@ async function fetchImportRequests(accountId) {
 }
 
 function applyUserInputs(cards, inputs) {
-  const byBl = new Map((inputs || []).map((item) => [item.bl_number, item]));
+  const byBl = new Map((inputs || []).map((item) => [`${item.account_id || ""}|${item.bl_number}`, item]));
   return (cards || []).map((card) => {
-    const input = byBl.get(card.bl_number);
+    const input = byBl.get(`${card.account_id || ""}|${card.bl_number}`) || byBl.get(`|${card.bl_number}`);
     if (!input) return card;
     return computeQuotaMessages({
       ...card,
@@ -150,13 +156,14 @@ function applyUserInputs(cards, inputs) {
 function applyImportRequests(cards, requests) {
   const byBl = new Map();
   (requests || []).forEach((item) => {
-    if (item.bl_number && !byBl.has(item.bl_number)) {
-      byBl.set(item.bl_number, item);
+    const key = `${item.account_id || ""}|${item.bl_number}`;
+    if (item.bl_number && !byBl.has(key)) {
+      byBl.set(key, item);
     }
   });
 
   return (cards || []).map((card) => {
-    const item = byBl.get(card.bl_number);
+    const item = byBl.get(`${card.account_id || ""}|${card.bl_number}`) || byBl.get(`|${card.bl_number}`);
     if (!item) return card;
     return {
       ...card,
@@ -197,12 +204,15 @@ module.exports = async function handler(req, res) {
       return res.status(401).json({ success: false, message: "로그인이 필요합니다." });
     }
 
+    const isAdmin = (session.role || "shipper") === "admin";
     const accountId = encodeURIComponent(session.account_id);
     const cards = await supabaseFetch(
-      `/rest/v1/cargo_cards?select=*&account_id=eq.${accountId}&order=synced_at.desc`
+      isAdmin
+        ? "/rest/v1/cargo_cards?select=*&order=synced_at.desc"
+        : `/rest/v1/cargo_cards?select=*&account_id=eq.${accountId}&order=synced_at.desc`
     );
-    const userInputs = await fetchUserInputs(accountId);
-    const importRequests = await fetchImportRequests(accountId);
+    const userInputs = await fetchUserInputs(isAdmin ? null : accountId);
+    const importRequests = await fetchImportRequests(isAdmin ? null : accountId);
 
     const sorted = applyImportRequests(applyUserInputs(cards || [], userInputs), importRequests).sort(sortCards);
     const counts = {};
