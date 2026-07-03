@@ -1,0 +1,104 @@
+name: Patch cargo request date input
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/patch-cargo-request-date.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch cargo dashboard date input
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const path = 'cargo-dashboard.html';
+          let html = fs.readFileSync(path, 'utf8');
+          const original = html;
+
+          function replaceAll(from, to, label) {
+            if (!html.includes(from)) {
+              if (html.includes(to)) return;
+              throw new Error(`Pattern not found: ${label}`);
+            }
+            html = html.split(from).join(to);
+          }
+
+          function replaceOnce(from, to, label) {
+            if (!html.includes(from)) {
+              if (html.includes(to)) return;
+              throw new Error(`Pattern not found: ${label}`);
+            }
+            html = html.replace(from, to);
+          }
+
+          replaceOnce(
+            '        <label for="releaseDate">출고일자</label>\n        <input id="releaseDate" type="date">',
+            '        <label for="releaseDate">출고월일<span class="field-hint">올해 연도로 자동 저장됩니다.</span></label>\n        <input id="releaseDate" type="text" inputmode="numeric" maxlength="5" placeholder="MM-DD" onblur="formatRequestDateInput(this)">',
+            'date field markup'
+          );
+
+          const helperAnchor = `    function displayDate(value) {\n      if (!value) return "-";\n      return String(value).replace("T", " ").replace(/\\.\\d+(\\+00:00|Z)?$/, "").replace("+00:00", "");\n    }`;
+          const helperBlock = `${helperAnchor}\n    function normalizeRequestDate(value) {\n      const raw = String(value || "").trim();\n      if (!raw) return "";\n      let month = "";\n      let day = "";\n      let match = raw.match(/^(\\d{4})-(\\d{1,2})-(\\d{1,2})$/);\n      if (match) {\n        month = match[2];\n        day = match[3];\n      } else {\n        match = raw.match(/^(\\d{1,2})[-./](\\d{1,2})$/);\n        if (match) {\n          month = match[1];\n          day = match[2];\n        } else if (/^\\d{4}$/.test(raw)) {\n          month = raw.slice(0, 2);\n          day = raw.slice(2, 4);\n        } else {\n          return null;\n        }\n      }\n      const year = new Date().getFullYear();\n      const monthNumber = Number(month);\n      const dayNumber = Number(day);\n      const date = new Date(year, monthNumber - 1, dayNumber);\n      if (\n        !Number.isInteger(monthNumber) ||\n        !Number.isInteger(dayNumber) ||\n        date.getFullYear() !== year ||\n        date.getMonth() !== monthNumber - 1 ||\n        date.getDate() !== dayNumber\n      ) {\n        return null;\n      }\n      return `${year}-${String(monthNumber).padStart(2, "0")}-${String(dayNumber).padStart(2, "0")}`;\n    }\n    function toRequestMonthDay(value) {\n      const normalized = normalizeRequestDate(value);\n      return normalized ? normalized.slice(5) : "";\n    }\n    function formatRequestDateInput(input) {\n      const normalized = normalizeRequestDate(input.value);\n      if (normalized) input.value = normalized.slice(5);\n    }`;
+          replaceOnce(helperAnchor, helperBlock, 'date helper functions');
+
+          replaceAll(
+            'document.querySelector("label[for=\'releaseDate\']").textContent = "출고일자";',
+            'document.querySelector("label[for=\'releaseDate\']").innerHTML = \'출고월일<span class="field-hint">올해 연도로 자동 저장됩니다.</span>\';',
+            'date label setup'
+          );
+          replaceOnce(
+            'document.getElementById("releaseDate").placeholder = "";',
+            'document.getElementById("releaseDate").placeholder = "MM-DD";',
+            'release date placeholder'
+          );
+          replaceAll(
+            'document.getElementById("releaseDate").value = releaseRequestCard.last_import_requested_release_date || "";',
+            'document.getElementById("releaseDate").value = toRequestMonthDay(releaseRequestCard.last_import_requested_release_date);',
+            'prefill month-day'
+          );
+          replaceOnce(
+            '      const type = document.querySelector(\'input[name="releaseType"]:checked\').value;\n      const commonBody = {',
+            '      const type = document.querySelector(\'input[name="releaseType"]:checked\').value;\n      const requestedReleaseDate = normalizeRequestDate(document.getElementById("releaseDate").value);\n      if (requestedReleaseDate === null) {\n        alert("출고월일은 MM-DD 형식으로 입력해 주세요. 예: 07-15");\n        return;\n      }\n      const commonBody = {',
+            'submit date validation'
+          );
+          replaceOnce(
+            '        requested_release_date: document.getElementById("releaseDate").value,',
+            '        requested_release_date: requestedReleaseDate,',
+            'submit normalized date'
+          );
+
+          if (html === original) {
+            console.log('No changes needed.');
+            process.exit(0);
+          }
+          fs.writeFileSync(path, html);
+          NODE
+      - name: Check dashboard script syntax
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const vm = require('vm');
+          const html = fs.readFileSync('cargo-dashboard.html', 'utf8');
+          const script = html.match(/<script>([\s\S]*)<\/script>/)[1];
+          new vm.Script(script);
+          console.log('cargo-dashboard script OK');
+          NODE
+      - name: Commit patched HTML
+        run: |
+          if git diff --quiet cargo-dashboard.html; then
+            echo "No HTML diff."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add cargo-dashboard.html
+          git commit -m "Use month-day input for cargo requests"
+          git push
