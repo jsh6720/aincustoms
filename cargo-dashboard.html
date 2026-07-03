@@ -24,7 +24,8 @@
     textarea { min-height:64px; padding:8px 10px; resize:vertical; }
     .login-panel .btn { width:100%; height:39px; margin-top:18px; font-size:13px; }
     .error { margin-top:12px; color:#c92a2a; font-size:13px; font-weight:700; line-height:1.45; }
-    .toolbar { display:none; align-items:center; justify-content:space-between; padding:12px 16px 0; }
+    .toolbar { display:none; align-items:center; justify-content:space-between; padding:12px 16px 0; gap:12px; }
+    .toolbar-actions { display:flex; align-items:center; gap:8px; }
     .summary { font-size:12.5px; color:#4b5663; font-weight:700; }
     #boardWrap { overflow-x:auto; overflow-y:hidden; }
     .board { display:none; grid-template-columns:repeat(5, minmax(310px, 1fr)); gap:10px; padding:12px 14px 8px; align-items:start; min-width:1610px; width:100%; }
@@ -94,13 +95,21 @@
     .modal-field label { display:block; margin:0 0 4px; font-size:11px; color:#495057; font-weight:700; }
     .field-hint { display:inline-block; margin-left:5px; color:#8b95a1; font-size:10px; font-weight:600; }
     .modal-actions { display:flex; justify-content:flex-end; gap:7px; margin-top:12px; }
-    .admin-panel { display:none; padding:18px; max-width:1180px; margin:0 auto; }
+    .admin-panel { display:none; position:fixed; left:50%; top:86px; transform:translateX(-50%); width:min(1180px, calc(100vw - 48px)); max-height:calc(100vh - 110px); overflow:auto; background:#f7f9fb; border:1px solid #cfd6de; border-radius:8px; padding:18px; z-index:180; box-shadow:0 18px 48px rgba(15,23,42,.22); }
     .admin-layout { display:grid; grid-template-columns:360px 1fr; gap:14px; align-items:start; }
     .admin-card { background:#fff; border:1px solid #d9dee4; border-radius:8px; padding:16px; }
     .admin-card h2 { font-size:16px; margin-bottom:10px; }
-    .admin-table { width:100%; border-collapse:collapse; font-size:12px; background:#fff; border:1px solid #d9dee4; border-radius:8px; overflow:hidden; }
+    .admin-table-wrap { overflow-x:auto; background:#fff; border:1px solid #d9dee4; border-radius:8px; }
+    .admin-table { width:100%; min-width:880px; table-layout:fixed; border-collapse:collapse; font-size:12px; background:#fff; }
     .admin-table th, .admin-table td { border-bottom:1px solid #edf1f4; text-align:left; padding:8px; vertical-align:top; }
     .admin-table th { background:#f7f9fb; color:#4b5663; font-weight:700; }
+    .admin-table th:nth-child(1), .admin-table td:nth-child(1) { width:58px; }
+    .admin-table th:nth-child(2), .admin-table td:nth-child(2) { width:110px; }
+    .admin-table th:nth-child(3), .admin-table td:nth-child(3) { width:150px; }
+    .admin-table th:nth-child(4), .admin-table td:nth-child(4) { width:120px; }
+    .admin-table th:nth-child(6), .admin-table td:nth-child(6) { width:56px; text-align:center; }
+    .admin-table th:nth-child(7), .admin-table td:nth-child(7) { width:62px; text-align:center; }
+    .admin-table td { word-break:break-word; overflow-wrap:anywhere; }
     .admin-actions { display:flex; gap:6px; flex-wrap:wrap; }
     @media (max-width:1700px){ .board { grid-template-columns:repeat(5, 310px); } }
   </style>
@@ -131,7 +140,10 @@
   <main>
     <div id="toolbar" class="toolbar">
       <div id="summary" class="summary"></div>
-      <button class="btn" onclick="loadData()">새로고침</button>
+      <div class="toolbar-actions">
+        <button id="adminSettingsBtn" class="btn gray" style="display:none" onclick="openAdminSettings()">관리자 설정</button>
+        <button class="btn" onclick="loadData()">새로고침</button>
+      </div>
     </div>
     <div id="boardWrap">
       <div id="board" class="board"></div>
@@ -139,7 +151,10 @@
     <section id="adminPanel" class="admin-panel">
       <div class="toolbar" style="display:flex;padding:0 0 12px">
         <div class="summary">관리자 설정</div>
-        <button class="btn" onclick="loadAdmin()">새로고침</button>
+        <div class="toolbar-actions">
+          <button class="btn" onclick="loadAdmin()">새로고침</button>
+          <button class="btn gray" onclick="closeAdminSettings()">닫기</button>
+        </div>
       </div>
       <div class="admin-layout">
         <form class="admin-card" onsubmit="saveAdminAccount(event)">
@@ -167,7 +182,7 @@
           </div>
           <div id="adminError" class="error"></div>
         </form>
-        <div>
+        <div class="admin-table-wrap">
           <table class="admin-table">
             <thead>
               <tr>
@@ -237,6 +252,7 @@
     let releaseRequestCard = null;
     let requestMode = "release";
     let adminAccounts = [];
+    let currentUserRole = "shipper";
 
     function esc(value) {
       return String(value ?? "").replace(/[&<>"']/g, ch => ({
@@ -312,13 +328,10 @@
       document.getElementById("toolbar").style.display = "flex";
       document.getElementById("board").style.display = "grid";
       document.getElementById("logoutBtn").style.display = "";
+      document.getElementById("adminSettingsBtn").style.display = currentUserRole === "admin" ? "" : "none";
     }
     function showAdminUi() {
-      document.getElementById("loginPanel").style.display = "none";
-      document.getElementById("toolbar").style.display = "none";
-      document.getElementById("board").style.display = "none";
       document.getElementById("adminPanel").style.display = "block";
-      document.getElementById("logoutBtn").style.display = "";
     }
     function showLogin(message = "") {
       document.getElementById("loginPanel").style.display = "";
@@ -326,6 +339,7 @@
       document.getElementById("board").style.display = "none";
       document.getElementById("adminPanel").style.display = "none";
       document.getElementById("logoutBtn").style.display = "none";
+      document.getElementById("adminSettingsBtn").style.display = "none";
       document.getElementById("loginError").textContent = message;
     }
 
@@ -346,8 +360,7 @@
         return;
       }
       if (result.user.role === "admin") {
-        showAdminUi();
-        await loadAdmin();
+        await loadData();
       } else {
         showCargoUi();
         await loadData();
@@ -361,14 +374,12 @@
         showLogin(result.message || "");
         return;
       }
-      if (result.user.role === "admin") {
-        showAdminUi();
-        await loadAdmin();
-        return;
-      }
+      currentUserRole = result.user.role || "shipper";
       showCargoUi();
       document.getElementById("summary").textContent =
-        `${displayConsignee(result.user.display_name)} 통관 현황 · 총 ${result.total}건 · 마지막 동기화 ${displayDate(result.last_update)}`;
+        currentUserRole === "admin"
+          ? `관리자 전체 통관 현황 · 총 ${result.total}건 · 마지막 동기화 ${displayDate(result.last_update)}`
+          : `${displayConsignee(result.user.display_name)} 통관 현황 · 총 ${result.total}건 · 마지막 동기화 ${displayDate(result.last_update)}`;
       const board = document.getElementById("board");
       board.innerHTML = result.stages.map(stage => {
         const cards = result.cards.filter(card => card.stage === stage);
@@ -397,10 +408,11 @@
     }
     function quotaHtml(card) {
       const checked = card.is_quota ? "checked" : "";
+      const disabled = currentUserRole === "admin" ? "disabled" : "";
       const dateLine = card.is_quota ? `
         <div class="quota-date">
           <span>추천서 교부일</span>
-          <input type="date" value="${esc(card.quota_permit_date || "")}" onchange="saveQuotaInput('${jsStr(card.bl_number)}', true, this.value)">
+          <input type="date" ${disabled} value="${esc(card.quota_permit_date || "")}" onchange="saveQuotaInput('${jsStr(card.bl_number)}', true, this.value)">
         </div>
       ` : "";
       const importClass = card.import_declare_alert || (card.is_quota && card.import_declare_message && !String(card.import_declare_message).includes("완료")) ? "danger" : "";
@@ -411,7 +423,7 @@
         <div class="quota-box">
           <div class="quota-line">
             <label class="quota-check">
-              <input type="checkbox" ${checked} onchange="saveQuotaInput('${jsStr(card.bl_number)}', this.checked, this.checked ? '${jsStr(card.quota_permit_date || "")}' : '')">
+              <input type="checkbox" ${checked} ${disabled} onchange="saveQuotaInput('${jsStr(card.bl_number)}', this.checked, this.checked ? '${jsStr(card.quota_permit_date || "")}' : '')">
               할당관세
             </label>
           </div>
@@ -450,6 +462,7 @@
       `;
     }
     function releaseRequestButton(card) {
+      if (currentUserRole === "admin") return "";
       if (card.stage !== "수입신고") return "";
       return `
         <div class="card-actions">
@@ -458,6 +471,7 @@
       `;
     }
     function importRequestButton(card) {
+      if (currentUserRole === "admin") return "";
       if (card.stage !== "반입") return "";
       return `
         <div class="card-actions">
@@ -658,6 +672,12 @@
           <td><button class="btn gray" onclick="editAdminAccount('${jsStr(account.id)}')">수정</button></td>
         </tr>
       `).join("");
+    }
+    async function openAdminSettings() {
+      await loadAdmin();
+    }
+    function closeAdminSettings() {
+      document.getElementById("adminPanel").style.display = "none";
     }
     function resetAdminForm() {
       document.getElementById("adminFormTitle").textContent = "계정 추가";
