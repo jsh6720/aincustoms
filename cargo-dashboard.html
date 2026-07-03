@@ -539,6 +539,15 @@
         </div>
       `;
     }
+    function originalDocRequestButton(card) {
+      if (currentUserRole === "admin") return "";
+      if (card.stage !== "입항전" && card.stage !== "입항") return "";
+      return `
+        <div class="card-actions">
+          <button class="request-btn" onclick="openOriginalDocModal('${jsStr(card.bl_number)}')">원본서류 도착/수령 요청</button>
+        </div>
+      `;
+    }
     function cardHtml(card) {
       const alertClass = card.quota_alert === "over" ? " over" : (card.quota_alert === "warn" ? " warn" : "");
       const permitClass = card.stage === "수입신고" && card.import_permitted ? " permit-ready" : "";
@@ -570,6 +579,7 @@
           ${releaseHtml(card)}
           ${quotaHtml(card)}
           ${revisionsHtml(card)}
+          ${originalDocRequestButton(card)}
           ${importRequestButton(card)}
           ${releaseRequestButton(card)}
         </article>
@@ -693,6 +703,7 @@
       document.getElementById("requestModalTitle").textContent = "출고요청";
       document.getElementById("releaseTypeOptions").style.display = "flex";
       document.getElementById("releaseWeightWrap").style.display = "none";
+      document.getElementById("releaseAddress").closest(".modal-field").style.display = "";
       document.querySelector("label[for='releaseAddress']").textContent = "출고지주소";
       document.querySelector("label[for='releaseDate']").innerHTML = '출고월일<span class="field-hint">올해 연도로 자동 저장됩니다.</span>';
       document.getElementById("releaseAddress").placeholder = "출고지 주소를 입력하세요.";
@@ -714,6 +725,40 @@
       toggleReleaseType();
       document.getElementById("releaseModalBg").style.display = "flex";
     }
+    async function openOriginalDocModal(blNumber) {
+      const response = await fetch("/api/cargo-data");
+      const result = await response.json();
+      if (!result.success) {
+        alert(result.message || "카드 정보를 불러오지 못했습니다.");
+        return;
+      }
+      releaseRequestCard = result.cards.find(card => card.bl_number === blNumber);
+      if (!releaseRequestCard) {
+        alert("카드 정보를 찾지 못했습니다.");
+        return;
+      }
+      requestMode = "docs";
+      document.getElementById("requestModalTitle").textContent = "원본서류 도착/수령 요청";
+      document.getElementById("releaseTypeOptions").style.display = "none";
+      document.getElementById("releaseWeightWrap").style.display = "none";
+      document.getElementById("releaseAddress").closest(".modal-field").style.display = "none";
+      document.querySelector("label[for='releaseDate']").innerHTML = '수령요청일자<span class="field-hint">올해 연도로 자동 저장됩니다.</span>';
+      document.getElementById("releaseWeight").value = "";
+      document.getElementById("releaseRequester").value = releaseRequestCard.last_import_requester_name || "";
+      document.getElementById("requesterEmail").value = releaseRequestCard.last_import_requester_email || "";
+      document.getElementById("releaseAddress").value = "";
+      document.getElementById("releaseDate").value = "";
+      document.getElementById("releaseDate").placeholder = "MM-DD";
+      document.getElementById("releaseMemo").value = "";
+      document.getElementById("releaseModalCard").innerHTML = `
+        <div class="modal-row"><b>화주명</b><span>${esc(displayConsignee(releaseRequestCard.consignee))}</span></div>
+        <div class="modal-row"><b>B/L</b><span>${esc(releaseRequestCard.bl_number || "-")}</span></div>
+        <div class="modal-row"><b>반출처</b><span>${esc(releaseRequestCard.destination || "-")}</span></div>
+        <div class="modal-row"><b>품명</b><span>${esc(releaseRequestCard.product_name || "-")}</span></div>
+        <div class="modal-row"><b>마일스톤</b><span>${esc(releaseRequestCard.stage || "-")}</span></div>
+      `;
+      document.getElementById("releaseModalBg").style.display = "flex";
+    }
     async function openImportModal(blNumber) {
       const response = await fetch("/api/cargo-data");
       const result = await response.json();
@@ -730,6 +775,7 @@
       document.getElementById("requestModalTitle").textContent = "수입신고요청";
       document.getElementById("releaseTypeOptions").style.display = "none";
       document.getElementById("releaseWeightWrap").style.display = "none";
+      document.getElementById("releaseAddress").closest(".modal-field").style.display = "";
       document.querySelector("label[for='releaseAddress']").textContent = "출고지주소";
       document.querySelector("label[for='releaseDate']").innerHTML = '출고월일<span class="field-hint">올해 연도로 자동 저장됩니다.</span>';
       document.getElementById("releaseWeight").value = "";
@@ -752,6 +798,7 @@
       document.getElementById("releaseModalBg").style.display = "none";
       releaseRequestCard = null;
       requestMode = "release";
+      document.getElementById("releaseAddress").closest(".modal-field").style.display = "";
     }
     function toggleReleaseType() {
       const type = document.querySelector('input[name="releaseType"]:checked').value;
@@ -762,7 +809,11 @@
       const type = document.querySelector('input[name="releaseType"]:checked').value;
       const requestedReleaseDate = normalizeRequestDate(document.getElementById("releaseDate").value);
       if (requestedReleaseDate === null) {
-        alert("출고월일은 MM-DD 형식으로 입력해 주세요. 예: 07-15");
+        alert(`${requestMode === "docs" ? "수령요청일자" : "출고월일"}는 MM-DD 형식으로 입력해 주세요. 예: 07-15`);
+        return;
+      }
+      if (requestMode === "docs" && !requestedReleaseDate) {
+        alert("수령요청일자를 MM-DD 형식으로 입력해 주세요. 예: 07-15");
         return;
       }
       const commonBody = {
@@ -773,12 +824,21 @@
         requested_release_date: requestedReleaseDate,
         memo: document.getElementById("releaseMemo").value
       };
-      const body = requestMode === "import" ? commonBody : {
+      const body = requestMode === "docs" ? {
+        bl_number: commonBody.bl_number,
+        requester_name: commonBody.requester_name,
+        requester_email: commonBody.requester_email,
+        requested_receipt_date: requestedReleaseDate,
+        memo: commonBody.memo
+      } : (requestMode === "import" ? commonBody : {
         ...commonBody,
         request_type: type,
         requested_weight: type === "partial" ? document.getElementById("releaseWeight").value : ""
-      };
-      const endpoint = requestMode === "import" ? "/api/cargo-import-request" : "/api/cargo-release-request";
+      });
+      const endpoint =
+        requestMode === "docs"
+          ? "/api/cargo-original-doc-request"
+          : (requestMode === "import" ? "/api/cargo-import-request" : "/api/cargo-release-request");
       const response = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -786,10 +846,10 @@
       });
       const result = await response.json();
       if (!result.success) {
-        alert(result.message || (requestMode === "import" ? "수입신고요청에 실패했습니다." : "출고요청에 실패했습니다."));
+        alert(result.message || (requestMode === "docs" ? "원본서류 도착/수령 요청에 실패했습니다." : (requestMode === "import" ? "수입신고요청에 실패했습니다." : "출고요청에 실패했습니다.")));
         return;
       }
-      const successText = requestMode === "import" ? "수입신고요청" : "출고요청";
+      const successText = requestMode === "docs" ? "원본서류 도착/수령 요청" : (requestMode === "import" ? "수입신고요청" : "출고요청");
       closeReleaseModal();
       alert(result.email_sent ? `${successText}이 발송되었습니다.` : `${successText}은 저장되었습니다. 메일 발송 환경변수를 확인해 주세요.`);
     }
