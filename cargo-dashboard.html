@@ -66,6 +66,11 @@
     .b-pass { background:#edf5ef; color:#3f6f50; border-color:#c9dccf; }
     .b-fail { background:#fff5f5; color:#c92a2a; border-color:#ffc9c9; }
     .b-wait, .b-permit, .b-none { background:#f8f9fa; color:#495057; }
+    .doc-box { margin:5px 0 3px; padding:5px 6px; border:1px solid #dbe3ea; border-radius:6px; background:#f8fafc; display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:10px; font-weight:800; }
+    .doc-box .doc-title { color:#334155; }
+    .doc-pill { display:inline-flex; align-items:center; gap:3px; border-radius:999px; padding:2px 7px; border:1px solid transparent; font-size:10px; font-weight:900; }
+    .doc-pill.ok { background:#e8f5ee; color:#1f6f43; border-color:#acd7bf; }
+    .doc-pill.no { background:#fff1f1; color:#c92a2a; border-color:#ffc9c9; }
     .quota-box { margin-top:5px; padding-top:5px; border-top:1px solid #edf1f4; font-size:9.9px; line-height:1.28; }
     .quota-line { display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-bottom:3px; }
     .quota-check { display:flex; align-items:center; gap:4px; margin:0; font-size:9.9px; font-weight:700; color:#495057; cursor:pointer; }
@@ -111,6 +116,16 @@
     .admin-table th:nth-child(7), .admin-table td:nth-child(7) { width:62px; text-align:center; }
     .admin-table td { word-break:break-word; overflow-wrap:anywhere; }
     .admin-actions { display:flex; gap:6px; flex-wrap:wrap; }
+    .docs-panel { display:none; padding:12px 16px 18px; }
+    .docs-inner { background:#fff; border:1px solid #d9dee4; border-radius:8px; overflow:hidden; }
+    .docs-head { display:flex; justify-content:space-between; align-items:center; gap:10px; padding:12px 14px; border-bottom:1px solid #edf1f4; }
+    .docs-head h2 { font-size:15px; color:#1f2933; }
+    .docs-table { width:100%; border-collapse:collapse; table-layout:fixed; font-size:11px; }
+    .docs-table th, .docs-table td { border-bottom:1px solid #edf1f4; padding:7px 8px; text-align:left; vertical-align:middle; word-break:break-word; }
+    .docs-table th { background:#f7f9fb; color:#4b5663; font-size:10px; font-weight:800; }
+    .docs-table select { height:28px; padding:0 6px; font-size:11px; }
+    .docs-table .narrow { width:76px; text-align:center; }
+    .docs-table .action { width:82px; text-align:center; }
     @media (max-width:1700px){ .board { grid-template-columns:repeat(5, 310px); } }
   </style>
 </head>
@@ -141,6 +156,7 @@
     <div id="toolbar" class="toolbar">
       <div id="summary" class="summary"></div>
       <div class="toolbar-actions">
+        <button id="docsStatusBtn" class="btn gray" style="display:none" onclick="openDocsStatus()">원본필수서류 수취현황</button>
         <button id="adminSettingsBtn" class="btn gray" style="display:none" onclick="openAdminSettings()">관리자 설정</button>
         <button class="btn" onclick="loadData()">새로고침</button>
       </div>
@@ -148,6 +164,30 @@
     <div id="boardWrap">
       <div id="board" class="board"></div>
     </div>
+    <section id="docsPanel" class="docs-panel">
+      <div class="docs-inner">
+        <div class="docs-head">
+          <h2>원본필수서류 &lt;OBL, H/C(위생증, 검역증)&gt; 수취현황</h2>
+          <button class="btn gray" onclick="closeDocsStatus()">닫기</button>
+        </div>
+        <table class="docs-table">
+          <thead>
+            <tr>
+              <th>화주</th>
+              <th>B/L</th>
+              <th>반출처</th>
+              <th>품명</th>
+              <th>마일스톤</th>
+              <th class="narrow">OBL</th>
+              <th class="narrow">H/C</th>
+              <th>수정일</th>
+              <th class="action">관리</th>
+            </tr>
+          </thead>
+          <tbody id="docsRows"></tbody>
+        </table>
+      </div>
+    </section>
     <section id="adminPanel" class="admin-panel">
       <div class="toolbar" style="display:flex;padding:0 0 12px">
         <div class="summary">관리자 설정</div>
@@ -253,6 +293,7 @@
     let requestMode = "release";
     let adminAccounts = [];
     let currentUserRole = "shipper";
+    let currentCards = [];
 
     function esc(value) {
       return String(value ?? "").replace(/[&<>"']/g, ch => ({
@@ -312,7 +353,7 @@
       ) {
         return null;
       }
-      return year + "-" + String(monthNumber).padStart(2, "0") + "-" + String(dayNumber).padStart(2, "0");
+      return `${year}-${String(monthNumber).padStart(2, "0")}-${String(dayNumber).padStart(2, "0")}`;
     }
     function toRequestMonthDay(value) {
       const normalized = normalizeRequestDate(value);
@@ -326,8 +367,11 @@
       document.getElementById("loginPanel").style.display = "none";
       document.getElementById("adminPanel").style.display = "none";
       document.getElementById("toolbar").style.display = "flex";
+      document.getElementById("boardWrap").style.display = "";
       document.getElementById("board").style.display = "grid";
+      document.getElementById("docsPanel").style.display = "none";
       document.getElementById("logoutBtn").style.display = "";
+      document.getElementById("docsStatusBtn").style.display = "";
       document.getElementById("adminSettingsBtn").style.display = currentUserRole === "admin" ? "" : "none";
     }
     function showAdminUi() {
@@ -336,9 +380,12 @@
     function showLogin(message = "") {
       document.getElementById("loginPanel").style.display = "";
       document.getElementById("toolbar").style.display = "none";
+      document.getElementById("boardWrap").style.display = "none";
       document.getElementById("board").style.display = "none";
+      document.getElementById("docsPanel").style.display = "none";
       document.getElementById("adminPanel").style.display = "none";
       document.getElementById("logoutBtn").style.display = "none";
+      document.getElementById("docsStatusBtn").style.display = "none";
       document.getElementById("adminSettingsBtn").style.display = "none";
       document.getElementById("loginError").textContent = message;
     }
@@ -375,6 +422,7 @@
         return;
       }
       currentUserRole = result.user.role || "shipper";
+      currentCards = result.cards || [];
       showCargoUi();
       document.getElementById("summary").textContent =
         currentUserRole === "admin"
@@ -382,7 +430,7 @@
           : `${displayConsignee(result.user.display_name)} 통관 현황 · 총 ${result.total}건 · 마지막 동기화 ${displayDate(result.last_update)}`;
       const board = document.getElementById("board");
       board.innerHTML = result.stages.map(stage => {
-        const cards = result.cards.filter(card => card.stage === stage);
+        const cards = currentCards.filter(card => card.stage === stage);
         return `
           <section class="column ${stageClasses[stage] || ""}">
             <div class="col-head"><span>${stage}</span><span class="count">${cards.length}</span></div>
@@ -392,6 +440,7 @@
           </section>
         `;
       }).join("");
+      if (document.getElementById("docsPanel").style.display !== "none") renderDocsStatus();
     }
 
     function qBadge(label, value) {
@@ -446,6 +495,17 @@
               </div>
             `).join("")}
           </div>
+        </div>
+      `;
+    }
+    function originalDocsHtml(card) {
+      const obl = !!card.obl_received;
+      const hc = !!card.hc_received;
+      return `
+        <div class="doc-box">
+          <span class="doc-title">원본필수서류</span>
+          <span class="doc-pill ${obl ? "ok" : "no"}">OBL ${obl ? "O" : "X"}</span>
+          <span class="doc-pill ${hc ? "ok" : "no"}">H/C ${hc ? "O" : "X"}</span>
         </div>
       `;
     }
@@ -506,6 +566,7 @@
             ${qBadge("식품검역", card.food_quarantine)}
             ${permitBadge(card)}
           </div>
+          ${originalDocsHtml(card)}
           ${releaseHtml(card)}
           ${quotaHtml(card)}
           ${revisionsHtml(card)}
@@ -531,6 +592,88 @@
         return;
       }
       await loadData();
+    }
+
+    function docsMark(value) {
+      return `<span class="doc-pill ${value ? "ok" : "no"}">${value ? "O" : "X"}</span>`;
+    }
+    function renderDocsStatus() {
+      const rows = document.getElementById("docsRows");
+      const sorted = currentCards.map((card, sourceIndex) => ({ card, sourceIndex })).sort((a, b) =>
+        String(a.card.consignee || "").localeCompare(String(b.card.consignee || ""), "ko") ||
+        String(a.card.bl_number || "").localeCompare(String(b.card.bl_number || ""), "ko")
+      );
+      rows.innerHTML = sorted.length ? sorted.map(({ card, sourceIndex }, index) => {
+        const obl = !!card.obl_received;
+        const hc = !!card.hc_received;
+        const adminControls = currentUserRole === "admin" ? `
+          <td class="narrow">
+            <select id="docsObl${index}">
+              <option value="false" ${obl ? "" : "selected"}>X</option>
+              <option value="true" ${obl ? "selected" : ""}>O</option>
+            </select>
+          </td>
+          <td class="narrow">
+            <select id="docsHc${index}">
+              <option value="false" ${hc ? "" : "selected"}>X</option>
+              <option value="true" ${hc ? "selected" : ""}>O</option>
+            </select>
+          </td>
+          <td>${esc(displayDate(card.original_docs_updated_at) || "-")}</td>
+          <td class="action"><button class="btn green" onclick="saveOriginalDocs(${sourceIndex}, ${index})">저장</button></td>
+        ` : `
+          <td class="narrow">${docsMark(obl)}</td>
+          <td class="narrow">${docsMark(hc)}</td>
+          <td>${esc(displayDate(card.original_docs_updated_at) || "-")}</td>
+          <td class="action">-</td>
+        `;
+        return `
+          <tr>
+            <td>${esc(displayConsignee(card.consignee))}</td>
+            <td><b>${esc(card.bl_number || "-")}</b></td>
+            <td>${esc(card.destination || "-")}</td>
+            <td>${esc(card.product_name || "-")}</td>
+            <td>${esc(card.stage || "-")}</td>
+            ${adminControls}
+          </tr>
+        `;
+      }).join("") : `<tr><td colspan="9" style="text-align:center;color:#8b95a1;padding:22px">조회된 카드가 없습니다.</td></tr>`;
+    }
+    function openDocsStatus() {
+      document.getElementById("adminPanel").style.display = "none";
+      document.getElementById("boardWrap").style.display = "none";
+      document.getElementById("docsPanel").style.display = "block";
+      renderDocsStatus();
+    }
+    function closeDocsStatus() {
+      document.getElementById("docsPanel").style.display = "none";
+      document.getElementById("boardWrap").style.display = "";
+      document.getElementById("board").style.display = "grid";
+    }
+    async function saveOriginalDocs(cardIndex, rowIndex) {
+      const card = currentCards[cardIndex];
+      if (!card) return;
+      const obl = document.getElementById(`docsObl${rowIndex}`).value === "true";
+      const hc = document.getElementById(`docsHc${rowIndex}`).value === "true";
+      const response = await fetch("/api/cargo-original-docs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          account_id: card.account_id,
+          bl_number: card.bl_number,
+          obl_received: obl,
+          hc_received: hc
+        })
+      });
+      const result = await response.json();
+      if (!result.success) {
+        alert(result.message || "원본서류 수취현황 저장에 실패했습니다.");
+        return;
+      }
+      card.obl_received = obl;
+      card.hc_received = hc;
+      card.original_docs_updated_at = result.item?.updated_at || new Date().toISOString();
+      renderDocsStatus();
     }
 
     async function openReleaseModal(blNumber) {
