@@ -120,6 +120,19 @@ async function fetchUserInputs(accountId) {
   }
 }
 
+async function fetchImportRequests(accountId) {
+  try {
+    return await supabaseFetch(
+      `/rest/v1/cargo_import_requests?select=bl_number,requester_name,requester_email,delivery_address,requested_release_date,memo,created_at&account_id=eq.${accountId}&order=created_at.desc`
+    );
+  } catch (error) {
+    if (String(error.message || "").includes("cargo_import_requests")) {
+      return [];
+    }
+    throw error;
+  }
+}
+
 function applyUserInputs(cards, inputs) {
   const byBl = new Map((inputs || []).map((item) => [item.bl_number, item]));
   return (cards || []).map((card) => {
@@ -131,6 +144,28 @@ function applyUserInputs(cards, inputs) {
       quota_permit_date: input.quota_permit_date || "",
       quota_input_updated_at: input.updated_at || null,
     });
+  });
+}
+
+function applyImportRequests(cards, requests) {
+  const byBl = new Map();
+  (requests || []).forEach((item) => {
+    if (item.bl_number && !byBl.has(item.bl_number)) {
+      byBl.set(item.bl_number, item);
+    }
+  });
+
+  return (cards || []).map((card) => {
+    const item = byBl.get(card.bl_number);
+    if (!item) return card;
+    return {
+      ...card,
+      last_import_request: item,
+      last_import_requester_name: item.requester_name || "",
+      last_import_requester_email: item.requester_email || "",
+      last_import_delivery_address: item.delivery_address || "",
+      last_import_requested_release_date: item.requested_release_date || "",
+    };
   });
 }
 
@@ -167,8 +202,9 @@ module.exports = async function handler(req, res) {
       `/rest/v1/cargo_cards?select=*&account_id=eq.${accountId}&order=synced_at.desc`
     );
     const userInputs = await fetchUserInputs(accountId);
+    const importRequests = await fetchImportRequests(accountId);
 
-    const sorted = applyUserInputs(cards || [], userInputs).sort(sortCards);
+    const sorted = applyImportRequests(applyUserInputs(cards || [], userInputs), importRequests).sort(sortCards);
     const counts = {};
     STAGE_ORDER.forEach((stage) => {
       counts[stage] = 0;
