@@ -62,6 +62,20 @@
     function shortDate(value) {
       return value ? String(value).slice(0, 10) : "";
     }
+    function numberValue(value) {
+      if (value === null || value === undefined || value === "") return null;
+      const parsed = Number(String(value).replace(/,/g, ""));
+      return Number.isFinite(parsed) ? parsed : null;
+    }
+    function isFullyReleased(card) {
+      if (!card) return false;
+      if (card.fully_released === true || card.fully_released === "true") return true;
+      const remaining = numberValue(card.remaining_weight);
+      if (remaining !== null && remaining <= 0 && (numberValue(card.base_weight) || numberValue(card.total_weight))) return true;
+      const released = numberValue(card.released_weight);
+      const base = numberValue(card.base_weight) || numberValue(card.total_weight);
+      return released !== null && base !== null && base > 0 && released >= base;
+    }
 
     async function load() {
       const list = document.getElementById("list");
@@ -76,7 +90,7 @@
         list.innerHTML = '<div class="error">관리자 계정에서만 사용할 수 있습니다.</div>';
         return;
       }
-      cards = data.cards || [];
+      cards = (data.cards || []).filter(card => !isFullyReleased(card));
       render();
     }
 

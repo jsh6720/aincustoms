@@ -372,6 +372,15 @@
       const parsed = Number(String(value).replace(/,/g, ""));
       return Number.isFinite(parsed) ? parsed : null;
     }
+    function isFullyReleased(card) {
+      if (!card) return false;
+      if (card.fully_released === true || card.fully_released === "true") return true;
+      const remaining = numberValue(card.remaining_weight);
+      if (remaining !== null && remaining <= 0 && (numberValue(card.base_weight) || numberValue(card.total_weight))) return true;
+      const released = numberValue(card.released_weight);
+      const base = numberValue(card.base_weight) || numberValue(card.total_weight);
+      return released !== null && base !== null && base > 0 && released >= base;
+    }
     function displayDate(value) {
       if (!value) return "-";
       return String(value).replace("T", " ").replace(/\.\d+(\+00:00|Z)?$/, "").replace("+00:00", "");
@@ -502,14 +511,15 @@
       }
       currentUserRole = result.user.role || "shipper";
       currentCards = result.cards || [];
+      const activeCards = currentCards.filter(card => !isFullyReleased(card));
       showCargoUi();
       document.getElementById("summary").textContent =
         currentUserRole === "admin"
-          ? `관리자 전체 통관 현황 · 총 ${result.total}건 · 마지막 동기화 ${displayDate(result.last_update)}`
-          : `${displayConsignee(result.user.display_name)} 통관 현황 · 총 ${result.total}건 · 마지막 동기화 ${displayDate(result.last_update)}`;
+          ? `관리자 전체 통관 현황 · 총 ${activeCards.length}건 · 마지막 동기화 ${displayDate(result.last_update)}`
+          : `${displayConsignee(result.user.display_name)} 통관 현황 · 총 ${activeCards.length}건 · 마지막 동기화 ${displayDate(result.last_update)}`;
       const board = document.getElementById("board");
       board.innerHTML = result.stages.map(stage => {
-        const cards = currentCards.filter(card => card.stage === stage).sort(cardPrioritySort);
+        const cards = activeCards.filter(card => card.stage === stage).sort(cardPrioritySort);
         return `
           <section class="column ${stageClasses[stage] || ""}">
             <div class="col-head"><span>${stage}</span><span class="count">${cards.length}</span></div>
@@ -803,7 +813,10 @@
     }
     function renderDocsStatus() {
       const rows = document.getElementById("docsRows");
-      const sorted = currentCards.map((card, sourceIndex) => ({ card, sourceIndex })).sort((a, b) =>
+      const sorted = currentCards
+        .map((card, sourceIndex) => ({ card, sourceIndex }))
+        .filter(({ card }) => !isFullyReleased(card))
+        .sort((a, b) =>
         String(a.card.consignee || "").localeCompare(String(b.card.consignee || ""), "ko") ||
         String(a.card.bl_number || "").localeCompare(String(b.card.bl_number || ""), "ko")
       );
