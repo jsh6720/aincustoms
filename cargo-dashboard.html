@@ -545,9 +545,20 @@
       if (String(value).includes("합격")) return `<span class="badge b-pass">${label} 합격</span>`;
       return `<span class="badge b-wait">${label} ${esc(text)}</span>`;
     }
+    function importStatusType(card) {
+      const status = String(card.prgs_stts || card.cscl_prgs_stts || "");
+      if (card.import_permitted || status.includes("수입신고수리")) return "permit";
+      if (
+        card.import_declared ||
+        status.trim() === "수입(사용소비) 심사진행" ||
+        status.trim() === "수입신고"
+      ) return "declared";
+      return "before";
+    }
     function permitBadge(card) {
-      if (card.import_permitted) return `<span class="badge b-permit">수입신고 ${esc(card.import_permit_date || "-")}</span>`;
-      if (card.import_declared) return `<span class="badge b-wait">수입신고 수리대기</span>`;
+      const type = importStatusType(card);
+      if (type === "permit") return `<span class="badge b-permit">수입신고수리 ${esc(card.import_permit_date || "")}</span>`;
+      if (type === "declared") return `<span class="badge b-wait">신고진행</span>`;
       return `<span class="badge b-none">수입신고 -</span>`;
     }
     function quotaHtml(card) {
@@ -698,8 +709,9 @@
     }
     function cardHtml(card, index) {
       const alertClass = card.quota_alert === "over" ? " over" : (card.quota_alert === "warn" ? " warn" : "");
-      const permitClass = card.stage === "수입신고" && card.import_permitted ? " permit-ready" : "";
-      const declareClass = card.stage === "수입신고" && !card.import_permitted ? " declare-pending" : "";
+      const importType = importStatusType(card);
+      const permitClass = card.stage === "수입신고" && importType === "permit" ? " permit-ready" : "";
+      const declareClass = card.stage === "수입신고" && importType === "declared" ? " declare-pending" : "";
       return `
         <article class="card${alertClass}${permitClass}${declareClass}">
           ${(card.revisions || []).length ? '<span class="revision-badge">확인사항</span>' : ""}
@@ -717,7 +729,7 @@
             <div class="k">최초반입</div><div class="v"><b>${esc(card.first_arrival_date || "-")}</b></div>
             ${card.warehouse_arrival_date && card.warehouse_arrival_date !== card.first_arrival_date ? `<div class="k">창고반입</div><div class="v">${esc(card.warehouse_arrival_date)}</div>` : ""}
             ${card.shed_name ? `<div class="k">장치장</div><div class="v">${esc(card.shed_name)}</div>` : ""}
-            <div class="k">진행상태</div><div class="v">${esc(card.prgs_stts || (card.stage === "입항전" ? "조회 전" : "-"))}</div>
+            <div class="k">진행상태</div><div class="v strong">${esc(card.prgs_stts || (card.stage === "입항전" ? "조회 전" : "-"))}</div>
           </div>
           <div class="badges">
             ${qBadge("동물검역", card.animal_quarantine)}
