@@ -669,6 +669,7 @@
       `;
     }
     function releaseHtml(card) {
+      if (card.stage !== "반출") return "";
       if (!(card.base_weight > 0)) return "";
       const pct = Math.min(100, Math.round((card.released_weight || 0) / card.base_weight * 100));
       return `
