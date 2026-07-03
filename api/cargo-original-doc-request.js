@@ -148,12 +148,23 @@ module.exports = async function handler(req, res) {
       status: "requested",
       card_snapshot: card,
     };
-    const rows = await supabaseFetch("/rest/v1/cargo_original_doc_requests", {
-      method: "POST",
-      headers: { Prefer: "return=representation" },
-      body: JSON.stringify(requestPayload),
-    });
-    const savedRequest = rows && rows[0] ? rows[0] : requestPayload;
+    let savedRequest = requestPayload;
+    let requestSaved = false;
+    let requestSaveMessage = "";
+    try {
+      const rows = await supabaseFetch("/rest/v1/cargo_original_doc_requests", {
+        method: "POST",
+        headers: { Prefer: "return=representation" },
+        body: JSON.stringify(requestPayload),
+      });
+      savedRequest = rows && rows[0] ? rows[0] : requestPayload;
+      requestSaved = true;
+    } catch (error) {
+      requestSaveMessage = error.message || "요청 이력 저장 실패";
+      if (!String(error.message || "").includes("cargo_original_doc_requests")) {
+        throw error;
+      }
+    }
 
     let mailResult;
     try {
@@ -165,16 +176,12 @@ module.exports = async function handler(req, res) {
     return res.status(200).json({
       success: true,
       request: savedRequest,
+      request_saved: requestSaved,
+      request_save_message: requestSaveMessage,
       email_sent: !!mailResult.sent,
       email_message: mailResult.message,
     });
   } catch (error) {
-    if (String(error.message || "").includes("cargo_original_doc_requests")) {
-      return res.status(500).json({
-        success: false,
-        message: "Supabase에 cargo_original_doc_requests 테이블을 먼저 생성해야 합니다.",
-      });
-    }
     return res.status(500).json({ success: false, message: error.message });
   }
 };
