@@ -55,7 +55,8 @@
     .stage-release .card { border-left:4px solid #8176a5; }
     .card.over { border:2px solid #fa5252; border-left-width:4px; background:#fff5f5; }
     .card.warn { border:2px solid #fd7e14; border-left-width:4px; background:#fff9f0; }
-    .stage-declare .card.permit-ready { background:#f3f8f5; border-color:#b9d4c3; border-left-color:#2f7d52; }
+    .stage-declare .card.declare-pending { background:#fffaf0; border-color:#ead9ad; border-left-color:#b38b2e; }
+    .stage-declare .card.permit-ready { background:#eef8f2; border-color:#a9d4b8; border-left-color:#2f7d52; }
     .revision-badge { position:absolute; top:-6px; right:7px; background:#495057; color:#fff; font-size:9px; padding:1px 6px; border-radius:6px; font-weight:700; }
     .top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:4px; gap:6px; }
     .consignee { font-weight:700; font-size:11.4px; color:#1f2933; word-break:keep-all; line-height:1.18; }
@@ -90,10 +91,13 @@
     .revision-box { margin-top:6px; border:1px solid #d8e2dc; border-left:3px solid #2f6b4f; border-radius:6px; background:#f2fbf6; padding:6px; }
     .revision-title { color:#24533d; font-weight:800; font-size:10px; margin-bottom:3px; }
     .revision-list { display:flex; flex-direction:column; gap:4px; }
-    .revision-item { display:grid; grid-template-columns:minmax(0, 1fr) auto; gap:4px; align-items:start; background:#fff; border:1px solid #cfe0d6; border-radius:5px; padding:5px 6px; line-height:1.28; word-break:break-word; box-shadow:0 1px 2px rgba(47,107,79,.06); }
-    .revision-date { color:#adb5bd; font-size:9px; margin-top:1px; }
+    .revision-item { display:grid; grid-template-columns:minmax(0, 1fr) auto; gap:4px; align-items:center; background:#fff; border:1px solid #cfe0d6; border-radius:5px; padding:5px 6px; line-height:1.28; word-break:break-word; box-shadow:0 1px 2px rgba(47,107,79,.06); }
+    .revision-main { min-width:0; display:flex; align-items:center; gap:5px; }
+    .revision-text { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .revision-source { flex:0 0 auto; border:1px solid #d3ded8; border-radius:999px; padding:0 5px; color:#577061; background:#f7fbf8; font-size:8.5px; line-height:15px; font-weight:800; white-space:nowrap; }
     .revision-form { display:flex; gap:5px; margin-top:5px; }
     .revision-form input { flex:1; min-width:0; height:26px; border:1px solid #dfe3e8; border-radius:5px; padding:4px 7px; font-size:10.5px; }
+    .revision-form .btn { height:26px; padding:3px 9px; font-size:10px; border-radius:5px; }
     .revision-actions { display:flex; justify-content:flex-end; gap:3px; margin-top:0; }
     .revision-actions .btn { padding:1px 5px; min-height:18px; border-radius:4px; font-size:9px; line-height:1.2; font-weight:700; }
     .revision-item > input { min-width:0; height:23px; border:1px solid #dfe3e8; border-radius:5px; padding:3px 6px; font-size:10px; }
@@ -582,6 +586,7 @@
               const itemId = item.id || "";
               const isEditing = itemId && revisionEditModes[itemId];
               const editValue = itemId ? (revisionEditDrafts[itemId] ?? item.text ?? "") : "";
+              const source = revisionSource(item);
               const deleteButton = currentUserRole === "admin"
                 ? `<button class="btn danger" onclick="deleteRevision('${jsStr(card.bl_number)}', '${jsStr(card.account_id)}', '${jsStr(itemId)}')">삭제</button>`
                 : "";
@@ -598,8 +603,10 @@
               }
               return `
               <div class="revision-item">
-                <div>${esc(item.text || item)}</div>
-                ${item.created_at ? `<div class="revision-date">${esc(item.created_at)}${item.updated_at ? " · 수정 " + esc(item.updated_at) : ""}</div>` : ""}
+                <div class="revision-main">
+                  <span class="revision-text">${esc(item.text || item)}</span>
+                  <span class="revision-source">${source}</span>
+                </div>
                 ${itemId ? `<div class="revision-actions">
                   <button class="btn gray" onclick="startEditRevision('${jsStr(itemId)}', '${jsStr(item.text || "")}')">수정</button>
                   ${deleteButton}
@@ -616,6 +623,11 @@
           </div>
         </div>
       `;
+    }
+    function revisionSource(item) {
+      const writer = String((item && (item.updated_by || item.created_by)) || "").toLowerCase();
+      if (!writer || writer === "admin" || writer === "aincustoms" || writer.includes("ain")) return "아인";
+      return "화주";
     }
     function originalDocsHtml(card, index) {
       const obl = !!card.obl_received;
@@ -687,8 +699,9 @@
     function cardHtml(card, index) {
       const alertClass = card.quota_alert === "over" ? " over" : (card.quota_alert === "warn" ? " warn" : "");
       const permitClass = card.stage === "수입신고" && card.import_permitted ? " permit-ready" : "";
+      const declareClass = card.stage === "수입신고" && !card.import_permitted ? " declare-pending" : "";
       return `
-        <article class="card${alertClass}${permitClass}">
+        <article class="card${alertClass}${permitClass}${declareClass}">
           ${(card.revisions || []).length ? '<span class="revision-badge">확인사항</span>' : ""}
           <div class="top">
             <div>
