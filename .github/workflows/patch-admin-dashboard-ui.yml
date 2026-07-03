@@ -1,0 +1,96 @@
+name: Patch admin dashboard UI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/patch-admin-dashboard-ui.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch cargo dashboard admin UI
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const path = 'cargo-dashboard.html';
+          let html = fs.readFileSync(path, 'utf8');
+          const original = html;
+
+          function once(from, to, label) {
+            if (!html.includes(from)) {
+              if (html.includes(to)) return;
+              throw new Error('Pattern not found: ' + label);
+            }
+            html = html.replace(from, to);
+          }
+          function all(from, to, label) {
+            if (!html.includes(from)) {
+              if (html.includes(to)) return;
+              throw new Error('Pattern not found: ' + label);
+            }
+            html = html.split(from).join(to);
+          }
+
+          once('.toolbar { display:none; align-items:center; justify-content:space-between; padding:12px 16px 0; }', '.toolbar { display:none; align-items:center; justify-content:space-between; padding:12px 16px 0; gap:12px; }\n    .toolbar-actions { display:flex; align-items:center; gap:8px; }', 'toolbar css');
+          once('.admin-panel { display:none; padding:18px; max-width:1180px; margin:0 auto; }', '.admin-panel { display:none; position:fixed; left:50%; top:86px; transform:translateX(-50%); width:min(1180px, calc(100vw - 48px)); max-height:calc(100vh - 110px); overflow:auto; background:#f7f9fb; border:1px solid #cfd6de; border-radius:8px; padding:18px; z-index:180; box-shadow:0 18px 48px rgba(15,23,42,.22); }', 'admin panel css');
+          once('.admin-table { width:100%; border-collapse:collapse; font-size:12px; background:#fff; border:1px solid #d9dee4; border-radius:8px; overflow:hidden; }', '.admin-table-wrap { overflow-x:auto; background:#fff; border:1px solid #d9dee4; border-radius:8px; }\n    .admin-table { width:100%; min-width:880px; table-layout:fixed; border-collapse:collapse; font-size:12px; background:#fff; }', 'admin table css');
+          once('.admin-table th { background:#f7f9fb; color:#4b5663; font-weight:700; }\n    .admin-actions', '.admin-table th { background:#f7f9fb; color:#4b5663; font-weight:700; }\n    .admin-table th:nth-child(1), .admin-table td:nth-child(1) { width:58px; }\n    .admin-table th:nth-child(2), .admin-table td:nth-child(2) { width:110px; }\n    .admin-table th:nth-child(3), .admin-table td:nth-child(3) { width:150px; }\n    .admin-table th:nth-child(4), .admin-table td:nth-child(4) { width:120px; }\n    .admin-table th:nth-child(6), .admin-table td:nth-child(6) { width:56px; text-align:center; }\n    .admin-table th:nth-child(7), .admin-table td:nth-child(7) { width:62px; text-align:center; }\n    .admin-table td { word-break:break-word; overflow-wrap:anywhere; }\n    .admin-actions', 'admin table columns css');
+
+          once('<div id="summary" class="summary"></div>\n      <button class="btn" onclick="loadData()">새로고침</button>', '<div id="summary" class="summary"></div>\n      <div class="toolbar-actions">\n        <button id="adminSettingsBtn" class="btn gray" style="display:none" onclick="openAdminSettings()">관리자 설정</button>\n        <button class="btn" onclick="loadData()">새로고침</button>\n      </div>', 'main toolbar buttons');
+          once('<div class="summary">관리자 설정</div>\n        <button class="btn" onclick="loadAdmin()">새로고침</button>', '<div class="summary">관리자 설정</div>\n        <div class="toolbar-actions">\n          <button class="btn" onclick="loadAdmin()">새로고침</button>\n          <button class="btn gray" onclick="closeAdminSettings()">닫기</button>\n        </div>', 'admin toolbar buttons');
+          once('        <div>\n          <table class="admin-table">', '        <div class="admin-table-wrap">\n          <table class="admin-table">', 'admin table wrapper');
+
+          once('    let adminAccounts = [];', '    let adminAccounts = [];\n    let currentUserRole = "shipper";', 'current role state');
+          once('      document.getElementById("logoutBtn").style.display = "";\n    }\n    function showAdminUi()', '      document.getElementById("logoutBtn").style.display = "";\n      document.getElementById("adminSettingsBtn").style.display = currentUserRole === "admin" ? "" : "none";\n    }\n    function showAdminUi()', 'show cargo admin button');
+
+          const showAdminStart = html.indexOf('    function showAdminUi() {');
+          const showLoginStart = html.indexOf('    function showLogin(message = "") {', showAdminStart);
+          if (showAdminStart === -1 || showLoginStart === -1) throw new Error('showAdminUi block not found');
+          html = html.slice(0, showAdminStart) + '    function showAdminUi() {\n      document.getElementById("adminPanel").style.display = "block";\n    }\n' + html.slice(showLoginStart);
+
+          once('      document.getElementById("logoutBtn").style.display = "none";\n      document.getElementById("loginError").textContent = message;', '      document.getElementById("logoutBtn").style.display = "none";\n      document.getElementById("adminSettingsBtn").style.display = "none";\n      document.getElementById("loginError").textContent = message;', 'hide admin settings on login');
+          once('      if (result.user.role === "admin") {\n        showAdminUi();\n        await loadAdmin();\n      } else {\n        showCargoUi();\n        await loadData();\n      }', '      if (result.user.role === "admin") {\n        await loadData();\n      } else {\n        showCargoUi();\n        await loadData();\n      }', 'admin login route');
+          once('      if (result.user.role === "admin") {\n        showAdminUi();\n        await loadAdmin();\n        return;\n      }\n      showCargoUi();', '      currentUserRole = result.user.role || "shipper";\n      showCargoUi();', 'loadData admin board');
+          once('      document.getElementById("summary").textContent =\n        `${displayConsignee(result.user.display_name)} 통관 현황 · 총 ${result.total}건 · 마지막 동기화 ${displayDate(result.last_update)}`;', '      document.getElementById("summary").textContent =\n        currentUserRole === "admin"\n          ? `관리자 전체 통관 현황 · 총 ${result.total}건 · 마지막 동기화 ${displayDate(result.last_update)}`\n          : `${displayConsignee(result.user.display_name)} 통관 현황 · 총 ${result.total}건 · 마지막 동기화 ${displayDate(result.last_update)}`;', 'admin summary');
+
+          once('      const checked = card.is_quota ? "checked" : "";\n      const dateLine', '      const checked = card.is_quota ? "checked" : "";\n      const disabled = currentUserRole === "admin" ? "disabled" : "";\n      const dateLine', 'quota disabled var');
+          once('<input type="date" value="${esc(card.quota_permit_date || "")}" onchange="saveQuotaInput(\'${jsStr(card.bl_number)}\', true, this.value)">', '<input type="date" ${disabled} value="${esc(card.quota_permit_date || "")}" onchange="saveQuotaInput(\'${jsStr(card.bl_number)}\', true, this.value)">', 'quota date disabled');
+          once('<input type="checkbox" ${checked} onchange="saveQuotaInput(\'${jsStr(card.bl_number)}\', this.checked, this.checked ? \'${jsStr(card.quota_permit_date || "")}\' : \'\')">', '<input type="checkbox" ${checked} ${disabled} onchange="saveQuotaInput(\'${jsStr(card.bl_number)}\', this.checked, this.checked ? \'${jsStr(card.quota_permit_date || "")}\' : \'\')">', 'quota checkbox disabled');
+          once('    function releaseRequestButton(card) {\n      if (card.stage !== "수입신고") return "";', '    function releaseRequestButton(card) {\n      if (currentUserRole === "admin") return "";\n      if (card.stage !== "수입신고") return "";', 'hide release request for admin');
+          once('    function importRequestButton(card) {\n      if (card.stage !== "반입") return "";', '    function importRequestButton(card) {\n      if (currentUserRole === "admin") return "";\n      if (card.stage !== "반입") return "";', 'hide import request for admin');
+          once('    function resetAdminForm() {', '    async function openAdminSettings() {\n      await loadAdmin();\n    }\n    function closeAdminSettings() {\n      document.getElementById("adminPanel").style.display = "none";\n    }\n    function resetAdminForm() {', 'admin settings open close');
+
+          if (html === original) {
+            console.log('No changes needed.');
+            process.exit(0);
+          }
+          fs.writeFileSync(path, html);
+          NODE
+      - name: Check dashboard script syntax
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const vm = require('vm');
+          const html = fs.readFileSync('cargo-dashboard.html', 'utf8');
+          const script = html.match(/<script>([\s\S]*)<\/script>/)[1];
+          new vm.Script(script);
+          console.log('cargo-dashboard script OK');
+          NODE
+      - name: Commit patched HTML
+        run: |
+          if git diff --quiet cargo-dashboard.html; then
+            echo "No HTML diff."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add cargo-dashboard.html
+          git commit -m "Improve admin cargo dashboard view"
+          git push
