@@ -22,7 +22,6 @@ jobs:
           const path = 'cargo-dashboard.html';
           let html = fs.readFileSync(path, 'utf8');
           const original = html;
-
           function replaceOnce(from, to, label) {
             if (!html.includes(from)) {
               if (html.includes(to)) return;
@@ -30,154 +29,18 @@ jobs:
             }
             html = html.replace(from, to);
           }
-
-          replaceOnce(
-            '    .modal-field label { display:block; margin:0 0 4px; font-size:11px; color:#495057; font-weight:700; }\n    .modal-actions',
-            '    .modal-field label { display:block; margin:0 0 4px; font-size:11px; color:#495057; font-weight:700; }\n    .field-hint { display:inline-block; margin-left:5px; color:#8b95a1; font-size:10px; font-weight:600; }\n    .modal-actions',
-            'field hint css'
-          );
-
+          replaceOnce('    .modal-field label { display:block; margin:0 0 4px; font-size:11px; color:#495057; font-weight:700; }\n    .modal-actions', '    .modal-field label { display:block; margin:0 0 4px; font-size:11px; color:#495057; font-weight:700; }\n    .field-hint { display:inline-block; margin-left:5px; color:#8b95a1; font-size:10px; font-weight:600; }\n    .modal-actions', 'field hint css');
           replaceOnce('<h2>출고요청</h2>', '<h2 id="requestModalTitle">출고요청</h2>', 'modal title id');
           replaceOnce('<div class="modal-options">', '<div class="modal-options" id="releaseTypeOptions">', 'release options id');
-          replaceOnce(
-            `      <div class="modal-field">\n        <label for="releaseRequester">요청담당자</label>\n        <input id="releaseRequester" placeholder="이름 / 연락처">\n      </div>\n      <div class="modal-field">\n        <label for="releaseAddress">출고지주소</label>`,
-            `      <div class="modal-field">\n        <label for="releaseRequester">요청담당자</label>\n        <input id="releaseRequester" placeholder="이름 / 연락처">\n      </div>\n      <div class="modal-field">\n        <label for="requesterEmail">요청인 메일<span class="field-hint">요청 메일의 참조(CC)에 들어갑니다.</span></label>\n        <input id="requesterEmail" type="email" placeholder="name@example.com">\n      </div>\n      <div class="modal-field">\n        <label for="releaseAddress">출고지주소</label>`,
-            'requester email field'
-          );
-
+          replaceOnce('      <div class="modal-field">\n        <label for="releaseRequester">요청담당자</label>\n        <input id="releaseRequester" placeholder="이름 / 연락처">\n      </div>\n      <div class="modal-field">\n        <label for="releaseAddress">출고지주소</label>', '      <div class="modal-field">\n        <label for="releaseRequester">요청담당자</label>\n        <input id="releaseRequester" placeholder="이름 / 연락처">\n      </div>\n      <div class="modal-field">\n        <label for="requesterEmail">요청인 메일<span class="field-hint">요청 메일의 참조(CC)에 들어갑니다.</span></label>\n        <input id="requesterEmail" type="email" placeholder="name@example.com">\n      </div>\n      <div class="modal-field">\n        <label for="releaseAddress">출고지주소</label>', 'requester email field');
           replaceOnce('    let releaseRequestCard = null;\n    let adminAccounts = [];', '    let releaseRequestCard = null;\n    let requestMode = "release";\n    let adminAccounts = [];', 'request mode state');
-
-          replaceOnce(
-            `    function releaseRequestButton(card) {\n      if (card.stage !== "수입신고") return "";\n      return \`\n        <div class="card-actions">\n          <button class="request-btn" onclick="openReleaseModal('\${jsStr(card.bl_number)}')">출고요청</button>\n        </div>\n      \`;\n    }\n    function cardHtml(card) {`,
-            `    function releaseRequestButton(card) {\n      if (card.stage !== "수입신고") return "";\n      return \`\n        <div class="card-actions">\n          <button class="request-btn" onclick="openReleaseModal('\${jsStr(card.bl_number)}')">출고요청</button>\n        </div>\n      \`;\n    }\n    function importRequestButton(card) {\n      if (card.stage !== "반입") return "";\n      return \`\n        <div class="card-actions">\n          <button class="request-btn" onclick="openImportModal('\${jsStr(card.bl_number)}')">수입신고요청</button>\n        </div>\n      \`;\n    }\n    function cardHtml(card) {`,
-            'import request button function'
-          );
-
-          replaceOnce(
-            '          ${quotaHtml(card)}\n          ${revisionsHtml(card)}\n          ${releaseRequestButton(card)}',
-            '          ${quotaHtml(card)}\n          ${revisionsHtml(card)}\n          ${importRequestButton(card)}\n          ${releaseRequestButton(card)}',
-            'render import request button'
-          );
-
+          replaceOnce('    function releaseRequestButton(card) {\n      if (card.stage !== "수입신고") return "";\n      return `\n        <div class="card-actions">\n          <button class="request-btn" onclick="openReleaseModal(\'${jsStr(card.bl_number)}\')">출고요청</button>\n        </div>\n      `;\n    }\n    function cardHtml(card) {', '    function releaseRequestButton(card) {\n      if (card.stage !== "수입신고") return "";\n      return `\n        <div class="card-actions">\n          <button class="request-btn" onclick="openReleaseModal(\'${jsStr(card.bl_number)}\')">출고요청</button>\n        </div>\n      `;\n    }\n    function importRequestButton(card) {\n      if (card.stage !== "반입") return "";\n      return `\n        <div class="card-actions">\n          <button class="request-btn" onclick="openImportModal(\'${jsStr(card.bl_number)}\')">수입신고요청</button>\n        </div>\n      `;\n    }\n    function cardHtml(card) {', 'import request button function');
+          replaceOnce('          ${quotaHtml(card)}\n          ${revisionsHtml(card)}\n          ${releaseRequestButton(card)}', '          ${quotaHtml(card)}\n          ${revisionsHtml(card)}\n          ${importRequestButton(card)}\n          ${releaseRequestButton(card)}', 'render import request button');
           const start = html.indexOf('    async function openReleaseModal(blNumber) {');
           const end = html.indexOf('    async function loadAdmin() {', start);
           if (start === -1 || end === -1) throw new Error('request modal function block not found');
-          const block = `    async function openReleaseModal(blNumber) {
-      const response = await fetch("/api/cargo-data");
-      const result = await response.json();
-      if (!result.success) {
-        alert(result.message || "카드 정보를 불러오지 못했습니다.");
-        return;
-      }
-      releaseRequestCard = result.cards.find(card => card.bl_number === blNumber);
-      if (!releaseRequestCard) {
-        alert("카드 정보를 찾지 못했습니다.");
-        return;
-      }
-      const available = numberValue(releaseRequestCard.remaining_weight) || numberValue(releaseRequestCard.base_weight) || numberValue(releaseRequestCard.total_weight);
-      requestMode = "release";
-      document.getElementById("requestModalTitle").textContent = "출고요청";
-      document.getElementById("releaseTypeOptions").style.display = "flex";
-      document.getElementById("releaseWeightWrap").style.display = "none";
-      document.querySelector("label[for='releaseAddress']").textContent = "출고지주소";
-      document.querySelector("label[for='releaseDate']").textContent = "출고일자";
-      document.getElementById("releaseAddress").placeholder = "출고지 주소를 입력하세요.";
-      document.getElementById("releaseDate").placeholder = "";
-      document.querySelector('input[name="releaseType"][value="full"]').checked = true;
-      document.getElementById("releaseWeight").value = available || "";
-      document.getElementById("releaseRequester").value = releaseRequestCard.last_import_requester_name || "";
-      document.getElementById("requesterEmail").value = releaseRequestCard.last_import_requester_email || "";
-      document.getElementById("releaseAddress").value = releaseRequestCard.last_import_delivery_address || "";
-      document.getElementById("releaseDate").value = releaseRequestCard.last_import_requested_release_date || "";
-      document.getElementById("releaseMemo").value = "";
-      document.getElementById("releaseModalCard").innerHTML = \`
-        <div class="modal-row"><b>화주명</b><span>\${esc(displayConsignee(releaseRequestCard.consignee))}</span></div>
-        <div class="modal-row"><b>B/L</b><span>\${esc(releaseRequestCard.bl_number || "-")}</span></div>
-        <div class="modal-row"><b>반출처</b><span>\${esc(releaseRequestCard.destination || "-")}</span></div>
-        <div class="modal-row"><b>품명</b><span>\${esc(releaseRequestCard.product_name || "-")}</span></div>
-        <div class="modal-row"><b>잔량</b><span>\${fmtWeight(available, releaseRequestCard.weight_unit)}</span></div>
-      \`;
-      toggleReleaseType();
-      document.getElementById("releaseModalBg").style.display = "flex";
-    }
-    async function openImportModal(blNumber) {
-      const response = await fetch("/api/cargo-data");
-      const result = await response.json();
-      if (!result.success) {
-        alert(result.message || "카드 정보를 불러오지 못했습니다.");
-        return;
-      }
-      releaseRequestCard = result.cards.find(card => card.bl_number === blNumber);
-      if (!releaseRequestCard) {
-        alert("카드 정보를 찾지 못했습니다.");
-        return;
-      }
-      requestMode = "import";
-      document.getElementById("requestModalTitle").textContent = "수입신고요청";
-      document.getElementById("releaseTypeOptions").style.display = "none";
-      document.getElementById("releaseWeightWrap").style.display = "none";
-      document.querySelector("label[for='releaseAddress']").textContent = "출고지주소";
-      document.querySelector("label[for='releaseDate']").textContent = "출고일자";
-      document.getElementById("releaseWeight").value = "";
-      document.getElementById("releaseRequester").value = releaseRequestCard.last_import_requester_name || "";
-      document.getElementById("requesterEmail").value = releaseRequestCard.last_import_requester_email || "";
-      document.getElementById("releaseAddress").value = releaseRequestCard.last_import_delivery_address || "";
-      document.getElementById("releaseAddress").placeholder = "미정";
-      document.getElementById("releaseDate").value = releaseRequestCard.last_import_requested_release_date || "";
-      document.getElementById("releaseMemo").value = "";
-      document.getElementById("releaseModalCard").innerHTML = \`
-        <div class="modal-row"><b>화주명</b><span>\${esc(displayConsignee(releaseRequestCard.consignee))}</span></div>
-        <div class="modal-row"><b>B/L</b><span>\${esc(releaseRequestCard.bl_number || "-")}</span></div>
-        <div class="modal-row"><b>반출처</b><span>\${esc(releaseRequestCard.destination || "-")}</span></div>
-        <div class="modal-row"><b>품명</b><span>\${esc(releaseRequestCard.product_name || "-")}</span></div>
-        <div class="modal-row"><b>총중량</b><span>\${fmtWeight(releaseRequestCard.total_weight, releaseRequestCard.weight_unit)}</span></div>
-      \`;
-      document.getElementById("releaseModalBg").style.display = "flex";
-    }
-    function closeReleaseModal() {
-      document.getElementById("releaseModalBg").style.display = "none";
-      releaseRequestCard = null;
-      requestMode = "release";
-    }
-    function toggleReleaseType() {
-      const type = document.querySelector('input[name="releaseType"]:checked').value;
-      document.getElementById("releaseWeightWrap").style.display = type === "partial" ? "" : "none";
-    }
-    async function submitReleaseRequest() {
-      if (!releaseRequestCard) return;
-      const type = document.querySelector('input[name="releaseType"]:checked').value;
-      const commonBody = {
-        bl_number: releaseRequestCard.bl_number,
-        requester_name: document.getElementById("releaseRequester").value,
-        requester_email: document.getElementById("requesterEmail").value,
-        delivery_address: document.getElementById("releaseAddress").value,
-        requested_release_date: document.getElementById("releaseDate").value,
-        memo: document.getElementById("releaseMemo").value
-      };
-      const body = requestMode === "import" ? commonBody : {
-        ...commonBody,
-        request_type: type,
-        requested_weight: type === "partial" ? document.getElementById("releaseWeight").value : ""
-      };
-      const endpoint = requestMode === "import" ? "/api/cargo-import-request" : "/api/cargo-release-request";
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body)
-      });
-      const result = await response.json();
-      if (!result.success) {
-        alert(result.message || (requestMode === "import" ? "수입신고요청에 실패했습니다." : "출고요청에 실패했습니다."));
-        return;
-      }
-      const successText = requestMode === "import" ? "수입신고요청" : "출고요청";
-      closeReleaseModal();
-      alert(result.email_sent ? `${successText}이 발송되었습니다.` : `${successText}은 저장되었습니다. 메일 발송 환경변수를 확인해 주세요.`);
-    }
-
-`;
+          const block = Buffer.from('ICAgIGFzeW5jIGZ1bmN0aW9uIG9wZW5SZWxlYXNlTW9kYWwoYmxOdW1iZXIpIHsKICAgICAgY29uc3QgcmVzcG9uc2UgPSBhd2FpdCBmZXRjaCgiL2FwaS9jYXJnby1kYXRhIik7CiAgICAgIGNvbnN0IHJlc3VsdCA9IGF3YWl0IHJlc3BvbnNlLmpzb24oKTsKICAgICAgaWYgKCFyZXN1bHQuc3VjY2VzcykgewogICAgICAgIGFsZXJ0KHJlc3VsdC5tZXNzYWdlIHx8ICLsubTrk5wg7KCV67O066W8IOu2iOufrOyYpOyngCDrqrvtlojsirXri4jri6QuIik7CiAgICAgICAgcmV0dXJuOwogICAgICB9CiAgICAgIHJlbGVhc2VSZXF1ZXN0Q2FyZCA9IHJlc3VsdC5jYXJkcy5maW5kKGNhcmQgPT4gY2FyZC5ibF9udW1iZXIgPT09IGJsTnVtYmVyKTsKICAgICAgaWYgKCFyZWxlYXNlUmVxdWVzdENhcmQpIHsKICAgICAgICBhbGVydCgi7Lm065OcIOygleuztOulvCDssL7sp4Ag66q77ZaI7Iq164uI64ukLiIpOwogICAgICAgIHJldHVybjsKICAgICAgfQogICAgICBjb25zdCBhdmFpbGFibGUgPSBudW1iZXJWYWx1ZShyZWxlYXNlUmVxdWVzdENhcmQucmVtYWluaW5nX3dlaWdodCkgfHwgbnVtYmVyVmFsdWUocmVsZWFzZVJlcXVlc3RDYXJkLmJhc2Vfd2VpZ2h0KSB8fCBudW1iZXJWYWx1ZShyZWxlYXNlUmVxdWVzdENhcmQudG90YWxfd2VpZ2h0KTsKICAgICAgcmVxdWVzdE1vZGUgPSAicmVsZWFzZSI7CiAgICAgIGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCJyZXF1ZXN0TW9kYWxUaXRsZSIpLnRleHRDb250ZW50ID0gIuy2nOqzoOyalOyyrSI7CiAgICAgIGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCJyZWxlYXNlVHlwZU9wdGlvbnMiKS5zdHlsZS5kaXNwbGF5ID0gImZsZXgiOwogICAgICBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgicmVsZWFzZVdlaWdodFdyYXAiKS5zdHlsZS5kaXNwbGF5ID0gIm5vbmUiOwogICAgICBkb2N1bWVudC5xdWVyeVNlbGVjdG9yKCJsYWJlbFtmb3I9J3JlbGVhc2VBZGRyZXNzJ10iKS50ZXh0Q29udGVudCA9ICLstpzqs6Dsp4Dso7zshowiOwogICAgICBkb2N1bWVudC5xdWVyeVNlbGVjdG9yKCJsYWJlbFtmb3I9J3JlbGVhc2VEYXRlJ10iKS50ZXh0Q29udGVudCA9ICLstpzqs6DsnbzsnpAiOwogICAgICBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgicmVsZWFzZUFkZHJlc3MiKS5wbGFjZWhvbGRlciA9ICLstpzqs6Dsp4Ag7KO87IaM66W8IOyeheugpe2VmOyEuOyalC4iOwogICAgICBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgicmVsZWFzZURhdGUiKS5wbGFjZWhvbGRlciA9ICIiOwogICAgICBkb2N1bWVudC5xdWVyeVNlbGVjdG9yKCdpbnB1dFtuYW1lPSJyZWxlYXNlVHlwZSJdW3ZhbHVlPSJmdWxsIl0nKS5jaGVja2VkID0gdHJ1ZTsKICAgICAgZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoInJlbGVhc2VXZWlnaHQiKS52YWx1ZSA9IGF2YWlsYWJsZSB8fCAiIjsKICAgICAgZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoInJlbGVhc2VSZXF1ZXN0ZXIiKS52YWx1ZSA9IHJlbGVhc2VSZXF1ZXN0Q2FyZC5sYXN0X2ltcG9ydF9yZXF1ZXN0ZXJfbmFtZSB8fCAiIjsKICAgICAgZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoInJlcXVlc3RlckVtYWlsIikudmFsdWUgPSByZWxlYXNlUmVxdWVzdENhcmQubGFzdF9pbXBvcnRfcmVxdWVzdGVyX2VtYWlsIHx8ICIiOwogICAgICBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgicmVsZWFzZUFkZHJlc3MiKS52YWx1ZSA9IHJlbGVhc2VSZXF1ZXN0Q2FyZC5sYXN0X2ltcG9ydF9kZWxpdmVyeV9hZGRyZXNzIHx8ICIiOwogICAgICBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgicmVsZWFzZURhdGUiKS52YWx1ZSA9IHJlbGVhc2VSZXF1ZXN0Q2FyZC5sYXN0X2ltcG9ydF9yZXF1ZXN0ZWRfcmVsZWFzZV9kYXRlIHx8ICIiOwogICAgICBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgicmVsZWFzZU1lbW8iKS52YWx1ZSA9ICIiOwogICAgICBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgicmVsZWFzZU1vZGFsQ2FyZCIpLmlubmVySFRNTCA9IGAKICAgICAgICA8ZGl2IGNsYXNzPSJtb2RhbC1yb3ciPjxiPu2ZlOyjvOuqhTwvYj48c3Bhbj4ke2VzYyhkaXNwbGF5Q29uc2lnbmVlKHJlbGVhc2VSZXF1ZXN0Q2FyZC5jb25zaWduZWUpKX08L3NwYW4+PC9kaXY+CiAgICAgICAgPGRpdiBjbGFzcz0ibW9kYWwtcm93Ij48Yj5CL0w8L2I+PHNwYW4+JHtlc2MocmVsZWFzZVJlcXVlc3RDYXJkLmJsX251bWJlciB8fCAiLSIpfTwvc3Bhbj48L2Rpdj4KICAgICAgICA8ZGl2IGNsYXNzPSJtb2RhbC1yb3ciPjxiPuuwmOy2nOyymDwvYj48c3Bhbj4ke2VzYyhyZWxlYXNlUmVxdWVzdENhcmQuZGVzdGluYXRpb24gfHwgIi0iKX08L3NwYW4+PC9kaXY+CiAgICAgICAgPGRpdiBjbGFzcz0ibW9kYWwtcm93Ij48Yj7tkojrqoU8L2I+PHNwYW4+JHtlc2MocmVsZWFzZVJlcXVlc3RDYXJkLnByb2R1Y3RfbmFtZSB8fCAiLSIpfTwvc3Bhbj48L2Rpdj4KICAgICAgICA8ZGl2IGNsYXNzPSJtb2RhbC1yb3ciPjxiPuyelOufiTwvYj48c3Bhbj4ke2ZtdFdlaWdodChhdmFpbGFibGUsIHJlbGVhc2VSZXF1ZXN0Q2FyZC53ZWlnaHRfdW5pdCl9PC9zcGFuPjwvZGl2PgogICAgICBgOwogICAgICB0b2dnbGVSZWxlYXNlVHlwZSgpOwogICAgICBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgicmVsZWFzZU1vZGFsQmciKS5zdHlsZS5kaXNwbGF5ID0gImZsZXgiOwogICAgfQogICAgYXN5bmMgZnVuY3Rpb24gb3BlbkltcG9ydE1vZGFsKGJsTnVtYmVyKSB7CiAgICAgIGNvbnN0IHJlc3BvbnNlID0gYXdhaXQgZmV0Y2goIi9hcGkvY2FyZ28tZGF0YSIpOwogICAgICBjb25zdCByZXN1bHQgPSBhd2FpdCByZXNwb25zZS5qc29uKCk7CiAgICAgIGlmICghcmVzdWx0LnN1Y2Nlc3MpIHsKICAgICAgICBhbGVydChyZXN1bHQubWVzc2FnZSB8fCAi7Lm065OcIOygleuztOulvCDrtojrn6zsmKTsp4Ag66q77ZaI7Iq164uI64ukLiIpOwogICAgICAgIHJldHVybjsKICAgICAgfQogICAgICByZWxlYXNlUmVxdWVzdENhcmQgPSByZXN1bHQuY2FyZHMuZmluZChjYXJkID0+IGNhcmQuYmxfbnVtYmVyID09PSBibE51bWJlcik7CiAgICAgIGlmICghcmVsZWFzZVJlcXVlc3RDYXJkKSB7CiAgICAgICAgYWxlcnQoIuy5tOuTnCDsoJXrs7Trpbwg7LC+7KeAIOuqu+2WiOyKteuLiOuLpC4iKTsKICAgICAgICByZXR1cm47CiAgICAgIH0KICAgICAgcmVxdWVzdE1vZGUgPSAiaW1wb3J0IjsKICAgICAgZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoInJlcXVlc3RNb2RhbFRpdGxlIikudGV4dENvbnRlbnQgPSAi7IiY7J6F7Iug6rOg7JqU7LKtIjsKICAgICAgZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoInJlbGVhc2VUeXBlT3B0aW9ucyIpLnN0eWxlLmRpc3BsYXkgPSAibm9uZSI7CiAgICAgIGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCJyZWxlYXNlV2VpZ2h0V3JhcCIpLnN0eWxlLmRpc3BsYXkgPSAibm9uZSI7CiAgICAgIGRvY3VtZW50LnF1ZXJ5U2VsZWN0b3IoImxhYmVsW2Zvcj0ncmVsZWFzZUFkZHJlc3MnXSIpLnRleHRDb250ZW50ID0gIuy2nOqzoOyngOyjvOyGjCI7CiAgICAgIGRvY3VtZW50LnF1ZXJ5U2VsZWN0b3IoImxhYmVsW2Zvcj0ncmVsZWFzZURhdGUnXSIpLnRleHRDb250ZW50ID0gIuy2nOqzoOydvOyekCI7CiAgICAgIGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCJyZWxlYXNlV2VpZ2h0IikudmFsdWUgPSAiIjsKICAgICAgZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoInJlbGVhc2VSZXF1ZXN0ZXIiKS52YWx1ZSA9IHJlbGVhc2VSZXF1ZXN0Q2FyZC5sYXN0X2ltcG9ydF9yZXF1ZXN0ZXJfbmFtZSB8fCAiIjsKICAgICAgZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoInJlcXVlc3RlckVtYWlsIikudmFsdWUgPSByZWxlYXNlUmVxdWVzdENhcmQubGFzdF9pbXBvcnRfcmVxdWVzdGVyX2VtYWlsIHx8ICIiOwogICAgICBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgicmVsZWFzZUFkZHJlc3MiKS52YWx1ZSA9IHJlbGVhc2VSZXF1ZXN0Q2FyZC5sYXN0X2ltcG9ydF9kZWxpdmVyeV9hZGRyZXNzIHx8ICIiOwogICAgICBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgicmVsZWFzZUFkZHJlc3MiKS5wbGFjZWhvbGRlciA9ICLrr7jsoJUiOwogICAgICBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgicmVsZWFzZURhdGUiKS52YWx1ZSA9IHJlbGVhc2VSZXF1ZXN0Q2FyZC5sYXN0X2ltcG9ydF9yZXF1ZXN0ZWRfcmVsZWFzZV9kYXRlIHx8ICIiOwogICAgICBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgicmVsZWFzZU1lbW8iKS52YWx1ZSA9ICIiOwogICAgICBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgicmVsZWFzZU1vZGFsQ2FyZCIpLmlubmVySFRNTCA9IGAKICAgICAgICA8ZGl2IGNsYXNzPSJtb2RhbC1yb3ciPjxiPu2ZlOyjvOuqhTwvYj48c3Bhbj4ke2VzYyhkaXNwbGF5Q29uc2lnbmVlKHJlbGVhc2VSZXF1ZXN0Q2FyZC5jb25zaWduZWUpKX08L3NwYW4+PC9kaXY+CiAgICAgICAgPGRpdiBjbGFzcz0ibW9kYWwtcm93Ij48Yj5CL0w8L2I+PHNwYW4+JHtlc2MocmVsZWFzZVJlcXVlc3RDYXJkLmJsX251bWJlciB8fCAiLSIpfTwvc3Bhbj48L2Rpdj4KICAgICAgICA8ZGl2IGNsYXNzPSJtb2RhbC1yb3ciPjxiPuuwmOy2nOyymDwvYj48c3Bhbj4ke2VzYyhyZWxlYXNlUmVxdWVzdENhcmQuZGVzdGluYXRpb24gfHwgIi0iKX08L3NwYW4+PC9kaXY+CiAgICAgICAgPGRpdiBjbGFzcz0ibW9kYWwtcm93Ij48Yj7tkojrqoU8L2I+PHNwYW4+JHtlc2MocmVsZWFzZVJlcXVlc3RDYXJkLnByb2R1Y3RfbmFtZSB8fCAiLSIpfTwvc3Bhbj48L2Rpdj4KICAgICAgICA8ZGl2IGNsYXNzPSJtb2RhbC1yb3ciPjxiPuy0neykkeufiTwvYj48c3Bhbj4ke2ZtdFdlaWdodChyZWxlYXNlUmVxdWVzdENhcmQudG90YWxfd2VpZ2h0LCByZWxlYXNlUmVxdWVzdENhcmQud2VpZ2h0X3VuaXQpfTwvc3Bhbj48L2Rpdj4KICAgICAgYDsKICAgICAgZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoInJlbGVhc2VNb2RhbEJnIikuc3R5bGUuZGlzcGxheSA9ICJmbGV4IjsKICAgIH0KICAgIGZ1bmN0aW9uIGNsb3NlUmVsZWFzZU1vZGFsKCkgewogICAgICBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgicmVsZWFzZU1vZGFsQmciKS5zdHlsZS5kaXNwbGF5ID0gIm5vbmUiOwogICAgICByZWxlYXNlUmVxdWVzdENhcmQgPSBudWxsOwogICAgICByZXF1ZXN0TW9kZSA9ICJyZWxlYXNlIjsKICAgIH0KICAgIGZ1bmN0aW9uIHRvZ2dsZVJlbGVhc2VUeXBlKCkgewogICAgICBjb25zdCB0eXBlID0gZG9jdW1lbnQucXVlcnlTZWxlY3RvcignaW5wdXRbbmFtZT0icmVsZWFzZVR5cGUiXTpjaGVja2VkJykudmFsdWU7CiAgICAgIGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCJyZWxlYXNlV2VpZ2h0V3JhcCIpLnN0eWxlLmRpc3BsYXkgPSB0eXBlID09PSAicGFydGlhbCIgPyAiIiA6ICJub25lIjsKICAgIH0KICAgIGFzeW5jIGZ1bmN0aW9uIHN1Ym1pdFJlbGVhc2VSZXF1ZXN0KCkgewogICAgICBpZiAoIXJlbGVhc2VSZXF1ZXN0Q2FyZCkgcmV0dXJuOwogICAgICBjb25zdCB0eXBlID0gZG9jdW1lbnQucXVlcnlTZWxlY3RvcignaW5wdXRbbmFtZT0icmVsZWFzZVR5cGUiXTpjaGVja2VkJykudmFsdWU7CiAgICAgIGNvbnN0IGNvbW1vbkJvZHkgPSB7CiAgICAgICAgYmxfbnVtYmVyOiByZWxlYXNlUmVxdWVzdENhcmQuYmxfbnVtYmVyLAogICAgICAgIHJlcXVlc3Rlcl9uYW1lOiBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgicmVsZWFzZVJlcXVlc3RlciIpLnZhbHVlLAogICAgICAgIHJlcXVlc3Rlcl9lbWFpbDogZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoInJlcXVlc3RlckVtYWlsIikudmFsdWUsCiAgICAgICAgZGVsaXZlcnlfYWRkcmVzczogZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoInJlbGVhc2VBZGRyZXNzIikudmFsdWUsCiAgICAgICAgcmVxdWVzdGVkX3JlbGVhc2VfZGF0ZTogZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoInJlbGVhc2VEYXRlIikudmFsdWUsCiAgICAgICAgbWVtbzogZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoInJlbGVhc2VNZW1vIikudmFsdWUKICAgICAgfTsKICAgICAgY29uc3QgYm9keSA9IHJlcXVlc3RNb2RlID09PSAiaW1wb3J0IiA/IGNvbW1vbkJvZHkgOiB7CiAgICAgICAgLi4uY29tbW9uQm9keSwKICAgICAgICByZXF1ZXN0X3R5cGU6IHR5cGUsCiAgICAgICAgcmVxdWVzdGVkX3dlaWdodDogdHlwZSA9PT0gInBhcnRpYWwiID8gZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoInJlbGVhc2VXZWlnaHQiKS52YWx1ZSA6ICIiCiAgICAgIH07CiAgICAgIGNvbnN0IGVuZHBvaW50ID0gcmVxdWVzdE1vZGUgPT09ICJpbXBvcnQiID8gIi9hcGkvY2FyZ28taW1wb3J0LXJlcXVlc3QiIDogIi9hcGkvY2FyZ28tcmVsZWFzZS1yZXF1ZXN0IjsKICAgICAgY29uc3QgcmVzcG9uc2UgPSBhd2FpdCBmZXRjaChlbmRwb2ludCwgewogICAgICAgIG1ldGhvZDogIlBPU1QiLAogICAgICAgIGhlYWRlcnM6IHsgIkNvbnRlbnQtVHlwZSI6ICJhcHBsaWNhdGlvbi9qc29uIiB9LAogICAgICAgIGJvZHk6IEpTT04uc3RyaW5naWZ5KGJvZHkpCiAgICAgIH0pOwogICAgICBjb25zdCByZXN1bHQgPSBhd2FpdCByZXNwb25zZS5qc29uKCk7CiAgICAgIGlmICghcmVzdWx0LnN1Y2Nlc3MpIHsKICAgICAgICBhbGVydChyZXN1bHQubWVzc2FnZSB8fCAocmVxdWVzdE1vZGUgPT09ICJpbXBvcnQiID8gIuyImOyeheyLoOqzoOyalOyyreyXkCDsi6TtjKjtlojsirXri4jri6QuIiA6ICLstpzqs6DsmpTssq3sl5Ag7Iuk7Yyo7ZaI7Iq164uI64ukLiIpKTsKICAgICAgICByZXR1cm47CiAgICAgIH0KICAgICAgY29uc3Qgc3VjY2Vzc1RleHQgPSByZXF1ZXN0TW9kZSA9PT0gImltcG9ydCIgPyAi7IiY7J6F7Iug6rOg7JqU7LKtIiA6ICLstpzqs6DsmpTssq0iOwogICAgICBjbG9zZVJlbGVhc2VNb2RhbCgpOwogICAgICBhbGVydChyZXN1bHQuZW1haWxfc2VudCA/IGAke3N1Y2Nlc3NUZXh0feydtCDrsJzshqHrkJjsl4jsirXri4jri6QuYCA6IGAke3N1Y2Nlc3NUZXh0feydgCDsoIDsnqXrkJjsl4jsirXri4jri6QuIOuplOydvCDrsJzshqEg7ZmY6rK967OA7IiY66W8IO2ZleyduO2VtCDso7zshLjsmpQuYCk7CiAgICB9Cgo=', 'base64').toString('utf8');
           html = html.slice(0, start) + block + html.slice(end);
-
           if (html === original) {
             console.log('No changes needed.');
             process.exit(0);
