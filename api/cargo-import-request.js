@@ -125,7 +125,7 @@ module.exports = async function handler(req, res) {
     if (!requesterName) {
       return res.status(400).json({ success: false, message: "요청담당자를 입력해 주세요." });
     }
-    if (!isValidEmail(requesterEmail)) {
+    if (requesterEmail && !isValidEmail(requesterEmail)) {
       return res.status(400).json({ success: false, message: "요청인 메일을 정확히 입력해 주세요." });
     }
 
