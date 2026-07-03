@@ -87,11 +87,14 @@
     .quota-date input { width:108px; height:24px; padding:2px 5px; font-size:10px; }
     .quota-detail { display:block; margin-top:2px; }
     .quota-detail.danger { color:#c92a2a; font-weight:700; }
-    .revision-box { margin-top:5px; border-top:1px solid #edf1f4; padding-top:5px; }
-    .revision-title { color:#495057; font-weight:700; font-size:10px; margin-bottom:3px; }
+    .revision-box { margin-top:6px; border:1px solid #d8e2dc; border-left:3px solid #2f6b4f; border-radius:6px; background:#f2fbf6; padding:6px; }
+    .revision-title { color:#24533d; font-weight:800; font-size:10px; margin-bottom:3px; }
     .revision-list { display:flex; flex-direction:column; gap:4px; }
-    .revision-item { background:#f8f9fa; border:1px solid #edf0f2; border-radius:5px; padding:4px 5px; line-height:1.28; word-break:break-word; }
+    .revision-item { background:#fff; border:1px solid #cfe0d6; border-radius:5px; padding:5px 6px; line-height:1.28; word-break:break-word; box-shadow:0 1px 2px rgba(47,107,79,.06); }
     .revision-date { color:#adb5bd; font-size:9px; margin-top:1px; }
+    .revision-form { display:flex; gap:5px; margin-top:5px; }
+    .revision-form input { flex:1; min-width:0; height:26px; border:1px solid #dfe3e8; border-radius:5px; padding:4px 7px; font-size:10.5px; }
+    .revision-actions { display:flex; justify-content:flex-end; gap:4px; margin-top:3px; }
     .release-bar { height:4px; background:#e9ecef; border-radius:3px; margin-top:3px; overflow:hidden; }
     .release-bar > div { height:100%; background:#495057; border-radius:3px; }
     .card-actions { display:flex; justify-content:flex-end; margin-top:6px; border-top:1px solid #edf1f4; padding-top:6px; }
@@ -345,6 +348,9 @@
     let currentCards = [];
     let docsCalendarMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
     let docsRowCards = [];
+    let revisionDrafts = {};
+    let revisionEditModes = {};
+    let revisionEditDrafts = {};
 
     function esc(value) {
       return String(value ?? "").replace(/[&<>"']/g, ch => ({
@@ -480,6 +486,13 @@
       }
     }
 
+    function cardPrioritySort(a, b) {
+      const aHas = Array.isArray(a.revisions) && a.revisions.length > 0 ? 1 : 0;
+      const bHas = Array.isArray(b.revisions) && b.revisions.length > 0 ? 1 : 0;
+      if (aHas !== bHas) return bHas - aHas;
+      return String(a.bl_number || "").localeCompare(String(b.bl_number || ""), "ko");
+    }
+
     async function loadData() {
       const response = await fetch("/api/cargo-data");
       const result = await response.json();
@@ -496,7 +509,7 @@
           : `${displayConsignee(result.user.display_name)} 통관 현황 · 총 ${result.total}건 · 마지막 동기화 ${displayDate(result.last_update)}`;
       const board = document.getElementById("board");
       board.innerHTML = result.stages.map(stage => {
-        const cards = currentCards.filter(card => card.stage === stage);
+        const cards = currentCards.filter(card => card.stage === stage).sort(cardPrioritySort);
         return `
           <section class="column ${stageClasses[stage] || ""}">
             <div class="col-head"><span>${stage}</span><span class="count">${cards.length}</span></div>
@@ -549,17 +562,42 @@
     }
     function revisionsHtml(card) {
       const revisions = card.revisions || [];
-      if (!revisions.length) return "";
       return `
         <div class="revision-box">
           <div class="revision-title">확인사항</div>
-          <div class="revision-list">
-            ${revisions.map(item => `
+          ${revisions.length ? `<div class="revision-list">
+            ${revisions.map(item => {
+              const itemId = item.id || "";
+              const isEditing = itemId && revisionEditModes[itemId];
+              const editValue = itemId ? (revisionEditDrafts[itemId] ?? item.text ?? "") : "";
+              if (isEditing) {
+                return `
+                  <div class="revision-item">
+                    <input id="editRev${esc(itemId)}" value="${esc(editValue)}" oninput="revisionEditDrafts['${jsStr(itemId)}']=this.value">
+                    <div class="revision-actions">
+                      <button class="btn gray" onclick="cancelEditRevision('${jsStr(itemId)}')">취소</button>
+                      <button class="btn green" onclick="saveEditRevision('${jsStr(card.bl_number)}', '${jsStr(card.account_id)}', '${jsStr(itemId)}')">저장</button>
+                    </div>
+                  </div>
+                `;
+              }
+              return `
               <div class="revision-item">
                 <div>${esc(item.text || item)}</div>
                 ${item.created_at ? `<div class="revision-date">${esc(item.created_at)}${item.updated_at ? " · 수정 " + esc(item.updated_at) : ""}</div>` : ""}
+                ${itemId ? `<div class="revision-actions">
+                  <button class="btn gray" onclick="startEditRevision('${jsStr(itemId)}', '${jsStr(item.text || "")}')">수정</button>
+                  <button class="btn danger" onclick="deleteRevision('${jsStr(card.bl_number)}', '${jsStr(card.account_id)}', '${jsStr(itemId)}')">삭제</button>
+                </div>` : ""}
               </div>
-            `).join("")}
+            `;
+            }).join("")}
+          </div>` : ""}
+          <div class="revision-form">
+            <input id="rev${esc(card.bl_number)}" value="${esc(revisionDrafts[card.bl_number] || "")}" placeholder="확인사항 추가..."
+                   oninput="revisionDrafts['${jsStr(card.bl_number)}']=this.value"
+                   onkeydown="if(event.key==='Enter')addRevision('${jsStr(card.bl_number)}','${jsStr(card.account_id)}')">
+            <button class="btn green" onclick="addRevision('${jsStr(card.bl_number)}','${jsStr(card.account_id)}')">추가</button>
           </div>
         </div>
       `;
@@ -580,7 +618,6 @@
           <input id="cardObl${index}" type="hidden" value="${obl ? "true" : "false"}">
           <input id="cardHc${index}" type="hidden" value="${hc ? "true" : "false"}">
           <input id="cardActual${index}" type="hidden" value="${esc(shortDate(card.actual_received_date))}">
-          <button class="btn green" onclick="saveOriginalDocsFromCard(${index})">저장</button>
         </div>
       ` : "";
       return `
@@ -685,6 +722,72 @@
         alert(result.message || "할당관세 저장에 실패했습니다.");
         return;
       }
+      await loadData();
+    }
+
+    async function addRevision(blNumber, accountId) {
+      const input = document.getElementById(`rev${blNumber}`);
+      const text = (input ? input.value : revisionDrafts[blNumber] || "").trim();
+      if (!text) return;
+      const response = await fetch("/api/cargo-revision", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ account_id: accountId, bl_number: blNumber, text })
+      });
+      const result = await response.json();
+      if (!result.success) {
+        alert(result.message || "확인사항 저장에 실패했습니다.");
+        return;
+      }
+      delete revisionDrafts[blNumber];
+      await loadData();
+    }
+
+    function startEditRevision(id, text) {
+      revisionEditModes[id] = true;
+      revisionEditDrafts[id] = text || "";
+      loadData();
+    }
+
+    function cancelEditRevision(id) {
+      delete revisionEditModes[id];
+      delete revisionEditDrafts[id];
+      loadData();
+    }
+
+    async function saveEditRevision(blNumber, accountId, id) {
+      const input = document.getElementById(`editRev${id}`);
+      const text = (input ? input.value : revisionEditDrafts[id] || "").trim();
+      if (!text) return;
+      const response = await fetch("/api/cargo-revision", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ account_id: accountId, bl_number: blNumber, id, text })
+      });
+      const result = await response.json();
+      if (!result.success) {
+        alert(result.message || "확인사항 수정에 실패했습니다.");
+        return;
+      }
+      delete revisionEditModes[id];
+      delete revisionEditDrafts[id];
+      await loadData();
+    }
+
+    async function deleteRevision(blNumber, accountId, id) {
+      if (!confirm("확인사항을 삭제할까요?")) return;
+      const response = await fetch("/api/cargo-revision", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ account_id: accountId, bl_number: blNumber, id })
+      });
+      const result = await response.json();
+      if (!result.success) {
+        alert(result.message || "확인사항 삭제에 실패했습니다.");
+        return;
+      }
+      delete revisionEditModes[id];
+      delete revisionEditDrafts[id];
       await loadData();
     }
 
@@ -859,16 +962,16 @@
       button.textContent = `${field === "Obl" ? "OBL" : "H/C"} ${value ? "O" : "X"}`;
     }
     function promptOriginalDocDate() {
-      const raw = window.prompt("원본서류 실제수령일을 입력하세요. 예: 07-15 또는 2026-07-15", "");
+      const raw = window.prompt("원본서류 실제수령일을 입력하세요. 예: 07-06, 0706, 2026-07-06", "");
       if (raw === null) return null;
       const normalized = normalizeRequestDate(raw);
       if (normalized === null || !normalized) {
-        alert("날짜는 MM-DD 또는 YYYY-MM-DD 형식으로 입력해 주세요.");
+        alert("날짜는 07-06, 0706 또는 YYYY-MM-DD 형식으로 입력해 주세요.");
         return null;
       }
       return normalized;
     }
-    function toggleCardDoc(index, field) {
+    async function toggleCardDoc(index, field) {
       const input = document.getElementById(`card${field}${index}`);
       const actualInput = document.getElementById(`cardActual${index}`);
       if (!input) return;
@@ -881,6 +984,7 @@
         actualInput.value = "";
       }
       updateCardDocToggle(index, field, next);
+      await saveOriginalDocsFromCard(index);
     }
     async function requestActualReceivedDate(cardIndex, rowIndex) {
       const card = currentCards[cardIndex];
