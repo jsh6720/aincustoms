@@ -71,6 +71,10 @@
     .doc-pill { display:inline-flex; align-items:center; gap:3px; border-radius:999px; padding:2px 7px; border:1px solid transparent; font-size:10px; font-weight:900; }
     .doc-pill.ok { background:#e8f5ee; color:#1f6f43; border-color:#acd7bf; }
     .doc-pill.no { background:#fff1f1; color:#c92a2a; border-color:#ffc9c9; }
+    .doc-controls { display:flex; align-items:center; gap:4px; flex-wrap:wrap; width:100%; margin-top:3px; }
+    .doc-controls label { display:flex; align-items:center; gap:3px; color:#495057; font-size:9.8px; }
+    .doc-controls select { width:48px; height:23px; border:1px solid #ced4da; border-radius:4px; padding:0 4px; font-size:10px; background:#fff; }
+    .doc-controls input { width:104px; height:23px; border:1px solid #ced4da; border-radius:4px; padding:0 4px; font-size:10px; background:#fff; }
     .quota-box { margin-top:5px; padding-top:5px; border-top:1px solid #edf1f4; font-size:9.9px; line-height:1.28; }
     .quota-line { display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-bottom:3px; }
     .quota-check { display:flex; align-items:center; gap:4px; margin:0; font-size:9.9px; font-weight:700; color:#495057; cursor:pointer; }
@@ -467,7 +471,7 @@
           <section class="column ${stageClasses[stage] || ""}">
             <div class="col-head"><span>${stage}</span><span class="count">${cards.length}</span></div>
             <div class="col-body">
-              ${cards.length ? cards.map(cardHtml).join("") : '<div class="empty">해당 없음</div>'}
+              ${cards.length ? cards.map(card => cardHtml(card, currentCards.indexOf(card))).join("") : '<div class="empty">해당 없음</div>'}
             </div>
           </section>
         `;
@@ -530,17 +534,36 @@
         </div>
       `;
     }
-    function originalDocsHtml(card) {
+    function originalDocsHtml(card, index) {
       const obl = !!card.obl_received;
       const hc = !!card.hc_received;
       const receivedDate = card.actual_received_date ? `<span class="doc-pill ok">수령일 ${esc(shortDate(card.actual_received_date))}</span>` : "";
       const pendingDate = card.pending_actual_received_date ? `<span class="doc-pill no">승인대기 ${esc(shortDate(card.pending_actual_received_date))}</span>` : "";
+      const adminControls = currentUserRole === "admin" ? `
+        <div class="doc-controls">
+          <label>OBL
+            <select id="cardObl${index}">
+              <option value="false" ${obl ? "" : "selected"}>X</option>
+              <option value="true" ${obl ? "selected" : ""}>O</option>
+            </select>
+          </label>
+          <label>H/C
+            <select id="cardHc${index}">
+              <option value="false" ${hc ? "" : "selected"}>X</option>
+              <option value="true" ${hc ? "selected" : ""}>O</option>
+            </select>
+          </label>
+          <label>수령일 <input id="cardActual${index}" type="date" value="${esc(shortDate(card.actual_received_date))}"></label>
+          <button class="btn green" onclick="saveOriginalDocsFromCard(${index})">저장</button>
+        </div>
+      ` : "";
       return `
         <div class="doc-box">
           <span class="doc-title">원본필수서류</span>
           <span class="doc-pill ${obl ? "ok" : "no"}">OBL ${obl ? "O" : "X"}</span>
           <span class="doc-pill ${hc ? "ok" : "no"}">H/C ${hc ? "O" : "X"}</span>
           ${receivedDate}${pendingDate}
+          ${adminControls}
         </div>
       `;
     }
@@ -583,7 +606,7 @@
         </div>
       `;
     }
-    function cardHtml(card) {
+    function cardHtml(card, index) {
       const alertClass = card.quota_alert === "over" ? " over" : (card.quota_alert === "warn" ? " warn" : "");
       const permitClass = card.stage === "수입신고" && card.import_permitted ? " permit-ready" : "";
       return `
@@ -610,7 +633,7 @@
             ${qBadge("식품검역", card.food_quarantine)}
             ${permitBadge(card)}
           </div>
-          ${originalDocsHtml(card)}
+          ${originalDocsHtml(card, index)}
           ${releaseHtml(card)}
           ${quotaHtml(card)}
           ${revisionsHtml(card)}
@@ -734,6 +757,30 @@
           hc_received: hc,
           actual_received_date: actualReceivedDate,
           approve_pending: !!approvePending
+        })
+      });
+      const result = await response.json();
+      if (!result.success) {
+        alert(result.message || "원본서류 수취현황 저장에 실패했습니다.");
+        return;
+      }
+      await loadData();
+    }
+    async function saveOriginalDocsFromCard(cardIndex) {
+      const card = currentCards[cardIndex];
+      if (!card) return;
+      const obl = document.getElementById(`cardObl${cardIndex}`).value === "true";
+      const hc = document.getElementById(`cardHc${cardIndex}`).value === "true";
+      const actualReceivedDate = document.getElementById(`cardActual${cardIndex}`).value || "";
+      const response = await fetch("/api/cargo-original-docs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          account_id: card.account_id,
+          bl_number: card.bl_number,
+          obl_received: obl,
+          hc_received: hc,
+          actual_received_date: actualReceivedDate
         })
       });
       const result = await response.json();
