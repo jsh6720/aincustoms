@@ -8,13 +8,14 @@ module.exports = async function handler(req, res) {
 
   try {
     const { login_id, password } = req.body || {};
-    if (!login_id || !password) {
+    const loginId = String(login_id || "").trim();
+    if (!loginId || !password) {
       return res.status(400).json({ success: false, message: "아이디와 비밀번호를 입력해주세요." });
     }
 
     const accounts = await supabaseFetch("/rest/v1/rpc/verify_shipper_login", {
       method: "POST",
-      body: JSON.stringify({ p_login_id: login_id, p_password: password }),
+      body: JSON.stringify({ p_login_id: loginId, p_password: password }),
     });
 
     if (!accounts || accounts.length === 0) {
