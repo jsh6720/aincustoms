@@ -17,8 +17,14 @@ function formatWeight(value, unit) {
   return `${parsed.toLocaleString("ko-KR", { maximumFractionDigits: 1 })}${unit || "KG"}`;
 }
 
-function getRequestRecipient() {
-  return env("RELEASE_REQUEST_TO") || env("NOTIFY_TO") || env("SMTP_USER");
+function getRequestRecipient(session, account) {
+  return (
+    account?.release_request_to ||
+    session.release_request_to ||
+    env("RELEASE_REQUEST_TO") ||
+    env("NOTIFY_TO") ||
+    env("SMTP_USER")
+  );
 }
 
 function buildMail(card, request, session) {
@@ -30,7 +36,10 @@ function buildMail(card, request, session) {
     `요청화주: ${session.display_name || session.login_id || "-"}`,
     `요청구분: ${typeText}`,
     `요청물량: ${formatWeight(request.requested_weight, request.weight_unit)}`,
-    `요청메모: ${request.memo || "-"}`,
+    `요청담당자: ${request.requester_name || "-"}`,
+    `출고지주소: ${request.delivery_address || "-"}`,
+    `출고일자: ${request.requested_release_date || "-"}`,
+    `요청사항: ${request.memo || "-"}`,
     `요청시각: ${new Date().toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })}`,
     "",
     "[카드 정보]",
@@ -53,11 +62,11 @@ function buildMail(card, request, session) {
   };
 }
 
-async function sendMail(card, request, session) {
+async function sendMail(card, request, session, account) {
   const host = env("SMTP_HOST");
   const user = env("SMTP_USER");
   const pass = env("SMTP_PASS");
-  const to = getRequestRecipient();
+  const to = getRequestRecipient(session, account);
   if (!host || !user || !pass || !to) {
     return { sent: false, skipped: true, message: "메일 환경변수가 설정되지 않았습니다." };
   }
@@ -96,6 +105,9 @@ module.exports = async function handler(req, res) {
     const blNumber = String(body.bl_number || "").trim();
     const requestType = body.request_type === "partial" ? "partial" : "full";
     const memo = String(body.memo || "").trim().slice(0, 1000);
+    const requesterName = String(body.requester_name || "").trim().slice(0, 120);
+    const deliveryAddress = String(body.delivery_address || "").trim().slice(0, 500);
+    const requestedReleaseDate = String(body.requested_release_date || "").trim().slice(0, 10);
     const requestedWeight = numberOrNull(body.requested_weight);
 
     if (!blNumber) {
@@ -104,9 +116,22 @@ module.exports = async function handler(req, res) {
     if (requestType === "partial" && (!requestedWeight || requestedWeight <= 0)) {
       return res.status(400).json({ success: false, message: "일부 출고 요청물량을 입력해 주세요." });
     }
+    if (!requesterName) {
+      return res.status(400).json({ success: false, message: "요청담당자를 입력해 주세요." });
+    }
+    if (!deliveryAddress) {
+      return res.status(400).json({ success: false, message: "출고지주소를 입력해 주세요." });
+    }
+    if (!requestedReleaseDate) {
+      return res.status(400).json({ success: false, message: "출고일자를 입력해 주세요." });
+    }
 
     const accountId = encodeURIComponent(session.account_id);
     const bl = encodeURIComponent(blNumber);
+    const accountRows = await supabaseFetch(
+      `/rest/v1/shipper_accounts?select=id,release_request_to&role=eq.shipper&id=eq.${accountId}&limit=1`
+    );
+    const account = accountRows && accountRows[0] ? accountRows[0] : null;
     const cards = await supabaseFetch(
       `/rest/v1/cargo_cards?select=*&account_id=eq.${accountId}&bl_number=eq.${bl}&limit=1`
     );
@@ -131,6 +156,9 @@ module.exports = async function handler(req, res) {
       request_type: requestType,
       requested_weight: finalWeight,
       weight_unit: unit,
+      requester_name: requesterName,
+      delivery_address: deliveryAddress,
+      requested_release_date: requestedReleaseDate,
       memo,
       status: "requested",
       card_snapshot: card,
@@ -144,7 +172,7 @@ module.exports = async function handler(req, res) {
 
     let mailResult;
     try {
-      mailResult = await sendMail(card, savedRequest, session);
+      mailResult = await sendMail(card, savedRequest, session, account);
     } catch (error) {
       mailResult = { sent: false, skipped: false, message: error.message };
     }
