@@ -212,8 +212,8 @@
         <textarea id="releaseAddress" placeholder="출고지 주소를 입력하세요."></textarea>
       </div>
       <div class="modal-field">
-        <label for="releaseDate">출고일자</label>
-        <input id="releaseDate" type="date">
+        <label for="releaseDate">출고월일<span class="field-hint">올해 연도로 자동 저장됩니다.</span></label>
+        <input id="releaseDate" type="text" inputmode="numeric" maxlength="5" placeholder="MM-DD" onblur="formatRequestDateInput(this)">
       </div>
       <div class="modal-field">
         <label for="releaseMemo">요청사항</label>
@@ -261,6 +261,50 @@
     function displayDate(value) {
       if (!value) return "-";
       return String(value).replace("T", " ").replace(/\.\d+(\+00:00|Z)?$/, "").replace("+00:00", "");
+    }
+    function normalizeRequestDate(value) {
+      const raw = String(value || "").trim();
+      if (!raw) return "";
+      let month = "";
+      let day = "";
+      let match = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+      if (match) {
+        month = match[2];
+        day = match[3];
+      } else {
+        match = raw.match(/^(\d{1,2})[-./](\d{1,2})$/);
+        if (match) {
+          month = match[1];
+          day = match[2];
+        } else if (/^\d{4}$/.test(raw)) {
+          month = raw.slice(0, 2);
+          day = raw.slice(2, 4);
+        } else {
+          return null;
+        }
+      }
+      const year = new Date().getFullYear();
+      const monthNumber = Number(month);
+      const dayNumber = Number(day);
+      const date = new Date(year, monthNumber - 1, dayNumber);
+      if (
+        !Number.isInteger(monthNumber) ||
+        !Number.isInteger(dayNumber) ||
+        date.getFullYear() !== year ||
+        date.getMonth() !== monthNumber - 1 ||
+        date.getDate() !== dayNumber
+      ) {
+        return null;
+      }
+      return year + "-" + String(monthNumber).padStart(2, "0") + "-" + String(dayNumber).padStart(2, "0");
+    }
+    function toRequestMonthDay(value) {
+      const normalized = normalizeRequestDate(value);
+      return normalized ? normalized.slice(5) : "";
+    }
+    function formatRequestDateInput(input) {
+      const normalized = normalizeRequestDate(input.value);
+      if (normalized) input.value = normalized.slice(5);
     }
     function showCargoUi() {
       document.getElementById("loginPanel").style.display = "none";
@@ -493,15 +537,15 @@
       document.getElementById("releaseTypeOptions").style.display = "flex";
       document.getElementById("releaseWeightWrap").style.display = "none";
       document.querySelector("label[for='releaseAddress']").textContent = "출고지주소";
-      document.querySelector("label[for='releaseDate']").textContent = "출고일자";
+      document.querySelector("label[for='releaseDate']").innerHTML = '출고월일<span class="field-hint">올해 연도로 자동 저장됩니다.</span>';
       document.getElementById("releaseAddress").placeholder = "출고지 주소를 입력하세요.";
-      document.getElementById("releaseDate").placeholder = "";
+      document.getElementById("releaseDate").placeholder = "MM-DD";
       document.querySelector('input[name="releaseType"][value="full"]').checked = true;
       document.getElementById("releaseWeight").value = available || "";
       document.getElementById("releaseRequester").value = releaseRequestCard.last_import_requester_name || "";
       document.getElementById("requesterEmail").value = releaseRequestCard.last_import_requester_email || "";
       document.getElementById("releaseAddress").value = releaseRequestCard.last_import_delivery_address || "";
-      document.getElementById("releaseDate").value = releaseRequestCard.last_import_requested_release_date || "";
+      document.getElementById("releaseDate").value = toRequestMonthDay(releaseRequestCard.last_import_requested_release_date);
       document.getElementById("releaseMemo").value = "";
       document.getElementById("releaseModalCard").innerHTML = `
         <div class="modal-row"><b>화주명</b><span>${esc(displayConsignee(releaseRequestCard.consignee))}</span></div>
@@ -530,13 +574,13 @@
       document.getElementById("releaseTypeOptions").style.display = "none";
       document.getElementById("releaseWeightWrap").style.display = "none";
       document.querySelector("label[for='releaseAddress']").textContent = "출고지주소";
-      document.querySelector("label[for='releaseDate']").textContent = "출고일자";
+      document.querySelector("label[for='releaseDate']").innerHTML = '출고월일<span class="field-hint">올해 연도로 자동 저장됩니다.</span>';
       document.getElementById("releaseWeight").value = "";
       document.getElementById("releaseRequester").value = releaseRequestCard.last_import_requester_name || "";
       document.getElementById("requesterEmail").value = releaseRequestCard.last_import_requester_email || "";
       document.getElementById("releaseAddress").value = releaseRequestCard.last_import_delivery_address || "";
       document.getElementById("releaseAddress").placeholder = "미정";
-      document.getElementById("releaseDate").value = releaseRequestCard.last_import_requested_release_date || "";
+      document.getElementById("releaseDate").value = toRequestMonthDay(releaseRequestCard.last_import_requested_release_date);
       document.getElementById("releaseMemo").value = "";
       document.getElementById("releaseModalCard").innerHTML = `
         <div class="modal-row"><b>화주명</b><span>${esc(displayConsignee(releaseRequestCard.consignee))}</span></div>
@@ -559,12 +603,17 @@
     async function submitReleaseRequest() {
       if (!releaseRequestCard) return;
       const type = document.querySelector('input[name="releaseType"]:checked').value;
+      const requestedReleaseDate = normalizeRequestDate(document.getElementById("releaseDate").value);
+      if (requestedReleaseDate === null) {
+        alert("출고월일은 MM-DD 형식으로 입력해 주세요. 예: 07-15");
+        return;
+      }
       const commonBody = {
         bl_number: releaseRequestCard.bl_number,
         requester_name: document.getElementById("releaseRequester").value,
         requester_email: document.getElementById("requesterEmail").value,
         delivery_address: document.getElementById("releaseAddress").value,
-        requested_release_date: document.getElementById("releaseDate").value,
+        requested_release_date: requestedReleaseDate,
         memo: document.getElementById("releaseMemo").value
       };
       const body = requestMode === "import" ? commonBody : {
