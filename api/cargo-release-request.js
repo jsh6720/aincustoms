@@ -17,6 +17,10 @@ function formatWeight(value, unit) {
   return `${parsed.toLocaleString("ko-KR", { maximumFractionDigits: 1 })}${unit || "KG"}`;
 }
 
+function isValidEmail(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || "").trim());
+}
+
 function getRequestRecipient(session, account) {
   return (
     account?.release_request_to ||
@@ -37,6 +41,7 @@ function buildMail(card, request, session) {
     `요청구분: ${typeText}`,
     `요청물량: ${formatWeight(request.requested_weight, request.weight_unit)}`,
     `요청담당자: ${request.requester_name || "-"}`,
+    `요청인 메일(CC): ${request.requester_email || "-"}`,
     `출고지주소: ${request.delivery_address || "-"}`,
     `출고일자: ${request.requested_release_date || "-"}`,
     `요청사항: ${request.memo || "-"}`,
@@ -83,6 +88,7 @@ async function sendMail(card, request, session, account) {
   await transporter.sendMail({
     from: env("MAIL_FROM") || user,
     to,
+    cc: request.requester_email || undefined,
     subject: mail.subject,
     text: mail.text,
   });
@@ -106,6 +112,7 @@ module.exports = async function handler(req, res) {
     const requestType = body.request_type === "partial" ? "partial" : "full";
     const memo = String(body.memo || "").trim().slice(0, 1000);
     const requesterName = String(body.requester_name || "").trim().slice(0, 120);
+    const requesterEmail = String(body.requester_email || "").trim().slice(0, 254);
     const deliveryAddress = String(body.delivery_address || "").trim().slice(0, 500);
     const requestedReleaseDate = String(body.requested_release_date || "").trim().slice(0, 10);
     const requestedWeight = numberOrNull(body.requested_weight);
@@ -118,6 +125,9 @@ module.exports = async function handler(req, res) {
     }
     if (!requesterName) {
       return res.status(400).json({ success: false, message: "요청담당자를 입력해 주세요." });
+    }
+    if (!isValidEmail(requesterEmail)) {
+      return res.status(400).json({ success: false, message: "요청인 메일을 정확히 입력해 주세요." });
     }
     if (!deliveryAddress) {
       return res.status(400).json({ success: false, message: "출고지주소를 입력해 주세요." });
@@ -157,6 +167,7 @@ module.exports = async function handler(req, res) {
       requested_weight: finalWeight,
       weight_unit: unit,
       requester_name: requesterName,
+      requester_email: requesterEmail,
       delivery_address: deliveryAddress,
       requested_release_date: requestedReleaseDate,
       memo,
