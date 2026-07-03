@@ -90,11 +90,13 @@
     .revision-box { margin-top:6px; border:1px solid #d8e2dc; border-left:3px solid #2f6b4f; border-radius:6px; background:#f2fbf6; padding:6px; }
     .revision-title { color:#24533d; font-weight:800; font-size:10px; margin-bottom:3px; }
     .revision-list { display:flex; flex-direction:column; gap:4px; }
-    .revision-item { background:#fff; border:1px solid #cfe0d6; border-radius:5px; padding:5px 6px; line-height:1.28; word-break:break-word; box-shadow:0 1px 2px rgba(47,107,79,.06); }
+    .revision-item { display:grid; grid-template-columns:minmax(0, 1fr) auto; gap:4px; align-items:start; background:#fff; border:1px solid #cfe0d6; border-radius:5px; padding:5px 6px; line-height:1.28; word-break:break-word; box-shadow:0 1px 2px rgba(47,107,79,.06); }
     .revision-date { color:#adb5bd; font-size:9px; margin-top:1px; }
     .revision-form { display:flex; gap:5px; margin-top:5px; }
     .revision-form input { flex:1; min-width:0; height:26px; border:1px solid #dfe3e8; border-radius:5px; padding:4px 7px; font-size:10.5px; }
-    .revision-actions { display:flex; justify-content:flex-end; gap:4px; margin-top:3px; }
+    .revision-actions { display:flex; justify-content:flex-end; gap:3px; margin-top:0; }
+    .revision-actions .btn { padding:1px 5px; min-height:18px; border-radius:4px; font-size:9px; line-height:1.2; font-weight:700; }
+    .revision-item > input { min-width:0; height:23px; border:1px solid #dfe3e8; border-radius:5px; padding:3px 6px; font-size:10px; }
     .release-bar { height:4px; background:#e9ecef; border-radius:3px; margin-top:3px; overflow:hidden; }
     .release-bar > div { height:100%; background:#495057; border-radius:3px; }
     .card-actions { display:flex; justify-content:flex-end; margin-top:6px; border-top:1px solid #edf1f4; padding-top:6px; }
@@ -562,7 +564,7 @@
           <div class="quota-line">
             <label class="quota-check">
               <input type="checkbox" ${checked} ${disabled} onchange="saveQuotaInput('${jsStr(card.bl_number)}', this.checked, this.checked ? '${jsStr(card.quota_permit_date || "")}' : '')">
-              할당관세
+              할당관세 대상
             </label>
           </div>
           ${dateLine}
@@ -580,6 +582,9 @@
               const itemId = item.id || "";
               const isEditing = itemId && revisionEditModes[itemId];
               const editValue = itemId ? (revisionEditDrafts[itemId] ?? item.text ?? "") : "";
+              const deleteButton = currentUserRole === "admin"
+                ? `<button class="btn danger" onclick="deleteRevision('${jsStr(card.bl_number)}', '${jsStr(card.account_id)}', '${jsStr(itemId)}')">삭제</button>`
+                : "";
               if (isEditing) {
                 return `
                   <div class="revision-item">
@@ -597,7 +602,7 @@
                 ${item.created_at ? `<div class="revision-date">${esc(item.created_at)}${item.updated_at ? " · 수정 " + esc(item.updated_at) : ""}</div>` : ""}
                 ${itemId ? `<div class="revision-actions">
                   <button class="btn gray" onclick="startEditRevision('${jsStr(itemId)}', '${jsStr(item.text || "")}')">수정</button>
-                  <button class="btn danger" onclick="deleteRevision('${jsStr(card.bl_number)}', '${jsStr(card.account_id)}', '${jsStr(itemId)}')">삭제</button>
+                  ${deleteButton}
                 </div>` : ""}
               </div>
             `;

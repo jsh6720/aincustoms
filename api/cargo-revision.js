@@ -89,6 +89,9 @@ module.exports = async function handler(req, res) {
     }
 
     if (req.method === "DELETE") {
+      if ((session.role || "shipper") !== "admin") {
+        return res.status(403).json({ success: false, message: "관리자만 확인사항을 삭제할 수 있습니다." });
+      }
       const id = cleanText(body.id);
       if (!id) {
         return res.status(400).json({ success: false, message: "삭제할 확인사항이 올바르지 않습니다." });
