@@ -9,11 +9,12 @@ function dateOrNull(value) {
   return /^\d{4}-\d{2}-\d{2}$/.test(text) ? text : null;
 }
 
-async function findCard(accountId, blNumber) {
+async function findCard(accountId, blNumber, full = false) {
   const account = encodeURIComponent(accountId);
   const bl = encodeURIComponent(blNumber);
+  const select = full ? "*" : "account_id,bl_number";
   const cards = await supabaseFetch(
-    `/rest/v1/cargo_cards?select=account_id,bl_number&account_id=eq.${account}&bl_number=eq.${bl}&limit=1`
+    `/rest/v1/cargo_cards?select=${select}&account_id=eq.${account}&bl_number=eq.${bl}&limit=1`
   );
   return cards && cards[0] ? cards[0] : null;
 }
@@ -25,6 +26,128 @@ async function findOriginalDoc(accountId, blNumber) {
     `/rest/v1/cargo_original_docs?select=*&account_id=eq.${account}&bl_number=eq.${bl}&limit=1`
   );
   return rows && rows[0] ? rows[0] : null;
+}
+
+async function findLatestOriginalDocRequest(accountId, blNumber) {
+  const account = encodeURIComponent(accountId);
+  const bl = encodeURIComponent(blNumber);
+  const rows = await supabaseFetch(
+    `/rest/v1/cargo_original_doc_requests?select=id,account_id,bl_number,requested_receipt_date&account_id=eq.${account}&bl_number=eq.${bl}&order=created_at.desc&limit=1`
+  );
+  return rows && rows[0] ? rows[0] : null;
+}
+
+async function saveRequestedReceiptDate(accountId, blNumber, requestedReceiptDate, card) {
+  if (requestedReceiptDate === undefined) return null;
+  const nextDate = dateOrNull(requestedReceiptDate);
+  const latest = await findLatestOriginalDocRequest(accountId, blNumber);
+  if (latest) {
+    const id = encodeURIComponent(latest.id);
+    const rows = await supabaseFetch(`/rest/v1/cargo_original_doc_requests?id=eq.${id}`, {
+      method: "PATCH",
+      headers: { Prefer: "return=representation" },
+      body: JSON.stringify({ requested_receipt_date: nextDate }),
+    });
+    return rows && rows[0] ? rows[0] : null;
+  }
+  if (!nextDate) return null;
+  const rows = await supabaseFetch("/rest/v1/cargo_original_doc_requests", {
+    method: "POST",
+    headers: { Prefer: "return=representation" },
+    body: JSON.stringify({
+      account_id: accountId,
+      bl_number: blNumber,
+      requester_name: "관리자",
+      requested_receipt_date: nextDate,
+      memo: "관리자 수령요청일 조정",
+      status: "admin_adjusted",
+      card_snapshot: card || {},
+    }),
+  });
+  return rows && rows[0] ? rows[0] : null;
+}
+
+async function saveAdminItem(session, item) {
+  const accountId = String(item.account_id || "").trim();
+  const blNumber = String(item.bl_number || "").trim();
+  if (!accountId || !blNumber) {
+    throw new Error("account_id와 B/L 번호가 필요합니다.");
+  }
+
+  const card = await findCard(accountId, blNumber, true);
+  if (!card) {
+    throw new Error(`해당 B/L 카드를 찾을 수 없습니다: ${blNumber}`);
+  }
+
+  const approvePending = item.approve_pending === true || item.approve_pending === "true";
+  const existing = approvePending ? await findOriginalDoc(accountId, blNumber) : null;
+  const actualReceivedDate = approvePending
+    ? dateOrNull(existing?.pending_actual_received_date)
+    : dateOrNull(item.actual_received_date);
+
+  const payload = {
+    account_id: accountId,
+    bl_number: blNumber,
+    obl_received: boolValue(item.obl_received),
+    hc_received: boolValue(item.hc_received),
+    actual_received_date: actualReceivedDate,
+    updated_by: session.login_id || "admin",
+  };
+
+  if (approvePending) {
+    payload.pending_actual_received_date = null;
+    payload.pending_actual_received_date_by = null;
+    payload.pending_actual_received_date_at = null;
+    payload.approved_actual_received_date_by = session.login_id || "admin";
+    payload.approved_actual_received_date_at = new Date().toISOString();
+  }
+
+  const rows = await supabaseFetch("/rest/v1/cargo_original_docs?on_conflict=account_id,bl_number", {
+    method: "POST",
+    headers: { Prefer: "resolution=merge-duplicates,return=representation" },
+    body: JSON.stringify(payload),
+  });
+  const request = await saveRequestedReceiptDate(
+    accountId,
+    blNumber,
+    item.requested_receipt_date,
+    card
+  );
+
+  return {
+    item: rows && rows[0] ? rows[0] : payload,
+    request,
+  };
+}
+
+async function saveShipperPending(session, body) {
+  const accountId = String(session.account_id || "").trim();
+  const blNumber = String(body.bl_number || "").trim();
+  const actualReceivedDate = dateOrNull(body.actual_received_date);
+  if (!accountId || !blNumber) {
+    throw new Error("account_id와 B/L 번호가 필요합니다.");
+  }
+  if (!actualReceivedDate) {
+    throw new Error("실제수령일을 입력해 주세요.");
+  }
+  const card = await findCard(accountId, blNumber);
+  if (!card) {
+    throw new Error("해당 B/L 카드를 찾을 수 없습니다.");
+  }
+  const payload = {
+    account_id: accountId,
+    bl_number: blNumber,
+    pending_actual_received_date: actualReceivedDate,
+    pending_actual_received_date_by: session.login_id || "shipper",
+    pending_actual_received_date_at: new Date().toISOString(),
+    updated_by: session.login_id || "shipper",
+  };
+  const rows = await supabaseFetch("/rest/v1/cargo_original_docs?on_conflict=account_id,bl_number", {
+    method: "POST",
+    headers: { Prefer: "resolution=merge-duplicates,return=representation" },
+    body: JSON.stringify(payload),
+  });
+  return rows && rows[0] ? rows[0] : payload;
 }
 
 module.exports = async function handler(req, res) {
@@ -41,67 +164,28 @@ module.exports = async function handler(req, res) {
 
     const body = typeof req.body === "string" ? JSON.parse(req.body || "{}") : (req.body || {});
     const isAdmin = (session.role || "shipper") === "admin";
-    const accountId = isAdmin ? String(body.account_id || "").trim() : String(session.account_id || "").trim();
-    const blNumber = String(body.bl_number || "").trim();
-    const actualReceivedDate = dateOrNull(body.actual_received_date);
-    const approvePending = body.approve_pending === true || body.approve_pending === "true";
-
-    if (!accountId || !blNumber) {
-      return res.status(400).json({ success: false, message: "account_id와 B/L 번호가 필요합니다." });
-    }
-
-    const card = await findCard(accountId, blNumber);
-    if (!card) {
-      return res.status(404).json({ success: false, message: "해당 B/L 카드를 찾을 수 없습니다." });
-    }
-
-    let payload;
     if (isAdmin) {
-      const existing = approvePending ? await findOriginalDoc(accountId, blNumber) : null;
-      const approvedDate = approvePending
-        ? dateOrNull(existing?.pending_actual_received_date)
-        : actualReceivedDate;
-
-      payload = {
-        account_id: accountId,
-        bl_number: blNumber,
-        obl_received: boolValue(body.obl_received),
-        hc_received: boolValue(body.hc_received),
-        actual_received_date: approvedDate,
-        updated_by: session.login_id || "admin",
-      };
-
-      if (approvePending) {
-        payload.pending_actual_received_date = null;
-        payload.pending_actual_received_date_by = null;
-        payload.pending_actual_received_date_at = null;
-        payload.approved_actual_received_date_by = session.login_id || "admin";
-        payload.approved_actual_received_date_at = new Date().toISOString();
+      const items = Array.isArray(body.items) ? body.items : [body];
+      if (!items.length) {
+        return res.status(400).json({ success: false, message: "저장할 항목이 없습니다." });
       }
-    } else {
-      if (!actualReceivedDate) {
-        return res.status(400).json({ success: false, message: "실제수령일을 입력해 주세요." });
+      const saved = [];
+      for (const item of items) {
+        saved.push(await saveAdminItem(session, item));
       }
-      payload = {
-        account_id: accountId,
-        bl_number: blNumber,
-        pending_actual_received_date: actualReceivedDate,
-        pending_actual_received_date_by: session.login_id || "shipper",
-        pending_actual_received_date_at: new Date().toISOString(),
-        updated_by: session.login_id || "shipper",
-      };
+      return res.status(200).json({
+        success: true,
+        items: saved.map((row) => row.item),
+        requests: saved.map((row) => row.request).filter(Boolean),
+        item: saved[0]?.item || null,
+      });
     }
 
-    const rows = await supabaseFetch("/rest/v1/cargo_original_docs?on_conflict=account_id,bl_number", {
-      method: "POST",
-      headers: { Prefer: "resolution=merge-duplicates,return=representation" },
-      body: JSON.stringify(payload),
-    });
-
+    const item = await saveShipperPending(session, body);
     return res.status(200).json({
       success: true,
-      item: rows && rows[0] ? rows[0] : payload,
-      pending: !isAdmin,
+      item,
+      pending: true,
     });
   } catch (error) {
     if (String(error.message || "").includes("cargo_original_docs")) {

@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>원본서류 수취관리</title>
+  <style>
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body { font-family:'Segoe UI','Malgun Gothic',sans-serif; background:#f4f6f8; color:#26313d; }
+    .topbar { position:sticky; top:0; z-index:10; background:#2b323a; color:#fff; padding:12px; box-shadow:0 2px 8px rgba(15,23,42,.12); }
+    .topbar h1 { font-size:17px; line-height:1.2; }
+    .topbar .sub { margin-top:3px; font-size:11px; opacity:.75; }
+    .toolbar { display:flex; gap:7px; padding:10px 12px; position:sticky; top:58px; z-index:9; background:#f4f6f8; border-bottom:1px solid #dbe2e8; }
+    .toolbar input { flex:1; height:36px; border:1px solid #cfd6de; border-radius:6px; padding:0 10px; font-size:13px; }
+    .btn { border:none; border-radius:6px; padding:0 12px; height:36px; background:#2b323a; color:#fff; font-weight:800; font-size:12px; }
+    .btn.gray { background:#6b7684; }
+    .list { padding:10px 10px 80px; display:flex; flex-direction:column; gap:9px; }
+    .card { background:#fff; border:1px solid #d9dee4; border-left:4px solid #4a765c; border-radius:8px; padding:11px; box-shadow:0 1px 3px rgba(15,23,42,.06); }
+    .head { display:flex; justify-content:space-between; align-items:flex-start; gap:8px; margin-bottom:8px; }
+    .name { font-size:13px; font-weight:900; }
+    .bl { font-family:Consolas,monospace; font-size:11px; font-weight:900; margin-top:2px; word-break:break-all; }
+    .stage { flex-shrink:0; border-radius:999px; background:#eef2f6; color:#4b5663; padding:3px 8px; font-size:11px; font-weight:800; }
+    .info { display:grid; grid-template-columns:58px 1fr; gap:3px 7px; font-size:11px; margin-bottom:8px; }
+    .k { color:#7b8794; font-weight:700; }
+    .v { color:#26313d; font-weight:600; overflow-wrap:anywhere; }
+    .controls { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+    label { display:flex; flex-direction:column; gap:4px; font-size:11px; font-weight:800; color:#4b5663; }
+    select, input { height:34px; border:1px solid #cfd6de; border-radius:6px; padding:0 8px; font-size:13px; background:#fff; }
+    .pending { margin-top:7px; color:#b45309; font-size:11px; font-weight:900; }
+    .empty, .error { margin:30px 12px; text-align:center; color:#7b8794; font-size:13px; line-height:1.5; }
+    .error { color:#c92a2a; font-weight:800; }
+    .bottom-save { position:fixed; left:0; right:0; bottom:0; padding:10px; background:rgba(244,246,248,.96); border-top:1px solid #dbe2e8; }
+    .bottom-save .btn { width:100%; height:42px; font-size:14px; }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <h1>원본서류 수취관리</h1>
+    <div class="sub">관리자 모바일 전용 · OBL/H/C/요청일/수령일 일괄 저장</div>
+  </header>
+  <div class="toolbar">
+    <input id="search" placeholder="B/L, 화주, 반출처 검색" oninput="render()">
+    <button class="btn gray" onclick="location.href='/cargo-dashboard.html'">대시보드</button>
+  </div>
+  <main id="list" class="list"></main>
+  <div class="bottom-save">
+    <button class="btn" onclick="saveAll()">전체 저장</button>
+  </div>
+
+  <script>
+    let cards = [];
+    let visible = [];
+
+    function esc(value) {
+      return String(value ?? "").replace(/[&<>"']/g, ch => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+      }[ch]));
+    }
+    function displayConsignee(value) {
+      return String(value || "-").replace(/현대코퍼레이션H|현대코퍼레이션|현대코퍼|현대코/g, "현대코퍼레이션H");
+    }
+    function shortDate(value) {
+      return value ? String(value).slice(0, 10) : "";
+    }
+
+    async function load() {
+      const list = document.getElementById("list");
+      list.innerHTML = '<div class="empty">불러오는 중입니다...</div>';
+      const res = await fetch("/api/cargo-data");
+      const data = await res.json();
+      if (!data.success) {
+        list.innerHTML = `<div class="error">${esc(data.message || "로그인이 필요합니다.")}<br>관리자 로그인 후 다시 열어주세요.</div>`;
+        return;
+      }
+      if ((data.user?.role || "shipper") !== "admin") {
+        list.innerHTML = '<div class="error">관리자 계정에서만 사용할 수 있습니다.</div>';
+        return;
+      }
+      cards = data.cards || [];
+      render();
+    }
+
+    function render() {
+      const q = document.getElementById("search").value.trim().toLowerCase();
+      visible = cards.filter(card => {
+        if (!q) return true;
+        return [card.bl_number, card.consignee, card.destination, card.product_name, card.stage]
+          .some(value => String(value || "").toLowerCase().includes(q));
+      });
+      const list = document.getElementById("list");
+      if (!visible.length) {
+        list.innerHTML = '<div class="empty">표시할 B/L이 없습니다.</div>';
+        return;
+      }
+      list.innerHTML = visible.map((card, index) => {
+        const obl = !!card.obl_received;
+        const hc = !!card.hc_received;
+        return `
+          <section class="card">
+            <div class="head">
+              <div>
+                <div class="name">${esc(displayConsignee(card.consignee))}</div>
+                <div class="bl">${esc(card.bl_number || "-")}</div>
+              </div>
+              <span class="stage">${esc(card.stage || "-")}</span>
+            </div>
+            <div class="info">
+              <div class="k">반출처</div><div class="v">${esc(card.destination || "-")}</div>
+              <div class="k">품명</div><div class="v">${esc(card.product_name || "-")}</div>
+            </div>
+            <div class="controls">
+              <label>OBL
+                <select id="obl${index}">
+                  <option value="false" ${obl ? "" : "selected"}>X</option>
+                  <option value="true" ${obl ? "selected" : ""}>O</option>
+                </select>
+              </label>
+              <label>H/C
+                <select id="hc${index}">
+                  <option value="false" ${hc ? "" : "selected"}>X</option>
+                  <option value="true" ${hc ? "selected" : ""}>O</option>
+                </select>
+              </label>
+              <label>수령요청일
+                <input id="request${index}" type="date" value="${esc(shortDate(card.last_original_doc_requested_receipt_date))}">
+              </label>
+              <label>실제수령일
+                <input id="actual${index}" type="date" value="${esc(shortDate(card.actual_received_date))}">
+              </label>
+            </div>
+            ${card.pending_actual_received_date ? `<div class="pending">승인대기 ${esc(shortDate(card.pending_actual_received_date))}</div>` : ""}
+          </section>
+        `;
+      }).join("");
+    }
+
+    async function saveAll() {
+      if (!visible.length) return;
+      const items = visible.map((card, index) => ({
+        account_id: card.account_id,
+        bl_number: card.bl_number,
+        obl_received: document.getElementById(`obl${index}`).value === "true",
+        hc_received: document.getElementById(`hc${index}`).value === "true",
+        requested_receipt_date: document.getElementById(`request${index}`).value || "",
+        actual_received_date: document.getElementById(`actual${index}`).value || ""
+      }));
+      const res = await fetch("/api/cargo-original-docs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items })
+      });
+      const result = await res.json();
+      if (!result.success) {
+        alert(result.message || "저장에 실패했습니다.");
+        return;
+      }
+      alert("저장되었습니다.");
+      await load();
+    }
+
+    load();
+  </script>
+</body>
+</html>

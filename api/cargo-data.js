@@ -156,8 +156,8 @@ async function fetchOriginalDocs(accountId) {
 async function fetchOriginalDocRequests(accountId) {
   try {
     const query = accountId
-      ? `/rest/v1/cargo_original_doc_requests?select=account_id,bl_number,requester_name,requester_email,requested_receipt_date,memo,status,created_at&account_id=eq.${accountId}&order=created_at.desc`
-      : "/rest/v1/cargo_original_doc_requests?select=account_id,bl_number,requester_name,requester_email,requested_receipt_date,memo,status,created_at&order=created_at.desc";
+      ? `/rest/v1/cargo_original_doc_requests?select=id,account_id,bl_number,requester_name,requester_email,requested_receipt_date,memo,status,created_at&account_id=eq.${accountId}&order=created_at.desc`
+      : "/rest/v1/cargo_original_doc_requests?select=id,account_id,bl_number,requester_name,requester_email,requested_receipt_date,memo,status,created_at&order=created_at.desc";
     return await supabaseFetch(query);
   } catch (error) {
     if (String(error.message || "").includes("cargo_original_doc_requests")) {
@@ -221,6 +221,7 @@ function applyOriginalDocRequests(cards, requests) {
     return {
       ...card,
       last_original_doc_request: item,
+      last_original_doc_request_id: item.id || "",
       last_original_doc_requester_name: item.requester_name || "",
       last_original_doc_requester_email: item.requester_email || "",
       last_original_doc_requested_receipt_date: item.requested_receipt_date || "",

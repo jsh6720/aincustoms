@@ -69,11 +69,12 @@
     .doc-box { margin:5px 0 3px; padding:5px 6px; border:1px solid #dbe3ea; border-radius:6px; background:#f8fafc; display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:10px; font-weight:800; }
     .doc-box .doc-title { color:#334155; }
     .doc-pill { display:inline-flex; align-items:center; gap:3px; border-radius:999px; padding:2px 7px; border:1px solid transparent; font-size:10px; font-weight:900; }
+    button.doc-pill { cursor:pointer; font-family:inherit; }
+    button.doc-pill:hover { filter:brightness(.96); }
     .doc-pill.ok { background:#e8f5ee; color:#1f6f43; border-color:#acd7bf; }
     .doc-pill.no { background:#fff1f1; color:#c92a2a; border-color:#ffc9c9; }
     .doc-controls { display:flex; align-items:center; gap:4px; flex-wrap:wrap; width:100%; margin-top:3px; }
     .doc-controls label { display:flex; align-items:center; gap:3px; color:#495057; font-size:9.8px; }
-    .doc-controls select { width:48px; height:23px; border:1px solid #ced4da; border-radius:4px; padding:0 4px; font-size:10px; background:#fff; }
     .doc-controls input { width:104px; height:23px; border:1px solid #ced4da; border-radius:4px; padding:0 4px; font-size:10px; background:#fff; }
     .quota-box { margin-top:5px; padding-top:5px; border-top:1px solid #edf1f4; font-size:9.9px; line-height:1.28; }
     .quota-line { display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-bottom:3px; }
@@ -103,6 +104,9 @@
     .modal-field { margin-top:8px; }
     .modal-field label { display:block; margin:0 0 4px; font-size:11px; color:#495057; font-weight:700; }
     .field-hint { display:inline-block; margin-left:5px; color:#8b95a1; font-size:10px; font-weight:600; }
+    .date-input-row { display:flex; align-items:center; gap:8px; }
+    .date-input-row input { flex:1; }
+    .weekday-hint { min-width:34px; color:#2f6b4f; font-size:12px; font-weight:900; }
     .modal-actions { display:flex; justify-content:flex-end; gap:7px; margin-top:12px; }
     .admin-panel { display:none; position:fixed; left:50%; top:86px; transform:translateX(-50%); width:min(1180px, calc(100vw - 48px)); max-height:calc(100vh - 110px); overflow:auto; background:#f7f9fb; border:1px solid #cfd6de; border-radius:8px; padding:18px; z-index:180; box-shadow:0 18px 48px rgba(15,23,42,.22); }
     .admin-layout { display:grid; grid-template-columns:360px 1fr; gap:14px; align-items:start; }
@@ -177,6 +181,7 @@
       <div id="summary" class="summary"></div>
       <div class="toolbar-actions">
         <button id="docsStatusBtn" class="btn gray" style="display:none" onclick="openDocsStatus()">원본필수서류 수취현황</button>
+        <button id="docsMobileBtn" class="btn gray" style="display:none" onclick="openDocsMobile()">모바일 원본서류</button>
         <button id="adminSettingsBtn" class="btn gray" style="display:none" onclick="openAdminSettings()">관리자 설정</button>
         <button class="btn" onclick="loadData()">새로고침</button>
       </div>
@@ -188,7 +193,10 @@
       <div class="docs-inner">
         <div class="docs-head">
           <h2>원본필수서류 &lt;OBL, H/C(위생증, 검역증)&gt; 수취현황</h2>
-          <button class="btn gray" onclick="closeDocsStatus()">닫기</button>
+          <div class="toolbar-actions">
+            <button id="docsBulkSaveBtn" class="btn green" style="display:none" onclick="saveAllOriginalDocs()">전체 저장</button>
+            <button class="btn gray" onclick="closeDocsStatus()">닫기</button>
+          </div>
         </div>
         <table class="docs-table">
           <thead>
@@ -303,7 +311,10 @@
       </div>
       <div class="modal-field">
         <label for="releaseDate">출고월일<span class="field-hint">올해 연도로 자동 저장됩니다.</span></label>
-        <input id="releaseDate" type="text" inputmode="numeric" maxlength="5" placeholder="MM-DD" onblur="formatRequestDateInput(this)">
+        <div class="date-input-row">
+          <input id="releaseDate" type="text" inputmode="numeric" maxlength="5" placeholder="MM-DD" oninput="updateRequestWeekday()" onblur="formatRequestDateInput(this)">
+          <span id="releaseDateWeekday" class="weekday-hint"></span>
+        </div>
       </div>
       <div class="modal-field">
         <label for="releaseMemo">요청사항</label>
@@ -330,6 +341,7 @@
     let currentUserRole = "shipper";
     let currentCards = [];
     let docsCalendarMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    let docsRowCards = [];
 
     function esc(value) {
       return String(value ?? "").replace(/[&<>"']/g, ch => ({
@@ -395,9 +407,22 @@
       const normalized = normalizeRequestDate(value);
       return normalized ? normalized.slice(5) : "";
     }
+    function requestWeekday(value) {
+      const normalized = normalizeRequestDate(value);
+      if (!normalized) return "";
+      const date = new Date(`${normalized}T00:00:00`);
+      return ["일", "월", "화", "수", "목", "금", "토"][date.getDay()];
+    }
+    function updateRequestWeekday() {
+      const hint = document.getElementById("releaseDateWeekday");
+      if (!hint) return;
+      const weekday = requestWeekday(document.getElementById("releaseDate").value);
+      hint.textContent = weekday ? `(${weekday})` : "";
+    }
     function formatRequestDateInput(input) {
       const normalized = normalizeRequestDate(input.value);
       if (normalized) input.value = normalized.slice(5);
+      updateRequestWeekday();
     }
     function showCargoUi() {
       document.getElementById("loginPanel").style.display = "none";
@@ -408,6 +433,7 @@
       document.getElementById("docsPanel").style.display = "none";
       document.getElementById("logoutBtn").style.display = "";
       document.getElementById("docsStatusBtn").style.display = "";
+      document.getElementById("docsMobileBtn").style.display = currentUserRole === "admin" ? "" : "none";
       document.getElementById("adminSettingsBtn").style.display = currentUserRole === "admin" ? "" : "none";
     }
     function showAdminUi() {
@@ -422,6 +448,7 @@
       document.getElementById("adminPanel").style.display = "none";
       document.getElementById("logoutBtn").style.display = "none";
       document.getElementById("docsStatusBtn").style.display = "none";
+      document.getElementById("docsMobileBtn").style.display = "none";
       document.getElementById("adminSettingsBtn").style.display = "none";
       document.getElementById("loginError").textContent = message;
     }
@@ -539,29 +566,25 @@
       const hc = !!card.hc_received;
       const receivedDate = card.actual_received_date ? `<span class="doc-pill ok">수령일 ${esc(shortDate(card.actual_received_date))}</span>` : "";
       const pendingDate = card.pending_actual_received_date ? `<span class="doc-pill no">승인대기 ${esc(shortDate(card.pending_actual_received_date))}</span>` : "";
+      const oblPill = currentUserRole === "admin"
+        ? `<button type="button" id="cardOblToggle${index}" class="doc-pill ${obl ? "ok" : "no"}" onclick="toggleCardDoc(${index}, 'Obl')">OBL ${obl ? "O" : "X"}</button>`
+        : `<span class="doc-pill ${obl ? "ok" : "no"}">OBL ${obl ? "O" : "X"}</span>`;
+      const hcPill = currentUserRole === "admin"
+        ? `<button type="button" id="cardHcToggle${index}" class="doc-pill ${hc ? "ok" : "no"}" onclick="toggleCardDoc(${index}, 'Hc')">H/C ${hc ? "O" : "X"}</button>`
+        : `<span class="doc-pill ${hc ? "ok" : "no"}">H/C ${hc ? "O" : "X"}</span>`;
       const adminControls = currentUserRole === "admin" ? `
         <div class="doc-controls">
-          <label>OBL
-            <select id="cardObl${index}">
-              <option value="false" ${obl ? "" : "selected"}>X</option>
-              <option value="true" ${obl ? "selected" : ""}>O</option>
-            </select>
-          </label>
-          <label>H/C
-            <select id="cardHc${index}">
-              <option value="false" ${hc ? "" : "selected"}>X</option>
-              <option value="true" ${hc ? "selected" : ""}>O</option>
-            </select>
-          </label>
-          <label>수령일 <input id="cardActual${index}" type="date" value="${esc(shortDate(card.actual_received_date))}"></label>
+          <input id="cardObl${index}" type="hidden" value="${obl ? "true" : "false"}">
+          <input id="cardHc${index}" type="hidden" value="${hc ? "true" : "false"}">
+          <input id="cardActual${index}" type="hidden" value="${esc(shortDate(card.actual_received_date))}">
           <button class="btn green" onclick="saveOriginalDocsFromCard(${index})">저장</button>
         </div>
       ` : "";
       return `
         <div class="doc-box">
           <span class="doc-title">원본필수서류</span>
-          <span class="doc-pill ${obl ? "ok" : "no"}">OBL ${obl ? "O" : "X"}</span>
-          <span class="doc-pill ${hc ? "ok" : "no"}">H/C ${hc ? "O" : "X"}</span>
+          ${oblPill}
+          ${hcPill}
           ${receivedDate}${pendingDate}
           ${adminControls}
         </div>
@@ -678,6 +701,8 @@
         String(a.card.consignee || "").localeCompare(String(b.card.consignee || ""), "ko") ||
         String(a.card.bl_number || "").localeCompare(String(b.card.bl_number || ""), "ko")
       );
+      docsRowCards = sorted;
+      document.getElementById("docsBulkSaveBtn").style.display = currentUserRole === "admin" && sorted.length ? "" : "none";
       rows.innerHTML = sorted.length ? sorted.map(({ card, sourceIndex }, index) => {
         const obl = !!card.obl_received;
         const hc = !!card.hc_received;
@@ -694,7 +719,7 @@
               <option value="true" ${hc ? "selected" : ""}>O</option>
             </select>
           </td>
-          <td>${esc(shortDate(card.last_original_doc_requested_receipt_date) || "-")}</td>
+          <td><input id="docsRequest${index}" type="date" value="${esc(shortDate(card.last_original_doc_requested_receipt_date))}"></td>
           <td>
             <input id="docsActual${index}" type="date" value="${esc(shortDate(card.actual_received_date))}">
             ${docsPendingNote(card)}
@@ -736,6 +761,9 @@
       document.getElementById("docsPanel").style.display = "block";
       renderDocsStatus();
     }
+    function openDocsMobile() {
+      window.open("/cargo-docs-mobile.html", "_blank");
+    }
     function closeDocsStatus() {
       document.getElementById("docsPanel").style.display = "none";
       document.getElementById("boardWrap").style.display = "";
@@ -756,12 +784,40 @@
           obl_received: obl,
           hc_received: hc,
           actual_received_date: actualReceivedDate,
+          requested_receipt_date: document.getElementById(`docsRequest${rowIndex}`)?.value || "",
           approve_pending: !!approvePending
         })
       });
       const result = await response.json();
       if (!result.success) {
         alert(result.message || "원본서류 수취현황 저장에 실패했습니다.");
+        return;
+      }
+      await loadData();
+    }
+    function originalDocsPayloadFromRow(row, rowIndex) {
+      const card = row.card;
+      return {
+        account_id: card.account_id,
+        bl_number: card.bl_number,
+        obl_received: document.getElementById(`docsObl${rowIndex}`).value === "true",
+        hc_received: document.getElementById(`docsHc${rowIndex}`).value === "true",
+        requested_receipt_date: document.getElementById(`docsRequest${rowIndex}`).value || "",
+        actual_received_date: document.getElementById(`docsActual${rowIndex}`).value || ""
+      };
+    }
+    async function saveAllOriginalDocs() {
+      if (currentUserRole !== "admin") return;
+      const items = docsRowCards.map((row, index) => originalDocsPayloadFromRow(row, index));
+      if (!items.length) return;
+      const response = await fetch("/api/cargo-original-docs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items })
+      });
+      const result = await response.json();
+      if (!result.success) {
+        alert(result.message || "원본서류 수취현황 일괄 저장에 실패했습니다.");
         return;
       }
       await loadData();
@@ -789,6 +845,39 @@
         return;
       }
       await loadData();
+    }
+    function updateCardDocToggle(index, field, value) {
+      const button = document.getElementById(`card${field}Toggle${index}`);
+      const input = document.getElementById(`card${field}${index}`);
+      if (!button || !input) return;
+      input.value = value ? "true" : "false";
+      button.classList.toggle("ok", value);
+      button.classList.toggle("no", !value);
+      button.textContent = `${field === "Obl" ? "OBL" : "H/C"} ${value ? "O" : "X"}`;
+    }
+    function promptOriginalDocDate() {
+      const raw = window.prompt("원본서류 실제수령일을 입력하세요. 예: 07-15 또는 2026-07-15", "");
+      if (raw === null) return null;
+      const normalized = normalizeRequestDate(raw);
+      if (normalized === null || !normalized) {
+        alert("날짜는 MM-DD 또는 YYYY-MM-DD 형식으로 입력해 주세요.");
+        return null;
+      }
+      return normalized;
+    }
+    function toggleCardDoc(index, field) {
+      const input = document.getElementById(`card${field}${index}`);
+      const actualInput = document.getElementById(`cardActual${index}`);
+      if (!input) return;
+      const next = input.value !== "true";
+      if (next) {
+        const receivedDate = promptOriginalDocDate();
+        if (!receivedDate) return;
+        if (actualInput) actualInput.value = receivedDate;
+      } else if (actualInput) {
+        actualInput.value = "";
+      }
+      updateCardDocToggle(index, field, next);
     }
     async function requestActualReceivedDate(cardIndex, rowIndex) {
       const card = currentCards[cardIndex];
@@ -911,6 +1000,7 @@
       document.getElementById("requesterEmail").value = releaseRequestCard.last_import_requester_email || "";
       document.getElementById("releaseAddress").value = releaseRequestCard.last_import_delivery_address || "";
       document.getElementById("releaseDate").value = toRequestMonthDay(releaseRequestCard.last_import_requested_release_date);
+      updateRequestWeekday();
       document.getElementById("releaseMemo").value = "";
       document.getElementById("releaseModalCard").innerHTML = `
         <div class="modal-row"><b>화주명</b><span>${esc(displayConsignee(releaseRequestCard.consignee))}</span></div>
@@ -946,6 +1036,7 @@
       document.getElementById("releaseAddress").value = "";
       document.getElementById("releaseDate").value = "";
       document.getElementById("releaseDate").placeholder = "MM-DD";
+      updateRequestWeekday();
       document.getElementById("releaseMemo").value = "";
       document.getElementById("releaseModalCard").innerHTML = `
         <div class="modal-row"><b>화주명</b><span>${esc(displayConsignee(releaseRequestCard.consignee))}</span></div>
@@ -981,6 +1072,7 @@
       document.getElementById("releaseAddress").value = releaseRequestCard.last_import_delivery_address || "";
       document.getElementById("releaseAddress").placeholder = "미정";
       document.getElementById("releaseDate").value = toRequestMonthDay(releaseRequestCard.last_import_requested_release_date);
+      updateRequestWeekday();
       document.getElementById("releaseMemo").value = "";
       document.getElementById("releaseModalCard").innerHTML = `
         <div class="modal-row"><b>화주명</b><span>${esc(displayConsignee(releaseRequestCard.consignee))}</span></div>
@@ -996,6 +1088,7 @@
       releaseRequestCard = null;
       requestMode = "release";
       document.getElementById("releaseAddress").closest(".modal-field").style.display = "";
+      document.getElementById("releaseDateWeekday").textContent = "";
     }
     function toggleReleaseType() {
       const type = document.querySelector('input[name="releaseType"]:checked').value;
