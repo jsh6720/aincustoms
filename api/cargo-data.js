@@ -142,11 +142,25 @@ async function fetchImportRequests(accountId) {
 async function fetchOriginalDocs(accountId) {
   try {
     const query = accountId
-      ? `/rest/v1/cargo_original_docs?select=account_id,bl_number,obl_received,hc_received,updated_by,updated_at&account_id=eq.${accountId}`
-      : "/rest/v1/cargo_original_docs?select=account_id,bl_number,obl_received,hc_received,updated_by,updated_at";
+      ? `/rest/v1/cargo_original_docs?select=account_id,bl_number,obl_received,hc_received,actual_received_date,pending_actual_received_date,pending_actual_received_date_by,pending_actual_received_date_at,approved_actual_received_date_by,approved_actual_received_date_at,updated_by,updated_at&account_id=eq.${accountId}`
+      : "/rest/v1/cargo_original_docs?select=account_id,bl_number,obl_received,hc_received,actual_received_date,pending_actual_received_date,pending_actual_received_date_by,pending_actual_received_date_at,approved_actual_received_date_by,approved_actual_received_date_at,updated_by,updated_at";
     return await supabaseFetch(query);
   } catch (error) {
     if (String(error.message || "").includes("cargo_original_docs")) {
+      return [];
+    }
+    throw error;
+  }
+}
+
+async function fetchOriginalDocRequests(accountId) {
+  try {
+    const query = accountId
+      ? `/rest/v1/cargo_original_doc_requests?select=account_id,bl_number,requester_name,requester_email,requested_receipt_date,memo,status,created_at&account_id=eq.${accountId}&order=created_at.desc`
+      : "/rest/v1/cargo_original_doc_requests?select=account_id,bl_number,requester_name,requester_email,requested_receipt_date,memo,status,created_at&order=created_at.desc";
+    return await supabaseFetch(query);
+  } catch (error) {
+    if (String(error.message || "").includes("cargo_original_doc_requests")) {
       return [];
     }
     throw error;
@@ -180,8 +194,37 @@ function applyOriginalDocs(cards, docs) {
       ...card,
       obl_received: !!item?.obl_received,
       hc_received: !!item?.hc_received,
+      actual_received_date: item?.actual_received_date || "",
+      pending_actual_received_date: item?.pending_actual_received_date || "",
+      pending_actual_received_date_by: item?.pending_actual_received_date_by || "",
+      pending_actual_received_date_at: item?.pending_actual_received_date_at || null,
+      approved_actual_received_date_by: item?.approved_actual_received_date_by || "",
+      approved_actual_received_date_at: item?.approved_actual_received_date_at || null,
       original_docs_updated_at: item?.updated_at || null,
       original_docs_updated_by: item?.updated_by || "",
+    };
+  });
+}
+
+function applyOriginalDocRequests(cards, requests) {
+  const byBl = new Map();
+  (requests || []).forEach((item) => {
+    const key = `${item.account_id || ""}|${item.bl_number}`;
+    if (item.bl_number && !byBl.has(key)) {
+      byBl.set(key, item);
+    }
+  });
+
+  return (cards || []).map((card) => {
+    const item = byBl.get(`${card.account_id || ""}|${card.bl_number}`) || byBl.get(`|${card.bl_number}`);
+    if (!item) return card;
+    return {
+      ...card,
+      last_original_doc_request: item,
+      last_original_doc_requester_name: item.requester_name || "",
+      last_original_doc_requester_email: item.requester_email || "",
+      last_original_doc_requested_receipt_date: item.requested_receipt_date || "",
+      last_original_doc_request_created_at: item.created_at || null,
     };
   });
 }
@@ -247,9 +290,13 @@ module.exports = async function handler(req, res) {
     const userInputs = await fetchUserInputs(isAdmin ? null : accountId);
     const importRequests = await fetchImportRequests(isAdmin ? null : accountId);
     const originalDocs = await fetchOriginalDocs(isAdmin ? null : accountId);
+    const originalDocRequests = await fetchOriginalDocRequests(isAdmin ? null : accountId);
 
     const sorted = applyOriginalDocs(
-      applyImportRequests(applyUserInputs(cards || [], userInputs), importRequests),
+      applyOriginalDocRequests(
+        applyImportRequests(applyUserInputs(cards || [], userInputs), importRequests),
+        originalDocRequests
+      ),
       originalDocs
     ).sort(sortCards);
     const counts = {};

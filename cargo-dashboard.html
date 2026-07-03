@@ -123,9 +123,25 @@
     .docs-table { width:100%; border-collapse:collapse; table-layout:fixed; font-size:11px; }
     .docs-table th, .docs-table td { border-bottom:1px solid #edf1f4; padding:7px 8px; text-align:left; vertical-align:middle; word-break:break-word; }
     .docs-table th { background:#f7f9fb; color:#4b5663; font-size:10px; font-weight:800; }
-    .docs-table select { height:28px; padding:0 6px; font-size:11px; }
+    .docs-table select, .docs-table input { height:28px; padding:0 6px; font-size:11px; }
     .docs-table .narrow { width:76px; text-align:center; }
-    .docs-table .action { width:82px; text-align:center; }
+    .docs-table .date-col { width:118px; }
+    .docs-table .action { width:132px; text-align:center; }
+    .pending-note { display:block; margin-top:3px; color:#b45309; font-size:10px; font-weight:800; line-height:1.3; }
+    .docs-actions { display:flex; justify-content:center; gap:4px; flex-wrap:wrap; }
+    .docs-calendar { border-top:1px solid #edf1f4; padding:12px 14px 14px; background:#fbfcfd; }
+    .calendar-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+    .calendar-head h3 { font-size:14px; color:#1f2933; }
+    .calendar-nav { display:flex; gap:6px; align-items:center; }
+    .calendar-month-input { width:128px; height:30px; font-size:12px; font-weight:700; }
+    .calendar-grid { display:grid; grid-template-columns:repeat(7, 1fr); gap:4px; }
+    .calendar-weekday { font-size:10px; font-weight:800; color:#6b7684; text-align:center; padding:4px 0; }
+    .calendar-cell { min-height:76px; border:1px solid #dfe5eb; border-radius:6px; background:#fff; padding:5px; font-size:10px; overflow:hidden; }
+    .calendar-cell.dim { background:#f2f4f6; color:#a0a8b1; }
+    .calendar-day { font-weight:800; color:#4b5663; margin-bottom:4px; }
+    .calendar-event { border-radius:4px; padding:2px 4px; margin-top:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:9.5px; font-weight:800; }
+    .calendar-event.request { background:#fff7ed; color:#b45309; border:1px solid #fed7aa; }
+    .calendar-event.actual { background:#e8f5ee; color:#1f6f43; border:1px solid #acd7bf; }
     @media (max-width:1700px){ .board { grid-template-columns:repeat(5, 310px); } }
   </style>
 </head>
@@ -180,12 +196,27 @@
               <th>마일스톤</th>
               <th class="narrow">OBL</th>
               <th class="narrow">H/C</th>
+              <th class="date-col">수령요청일</th>
+              <th class="date-col">실제수령일</th>
               <th>수정일</th>
               <th class="action">관리</th>
             </tr>
           </thead>
           <tbody id="docsRows"></tbody>
         </table>
+        <div class="docs-calendar">
+          <div class="calendar-head">
+            <h3 id="docsCalendarTitle">수령 일정</h3>
+            <div class="calendar-nav">
+              <button class="btn gray" onclick="moveDocsCalendarYear(-1)">전년도</button>
+              <button class="btn gray" onclick="moveDocsCalendar(-1)">이전월</button>
+              <input id="docsCalendarMonthInput" class="calendar-month-input" type="month" onchange="setDocsCalendarMonth(this.value)">
+              <button class="btn gray" onclick="moveDocsCalendar(1)">다음월</button>
+              <button class="btn gray" onclick="moveDocsCalendarYear(1)">다음년도</button>
+            </div>
+          </div>
+          <div id="docsCalendarGrid" class="calendar-grid"></div>
+        </div>
       </div>
     </section>
     <section id="adminPanel" class="admin-panel">
@@ -294,6 +325,7 @@
     let adminAccounts = [];
     let currentUserRole = "shipper";
     let currentCards = [];
+    let docsCalendarMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 
     function esc(value) {
       return String(value ?? "").replace(/[&<>"']/g, ch => ({
@@ -501,11 +533,14 @@
     function originalDocsHtml(card) {
       const obl = !!card.obl_received;
       const hc = !!card.hc_received;
+      const receivedDate = card.actual_received_date ? `<span class="doc-pill ok">수령일 ${esc(shortDate(card.actual_received_date))}</span>` : "";
+      const pendingDate = card.pending_actual_received_date ? `<span class="doc-pill no">승인대기 ${esc(shortDate(card.pending_actual_received_date))}</span>` : "";
       return `
         <div class="doc-box">
           <span class="doc-title">원본필수서류</span>
           <span class="doc-pill ${obl ? "ok" : "no"}">OBL ${obl ? "O" : "X"}</span>
           <span class="doc-pill ${hc ? "ok" : "no"}">H/C ${hc ? "O" : "X"}</span>
+          ${receivedDate}${pendingDate}
         </div>
       `;
     }
@@ -607,6 +642,13 @@
     function docsMark(value) {
       return `<span class="doc-pill ${value ? "ok" : "no"}">${value ? "O" : "X"}</span>`;
     }
+    function shortDate(value) {
+      return value ? String(value).slice(0, 10) : "";
+    }
+    function docsPendingNote(card) {
+      if (!card.pending_actual_received_date) return "";
+      return `<span class="pending-note">승인대기 ${esc(shortDate(card.pending_actual_received_date))}</span>`;
+    }
     function renderDocsStatus() {
       const rows = document.getElementById("docsRows");
       const sorted = currentCards.map((card, sourceIndex) => ({ card, sourceIndex })).sort((a, b) =>
@@ -629,13 +671,28 @@
               <option value="true" ${hc ? "selected" : ""}>O</option>
             </select>
           </td>
+          <td>${esc(shortDate(card.last_original_doc_requested_receipt_date) || "-")}</td>
+          <td>
+            <input id="docsActual${index}" type="date" value="${esc(shortDate(card.actual_received_date))}">
+            ${docsPendingNote(card)}
+          </td>
           <td>${esc(displayDate(card.original_docs_updated_at) || "-")}</td>
-          <td class="action"><button class="btn green" onclick="saveOriginalDocs(${sourceIndex}, ${index})">저장</button></td>
+          <td class="action">
+            <div class="docs-actions">
+              <button class="btn green" onclick="saveOriginalDocs(${sourceIndex}, ${index}, false)">저장</button>
+              ${card.pending_actual_received_date ? `<button class="btn" onclick="saveOriginalDocs(${sourceIndex}, ${index}, true)">승인</button>` : ""}
+            </div>
+          </td>
         ` : `
           <td class="narrow">${docsMark(obl)}</td>
           <td class="narrow">${docsMark(hc)}</td>
+          <td>${esc(shortDate(card.last_original_doc_requested_receipt_date) || "-")}</td>
+          <td>
+            <input id="docsActual${index}" type="date" value="${esc(shortDate(card.pending_actual_received_date || card.actual_received_date))}">
+            ${docsPendingNote(card)}
+          </td>
           <td>${esc(displayDate(card.original_docs_updated_at) || "-")}</td>
-          <td class="action">-</td>
+          <td class="action"><button class="btn green" onclick="requestActualReceivedDate(${sourceIndex}, ${index})">변경요청</button></td>
         `;
         return `
           <tr>
@@ -647,7 +704,8 @@
             ${adminControls}
           </tr>
         `;
-      }).join("") : `<tr><td colspan="9" style="text-align:center;color:#8b95a1;padding:22px">조회된 카드가 없습니다.</td></tr>`;
+      }).join("") : `<tr><td colspan="11" style="text-align:center;color:#8b95a1;padding:22px">조회된 카드가 없습니다.</td></tr>`;
+      renderDocsCalendar();
     }
     function openDocsStatus() {
       document.getElementById("adminPanel").style.display = "none";
@@ -660,11 +718,12 @@
       document.getElementById("boardWrap").style.display = "";
       document.getElementById("board").style.display = "grid";
     }
-    async function saveOriginalDocs(cardIndex, rowIndex) {
+    async function saveOriginalDocs(cardIndex, rowIndex, approvePending) {
       const card = currentCards[cardIndex];
       if (!card) return;
       const obl = document.getElementById(`docsObl${rowIndex}`).value === "true";
       const hc = document.getElementById(`docsHc${rowIndex}`).value === "true";
+      const actualReceivedDate = document.getElementById(`docsActual${rowIndex}`).value || "";
       const response = await fetch("/api/cargo-original-docs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -672,7 +731,9 @@
           account_id: card.account_id,
           bl_number: card.bl_number,
           obl_received: obl,
-          hc_received: hc
+          hc_received: hc,
+          actual_received_date: actualReceivedDate,
+          approve_pending: !!approvePending
         })
       });
       const result = await response.json();
@@ -680,10 +741,99 @@
         alert(result.message || "원본서류 수취현황 저장에 실패했습니다.");
         return;
       }
-      card.obl_received = obl;
-      card.hc_received = hc;
-      card.original_docs_updated_at = result.item?.updated_at || new Date().toISOString();
-      renderDocsStatus();
+      await loadData();
+    }
+    async function requestActualReceivedDate(cardIndex, rowIndex) {
+      const card = currentCards[cardIndex];
+      if (!card) return;
+      const actualReceivedDate = document.getElementById(`docsActual${rowIndex}`).value || "";
+      if (!actualReceivedDate) {
+        alert("실제수령일을 입력해 주세요.");
+        return;
+      }
+      const response = await fetch("/api/cargo-original-docs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          bl_number: card.bl_number,
+          actual_received_date: actualReceivedDate
+        })
+      });
+      const result = await response.json();
+      if (!result.success) {
+        alert(result.message || "실제수령일 변경요청에 실패했습니다.");
+        return;
+      }
+      alert("실제수령일 변경요청이 등록되었습니다. 관리자 승인 후 반영됩니다.");
+      await loadData();
+    }
+    function docsCalendarEvents() {
+      const events = [];
+      currentCards.forEach(card => {
+        const label = card.bl_number || "-";
+        if (card.last_original_doc_requested_receipt_date) {
+          events.push({
+            date: shortDate(card.last_original_doc_requested_receipt_date),
+            type: "request",
+            text: `요청 ${label}`
+          });
+        }
+        if (card.actual_received_date) {
+          events.push({
+            date: shortDate(card.actual_received_date),
+            type: "actual",
+            text: `수령 ${label}`
+          });
+        }
+      });
+      return events;
+    }
+    function renderDocsCalendar() {
+      const title = document.getElementById("docsCalendarTitle");
+      const grid = document.getElementById("docsCalendarGrid");
+      const monthInput = document.getElementById("docsCalendarMonthInput");
+      if (!title || !grid) return;
+      const year = docsCalendarMonth.getFullYear();
+      const month = docsCalendarMonth.getMonth();
+      title.textContent = `${year}년 ${String(month + 1).padStart(2, "0")}월 원본서류 수령 일정`;
+      if (monthInput) monthInput.value = `${year}-${String(month + 1).padStart(2, "0")}`;
+      const first = new Date(year, month, 1);
+      const start = new Date(year, month, 1 - first.getDay());
+      const eventsByDate = new Map();
+      docsCalendarEvents().forEach(event => {
+        if (!event.date) return;
+        if (!eventsByDate.has(event.date)) eventsByDate.set(event.date, []);
+        eventsByDate.get(event.date).push(event);
+      });
+      const weekdays = ["일", "월", "화", "수", "목", "금", "토"].map(day => `<div class="calendar-weekday">${day}</div>`);
+      const cells = [];
+      for (let i = 0; i < 42; i += 1) {
+        const day = new Date(start);
+        day.setDate(start.getDate() + i);
+        const dateText = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-${String(day.getDate()).padStart(2, "0")}`;
+        const dayEvents = eventsByDate.get(dateText) || [];
+        cells.push(`
+          <div class="calendar-cell ${day.getMonth() === month ? "" : "dim"}">
+            <div class="calendar-day">${day.getDate()}</div>
+            ${dayEvents.map(event => `<div class="calendar-event ${event.type}" title="${esc(event.text)}">${esc(event.text)}</div>`).join("")}
+          </div>
+        `);
+      }
+      grid.innerHTML = weekdays.join("") + cells.join("");
+    }
+    function moveDocsCalendar(delta) {
+      docsCalendarMonth = new Date(docsCalendarMonth.getFullYear(), docsCalendarMonth.getMonth() + delta, 1);
+      renderDocsCalendar();
+    }
+    function moveDocsCalendarYear(delta) {
+      docsCalendarMonth = new Date(docsCalendarMonth.getFullYear() + delta, docsCalendarMonth.getMonth(), 1);
+      renderDocsCalendar();
+    }
+    function setDocsCalendarMonth(value) {
+      const match = String(value || "").match(/^(\d{4})-(\d{2})$/);
+      if (!match) return;
+      docsCalendarMonth = new Date(Number(match[1]), Number(match[2]) - 1, 1);
+      renderDocsCalendar();
     }
 
     async function openReleaseModal(blNumber) {
