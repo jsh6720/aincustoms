@@ -139,6 +139,20 @@ async function fetchImportRequests(accountId) {
   }
 }
 
+async function fetchOriginalDocs(accountId) {
+  try {
+    const query = accountId
+      ? `/rest/v1/cargo_original_docs?select=account_id,bl_number,obl_received,hc_received,updated_by,updated_at&account_id=eq.${accountId}`
+      : "/rest/v1/cargo_original_docs?select=account_id,bl_number,obl_received,hc_received,updated_by,updated_at";
+    return await supabaseFetch(query);
+  } catch (error) {
+    if (String(error.message || "").includes("cargo_original_docs")) {
+      return [];
+    }
+    throw error;
+  }
+}
+
 function applyUserInputs(cards, inputs) {
   const byBl = new Map((inputs || []).map((item) => [`${item.account_id || ""}|${item.bl_number}`, item]));
   return (cards || []).map((card) => {
@@ -150,6 +164,25 @@ function applyUserInputs(cards, inputs) {
       quota_permit_date: input.quota_permit_date || "",
       quota_input_updated_at: input.updated_at || null,
     });
+  });
+}
+
+function applyOriginalDocs(cards, docs) {
+  const byBl = new Map();
+  (docs || []).forEach((item) => {
+    const key = `${item.account_id || ""}|${item.bl_number}`;
+    if (item.bl_number) byBl.set(key, item);
+  });
+
+  return (cards || []).map((card) => {
+    const item = byBl.get(`${card.account_id || ""}|${card.bl_number}`) || byBl.get(`|${card.bl_number}`);
+    return {
+      ...card,
+      obl_received: !!item?.obl_received,
+      hc_received: !!item?.hc_received,
+      original_docs_updated_at: item?.updated_at || null,
+      original_docs_updated_by: item?.updated_by || "",
+    };
   });
 }
 
@@ -213,8 +246,12 @@ module.exports = async function handler(req, res) {
     );
     const userInputs = await fetchUserInputs(isAdmin ? null : accountId);
     const importRequests = await fetchImportRequests(isAdmin ? null : accountId);
+    const originalDocs = await fetchOriginalDocs(isAdmin ? null : accountId);
 
-    const sorted = applyImportRequests(applyUserInputs(cards || [], userInputs), importRequests).sort(sortCards);
+    const sorted = applyOriginalDocs(
+      applyImportRequests(applyUserInputs(cards || [], userInputs), importRequests),
+      originalDocs
+    ).sort(sortCards);
     const counts = {};
     STAGE_ORDER.forEach((stage) => {
       counts[stage] = 0;
