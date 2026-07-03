@@ -3,27 +3,27 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>축산물 통관 대시보드</title>
+  <title>축산물 통관조회</title>
   <style>
     * { margin:0; padding:0; box-sizing:border-box; }
     body { font-family:'Segoe UI','Malgun Gothic',sans-serif; background:#f4f6f8; color:#26313d; overflow-x:hidden; }
-
     .header { background:#2b323a; color:#fff; padding:14px 20px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid #1f252b; position:sticky; top:0; z-index:100; }
-    .header h1 { font-size:19px; font-weight:700; letter-spacing:0; }
+    .header h1 { font-size:19px; font-weight:700; }
     .header .sub { font-size:12px; opacity:.72; margin-top:2px; }
     .header .right { display:flex; align-items:center; gap:10px; }
     .btn { background:#343a40; color:#fff; border:none; border-radius:5px; padding:7px 12px; font-size:12px; cursor:pointer; font-weight:700; }
     .btn:hover { background:#212529; }
     .btn.gray { background:#6b7684; }
-    .btn.gray:hover { background:#58616d; }
-
+    .btn.green { background:#2f6b4f; }
+    .btn.danger { background:#c92a2a; }
     .login-panel { width:380px; margin:110px auto 0; background:#fff; border:1px solid #d9dee4; border-radius:8px; padding:24px; box-shadow:0 12px 28px rgba(27,39,51,.08); }
     .login-panel h2 { margin:0 0 16px; font-size:20px; color:#1f2933; }
     label { display:block; margin:12px 0 6px; font-size:12px; font-weight:700; color:#4b5663; }
-    input { width:100%; height:38px; border:1px solid #ccd3da; border-radius:5px; padding:0 10px; font-size:14px; background:#fff; }
+    input, select, textarea { width:100%; border:1px solid #ccd3da; border-radius:5px; padding:0 10px; font-size:13px; background:#fff; font-family:inherit; }
+    input, select { height:36px; }
+    textarea { min-height:64px; padding:8px 10px; resize:vertical; }
     .login-panel .btn { width:100%; height:39px; margin-top:18px; font-size:13px; }
     .error { margin-top:12px; color:#c92a2a; font-size:13px; font-weight:700; line-height:1.45; }
-
     .toolbar { display:none; align-items:center; justify-content:space-between; padding:12px 16px 0; }
     .summary { font-size:12.5px; color:#4b5663; font-weight:700; }
     #boardWrap { overflow-x:auto; overflow-y:hidden; }
@@ -43,7 +43,6 @@
     .stage-release .col-head { background:#625984; }
     .col-body { padding:7px; display:flex; flex-direction:column; gap:7px; overflow-y:auto; max-height:calc(100vh - 150px); }
     .empty { text-align:center; color:#8b95a1; font-size:10px; padding:22px 0; }
-
     .card { background:#fff; border-radius:7px; border:1px solid #dce2e8; padding:7px 8px; font-size:10.4px; position:relative; box-shadow:0 1px 2px rgba(15,23,42,.05); }
     .stage-arrival-before .card { border-left:4px solid #6b747f; }
     .stage-arrival .card { border-left:4px solid #5f8faa; }
@@ -54,70 +53,62 @@
     .card.warn { border:2px solid #fd7e14; border-left-width:4px; background:#fff9f0; }
     .stage-declare .card.permit-ready { background:#f3f8f5; border-color:#b9d4c3; border-left-color:#2f7d52; }
     .revision-badge { position:absolute; top:-6px; right:7px; background:#495057; color:#fff; font-size:9px; padding:1px 6px; border-radius:6px; font-weight:700; }
-
     .top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:4px; gap:6px; }
     .consignee { font-weight:700; font-size:11.4px; color:#1f2933; word-break:keep-all; line-height:1.18; }
     .bl { font-family:Consolas,monospace; font-size:10px; color:#26313d; font-weight:700; word-break:break-all; margin-top:1px; }
-    .cat { font-size:10px; color:#64707d; background:#f5f7f9; border:1px solid #e2e8ee; padding:2px 7px; border-radius:6px; white-space:nowrap; }
-
     .grid { display:grid; grid-template-columns:56px 1fr; row-gap:2px; column-gap:6px; margin:4px 0; }
     .k { color:#7b8794; font-size:9.8px; white-space:nowrap; font-weight:600; }
     .v { color:#26313d; word-break:keep-all; overflow-wrap:anywhere; line-height:1.24; font-weight:500; }
     .v.strong { font-weight:700; }
-
     .badges { display:flex; flex-wrap:wrap; gap:3px; margin:5px 0 2px; }
     .badge { font-size:9.7px; padding:1px 5px; border-radius:5px; font-weight:600; background:#f5f7f9; color:#495057; border:1px solid #e2e8ee; }
     .b-pass { background:#edf5ef; color:#3f6f50; border-color:#c9dccf; }
     .b-fail { background:#fff5f5; color:#c92a2a; border-color:#ffc9c9; }
-    .b-wait { background:#f8f9fa; color:#495057; }
-    .b-none { background:#f8f9fa; color:#9aa1a9; }
-    .b-permit { background:#f1f3f5; color:#495057; }
-
+    .b-wait, .b-permit, .b-none { background:#f8f9fa; color:#495057; }
     .quota-box { margin-top:5px; padding-top:5px; border-top:1px solid #edf1f4; font-size:9.9px; line-height:1.28; }
-    .quota-title { color:#495057; font-weight:700; margin-bottom:2px; }
     .quota-line { display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-bottom:3px; }
     .quota-check { display:flex; align-items:center; gap:4px; margin:0; font-size:9.9px; font-weight:700; color:#495057; cursor:pointer; }
     .quota-check input { width:12px; height:12px; padding:0; margin:0; }
     .quota-date { display:flex; align-items:center; gap:5px; margin:3px 0; color:#495057; }
-    .quota-date input { width:108px; height:24px; border:1px solid #ced4da; border-radius:4px; padding:2px 5px; font-size:10px; background:#fff; }
+    .quota-date input { width:108px; height:24px; padding:2px 5px; font-size:10px; }
     .quota-detail { display:block; margin-top:2px; }
     .quota-detail.danger { color:#c92a2a; font-weight:700; }
-    .quota-detail.warn { color:#e8590c; font-weight:700; }
-
     .revision-box { margin-top:5px; border-top:1px solid #edf1f4; padding-top:5px; }
     .revision-title { color:#495057; font-weight:700; font-size:10px; margin-bottom:3px; }
     .revision-list { display:flex; flex-direction:column; gap:4px; }
     .revision-item { background:#f8f9fa; border:1px solid #edf0f2; border-radius:5px; padding:4px 5px; line-height:1.28; word-break:break-word; }
     .revision-date { color:#adb5bd; font-size:9px; margin-top:1px; }
-
     .release-bar { height:4px; background:#e9ecef; border-radius:3px; margin-top:3px; overflow:hidden; }
     .release-bar > div { height:100%; background:#495057; border-radius:3px; }
     .card-actions { display:flex; justify-content:flex-end; margin-top:6px; border-top:1px solid #edf1f4; padding-top:6px; }
     .request-btn { background:#2f5f46; color:#fff; border:none; border-radius:5px; padding:4px 8px; font-size:10px; font-weight:700; cursor:pointer; }
-    .request-btn:hover { background:#254d39; }
     .modal-bg { display:none; position:fixed; inset:0; background:rgba(15,23,42,.42); z-index:200; align-items:center; justify-content:center; }
-    .modal { width:430px; background:#fff; border:1px solid #d9dee4; border-radius:8px; box-shadow:0 18px 42px rgba(15,23,42,.2); padding:18px; }
+    .modal { width:470px; max-height:92vh; overflow:auto; background:#fff; border:1px solid #d9dee4; border-radius:8px; box-shadow:0 18px 42px rgba(15,23,42,.2); padding:18px; }
     .modal h2 { font-size:17px; margin-bottom:10px; color:#1f2933; }
     .modal-card { background:#f8f9fa; border:1px solid #edf0f2; border-radius:6px; padding:9px; margin-bottom:10px; font-size:11px; line-height:1.45; }
-    .modal-row { display:grid; grid-template-columns:68px 1fr; gap:5px; }
+    .modal-row { display:grid; grid-template-columns:78px 1fr; gap:5px; }
     .modal-options { display:flex; gap:12px; align-items:center; margin:10px 0; font-size:12px; font-weight:700; color:#495057; }
     .modal-options label { display:flex; align-items:center; gap:5px; margin:0; cursor:pointer; }
     .modal-options input { width:13px; height:13px; margin:0; padding:0; }
     .modal-field { margin-top:8px; }
     .modal-field label { display:block; margin:0 0 4px; font-size:11px; color:#495057; font-weight:700; }
-    .modal-field input, .modal-field textarea { width:100%; border:1px solid #ccd3da; border-radius:5px; padding:6px 8px; font-size:12px; font-family:inherit; }
-    .modal-field input { height:31px; }
-    .modal-field textarea { min-height:62px; resize:vertical; }
     .modal-actions { display:flex; justify-content:flex-end; gap:7px; margin-top:12px; }
-    .modal-actions .btn { padding:6px 10px; font-size:12px; }
+    .admin-panel { display:none; padding:18px; max-width:1180px; margin:0 auto; }
+    .admin-layout { display:grid; grid-template-columns:360px 1fr; gap:14px; align-items:start; }
+    .admin-card { background:#fff; border:1px solid #d9dee4; border-radius:8px; padding:16px; }
+    .admin-card h2 { font-size:16px; margin-bottom:10px; }
+    .admin-table { width:100%; border-collapse:collapse; font-size:12px; background:#fff; border:1px solid #d9dee4; border-radius:8px; overflow:hidden; }
+    .admin-table th, .admin-table td { border-bottom:1px solid #edf1f4; text-align:left; padding:8px; vertical-align:top; }
+    .admin-table th { background:#f7f9fb; color:#4b5663; font-weight:700; }
+    .admin-actions { display:flex; gap:6px; flex-wrap:wrap; }
     @media (max-width:1700px){ .board { grid-template-columns:repeat(5, 310px); } }
   </style>
 </head>
 <body>
   <div class="header">
     <div>
-      <h1>축산물 통관 대시보드</h1>
-      <div class="sub">BL별 통관 마일스톤 · 유니패스 실시간 조회</div>
+      <h1>축산물 통관조회</h1>
+      <div class="sub">화주별 B/L 통관 마일스톤 조회</div>
     </div>
     <div class="right">
       <button id="logoutBtn" class="btn gray" style="display:none" onclick="logout()">로그아웃</button>
@@ -125,10 +116,10 @@
   </div>
 
   <section id="loginPanel" class="login-panel">
-    <h2>화주 로그인</h2>
+    <h2>로그인</h2>
     <form onsubmit="login(event)">
       <label for="loginId">아이디</label>
-      <input id="loginId" autocomplete="username" value="HCH">
+      <input id="loginId" autocomplete="username">
       <label for="password">비밀번호</label>
       <input id="password" type="password" autocomplete="current-password">
       <button class="btn" type="submit">조회하기</button>
@@ -144,6 +135,55 @@
     <div id="boardWrap">
       <div id="board" class="board"></div>
     </div>
+    <section id="adminPanel" class="admin-panel">
+      <div class="toolbar" style="display:flex;padding:0 0 12px">
+        <div class="summary">관리자 설정</div>
+        <button class="btn" onclick="loadAdmin()">새로고침</button>
+      </div>
+      <div class="admin-layout">
+        <form class="admin-card" onsubmit="saveAdminAccount(event)">
+          <h2 id="adminFormTitle">계정 추가</h2>
+          <input id="adminAccountId" type="hidden">
+          <label>권한</label>
+          <select id="adminRole">
+            <option value="shipper">화주</option>
+            <option value="admin">관리자</option>
+          </select>
+          <label>아이디</label>
+          <input id="adminLoginId">
+          <label>비밀번호</label>
+          <input id="adminPassword" type="password" placeholder="신규 또는 변경 시 입력">
+          <label>표시명</label>
+          <input id="adminDisplayName" placeholder="예: 현대코퍼레이션H">
+          <label>필터텍스트</label>
+          <input id="adminFilter" placeholder="예: 현대코">
+          <label>출고요청 메일 받는 사람</label>
+          <textarea id="adminReleaseTo" placeholder="쉼표로 구분: a@aincustoms.com,b@aincustoms.com"></textarea>
+          <label><input id="adminActive" type="checkbox" style="width:13px;height:13px;margin-right:5px" checked> 사용</label>
+          <div class="admin-actions" style="margin-top:12px">
+            <button class="btn green" type="submit">저장</button>
+            <button class="btn gray" type="button" onclick="resetAdminForm()">새 계정</button>
+          </div>
+          <div id="adminError" class="error"></div>
+        </form>
+        <div>
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>권한</th>
+                <th>아이디</th>
+                <th>표시명</th>
+                <th>필터텍스트</th>
+                <th>출고요청 메일</th>
+                <th>상태</th>
+                <th>관리</th>
+              </tr>
+            </thead>
+            <tbody id="adminRows"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
   </main>
 
   <div id="releaseModalBg" class="modal-bg">
@@ -159,8 +199,20 @@
         <input id="releaseWeight" type="number" min="0" step="0.1">
       </div>
       <div class="modal-field">
+        <label for="releaseRequester">요청담당자</label>
+        <input id="releaseRequester" placeholder="이름 / 연락처">
+      </div>
+      <div class="modal-field">
+        <label for="releaseAddress">출고지주소</label>
+        <textarea id="releaseAddress" placeholder="출고지 주소를 입력하세요."></textarea>
+      </div>
+      <div class="modal-field">
+        <label for="releaseDate">출고일자</label>
+        <input id="releaseDate" type="date">
+      </div>
+      <div class="modal-field">
         <label for="releaseMemo">요청사항</label>
-        <textarea id="releaseMemo" placeholder="출고 희망일, 차량/운송 관련 요청사항 등을 입력하세요."></textarea>
+        <textarea id="releaseMemo" placeholder="차량, 운송, 기타 요청사항을 입력하세요."></textarea>
       </div>
       <div class="modal-actions">
         <button class="btn gray" onclick="closeReleaseModal()">취소</button>
@@ -178,39 +230,53 @@
       "반출": "stage-release"
     };
     let releaseRequestCard = null;
+    let adminAccounts = [];
 
     function esc(value) {
       return String(value ?? "").replace(/[&<>"']/g, ch => ({
         "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
       }[ch]));
     }
-
     function jsStr(value) {
       return String(value ?? "").replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/\r/g, "\\r").replace(/\n/g, "\\n");
     }
-
+    function displayConsignee(value) {
+      return String(value || "-").replace(/현대코퍼레이션H|현대코퍼레이션|현대코퍼|현대코/g, "현대코퍼레이션H");
+    }
     function fmtWeight(value, unit) {
       if (value === null || value === undefined || value === "" || Number.isNaN(Number(value))) return "-";
       return Number(value).toLocaleString("ko-KR", { maximumFractionDigits: 1 }) + (unit || "KG");
     }
-
     function numberValue(value) {
       if (value === null || value === undefined || value === "") return null;
       const parsed = Number(String(value).replace(/,/g, ""));
       return Number.isFinite(parsed) ? parsed : null;
     }
-
     function displayDate(value) {
       if (!value) return "-";
       return String(value).replace("T", " ").replace(/\.\d+(\+00:00|Z)?$/, "").replace("+00:00", "");
     }
-
-    function qBadge(label, value) {
-      const text = value || "-";
-      if (!value) return `<span class="badge b-none">${label} -</span>`;
-      if (String(value).includes("불합격")) return `<span class="badge b-fail">${label} 불합격</span>`;
-      if (String(value).includes("합격")) return `<span class="badge b-pass">${label} 합격</span>`;
-      return `<span class="badge b-wait">${label} ${esc(text)}</span>`;
+    function showCargoUi() {
+      document.getElementById("loginPanel").style.display = "none";
+      document.getElementById("adminPanel").style.display = "none";
+      document.getElementById("toolbar").style.display = "flex";
+      document.getElementById("board").style.display = "grid";
+      document.getElementById("logoutBtn").style.display = "";
+    }
+    function showAdminUi() {
+      document.getElementById("loginPanel").style.display = "none";
+      document.getElementById("toolbar").style.display = "none";
+      document.getElementById("board").style.display = "none";
+      document.getElementById("adminPanel").style.display = "block";
+      document.getElementById("logoutBtn").style.display = "";
+    }
+    function showLogin(message = "") {
+      document.getElementById("loginPanel").style.display = "";
+      document.getElementById("toolbar").style.display = "none";
+      document.getElementById("board").style.display = "none";
+      document.getElementById("adminPanel").style.display = "none";
+      document.getElementById("logoutBtn").style.display = "none";
+      document.getElementById("loginError").textContent = message;
     }
 
     async function login(event) {
@@ -226,31 +292,33 @@
       });
       const result = await response.json();
       if (!result.success) {
-        document.getElementById("loginError").textContent = result.message || "로그인에 실패했습니다.";
+        showLogin(result.message || "로그인에 실패했습니다.");
         return;
       }
-      document.getElementById("loginPanel").style.display = "none";
-      document.getElementById("toolbar").style.display = "flex";
-      document.getElementById("board").style.display = "grid";
-      document.getElementById("logoutBtn").style.display = "";
-      await loadData();
+      if (result.user.role === "admin") {
+        showAdminUi();
+        await loadAdmin();
+      } else {
+        showCargoUi();
+        await loadData();
+      }
     }
 
     async function loadData() {
       const response = await fetch("/api/cargo-data");
       const result = await response.json();
       if (!result.success) {
-        document.getElementById("loginPanel").style.display = "";
-        document.getElementById("toolbar").style.display = "none";
-        document.getElementById("board").style.display = "none";
-        document.getElementById("logoutBtn").style.display = "none";
-        document.getElementById("loginError").textContent = result.message || "";
+        showLogin(result.message || "");
         return;
       }
-
+      if (result.user.role === "admin") {
+        showAdminUi();
+        await loadAdmin();
+        return;
+      }
+      showCargoUi();
       document.getElementById("summary").textContent =
-        `${result.user.display_name} 통관 현황 · 총 ${result.total}건 · 마지막 동기화 ${displayDate(result.last_update)}`;
-
+        `${displayConsignee(result.user.display_name)} 통관 현황 · 총 ${result.total}건 · 마지막 동기화 ${displayDate(result.last_update)}`;
       const board = document.getElementById("board");
       board.innerHTML = result.stages.map(stage => {
         const cards = result.cards.filter(card => card.stage === stage);
@@ -265,12 +333,18 @@
       }).join("");
     }
 
+    function qBadge(label, value) {
+      const text = value || "-";
+      if (!value) return `<span class="badge b-none">${label} -</span>`;
+      if (String(value).includes("불합격")) return `<span class="badge b-fail">${label} 불합격</span>`;
+      if (String(value).includes("합격")) return `<span class="badge b-pass">${label} 합격</span>`;
+      return `<span class="badge b-wait">${label} ${esc(text)}</span>`;
+    }
     function permitBadge(card) {
       if (card.import_permitted) return `<span class="badge b-permit">수입신고 ${esc(card.import_permit_date || "-")}</span>`;
-      if (card.import_declared) return `<span class="badge b-wait">수입신고 (수리대기)</span>`;
+      if (card.import_declared) return `<span class="badge b-wait">수입신고 수리대기</span>`;
       return `<span class="badge b-none">수입신고 -</span>`;
     }
-
     function quotaHtml(card) {
       const checked = card.is_quota ? "checked" : "";
       const dateLine = card.is_quota ? `
@@ -296,7 +370,6 @@
         </div>
       `;
     }
-
     function revisionsHtml(card) {
       const revisions = card.revisions || [];
       if (!revisions.length) return "";
@@ -314,7 +387,6 @@
         </div>
       `;
     }
-
     function releaseHtml(card) {
       if (!(card.base_weight > 0)) return "";
       const pct = Math.min(100, Math.round((card.released_weight || 0) / card.base_weight * 100));
@@ -327,7 +399,6 @@
         <div class="release-bar"><div style="width:${pct}%"></div></div>
       `;
     }
-
     function releaseRequestButton(card) {
       if (card.stage !== "수입신고") return "";
       return `
@@ -336,7 +407,6 @@
         </div>
       `;
     }
-
     function cardHtml(card) {
       const alertClass = card.quota_alert === "over" ? " over" : (card.quota_alert === "warn" ? " warn" : "");
       const permitClass = card.stage === "수입신고" && card.import_permitted ? " permit-ready" : "";
@@ -345,7 +415,7 @@
           ${(card.revisions || []).length ? '<span class="revision-badge">확인사항</span>' : ""}
           <div class="top">
             <div>
-              <div class="consignee">${esc(card.consignee)}</div>
+              <div class="consignee">${esc(displayConsignee(card.consignee))}</div>
               <div class="bl">${esc(card.bl_number)}</div>
             </div>
           </div>
@@ -370,11 +440,6 @@
           ${releaseRequestButton(card)}
         </article>
       `;
-    }
-
-    async function logout() {
-      await fetch("/api/cargo-logout", { method: "POST" });
-      location.reload();
     }
 
     async function saveQuotaInput(blNumber, isQuota, quotaPermitDate) {
@@ -410,9 +475,12 @@
       const available = numberValue(releaseRequestCard.remaining_weight) || numberValue(releaseRequestCard.base_weight) || numberValue(releaseRequestCard.total_weight);
       document.querySelector('input[name="releaseType"][value="full"]').checked = true;
       document.getElementById("releaseWeight").value = available || "";
+      document.getElementById("releaseRequester").value = "";
+      document.getElementById("releaseAddress").value = "";
+      document.getElementById("releaseDate").value = "";
       document.getElementById("releaseMemo").value = "";
       document.getElementById("releaseModalCard").innerHTML = `
-        <div class="modal-row"><b>화주명</b><span>${esc(releaseRequestCard.consignee || "-")}</span></div>
+        <div class="modal-row"><b>화주명</b><span>${esc(displayConsignee(releaseRequestCard.consignee))}</span></div>
         <div class="modal-row"><b>B/L</b><span>${esc(releaseRequestCard.bl_number || "-")}</span></div>
         <div class="modal-row"><b>반출처</b><span>${esc(releaseRequestCard.destination || "-")}</span></div>
         <div class="modal-row"><b>품명</b><span>${esc(releaseRequestCard.product_name || "-")}</span></div>
@@ -421,31 +489,30 @@
       toggleReleaseType();
       document.getElementById("releaseModalBg").style.display = "flex";
     }
-
     function closeReleaseModal() {
       document.getElementById("releaseModalBg").style.display = "none";
       releaseRequestCard = null;
     }
-
     function toggleReleaseType() {
       const type = document.querySelector('input[name="releaseType"]:checked').value;
       document.getElementById("releaseWeightWrap").style.display = type === "partial" ? "" : "none";
     }
-
     async function submitReleaseRequest() {
       if (!releaseRequestCard) return;
       const type = document.querySelector('input[name="releaseType"]:checked').value;
-      const weight = document.getElementById("releaseWeight").value;
-      const memo = document.getElementById("releaseMemo").value;
+      const body = {
+        bl_number: releaseRequestCard.bl_number,
+        request_type: type,
+        requested_weight: type === "partial" ? document.getElementById("releaseWeight").value : "",
+        requester_name: document.getElementById("releaseRequester").value,
+        delivery_address: document.getElementById("releaseAddress").value,
+        requested_release_date: document.getElementById("releaseDate").value,
+        memo: document.getElementById("releaseMemo").value
+      };
       const response = await fetch("/api/cargo-release-request", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          bl_number: releaseRequestCard.bl_number,
-          request_type: type,
-          requested_weight: type === "partial" ? weight : "",
-          memo
-        })
+        body: JSON.stringify(body)
       });
       const result = await response.json();
       if (!result.success) {
@@ -454,6 +521,86 @@
       }
       closeReleaseModal();
       alert(result.email_sent ? "출고요청이 발송되었습니다." : "출고요청은 저장되었습니다. 메일 발송 환경변수를 확인해 주세요.");
+    }
+
+    async function loadAdmin() {
+      const response = await fetch("/api/cargo-admin");
+      const result = await response.json();
+      if (!result.success) {
+        showLogin(result.message || "관리자 정보를 불러오지 못했습니다.");
+        return;
+      }
+      showAdminUi();
+      adminAccounts = result.accounts || [];
+      const rows = document.getElementById("adminRows");
+      rows.innerHTML = adminAccounts.map(account => `
+        <tr>
+          <td>${account.role === "admin" ? "관리자" : "화주"}</td>
+          <td><b>${esc(account.login_id)}</b></td>
+          <td>${esc(displayConsignee(account.display_name))}</td>
+          <td>${esc(account.consignee_filter || "-")}</td>
+          <td>${esc(account.release_request_to || "-")}</td>
+          <td>${account.is_active ? "사용" : "중지"}</td>
+          <td><button class="btn gray" onclick="editAdminAccount('${jsStr(account.id)}')">수정</button></td>
+        </tr>
+      `).join("");
+    }
+    function resetAdminForm() {
+      document.getElementById("adminFormTitle").textContent = "계정 추가";
+      document.getElementById("adminAccountId").value = "";
+      document.getElementById("adminRole").value = "shipper";
+      document.getElementById("adminLoginId").value = "";
+      document.getElementById("adminPassword").value = "";
+      document.getElementById("adminDisplayName").value = "";
+      document.getElementById("adminFilter").value = "";
+      document.getElementById("adminReleaseTo").value = "";
+      document.getElementById("adminActive").checked = true;
+      document.getElementById("adminError").textContent = "";
+    }
+    function editAdminAccount(id) {
+      const account = adminAccounts.find(item => item.id === id);
+      if (!account) return;
+      document.getElementById("adminFormTitle").textContent = "계정 수정";
+      document.getElementById("adminAccountId").value = account.id;
+      document.getElementById("adminRole").value = account.role || "shipper";
+      document.getElementById("adminLoginId").value = account.login_id || "";
+      document.getElementById("adminPassword").value = "";
+      document.getElementById("adminDisplayName").value = displayConsignee(account.display_name || "");
+      document.getElementById("adminFilter").value = account.consignee_filter || "";
+      document.getElementById("adminReleaseTo").value = account.release_request_to || "";
+      document.getElementById("adminActive").checked = account.is_active !== false;
+      document.getElementById("adminError").textContent = "";
+    }
+    async function saveAdminAccount(event) {
+      event.preventDefault();
+      document.getElementById("adminError").textContent = "";
+      const payload = {
+        id: document.getElementById("adminAccountId").value || null,
+        role: document.getElementById("adminRole").value,
+        login_id: document.getElementById("adminLoginId").value,
+        password: document.getElementById("adminPassword").value,
+        display_name: document.getElementById("adminDisplayName").value,
+        consignee_filter: document.getElementById("adminFilter").value,
+        release_request_to: document.getElementById("adminReleaseTo").value,
+        is_active: document.getElementById("adminActive").checked
+      };
+      const response = await fetch("/api/cargo-admin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const result = await response.json();
+      if (!result.success) {
+        document.getElementById("adminError").textContent = result.message || "저장에 실패했습니다.";
+        return;
+      }
+      resetAdminForm();
+      await loadAdmin();
+    }
+
+    async function logout() {
+      await fetch("/api/cargo-logout", { method: "POST" });
+      location.reload();
     }
 
     loadData();
