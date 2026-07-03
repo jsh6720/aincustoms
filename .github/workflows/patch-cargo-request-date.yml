@@ -26,7 +26,7 @@ jobs:
           function replaceAll(from, to, label) {
             if (!html.includes(from)) {
               if (html.includes(to)) return;
-              throw new Error(`Pattern not found: ${label}`);
+              throw new Error('Pattern not found: ' + label);
             }
             html = html.split(from).join(to);
           }
@@ -34,7 +34,7 @@ jobs:
           function replaceOnce(from, to, label) {
             if (!html.includes(from)) {
               if (html.includes(to)) return;
-              throw new Error(`Pattern not found: ${label}`);
+              throw new Error('Pattern not found: ' + label);
             }
             html = html.replace(from, to);
           }
@@ -45,13 +45,63 @@ jobs:
             'date field markup'
           );
 
-          const helperAnchor = `    function displayDate(value) {\n      if (!value) return "-";\n      return String(value).replace("T", " ").replace(/\\.\\d+(\\+00:00|Z)?$/, "").replace("+00:00", "");\n    }`;
-          const helperBlock = `${helperAnchor}\n    function normalizeRequestDate(value) {\n      const raw = String(value || "").trim();\n      if (!raw) return "";\n      let month = "";\n      let day = "";\n      let match = raw.match(/^(\\d{4})-(\\d{1,2})-(\\d{1,2})$/);\n      if (match) {\n        month = match[2];\n        day = match[3];\n      } else {\n        match = raw.match(/^(\\d{1,2})[-./](\\d{1,2})$/);\n        if (match) {\n          month = match[1];\n          day = match[2];\n        } else if (/^\\d{4}$/.test(raw)) {\n          month = raw.slice(0, 2);\n          day = raw.slice(2, 4);\n        } else {\n          return null;\n        }\n      }\n      const year = new Date().getFullYear();\n      const monthNumber = Number(month);\n      const dayNumber = Number(day);\n      const date = new Date(year, monthNumber - 1, dayNumber);\n      if (\n        !Number.isInteger(monthNumber) ||\n        !Number.isInteger(dayNumber) ||\n        date.getFullYear() !== year ||\n        date.getMonth() !== monthNumber - 1 ||\n        date.getDate() !== dayNumber\n      ) {\n        return null;\n      }\n      return `${year}-${String(monthNumber).padStart(2, "0")}-${String(dayNumber).padStart(2, "0")}`;\n    }\n    function toRequestMonthDay(value) {\n      const normalized = normalizeRequestDate(value);\n      return normalized ? normalized.slice(5) : "";\n    }\n    function formatRequestDateInput(input) {\n      const normalized = normalizeRequestDate(input.value);\n      if (normalized) input.value = normalized.slice(5);\n    }`;
-          replaceOnce(helperAnchor, helperBlock, 'date helper functions');
+          const helperAnchor = [
+            '    function displayDate(value) {',
+            '      if (!value) return "-";',
+            '      return String(value).replace("T", " ").replace(/\\.\\d+(\\+00:00|Z)?$/, "").replace("+00:00", "");',
+            '    }'
+          ].join('\n');
+          const helperInsert = [
+            '    function normalizeRequestDate(value) {',
+            '      const raw = String(value || "").trim();',
+            '      if (!raw) return "";',
+            '      let month = "";',
+            '      let day = "";',
+            '      let match = raw.match(/^(\\d{4})-(\\d{1,2})-(\\d{1,2})$/);',
+            '      if (match) {',
+            '        month = match[2];',
+            '        day = match[3];',
+            '      } else {',
+            '        match = raw.match(/^(\\d{1,2})[-./](\\d{1,2})$/);',
+            '        if (match) {',
+            '          month = match[1];',
+            '          day = match[2];',
+            '        } else if (/^\\d{4}$/.test(raw)) {',
+            '          month = raw.slice(0, 2);',
+            '          day = raw.slice(2, 4);',
+            '        } else {',
+            '          return null;',
+            '        }',
+            '      }',
+            '      const year = new Date().getFullYear();',
+            '      const monthNumber = Number(month);',
+            '      const dayNumber = Number(day);',
+            '      const date = new Date(year, monthNumber - 1, dayNumber);',
+            '      if (',
+            '        !Number.isInteger(monthNumber) ||',
+            '        !Number.isInteger(dayNumber) ||',
+            '        date.getFullYear() !== year ||',
+            '        date.getMonth() !== monthNumber - 1 ||',
+            '        date.getDate() !== dayNumber',
+            '      ) {',
+            '        return null;',
+            '      }',
+            '      return year + "-" + String(monthNumber).padStart(2, "0") + "-" + String(dayNumber).padStart(2, "0");',
+            '    }',
+            '    function toRequestMonthDay(value) {',
+            '      const normalized = normalizeRequestDate(value);',
+            '      return normalized ? normalized.slice(5) : "";',
+            '    }',
+            '    function formatRequestDateInput(input) {',
+            '      const normalized = normalizeRequestDate(input.value);',
+            '      if (normalized) input.value = normalized.slice(5);',
+            '    }'
+          ].join('\n');
+          replaceOnce(helperAnchor, helperAnchor + '\n' + helperInsert, 'date helper functions');
 
           replaceAll(
-            'document.querySelector("label[for=\'releaseDate\']").textContent = "출고일자";',
-            'document.querySelector("label[for=\'releaseDate\']").innerHTML = \'출고월일<span class="field-hint">올해 연도로 자동 저장됩니다.</span>\';',
+            "document.querySelector(\"label[for='releaseDate']\").textContent = \"출고일자\";",
+            "document.querySelector(\"label[for='releaseDate']\").innerHTML = '출고월일<span class=\"field-hint\">올해 연도로 자동 저장됩니다.</span>';",
             'date label setup'
           );
           replaceOnce(
@@ -65,8 +115,8 @@ jobs:
             'prefill month-day'
           );
           replaceOnce(
-            '      const type = document.querySelector(\'input[name="releaseType"]:checked\').value;\n      const commonBody = {',
-            '      const type = document.querySelector(\'input[name="releaseType"]:checked\').value;\n      const requestedReleaseDate = normalizeRequestDate(document.getElementById("releaseDate").value);\n      if (requestedReleaseDate === null) {\n        alert("출고월일은 MM-DD 형식으로 입력해 주세요. 예: 07-15");\n        return;\n      }\n      const commonBody = {',
+            "      const type = document.querySelector('input[name=\"releaseType\"]:checked').value;\n      const commonBody = {",
+            "      const type = document.querySelector('input[name=\"releaseType\"]:checked').value;\n      const requestedReleaseDate = normalizeRequestDate(document.getElementById(\"releaseDate\").value);\n      if (requestedReleaseDate === null) {\n        alert(\"출고월일은 MM-DD 형식으로 입력해 주세요. 예: 07-15\");\n        return;\n      }\n      const commonBody = {",
             'submit date validation'
           );
           replaceOnce(
