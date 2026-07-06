@@ -97,12 +97,16 @@ module.exports = async function handler(req, res) {
     }
 
     if (req.method === "DELETE") {
-      if ((session.role || "shipper") !== "admin") {
-        return res.status(403).json({ success: false, message: "관리자만 확인사항을 삭제할 수 있습니다." });
-      }
       const id = cleanText(body.id);
       if (!id) {
         return res.status(400).json({ success: false, message: "삭제할 확인사항이 올바르지 않습니다." });
+      }
+      const item = revisions.find((row) => String(row.id || "") === id);
+      const writer = String(item?.created_by || "").toLowerCase();
+      const loginId = String(session.login_id || "").toLowerCase();
+      const canDelete = (session.role || "shipper") === "admin" || (!!writer && writer === loginId);
+      if (!canDelete) {
+        return res.status(403).json({ success: false, message: "본인이 작성한 확인사항만 삭제할 수 있습니다." });
       }
       revisions = revisions.filter((item) => String(item.id || "") !== id);
     }

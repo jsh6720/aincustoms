@@ -187,6 +187,7 @@
             </div>
             ${card.pending_actual_received_date ? `<div class="pending">승인대기 ${esc(shortDate(card.pending_actual_received_date))}</div>` : ""}
             <div class="card-actions">
+              ${card.pending_actual_received_date ? `<button class="btn" onclick="approvePendingOriginalDoc(${index})">수령일 승인</button>` : ""}
               <button class="btn mail-btn" onclick="openReceiptMailModal(${index})">H/C 수령메일</button>
             </div>
           </section>
@@ -215,6 +216,29 @@
         return;
       }
       alert("저장되었습니다.");
+      await load();
+    }
+
+    async function approvePendingOriginalDoc(index) {
+      const card = visible[index];
+      if (!card || !card.pending_actual_received_date) return;
+      if (!confirm(`${card.bl_number} 실제수령일 ${shortDate(card.pending_actual_received_date)} 요청을 승인할까요?`)) return;
+      const res = await fetch("/api/cargo-original-docs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          account_id: card.account_id,
+          bl_number: card.bl_number,
+          obl_received: document.getElementById(`obl${index}`).value === "true",
+          hc_received: document.getElementById(`hc${index}`).value === "true",
+          approve_pending: true
+        })
+      });
+      const result = await res.json();
+      if (!result.success) {
+        alert(result.message || "실제수령일 승인에 실패했습니다.");
+        return;
+      }
       await load();
     }
 

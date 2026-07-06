@@ -379,6 +379,7 @@
     let receiptMailCard = null;
     let adminAccounts = [];
     let currentUserRole = "shipper";
+    let currentUserLogin = "";
     let currentCards = [];
     let docsCalendarMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
     let docsRowCards = [];
@@ -554,6 +555,7 @@
         return;
       }
       currentUserRole = result.user.role || "shipper";
+      currentUserLogin = result.user.login_id || "";
       currentCards = result.cards || [];
       const activeCards = currentCards.filter(card => !isFullyReleased(card));
       showCargoUi();
@@ -637,7 +639,8 @@
               const editValue = itemId ? (revisionEditDrafts[itemId] ?? item.text ?? "") : "";
               const source = revisionSource(item);
               const isDone = item && item.done === true;
-              const deleteButton = currentUserRole === "admin"
+              const canDelete = currentUserRole === "admin" || revisionOwner(item);
+              const deleteButton = canDelete
                 ? `<button class="btn danger" onclick="deleteRevision('${jsStr(card.bl_number)}', '${jsStr(card.account_id)}', '${jsStr(itemId)}')">삭제</button>`
                 : "";
               if (isEditing) {
@@ -680,6 +683,10 @@
       if (!writer || writer === "admin" || writer === "aincustoms" || writer.includes("ain")) return "아인";
       return "화주";
     }
+    function revisionOwner(item) {
+      const writer = String((item && item.created_by) || "").toLowerCase();
+      return !!writer && writer === String(currentUserLogin || "").toLowerCase();
+    }
     function originalDocsHtml(card, index) {
       const obl = !!card.obl_received;
       const hc = !!card.hc_received;
@@ -701,6 +708,9 @@
       const receiptMailButton = currentUserRole === "admin"
         ? `<button type="button" class="receipt-mail-btn" onclick="openReceiptMailModal(${index})">H/C 수령메일</button>`
         : "";
+      const approvePendingButton = currentUserRole === "admin" && card.pending_actual_received_date
+        ? `<button type="button" class="receipt-mail-btn" onclick="approvePendingOriginalDoc(${index})">수령일 승인</button>`
+        : "";
       return `
         <div class="doc-box">
           <span class="doc-title">원본필수서류</span>
@@ -708,6 +718,7 @@
           ${hcPill}
           ${receivedDate}${pendingDate}
           ${receiptMailButton}
+          ${approvePendingButton}
           ${adminControls}
         </div>
       `;
@@ -935,7 +946,7 @@
           <td class="action">
             <div class="docs-actions">
               <button class="btn green" onclick="saveOriginalDocs(${sourceIndex}, ${index}, false)">저장</button>
-              ${card.pending_actual_received_date ? `<button class="btn" onclick="saveOriginalDocs(${sourceIndex}, ${index}, true)">승인</button>` : ""}
+              ${card.pending_actual_received_date ? `<button class="btn" onclick="saveOriginalDocs(${sourceIndex}, ${index}, true)">수령일 승인</button>` : ""}
             </div>
           </td>
         ` : `
@@ -1049,6 +1060,28 @@
       const result = await response.json();
       if (!result.success) {
         alert(result.message || "원본서류 수취현황 저장에 실패했습니다.");
+        return;
+      }
+      await loadData();
+    }
+    async function approvePendingOriginalDoc(cardIndex) {
+      const card = currentCards[cardIndex];
+      if (!card || !card.pending_actual_received_date) return;
+      if (!confirm(`${card.bl_number} 실제수령일 ${shortDate(card.pending_actual_received_date)} 요청을 승인할까요?`)) return;
+      const response = await fetch("/api/cargo-original-docs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          account_id: card.account_id,
+          bl_number: card.bl_number,
+          obl_received: !!card.obl_received,
+          hc_received: !!card.hc_received,
+          approve_pending: true
+        })
+      });
+      const result = await response.json();
+      if (!result.success) {
+        alert(result.message || "실제수령일 승인에 실패했습니다.");
         return;
       }
       await loadData();
