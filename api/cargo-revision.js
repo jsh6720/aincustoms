@@ -70,6 +70,7 @@ module.exports = async function handler(req, res) {
       revisions.push({
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         text,
+        done: false,
         created_at: nowIso(),
         created_by: session.login_id || "",
       });
@@ -78,12 +79,19 @@ module.exports = async function handler(req, res) {
     if (req.method === "PUT") {
       const id = cleanText(body.id);
       const text = cleanText(body.text);
-      if (!id || !text) {
+      const hasDone = Object.prototype.hasOwnProperty.call(body, "done");
+      if (!id || (!text && !hasDone)) {
         return res.status(400).json({ success: false, message: "수정할 확인사항이 올바르지 않습니다." });
       }
       revisions = revisions.map((item) =>
         String(item.id || "") === id
-          ? { ...item, text, updated_at: nowIso(), updated_by: session.login_id || "" }
+          ? {
+              ...item,
+              ...(text ? { text } : {}),
+              ...(hasDone ? { done: body.done === true || body.done === "true" || body.done === 1 || body.done === "1" } : {}),
+              updated_at: nowIso(),
+              updated_by: session.login_id || "",
+            }
           : item
       );
     }

@@ -94,6 +94,8 @@
     .revision-item { display:grid; grid-template-columns:minmax(0, 1fr) auto; gap:4px; align-items:center; background:#fff; border:1px solid #cfe0d6; border-radius:5px; padding:5px 6px; line-height:1.28; word-break:break-word; box-shadow:0 1px 2px rgba(47,107,79,.06); }
     .revision-main { min-width:0; display:flex; align-items:center; gap:5px; }
     .revision-text { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .revision-text.done { color:#7b8794; text-decoration:line-through; }
+    .revision-check { width:13px; height:13px; margin:0; flex:0 0 auto; accent-color:#2f6b4f; }
     .revision-source { flex:0 0 auto; border:1px solid #d3ded8; border-radius:999px; padding:0 5px; color:#577061; background:#f7fbf8; font-size:8.5px; line-height:15px; font-weight:800; white-space:nowrap; }
     .revision-form { display:flex; gap:5px; margin-top:5px; }
     .revision-form input { flex:1; min-width:0; height:26px; border:1px solid #dfe3e8; border-radius:5px; padding:4px 7px; font-size:10.5px; }
@@ -106,6 +108,8 @@
     .card-actions { display:flex; justify-content:flex-end; margin-top:6px; border-top:1px solid #edf1f4; padding-top:6px; }
     .request-btn { background:#2563eb; color:#fff; border:none; border-radius:5px; padding:4px 9px; font-size:10px; font-weight:800; cursor:pointer; box-shadow:0 1px 3px rgba(37,99,235,.24); }
     .request-btn:hover { background:#1d4ed8; }
+    .receipt-mail-btn { margin-left:auto; background:#3b5b92; color:#fff; border:none; border-radius:5px; padding:3px 7px; font-size:9.5px; font-weight:800; cursor:pointer; }
+    .receipt-mail-btn:hover { background:#2f4976; }
     .modal-bg { display:none; position:fixed; inset:0; background:rgba(15,23,42,.42); z-index:200; align-items:center; justify-content:center; }
     .modal { width:470px; max-height:92vh; overflow:auto; background:#fff; border:1px solid #d9dee4; border-radius:8px; box-shadow:0 18px 42px rgba(15,23,42,.2); padding:18px; }
     .modal h2 { font-size:17px; margin-bottom:10px; color:#1f2933; }
@@ -339,6 +343,28 @@
       </div>
     </div>
   </div>
+  <div id="receiptMailModalBg" class="modal-bg">
+    <div class="modal">
+      <h2>H/C 원본서류 수령 메일</h2>
+      <div id="receiptMailModalCard" class="modal-card"></div>
+      <div class="modal-field">
+        <label for="receiptMailPages">수령한 전체 페이지</label>
+        <input id="receiptMailPages" type="number" min="1" step="1" placeholder="예: 12">
+      </div>
+      <div class="modal-field">
+        <label for="receiptMailMemo">확인사항</label>
+        <textarea id="receiptMailMemo" placeholder="추가 확인사항이 있으면 입력하세요."></textarea>
+      </div>
+      <div class="modal-card">
+        <div class="modal-row"><b>받는 사람</b><span>dmswk@hyundaicorp.com, ye25@hyundaicorp.com</span></div>
+        <div class="modal-row"><b>참조</b><span>jsh@aincustoms.com, jhcho@aincustoms.com, bill@aincustoms.com</span></div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn gray" onclick="closeReceiptMailModal()">취소</button>
+        <button class="btn" onclick="submitReceiptMail()">메일 발송</button>
+      </div>
+    </div>
+  </div>
 
   <script>
     const stageClasses = {
@@ -350,6 +376,7 @@
     };
     let releaseRequestCard = null;
     let requestMode = "release";
+    let receiptMailCard = null;
     let adminAccounts = [];
     let currentUserRole = "shipper";
     let currentCards = [];
@@ -609,6 +636,7 @@
               const isEditing = itemId && revisionEditModes[itemId];
               const editValue = itemId ? (revisionEditDrafts[itemId] ?? item.text ?? "") : "";
               const source = revisionSource(item);
+              const isDone = item && item.done === true;
               const deleteButton = currentUserRole === "admin"
                 ? `<button class="btn danger" onclick="deleteRevision('${jsStr(card.bl_number)}', '${jsStr(card.account_id)}', '${jsStr(itemId)}')">삭제</button>`
                 : "";
@@ -626,7 +654,8 @@
               return `
               <div class="revision-item">
                 <div class="revision-main">
-                  <span class="revision-text">${esc(item.text || item)}</span>
+                  ${itemId ? `<input class="revision-check" type="checkbox" ${isDone ? "checked" : ""} title="완료" onclick="toggleRevisionDone('${jsStr(card.bl_number)}', '${jsStr(card.account_id)}', '${jsStr(itemId)}', this.checked)">` : ""}
+                  <span class="revision-text${isDone ? " done" : ""}">${esc(item.text || item)}</span>
                   <span class="revision-source">${source}</span>
                 </div>
                 ${itemId ? `<div class="revision-actions">
@@ -669,12 +698,16 @@
           <input id="cardActual${index}" type="hidden" value="${esc(shortDate(card.actual_received_date))}">
         </div>
       ` : "";
+      const receiptMailButton = currentUserRole === "admin"
+        ? `<button type="button" class="receipt-mail-btn" onclick="openReceiptMailModal(${index})">H/C 수령메일</button>`
+        : "";
       return `
         <div class="doc-box">
           <span class="doc-title">원본필수서류</span>
           ${oblPill}
           ${hcPill}
           ${receivedDate}${pendingDate}
+          ${receiptMailButton}
           ${adminControls}
         </div>
       `;
@@ -823,6 +856,19 @@
       }
       delete revisionEditModes[id];
       delete revisionEditDrafts[id];
+      await loadData();
+    }
+
+    async function toggleRevisionDone(blNumber, accountId, id, done) {
+      const response = await fetch("/api/cargo-revision", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ account_id: accountId, bl_number: blNumber, id, done })
+      });
+      const result = await response.json();
+      if (!result.success) {
+        alert(result.message || "확인사항 완료 상태 저장에 실패했습니다.");
+      }
       await loadData();
     }
 
@@ -1304,6 +1350,52 @@
       const successText = requestMode === "docs" ? "원본서류 도착/수령 요청" : (requestMode === "import" ? "수입신고요청" : "출고요청");
       closeReleaseModal();
       alert(result.email_sent ? `${successText}이 발송되었습니다.` : `${successText}은 저장되었습니다. 메일 발송 환경변수를 확인해 주세요.`);
+    }
+    function openReceiptMailModal(cardIndex) {
+      receiptMailCard = currentCards[cardIndex];
+      if (!receiptMailCard) {
+        alert("카드 정보를 찾지 못했습니다.");
+        return;
+      }
+      document.getElementById("receiptMailPages").value = "";
+      document.getElementById("receiptMailMemo").value = "";
+      document.getElementById("receiptMailModalCard").innerHTML = `
+        <div class="modal-row"><b>화주명</b><span>${esc(displayConsignee(receiptMailCard.consignee))}</span></div>
+        <div class="modal-row"><b>B/L</b><span>${esc(receiptMailCard.bl_number || "-")}</span></div>
+        <div class="modal-row"><b>반출처</b><span>${esc(receiptMailCard.destination || "-")}</span></div>
+        <div class="modal-row"><b>품명</b><span>${esc(receiptMailCard.product_name || "-")}</span></div>
+        <div class="modal-row"><b>수령일</b><span>${esc(shortDate(receiptMailCard.actual_received_date) || "-")}</span></div>
+      `;
+      document.getElementById("receiptMailModalBg").style.display = "flex";
+    }
+    function closeReceiptMailModal() {
+      document.getElementById("receiptMailModalBg").style.display = "none";
+      receiptMailCard = null;
+    }
+    async function submitReceiptMail() {
+      if (!receiptMailCard) return;
+      const totalPages = document.getElementById("receiptMailPages").value.trim();
+      if (!totalPages || Number(totalPages) <= 0) {
+        alert("수령한 전체 페이지를 입력해 주세요.");
+        return;
+      }
+      const response = await fetch("/api/cargo-original-doc-receipt-mail", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          account_id: receiptMailCard.account_id,
+          bl_number: receiptMailCard.bl_number,
+          total_pages: totalPages,
+          memo: document.getElementById("receiptMailMemo").value
+        })
+      });
+      const result = await response.json();
+      if (!result.success) {
+        alert(result.message || "H/C 원본서류 수령 메일 발송에 실패했습니다.");
+        return;
+      }
+      closeReceiptMailModal();
+      alert("H/C 원본서류 수령 메일이 발송되었습니다.");
     }
 
     async function loadAdmin() {
