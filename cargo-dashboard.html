@@ -477,6 +477,11 @@
       document.getElementById("adminSettingsBtn").style.display = "none";
       document.getElementById("loginError").textContent = message;
     }
+    function loginNextPath() {
+      const next = new URLSearchParams(location.search).get("next") || "";
+      if (!next || !next.startsWith("/") || next.startsWith("//") || next.includes("://")) return "";
+      return next;
+    }
 
     async function login(event) {
       event.preventDefault();
@@ -492,6 +497,11 @@
       const result = await response.json();
       if (!result.success) {
         showLogin(result.message || "로그인에 실패했습니다.");
+        return;
+      }
+      const next = loginNextPath();
+      if (next) {
+        location.href = next;
         return;
       }
       if (result.user.role === "admin") {
