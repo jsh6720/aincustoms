@@ -27,10 +27,21 @@
     .controls { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
     label { display:flex; flex-direction:column; gap:4px; font-size:11px; font-weight:800; color:#4b5663; }
     select, input { height:34px; border:1px solid #cfd6de; border-radius:6px; padding:0 8px; font-size:13px; background:#fff; }
+    textarea { width:100%; min-height:84px; border:1px solid #cfd6de; border-radius:6px; padding:8px; font-size:13px; font-family:inherit; resize:vertical; }
+    .card-actions { display:flex; justify-content:flex-end; margin-top:9px; padding-top:8px; border-top:1px solid #edf1f4; }
+    .mail-btn { background:#3b5b92; }
     .pending { margin-top:7px; color:#b45309; font-size:11px; font-weight:900; }
     .empty, .error { margin:30px 12px; text-align:center; color:#7b8794; font-size:13px; line-height:1.5; }
     .error { color:#c92a2a; font-weight:800; }
     .error .btn { margin-top:12px; min-width:120px; }
+    .modal-bg { display:none; position:fixed; inset:0; z-index:30; align-items:center; justify-content:center; padding:14px; background:rgba(15,23,42,.45); }
+    .modal { width:100%; max-width:420px; max-height:92vh; overflow:auto; background:#fff; border:1px solid #d9dee4; border-radius:9px; padding:16px; box-shadow:0 18px 42px rgba(15,23,42,.22); }
+    .modal h2 { font-size:17px; margin-bottom:10px; color:#1f2933; }
+    .modal-card { background:#f8f9fa; border:1px solid #edf0f2; border-radius:6px; padding:9px; margin-bottom:10px; font-size:11px; line-height:1.45; }
+    .modal-row { display:grid; grid-template-columns:64px 1fr; gap:5px; }
+    .modal-field { margin-top:9px; }
+    .modal-field label { display:block; margin-bottom:4px; font-size:12px; color:#495057; font-weight:800; }
+    .modal-actions { display:flex; justify-content:flex-end; gap:7px; margin-top:12px; }
     .bottom-save { position:fixed; left:0; right:0; bottom:0; padding:10px; background:rgba(244,246,248,.96); border-top:1px solid #dbe2e8; }
     .bottom-save .btn { width:100%; height:42px; font-size:14px; }
   </style>
@@ -49,10 +60,33 @@
   <div class="bottom-save">
     <button class="btn" onclick="saveAll()">전체 저장</button>
   </div>
+  <div id="receiptMailModalBg" class="modal-bg">
+    <div class="modal">
+      <h2>H/C 원본서류 수령 메일</h2>
+      <div id="receiptMailModalCard" class="modal-card"></div>
+      <div class="modal-field">
+        <label for="receiptMailPages">수령한 전체 페이지</label>
+        <input id="receiptMailPages" type="number" min="1" step="1" placeholder="예: 12">
+      </div>
+      <div class="modal-field">
+        <label for="receiptMailMemo">확인사항</label>
+        <textarea id="receiptMailMemo" placeholder="추가 확인사항이 있으면 입력하세요."></textarea>
+      </div>
+      <div class="modal-card">
+        <div class="modal-row"><b>받는 사람</b><span>dmswk@hyundaicorp.com, ye25@hyundaicorp.com</span></div>
+        <div class="modal-row"><b>참조</b><span>jsh@aincustoms.com, jhcho@aincustoms.com, bill@aincustoms.com</span></div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn gray" onclick="closeReceiptMailModal()">취소</button>
+        <button class="btn" onclick="submitReceiptMail()">메일 발송</button>
+      </div>
+    </div>
+  </div>
 
   <script>
     let cards = [];
     let visible = [];
+    let receiptMailCard = null;
 
     function esc(value) {
       return String(value ?? "").replace(/[&<>"']/g, ch => ({
@@ -152,6 +186,9 @@
               </label>
             </div>
             ${card.pending_actual_received_date ? `<div class="pending">승인대기 ${esc(shortDate(card.pending_actual_received_date))}</div>` : ""}
+            <div class="card-actions">
+              <button class="btn mail-btn" onclick="openReceiptMailModal(${index})">H/C 수령메일</button>
+            </div>
           </section>
         `;
       }).join("");
@@ -179,6 +216,55 @@
       }
       alert("저장되었습니다.");
       await load();
+    }
+
+    function openReceiptMailModal(index) {
+      receiptMailCard = visible[index];
+      if (!receiptMailCard) {
+        alert("카드 정보를 찾지 못했습니다.");
+        return;
+      }
+      document.getElementById("receiptMailPages").value = "";
+      document.getElementById("receiptMailMemo").value = "";
+      document.getElementById("receiptMailModalCard").innerHTML = `
+        <div class="modal-row"><b>화주명</b><span>${esc(displayConsignee(receiptMailCard.consignee))}</span></div>
+        <div class="modal-row"><b>B/L</b><span>${esc(receiptMailCard.bl_number || "-")}</span></div>
+        <div class="modal-row"><b>반출처</b><span>${esc(receiptMailCard.destination || "-")}</span></div>
+        <div class="modal-row"><b>품명</b><span>${esc(receiptMailCard.product_name || "-")}</span></div>
+        <div class="modal-row"><b>수령일</b><span>${esc(shortDate(receiptMailCard.actual_received_date) || "-")}</span></div>
+      `;
+      document.getElementById("receiptMailModalBg").style.display = "flex";
+    }
+
+    function closeReceiptMailModal() {
+      document.getElementById("receiptMailModalBg").style.display = "none";
+      receiptMailCard = null;
+    }
+
+    async function submitReceiptMail() {
+      if (!receiptMailCard) return;
+      const totalPages = document.getElementById("receiptMailPages").value.trim();
+      if (!totalPages || Number(totalPages) <= 0) {
+        alert("수령한 전체 페이지를 입력해 주세요.");
+        return;
+      }
+      const res = await fetch("/api/cargo-original-doc-receipt-mail", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          account_id: receiptMailCard.account_id,
+          bl_number: receiptMailCard.bl_number,
+          total_pages: totalPages,
+          memo: document.getElementById("receiptMailMemo").value
+        })
+      });
+      const result = await res.json();
+      if (!result.success) {
+        alert(result.message || "H/C 원본서류 수령 메일 발송에 실패했습니다.");
+        return;
+      }
+      closeReceiptMailModal();
+      alert("H/C 원본서류 수령 메일이 발송되었습니다.");
     }
 
     load();
