@@ -946,6 +946,7 @@
 
     async function saveManualFields(accountId, blNumber) {
       const payload = {
+        action: "manual_fields",
         account_id: accountId,
         bl_number: blNumber,
         delivery_terms: document.getElementById(`manualDelivery-${blNumber}`)?.value || "",
@@ -953,7 +954,7 @@
         free_time_expiry_date: document.getElementById(`manualFree-${blNumber}`)?.value || "",
         warehouse_expected_date: document.getElementById(`manualWh-${blNumber}`)?.value || "",
       };
-      const response = await fetch("/api/cargo-manual-fields", {
+      const response = await fetch("/api/cargo-quota", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
