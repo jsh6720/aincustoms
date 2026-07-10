@@ -110,13 +110,13 @@ function computeQuotaMessages(card) {
 async function fetchUserInputs(accountId) {
   try {
     const query = accountId
-      ? `/rest/v1/cargo_card_user_inputs?select=account_id,bl_number,is_quota,quota_permit_date,is_hidden,hidden_at,hidden_by,delivery_terms,eta_date,storage_yard,free_time_days,free_time_expiry_date,warehouse_expected_date,updated_at&account_id=eq.${accountId}`
-      : "/rest/v1/cargo_card_user_inputs?select=account_id,bl_number,is_quota,quota_permit_date,is_hidden,hidden_at,hidden_by,delivery_terms,eta_date,storage_yard,free_time_days,free_time_expiry_date,warehouse_expected_date,updated_at";
+      ? `/rest/v1/cargo_card_user_inputs?select=account_id,bl_number,is_quota,quota_permit_date,is_hidden,hidden_at,hidden_by,delivery_terms,eta_date,storage_yard,free_time_days,free_time_expiry_date,warehouse_expected_date,animal_quarantine_override,food_quarantine_override,import_declaration_override,distribution_history_override,distribution_history_number,updated_at&account_id=eq.${accountId}`
+      : "/rest/v1/cargo_card_user_inputs?select=account_id,bl_number,is_quota,quota_permit_date,is_hidden,hidden_at,hidden_by,delivery_terms,eta_date,storage_yard,free_time_days,free_time_expiry_date,warehouse_expected_date,animal_quarantine_override,food_quarantine_override,import_declaration_override,distribution_history_override,distribution_history_number,updated_at";
     return await supabaseFetch(
       query
     );
   } catch (error) {
-    if (["is_hidden", "delivery_terms", "eta_date", "storage_yard", "free_time_days", "free_time_expiry_date", "warehouse_expected_date"].some((name) => String(error.message || "").includes(name))) {
+    if (["is_hidden", "delivery_terms", "eta_date", "storage_yard", "free_time_days", "free_time_expiry_date", "warehouse_expected_date", "animal_quarantine_override", "food_quarantine_override", "import_declaration_override", "distribution_history_override", "distribution_history_number"].some((name) => String(error.message || "").includes(name))) {
       const fallback = accountId
         ? `/rest/v1/cargo_card_user_inputs?select=account_id,bl_number,is_quota,quota_permit_date,updated_at&account_id=eq.${accountId}`
         : "/rest/v1/cargo_card_user_inputs?select=account_id,bl_number,is_quota,quota_permit_date,updated_at";
@@ -191,6 +191,14 @@ function applyUserInputs(cards, inputs) {
       free_time_days: input.free_time_days || card.free_time_days || "",
       free_time_expiry_date: input.free_time_expiry_date || card.free_time_expiry_date || "",
       warehouse_expected_date: input.warehouse_expected_date || card.warehouse_expected_date || "",
+      animal_quarantine_override: input.animal_quarantine_override || "",
+      food_quarantine_override: input.food_quarantine_override || "",
+      import_declaration_override: input.import_declaration_override || "",
+      distribution_history_override: input.distribution_history_override || "",
+      distribution_history_number: input.distribution_history_number || "",
+      animal_quarantine: input.animal_quarantine_override || card.animal_quarantine || "",
+      food_quarantine: input.food_quarantine_override || card.food_quarantine || "",
+      import_declared: input.import_declaration_override === "O" ? true : (input.import_declaration_override === "X" ? false : card.import_declared),
       quota_input_updated_at: input.updated_at || null,
     });
   });

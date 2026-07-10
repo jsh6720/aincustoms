@@ -105,6 +105,13 @@
     .manual-edit label { display:flex; flex-direction:column; gap:2px; color:#64707d; font-size:9.5px; font-weight:800; }
     .manual-edit input { width:100%; height:24px; border:1px solid #d4dbe3; border-radius:4px; padding:2px 6px; font-size:10px; font-family:inherit; background:#fff; }
     .manual-actions { display:flex; justify-content:flex-end; gap:4px; grid-column:1 / -1; }
+    .admin-status-box { margin-top:5px; padding:6px; border:1px solid #d8e2f0; border-left:3px solid #4263eb; border-radius:6px; background:#f7faff; font-size:10px; }
+    .admin-status-title { color:#29448f; font-weight:900; margin-bottom:4px; }
+    .admin-status-grid { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:4px; align-items:end; }
+    .admin-status-grid label { display:flex; flex-direction:column; gap:2px; color:#526071; font-size:9px; font-weight:800; }
+    .admin-status-grid select, .admin-status-grid input { width:100%; height:23px; border:1px solid #cdd7e5; border-radius:4px; padding:1px 5px; background:#fff; font-size:10px; font-family:inherit; }
+    .admin-status-grid .wide { grid-column:span 2; }
+    .admin-status-actions { display:flex; justify-content:flex-end; margin-top:5px; }
     .revision-box { margin-top:6px; border:1px solid #d8e2dc; border-left:3px solid #2f6b4f; border-radius:6px; background:#f2fbf6; padding:6px; }
     .revision-title { color:#24533d; font-weight:800; font-size:10px; margin-bottom:3px; }
     .revision-list { display:flex; flex-direction:column; gap:4px; }
@@ -638,12 +645,16 @@
 
     function qBadge(label, value) {
       const text = value || "-";
+      if (value === "O") return `<span class="badge b-pass">${label} O</span>`;
+      if (value === "X") return `<span class="badge b-none">${label} X</span>`;
       if (!value) return `<span class="badge b-none">${label} -</span>`;
       if (String(value).includes("불합격")) return `<span class="badge b-fail">${label} 불합격</span>`;
       if (String(value).includes("합격")) return `<span class="badge b-pass">${label} 합격</span>`;
       return `<span class="badge b-wait">${label} ${esc(text)}</span>`;
     }
     function importStatusType(card) {
+      if (card.import_declaration_override === "O") return "declared";
+      if (card.import_declaration_override === "X") return "before";
       const status = String(card.prgs_stts || card.cscl_prgs_stts || "");
       if (card.import_permitted || status.includes("수입신고수리")) return "permit";
       if (
@@ -654,10 +665,67 @@
       return "before";
     }
     function permitBadge(card) {
+      if (card.import_declaration_override === "O") return `<span class="badge b-wait">수입신고 O</span>`;
+      if (card.import_declaration_override === "X") return `<span class="badge b-none">수입신고 X</span>`;
       const type = importStatusType(card);
       if (type === "permit") return `<span class="badge b-permit">수입신고수리 ${esc(card.import_permit_date || "")}</span>`;
       if (type === "declared") return `<span class="badge b-wait">신고진행</span>`;
       return `<span class="badge b-none">수입신고 -</span>`;
+    }
+    function distributionHistoryTarget(card) {
+      const text = [
+        card.product_name,
+        card.destination,
+        card.folder_name,
+        card.raw && card.raw.product_name,
+      ].map(value => String(value || "").toUpperCase()).join(" ");
+      return /우육|돈육|BEEF|PORK|牛|豚/.test(text);
+    }
+    function oxOptions(value) {
+      const v = value || "";
+      return `
+        <option value="" ${!v ? "selected" : ""}>자동</option>
+        <option value="O" ${v === "O" ? "selected" : ""}>O</option>
+        <option value="X" ${v === "X" ? "selected" : ""}>X</option>
+      `;
+    }
+    function distributionHistoryBadge(card) {
+      if (!distributionHistoryTarget(card) && !card.distribution_history_override && !card.distribution_history_number) return "";
+      const status = card.distribution_history_override || "-";
+      const cls = status === "O" ? "b-pass" : (status === "X" ? "b-none" : "b-wait");
+      const number = card.distribution_history_number ? ` ${esc(card.distribution_history_number)}` : "";
+      return `<span class="badge ${cls}">유통이력 ${esc(status)}${number}</span>`;
+    }
+    function adminStatusHtml(card) {
+      if (currentUserRole !== "admin") return "";
+      const bl = card.bl_number || "";
+      const accountId = card.account_id || "";
+      const showDistribution = distributionHistoryTarget(card) || card.distribution_history_override || card.distribution_history_number;
+      return `
+        <div class="admin-status-box">
+          <div class="admin-status-title">관리자 상태관리</div>
+          <div class="admin-status-grid">
+            <label>동물검역
+              <select id="adminAnimal-${esc(bl)}">${oxOptions(card.animal_quarantine_override)}</select>
+            </label>
+            <label>식품검역
+              <select id="adminFood-${esc(bl)}">${oxOptions(card.food_quarantine_override)}</select>
+            </label>
+            <label>수입신고
+              <select id="adminImport-${esc(bl)}">${oxOptions(card.import_declaration_override)}</select>
+            </label>
+            ${showDistribution ? `<label>유통이력
+              <select id="adminDist-${esc(bl)}">${oxOptions(card.distribution_history_override)}</select>
+            </label>
+            <label class="wide">유통이력 신고번호
+              <input id="adminDistNo-${esc(bl)}" value="${esc(card.distribution_history_number || "")}" placeholder="필요 시 입력">
+            </label>` : ""}
+          </div>
+          <div class="admin-status-actions">
+            <button class="btn green" style="height:22px;padding:2px 8px;font-size:9.5px" onclick="saveAdminStatus('${jsStr(accountId)}', '${jsStr(bl)}', ${showDistribution ? "true" : "false"})">저장</button>
+          </div>
+        </div>
+      `;
     }
     function quotaHtml(card) {
       const checked = card.is_quota ? "checked" : "";
@@ -921,7 +989,9 @@
             ${qBadge("동물검역", card.animal_quarantine)}
             ${qBadge("식품검역", card.food_quarantine)}
             ${permitBadge(card)}
+            ${distributionHistoryBadge(card)}
           </div>
+          ${adminStatusHtml(card)}
           ${manualFieldsHtml(card)}
           ${originalDocsHtml(card, index)}
           ${releaseHtml(card)}
@@ -1004,6 +1074,30 @@
       document.getElementById(`manualFree-${blNumber}`).value = "";
       document.getElementById(`manualWh-${blNumber}`).value = "";
       await saveManualFields(accountId, blNumber);
+    }
+
+    async function saveAdminStatus(accountId, blNumber, hasDistribution) {
+      const payload = {
+        action: "admin_status",
+        account_id: accountId,
+        bl_number: blNumber,
+        animal_quarantine_override: document.getElementById(`adminAnimal-${blNumber}`)?.value || "",
+        food_quarantine_override: document.getElementById(`adminFood-${blNumber}`)?.value || "",
+        import_declaration_override: document.getElementById(`adminImport-${blNumber}`)?.value || "",
+        distribution_history_override: hasDistribution ? (document.getElementById(`adminDist-${blNumber}`)?.value || "") : "",
+        distribution_history_number: hasDistribution ? (document.getElementById(`adminDistNo-${blNumber}`)?.value || "") : "",
+      };
+      const response = await fetch("/api/cargo-quota", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const result = await response.json();
+      if (!result.success) {
+        alert(result.message || "관리자 상태 저장에 실패했습니다.");
+        return;
+      }
+      await loadData();
     }
 
     async function saveQuotaInput(blNumber, isQuota, quotaPermitDate) {

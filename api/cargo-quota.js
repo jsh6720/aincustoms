@@ -45,6 +45,35 @@ module.exports = async function handler(req, res) {
       return res.status(404).json({ success: false, message: "대상 카드를 찾을 수 없습니다." });
     }
 
+    if (action === "admin_status") {
+      if (!isAdmin) {
+        return res.status(403).json({ success: false, message: "관리자만 변경할 수 있습니다." });
+      }
+
+      const cleanOX = (value) => {
+        const text = String(value || "").trim().toUpperCase();
+        return text === "O" || text === "X" ? text : null;
+      };
+      const rows = await supabaseFetch(
+        "/rest/v1/cargo_card_user_inputs?on_conflict=account_id,bl_number",
+        {
+          method: "POST",
+          headers: { Prefer: "resolution=merge-duplicates,return=representation" },
+          body: JSON.stringify({
+            account_id: targetAccountId,
+            bl_number: blNumber,
+            animal_quarantine_override: cleanOX(body.animal_quarantine_override),
+            food_quarantine_override: cleanOX(body.food_quarantine_override),
+            import_declaration_override: cleanOX(body.import_declaration_override),
+            distribution_history_override: cleanOX(body.distribution_history_override),
+            distribution_history_number: String(body.distribution_history_number || "").trim() || null,
+          }),
+        }
+      );
+
+      return res.status(200).json({ success: true, input: rows && rows[0] ? rows[0] : null });
+    }
+
     if (action === "manual_fields") {
       const deliveryTerms = String(body.delivery_terms || "").trim();
       const etaDate = String(body.eta_date || "").trim();
@@ -106,7 +135,7 @@ module.exports = async function handler(req, res) {
 
     return res.status(200).json({ success: true, input: rows && rows[0] ? rows[0] : null });
   } catch (error) {
-    if (["delivery_terms", "eta_date", "storage_yard", "free_time_days", "free_time_expiry_date", "warehouse_expected_date"].some((name) => String(error.message || "").includes(name))) {
+    if (["delivery_terms", "eta_date", "storage_yard", "free_time_days", "free_time_expiry_date", "warehouse_expected_date", "animal_quarantine_override", "food_quarantine_override", "import_declaration_override", "distribution_history_override", "distribution_history_number"].some((name) => String(error.message || "").includes(name))) {
       return res.status(500).json({
         success: false,
         message: "Supabase에서 add_cargo_manual_fields.sql을 먼저 실행해 주세요.",
