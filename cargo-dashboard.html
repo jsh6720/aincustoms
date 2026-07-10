@@ -95,6 +95,16 @@
     .quota-date input { width:108px; height:24px; padding:2px 5px; font-size:10px; }
     .quota-detail { display:block; margin-top:2px; }
     .quota-detail.danger { color:#c92a2a; font-weight:700; }
+    .manual-box { margin-top:5px; padding:5px 6px; border:1px solid #dce5ee; border-radius:6px; background:#f8fafc; font-size:10px; }
+    .manual-head { display:flex; align-items:center; justify-content:space-between; gap:6px; }
+    .manual-title { color:#334155; font-weight:800; white-space:nowrap; }
+    .manual-summary { display:flex; flex-wrap:wrap; gap:4px; margin-top:4px; }
+    .manual-pill { border:1px solid #d8e0e8; border-radius:999px; padding:1px 6px; background:#fff; color:#3d4752; font-weight:700; white-space:nowrap; }
+    .manual-empty { color:#8b95a1; font-weight:700; }
+    .manual-edit { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:5px; margin-top:6px; padding-top:6px; border-top:1px solid #e6ebf0; }
+    .manual-edit label { display:flex; flex-direction:column; gap:2px; color:#64707d; font-size:9.5px; font-weight:800; }
+    .manual-edit input { width:100%; height:24px; border:1px solid #d4dbe3; border-radius:4px; padding:2px 6px; font-size:10px; font-family:inherit; background:#fff; }
+    .manual-actions { display:flex; justify-content:flex-end; gap:4px; grid-column:1 / -1; }
     .revision-box { margin-top:6px; border:1px solid #d8e2dc; border-left:3px solid #2f6b4f; border-radius:6px; background:#f2fbf6; padding:6px; }
     .revision-title { color:#24533d; font-weight:800; font-size:10px; margin-bottom:3px; }
     .revision-list { display:flex; flex-direction:column; gap:4px; }
@@ -393,6 +403,7 @@
     let currentUserLogin = "";
     let currentCards = [];
     let showHiddenCards = false;
+    let manualEditOpen = {};
     let docsCalendarMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
     let docsRowCards = [];
     let revisionDrafts = {};
@@ -674,6 +685,44 @@
         </div>
       `;
     }
+    function manualValue(card, key) {
+      return String((card && card[key]) || "").trim();
+    }
+    function manualFieldsHtml(card) {
+      const bl = card.bl_number || "";
+      const open = !!manualEditOpen[bl];
+      const values = {
+        delivery_terms: manualValue(card, "delivery_terms"),
+        eta_date: manualValue(card, "eta_date"),
+        free_time_expiry_date: manualValue(card, "free_time_expiry_date"),
+        warehouse_expected_date: manualValue(card, "warehouse_expected_date"),
+      };
+      const pills = [
+        values.delivery_terms ? `<span class="manual-pill">인도 ${esc(values.delivery_terms)}</span>` : "",
+        values.eta_date ? `<span class="manual-pill">입항예정 ${esc(values.eta_date)}</span>` : "",
+        values.free_time_expiry_date ? `<span class="manual-pill">프리타임 ${esc(values.free_time_expiry_date)}</span>` : "",
+        values.warehouse_expected_date ? `<span class="manual-pill">창고입고예정 ${esc(values.warehouse_expected_date)}</span>` : "",
+      ].filter(Boolean).join("");
+      return `
+        <div class="manual-box">
+          <div class="manual-head">
+            <span class="manual-title">운송정보</span>
+            <button class="btn gray" style="height:22px;padding:2px 7px;font-size:9.5px" onclick="toggleManualEdit('${jsStr(bl)}')">${open ? "닫기" : "입력"}</button>
+          </div>
+          <div class="manual-summary">${pills || '<span class="manual-empty">수기 입력 없음</span>'}</div>
+          ${open ? `<div class="manual-edit">
+            <label>인도조건<input id="manualDelivery-${esc(bl)}" value="${esc(values.delivery_terms)}" placeholder="예: CIF, FOB"></label>
+            <label>입항예정일<input id="manualEta-${esc(bl)}" type="date" value="${esc(values.eta_date)}"></label>
+            <label>프리타임 만기일<input id="manualFree-${esc(bl)}" type="date" value="${esc(values.free_time_expiry_date)}"></label>
+            <label>보세창고 입고 예정일<input id="manualWh-${esc(bl)}" type="date" value="${esc(values.warehouse_expected_date)}"></label>
+            <div class="manual-actions">
+              <button class="btn gray" style="height:22px;padding:2px 7px;font-size:9.5px" onclick="clearManualFields('${jsStr(card.account_id)}', '${jsStr(bl)}')">초기화</button>
+              <button class="btn green" style="height:22px;padding:2px 7px;font-size:9.5px" onclick="saveManualFields('${jsStr(card.account_id)}', '${jsStr(bl)}')">저장</button>
+            </div>
+          </div>` : ""}
+        </div>
+      `;
+    }
     function revisionsHtml(card) {
       const revisions = card.revisions || [];
       return `
@@ -846,6 +895,7 @@
             ${qBadge("식품검역", card.food_quarantine)}
             ${permitBadge(card)}
           </div>
+          ${manualFieldsHtml(card)}
           ${originalDocsHtml(card, index)}
           ${releaseHtml(card)}
           ${quotaHtml(card)}
@@ -887,6 +937,42 @@
         return;
       }
       await loadData();
+    }
+
+    function toggleManualEdit(blNumber) {
+      manualEditOpen[blNumber] = !manualEditOpen[blNumber];
+      loadData();
+    }
+
+    async function saveManualFields(accountId, blNumber) {
+      const payload = {
+        account_id: accountId,
+        bl_number: blNumber,
+        delivery_terms: document.getElementById(`manualDelivery-${blNumber}`)?.value || "",
+        eta_date: document.getElementById(`manualEta-${blNumber}`)?.value || "",
+        free_time_expiry_date: document.getElementById(`manualFree-${blNumber}`)?.value || "",
+        warehouse_expected_date: document.getElementById(`manualWh-${blNumber}`)?.value || "",
+      };
+      const response = await fetch("/api/cargo-manual-fields", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const result = await response.json();
+      if (!result.success) {
+        alert(result.message || "운송정보 저장에 실패했습니다.");
+        return;
+      }
+      manualEditOpen[blNumber] = false;
+      await loadData();
+    }
+
+    async function clearManualFields(accountId, blNumber) {
+      document.getElementById(`manualDelivery-${blNumber}`).value = "";
+      document.getElementById(`manualEta-${blNumber}`).value = "";
+      document.getElementById(`manualFree-${blNumber}`).value = "";
+      document.getElementById(`manualWh-${blNumber}`).value = "";
+      await saveManualFields(accountId, blNumber);
     }
 
     async function saveQuotaInput(blNumber, isQuota, quotaPermitDate) {
