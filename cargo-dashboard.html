@@ -566,7 +566,7 @@
     }
 
     async function loadData() {
-      const response = await fetch("/api/cargo-data");
+      const response = await fetch("/api/cargo-data?_=" + Date.now(), {cache: "no-store"});
       const result = await response.json();
       if (!result.success) {
         showLogin(result.message || "");
@@ -1232,7 +1232,7 @@
     }
 
     async function openReleaseModal(blNumber) {
-      const response = await fetch("/api/cargo-data");
+      const response = await fetch("/api/cargo-data?_=" + Date.now(), {cache: "no-store"});
       const result = await response.json();
       if (!result.success) {
         alert(result.message || "카드 정보를 불러오지 못했습니다.");
@@ -1272,7 +1272,7 @@
       document.getElementById("releaseModalBg").style.display = "flex";
     }
     async function openOriginalDocModal(blNumber) {
-      const response = await fetch("/api/cargo-data");
+      const response = await fetch("/api/cargo-data?_=" + Date.now(), {cache: "no-store"});
       const result = await response.json();
       if (!result.success) {
         alert(result.message || "카드 정보를 불러오지 못했습니다.");
@@ -1307,7 +1307,7 @@
       document.getElementById("releaseModalBg").style.display = "flex";
     }
     async function openImportModal(blNumber) {
-      const response = await fetch("/api/cargo-data");
+      const response = await fetch("/api/cargo-data?_=" + Date.now(), {cache: "no-store"});
       const result = await response.json();
       if (!result.success) {
         alert(result.message || "카드 정보를 불러오지 못했습니다.");
