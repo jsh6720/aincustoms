@@ -716,6 +716,7 @@
       const values = {
         delivery_terms: manualValue(card, "delivery_terms"),
         eta_date: manualValue(card, "eta_date"),
+        storage_yard: manualValue(card, "storage_yard"),
         free_time_days: manualValue(card, "free_time_days"),
         free_time_expiry_date: manualValue(card, "free_time_expiry_date"),
         warehouse_expected_date: manualValue(card, "warehouse_expected_date"),
@@ -724,6 +725,7 @@
       const pills = [
         values.delivery_terms ? `<span class="manual-pill">인도 ${esc(values.delivery_terms)}</span>` : "",
         values.eta_date ? `<span class="manual-pill">입항예정 ${esc(values.eta_date)}</span>` : "",
+        values.storage_yard ? `<span class="manual-pill">장치장 ${esc(values.storage_yard)}</span>` : "",
         freeTimeText ? `<span class="manual-pill">프리타임 ${esc(freeTimeText)}</span>` : "",
         values.warehouse_expected_date ? `<span class="manual-pill">창고입고예정 ${esc(values.warehouse_expected_date)}</span>` : "",
       ].filter(Boolean).join("");
@@ -737,6 +739,7 @@
           ${open ? `<div class="manual-edit">
             <label>인도조건<input id="manualDelivery-${esc(bl)}" value="${esc(values.delivery_terms)}" placeholder="예: CIF, FOB"></label>
             <label>입항예정일<input id="manualEta-${esc(bl)}" type="date" value="${esc(values.eta_date)}"></label>
+            <label>장치장<input id="manualYard-${esc(bl)}" value="${esc(values.storage_yard)}" placeholder="예: 부산신항"></label>
             <label>프리타임 일수<input id="manualFree-${esc(bl)}" type="number" min="1" step="1" value="${esc(values.free_time_days)}" placeholder="예: 14"></label>
             <label>보세창고 입고 예정일<input id="manualWh-${esc(bl)}" type="date" value="${esc(values.warehouse_expected_date)}"></label>
             <div class="manual-actions">
@@ -975,6 +978,7 @@
         bl_number: blNumber,
         delivery_terms: document.getElementById(`manualDelivery-${blNumber}`)?.value || "",
         eta_date: document.getElementById(`manualEta-${blNumber}`)?.value || "",
+        storage_yard: document.getElementById(`manualYard-${blNumber}`)?.value || "",
         free_time_days: document.getElementById(`manualFree-${blNumber}`)?.value || "",
         free_time_expiry_date: "",
         warehouse_expected_date: document.getElementById(`manualWh-${blNumber}`)?.value || "",
@@ -996,6 +1000,7 @@
     async function clearManualFields(accountId, blNumber) {
       document.getElementById(`manualDelivery-${blNumber}`).value = "";
       document.getElementById(`manualEta-${blNumber}`).value = "";
+      document.getElementById(`manualYard-${blNumber}`).value = "";
       document.getElementById(`manualFree-${blNumber}`).value = "";
       document.getElementById(`manualWh-${blNumber}`).value = "";
       await saveManualFields(accountId, blNumber);

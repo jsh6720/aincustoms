@@ -48,6 +48,7 @@ module.exports = async function handler(req, res) {
     if (action === "manual_fields") {
       const deliveryTerms = String(body.delivery_terms || "").trim();
       const etaDate = String(body.eta_date || "").trim();
+      const storageYard = String(body.storage_yard || "").trim();
       const freeTimeDays = String(body.free_time_days || "").trim();
       const freeTimeExpiryDate = String(body.free_time_expiry_date || "").trim();
       const warehouseExpectedDate = String(body.warehouse_expected_date || "").trim();
@@ -71,6 +72,7 @@ module.exports = async function handler(req, res) {
             bl_number: blNumber,
             delivery_terms: deliveryTerms || null,
             eta_date: etaDate || null,
+            storage_yard: storageYard || null,
             free_time_days: freeTimeDays ? Number(freeTimeDays) : null,
             free_time_expiry_date: freeTimeExpiryDate || null,
             warehouse_expected_date: warehouseExpectedDate || null,
@@ -104,7 +106,7 @@ module.exports = async function handler(req, res) {
 
     return res.status(200).json({ success: true, input: rows && rows[0] ? rows[0] : null });
   } catch (error) {
-    if (["delivery_terms", "eta_date", "free_time_days", "free_time_expiry_date", "warehouse_expected_date"].some((name) => String(error.message || "").includes(name))) {
+    if (["delivery_terms", "eta_date", "storage_yard", "free_time_days", "free_time_expiry_date", "warehouse_expected_date"].some((name) => String(error.message || "").includes(name))) {
       return res.status(500).json({
         success: false,
         message: "Supabase에서 add_cargo_manual_fields.sql을 먼저 실행해 주세요.",
