@@ -110,13 +110,13 @@ function computeQuotaMessages(card) {
 async function fetchUserInputs(accountId) {
   try {
     const query = accountId
-      ? `/rest/v1/cargo_card_user_inputs?select=account_id,bl_number,is_quota,quota_permit_date,is_hidden,hidden_at,hidden_by,delivery_terms,eta_date,free_time_expiry_date,warehouse_expected_date,updated_at&account_id=eq.${accountId}`
-      : "/rest/v1/cargo_card_user_inputs?select=account_id,bl_number,is_quota,quota_permit_date,is_hidden,hidden_at,hidden_by,delivery_terms,eta_date,free_time_expiry_date,warehouse_expected_date,updated_at";
+      ? `/rest/v1/cargo_card_user_inputs?select=account_id,bl_number,is_quota,quota_permit_date,is_hidden,hidden_at,hidden_by,delivery_terms,eta_date,free_time_days,free_time_expiry_date,warehouse_expected_date,updated_at&account_id=eq.${accountId}`
+      : "/rest/v1/cargo_card_user_inputs?select=account_id,bl_number,is_quota,quota_permit_date,is_hidden,hidden_at,hidden_by,delivery_terms,eta_date,free_time_days,free_time_expiry_date,warehouse_expected_date,updated_at";
     return await supabaseFetch(
       query
     );
   } catch (error) {
-    if (["is_hidden", "delivery_terms", "eta_date", "free_time_expiry_date", "warehouse_expected_date"].some((name) => String(error.message || "").includes(name))) {
+    if (["is_hidden", "delivery_terms", "eta_date", "free_time_days", "free_time_expiry_date", "warehouse_expected_date"].some((name) => String(error.message || "").includes(name))) {
       const fallback = accountId
         ? `/rest/v1/cargo_card_user_inputs?select=account_id,bl_number,is_quota,quota_permit_date,updated_at&account_id=eq.${accountId}`
         : "/rest/v1/cargo_card_user_inputs?select=account_id,bl_number,is_quota,quota_permit_date,updated_at";
@@ -187,6 +187,7 @@ function applyUserInputs(cards, inputs) {
       hidden_by: input.hidden_by || "",
       delivery_terms: input.delivery_terms || card.delivery_terms || "",
       eta_date: input.eta_date || card.eta_date || "",
+      free_time_days: input.free_time_days || card.free_time_days || "",
       free_time_expiry_date: input.free_time_expiry_date || card.free_time_expiry_date || "",
       warehouse_expected_date: input.warehouse_expected_date || card.warehouse_expected_date || "",
       quota_input_updated_at: input.updated_at || null,

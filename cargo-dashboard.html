@@ -688,19 +688,43 @@
     function manualValue(card, key) {
       return String((card && card[key]) || "").trim();
     }
+    function addDaysInclusive(dateText, daysText) {
+      const days = parseInt(daysText, 10);
+      if (!dateText || !Number.isFinite(days) || days <= 0) return "";
+      const date = new Date(`${dateText}T00:00:00`);
+      if (Number.isNaN(date.getTime())) return "";
+      date.setDate(date.getDate() + days - 1);
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, "0");
+      const d = String(date.getDate()).padStart(2, "0");
+      return `${y}-${m}-${d}`;
+    }
+    function freeTimeBaseDate(card, values) {
+      return manualValue(card, "first_arrival_date") || values.eta_date || "";
+    }
+    function freeTimeDisplay(card, values) {
+      const days = parseInt(values.free_time_days, 10);
+      if (Number.isFinite(days) && days > 0) {
+        const expiry = addDaysInclusive(freeTimeBaseDate(card, values), String(days));
+        return `${days}일${expiry ? ` (${expiry})` : ""}`;
+      }
+      return values.free_time_expiry_date;
+    }
     function manualFieldsHtml(card) {
       const bl = card.bl_number || "";
       const open = !!manualEditOpen[bl];
       const values = {
         delivery_terms: manualValue(card, "delivery_terms"),
         eta_date: manualValue(card, "eta_date"),
+        free_time_days: manualValue(card, "free_time_days"),
         free_time_expiry_date: manualValue(card, "free_time_expiry_date"),
         warehouse_expected_date: manualValue(card, "warehouse_expected_date"),
       };
+      const freeTimeText = freeTimeDisplay(card, values);
       const pills = [
         values.delivery_terms ? `<span class="manual-pill">인도 ${esc(values.delivery_terms)}</span>` : "",
         values.eta_date ? `<span class="manual-pill">입항예정 ${esc(values.eta_date)}</span>` : "",
-        values.free_time_expiry_date ? `<span class="manual-pill">프리타임 ${esc(values.free_time_expiry_date)}</span>` : "",
+        freeTimeText ? `<span class="manual-pill">프리타임 ${esc(freeTimeText)}</span>` : "",
         values.warehouse_expected_date ? `<span class="manual-pill">창고입고예정 ${esc(values.warehouse_expected_date)}</span>` : "",
       ].filter(Boolean).join("");
       return `
@@ -713,7 +737,7 @@
           ${open ? `<div class="manual-edit">
             <label>인도조건<input id="manualDelivery-${esc(bl)}" value="${esc(values.delivery_terms)}" placeholder="예: CIF, FOB"></label>
             <label>입항예정일<input id="manualEta-${esc(bl)}" type="date" value="${esc(values.eta_date)}"></label>
-            <label>프리타임 만기일<input id="manualFree-${esc(bl)}" type="date" value="${esc(values.free_time_expiry_date)}"></label>
+            <label>프리타임 일수<input id="manualFree-${esc(bl)}" type="number" min="1" step="1" value="${esc(values.free_time_days)}" placeholder="예: 14"></label>
             <label>보세창고 입고 예정일<input id="manualWh-${esc(bl)}" type="date" value="${esc(values.warehouse_expected_date)}"></label>
             <div class="manual-actions">
               <button class="btn gray" style="height:22px;padding:2px 7px;font-size:9.5px" onclick="clearManualFields('${jsStr(card.account_id)}', '${jsStr(bl)}')">초기화</button>
@@ -951,7 +975,8 @@
         bl_number: blNumber,
         delivery_terms: document.getElementById(`manualDelivery-${blNumber}`)?.value || "",
         eta_date: document.getElementById(`manualEta-${blNumber}`)?.value || "",
-        free_time_expiry_date: document.getElementById(`manualFree-${blNumber}`)?.value || "",
+        free_time_days: document.getElementById(`manualFree-${blNumber}`)?.value || "",
+        free_time_expiry_date: "",
         warehouse_expected_date: document.getElementById(`manualWh-${blNumber}`)?.value || "",
       };
       const response = await fetch("/api/cargo-quota", {
