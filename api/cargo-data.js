@@ -110,12 +110,18 @@ function computeQuotaMessages(card) {
 async function fetchUserInputs(accountId) {
   try {
     const query = accountId
-      ? `/rest/v1/cargo_card_user_inputs?select=account_id,bl_number,is_quota,quota_permit_date,updated_at&account_id=eq.${accountId}`
-      : "/rest/v1/cargo_card_user_inputs?select=account_id,bl_number,is_quota,quota_permit_date,updated_at";
+      ? `/rest/v1/cargo_card_user_inputs?select=account_id,bl_number,is_quota,quota_permit_date,is_hidden,hidden_at,hidden_by,updated_at&account_id=eq.${accountId}`
+      : "/rest/v1/cargo_card_user_inputs?select=account_id,bl_number,is_quota,quota_permit_date,is_hidden,hidden_at,hidden_by,updated_at";
     return await supabaseFetch(
       query
     );
   } catch (error) {
+    if (String(error.message || "").includes("is_hidden")) {
+      const fallback = accountId
+        ? `/rest/v1/cargo_card_user_inputs?select=account_id,bl_number,is_quota,quota_permit_date,updated_at&account_id=eq.${accountId}`
+        : "/rest/v1/cargo_card_user_inputs?select=account_id,bl_number,is_quota,quota_permit_date,updated_at";
+      return await supabaseFetch(fallback);
+    }
     if (String(error.message || "").includes("cargo_card_user_inputs")) {
       return [];
     }
@@ -176,6 +182,9 @@ function applyUserInputs(cards, inputs) {
       ...card,
       is_quota: !!input.is_quota,
       quota_permit_date: input.quota_permit_date || "",
+      is_hidden: !!input.is_hidden,
+      hidden_at: input.hidden_at || null,
+      hidden_by: input.hidden_by || "",
       quota_input_updated_at: input.updated_at || null,
     });
   });

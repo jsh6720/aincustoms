@@ -55,10 +55,17 @@
     .stage-release .card { border-left:4px solid #8176a5; }
     .card.over { border:2px solid #fa5252; border-left-width:4px; background:#fff5f5; }
     .card.warn { border:2px solid #fd7e14; border-left-width:4px; background:#fff9f0; }
+    .card.hidden-card { opacity:.62; background:#eef1f4; }
     .stage-declare .card.declare-pending { background:#fffaf0; border-color:#ead9ad; border-left-color:#b38b2e; }
     .stage-declare .card.permit-ready { background:#eef8f2; border-color:#a9d4b8; border-left-color:#2f7d52; }
     .revision-badge { position:absolute; top:-6px; right:7px; background:#495057; color:#fff; font-size:9px; padding:1px 6px; border-radius:6px; font-weight:700; }
+    .hidden-badge { position:absolute; top:-6px; right:58px; background:#868e96; color:#fff; font-size:9px; padding:1px 6px; border-radius:6px; font-weight:700; }
     .top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:4px; gap:6px; }
+    .admin-card-actions { display:flex; align-items:flex-start; gap:4px; flex-shrink:0; }
+    .hide-card-btn { background:#6b7684; color:#fff; border:none; border-radius:5px; padding:3px 6px; font-size:9.5px; font-weight:800; cursor:pointer; white-space:nowrap; }
+    .hide-card-btn:hover { background:#4b5563; }
+    .hide-card-btn.restore { background:#2f6b4f; }
+    .hide-card-btn.restore:hover { background:#24533d; }
     .consignee { font-weight:700; font-size:11.4px; color:#1f2933; word-break:keep-all; line-height:1.18; }
     .bl { font-family:Consolas,monospace; font-size:10px; color:#26313d; font-weight:700; word-break:break-all; margin-top:1px; }
     .grid { display:grid; grid-template-columns:56px 1fr; row-gap:2px; column-gap:6px; margin:4px 0; }
@@ -202,6 +209,7 @@
       <div class="toolbar-actions">
         <button id="docsStatusBtn" class="btn gray" style="display:none" onclick="openDocsStatus()">원본필수서류 수취현황</button>
         <button id="docsMobileBtn" class="btn gray" style="display:none" onclick="openDocsMobile()">모바일 원본서류</button>
+        <button id="showHiddenBtn" class="btn gray" style="display:none" onclick="toggleShowHiddenCards()">숨김 포함</button>
         <button id="adminSettingsBtn" class="btn gray" style="display:none" onclick="openAdminSettings()">관리자 설정</button>
         <button class="btn" onclick="loadData()">새로고침</button>
       </div>
@@ -384,6 +392,7 @@
     let currentUserRole = "shipper";
     let currentUserLogin = "";
     let currentCards = [];
+    let showHiddenCards = false;
     let docsCalendarMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
     let docsRowCards = [];
     let revisionDrafts = {};
@@ -508,6 +517,8 @@
       document.getElementById("logoutBtn").style.display = "";
       document.getElementById("docsStatusBtn").style.display = "";
       document.getElementById("docsMobileBtn").style.display = currentUserRole === "admin" ? "" : "none";
+      document.getElementById("showHiddenBtn").style.display = currentUserRole === "admin" ? "" : "none";
+      document.getElementById("showHiddenBtn").textContent = showHiddenCards ? "숨김 제외" : "숨김 포함";
       document.getElementById("adminSettingsBtn").style.display = currentUserRole === "admin" ? "" : "none";
     }
     function showAdminUi() {
@@ -523,6 +534,7 @@
       document.getElementById("logoutBtn").style.display = "none";
       document.getElementById("docsStatusBtn").style.display = "none";
       document.getElementById("docsMobileBtn").style.display = "none";
+      document.getElementById("showHiddenBtn").style.display = "none";
       document.getElementById("adminSettingsBtn").style.display = "none";
       document.getElementById("loginError").textContent = message;
     }
@@ -578,7 +590,7 @@
       currentUserRole = result.user.role || "shipper";
       currentUserLogin = result.user.login_id || "";
       currentCards = result.cards || [];
-      const activeCards = currentCards.filter(card => !isFullyReleased(card));
+      const activeCards = visibleCards();
       showCargoUi();
       document.getElementById("summary").textContent =
         currentUserRole === "admin"
@@ -597,6 +609,20 @@
         `;
       }).join("");
       if (document.getElementById("docsPanel").style.display !== "none") renderDocsStatus();
+    }
+
+    function isHiddenCard(card) {
+      return card && (card.is_hidden === true || card.is_hidden === "true");
+    }
+    function isVisibleCard(card) {
+      return !isFullyReleased(card) && (!isHiddenCard(card) || (currentUserRole === "admin" && showHiddenCards));
+    }
+    function visibleCards() {
+      return currentCards.filter(isVisibleCard);
+    }
+    function toggleShowHiddenCards() {
+      showHiddenCards = !showHiddenCards;
+      loadData();
     }
 
     function qBadge(label, value) {
@@ -793,14 +819,17 @@
       const importType = importStatusType(card);
       const permitClass = card.stage === "수입신고" && importType === "permit" ? " permit-ready" : "";
       const declareClass = card.stage === "수입신고" && importType === "declared" ? " declare-pending" : "";
+      const hidden = isHiddenCard(card);
       return `
-        <article class="card${alertClass}${permitClass}${declareClass}">
+        <article class="card${alertClass}${permitClass}${declareClass}${hidden ? " hidden-card" : ""}">
+          ${hidden ? '<span class="hidden-badge">숨김</span>' : ""}
           ${(card.revisions || []).length ? '<span class="revision-badge">확인사항</span>' : ""}
           <div class="top">
             <div>
               <div class="consignee">${esc(displayConsignee(card.consignee))}</div>
               <div class="bl">${esc(card.bl_number)}</div>
             </div>
+            ${adminHideButton(card)}
           </div>
           <div class="grid">
             <div class="k">반출처</div><div class="v">${esc(card.destination || "-")}</div>
@@ -826,6 +855,38 @@
           ${releaseRequestButton(card)}
         </article>
       `;
+    }
+
+    function adminHideButton(card) {
+      if (currentUserRole !== "admin") return "";
+      const hidden = isHiddenCard(card);
+      return `
+        <div class="admin-card-actions">
+          <button class="hide-card-btn${hidden ? " restore" : ""}" onclick="setCardHidden('${jsStr(card.account_id)}', '${jsStr(card.bl_number)}', ${hidden ? "false" : "true"})">
+            ${hidden ? "숨김 해제" : "숨김"}
+          </button>
+        </div>
+      `;
+    }
+
+    async function setCardHidden(accountId, blNumber, hidden) {
+      const message = hidden ? "이 카드를 숨기시겠습니까?" : "이 카드 숨김을 해제하시겠습니까?";
+      if (!confirm(message)) return;
+      const response = await fetch("/api/cargo-card-visibility", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          account_id: accountId,
+          bl_number: blNumber,
+          hidden: !!hidden,
+        })
+      });
+      const result = await response.json();
+      if (!result.success) {
+        alert(result.message || "카드 숨김 상태 저장에 실패했습니다.");
+        return;
+      }
+      await loadData();
     }
 
     async function saveQuotaInput(blNumber, isQuota, quotaPermitDate) {
@@ -939,7 +1000,7 @@
       const rows = document.getElementById("docsRows");
       const sorted = currentCards
         .map((card, sourceIndex) => ({ card, sourceIndex }))
-        .filter(({ card }) => !isFullyReleased(card))
+        .filter(({ card }) => isVisibleCard(card))
         .sort((a, b) =>
         String(a.card.consignee || "").localeCompare(String(b.card.consignee || ""), "ko") ||
         String(a.card.bl_number || "").localeCompare(String(b.card.bl_number || ""), "ko")
