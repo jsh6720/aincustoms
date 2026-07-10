@@ -92,9 +92,12 @@
     .revision-title { color:#24533d; font-weight:800; font-size:10px; margin-bottom:3px; }
     .revision-list { display:flex; flex-direction:column; gap:4px; }
     .revision-item { display:grid; grid-template-columns:minmax(0, 1fr) auto; gap:4px; align-items:center; background:#fff; border:1px solid #cfe0d6; border-radius:5px; padding:5px 6px; line-height:1.28; word-break:break-word; box-shadow:0 1px 2px rgba(47,107,79,.06); }
-    .revision-main { min-width:0; display:flex; align-items:center; gap:5px; }
-    .revision-text { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .revision-main { min-width:0; display:flex; align-items:center; gap:5px; position:relative; }
+    .revision-text { min-width:0; flex:1; position:relative; }
+    .revision-label { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .revision-text.done { color:#7b8794; text-decoration:line-through; }
+    .revision-tooltip { display:none; position:absolute; left:0; top:18px; z-index:50; width:max-content; max-width:260px; padding:7px 9px; border:1px solid #b8c7bd; border-radius:6px; background:#ffffff; color:#1f2933; box-shadow:0 8px 20px rgba(15,23,42,.18); white-space:normal; line-height:1.35; font-size:10.5px; font-weight:600; word-break:break-word; }
+    .revision-text:hover .revision-tooltip { display:block; }
     .revision-check { width:13px; height:13px; margin:0; flex:0 0 auto; accent-color:#2f6b4f; }
     .revision-source { flex:0 0 auto; border:1px solid #d3ded8; border-radius:999px; padding:0 5px; color:#577061; background:#f7fbf8; font-size:8.5px; line-height:15px; font-weight:800; white-space:nowrap; }
     .revision-form { display:flex; gap:5px; margin-top:5px; }
@@ -657,6 +660,7 @@
               const editValue = itemId ? (revisionEditDrafts[itemId] ?? item.text ?? "") : "";
               const source = revisionSource(item);
               const isDone = item && item.done === true;
+              const revisionText = esc(item.text || item);
               const canDelete = currentUserRole === "admin" || revisionOwner(item);
               const deleteButton = canDelete
                 ? `<button class="btn danger" onclick="deleteRevision('${jsStr(card.bl_number)}', '${jsStr(card.account_id)}', '${jsStr(itemId)}')">삭제</button>`
@@ -676,7 +680,10 @@
               <div class="revision-item">
                 <div class="revision-main">
                   ${itemId ? `<input class="revision-check" type="checkbox" ${isDone ? "checked" : ""} title="완료" onclick="toggleRevisionDone('${jsStr(card.bl_number)}', '${jsStr(card.account_id)}', '${jsStr(itemId)}', this.checked)">` : ""}
-                  <span class="revision-text${isDone ? " done" : ""}">${esc(item.text || item)}</span>
+                  <span class="revision-text${isDone ? " done" : ""}" title="${revisionText}">
+                    <span class="revision-label">${revisionText}</span>
+                    <span class="revision-tooltip">${revisionText}</span>
+                  </span>
                   <span class="revision-source">${source}</span>
                 </div>
                 ${itemId ? `<div class="revision-actions">
