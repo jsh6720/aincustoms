@@ -110,7 +110,15 @@
       const parsed = Number(String(value).replace(/,/g, ""));
       return Number.isFinite(parsed) ? parsed : null;
     }
-    function isFullyReleased(card) {
+    const FULL_RELEASE_HIDE_GRACE_DAYS = 7;
+    function parseDateOnly(value) {
+      if (!value) return null;
+      const match = String(value).match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+      if (!match) return null;
+      const parsed = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+      return Number.isNaN(parsed.getTime()) ? null : parsed;
+    }
+    function isFullReleaseState(card) {
       if (!card) return false;
       if (card.fully_released === true || card.fully_released === "true") return true;
       const remaining = numberValue(card.remaining_weight);
@@ -118,6 +126,16 @@
       const released = numberValue(card.released_weight);
       const base = numberValue(card.base_weight) || numberValue(card.total_weight);
       return released !== null && base !== null && base > 0 && released >= base;
+    }
+    function isFullyReleased(card) {
+      if (!isFullReleaseState(card)) return false;
+      const lastReleaseDate = parseDateOnly(card.last_release_date);
+      if (!lastReleaseDate) return false;
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      lastReleaseDate.setHours(0, 0, 0, 0);
+      const elapsedDays = Math.floor((today - lastReleaseDate) / 86400000);
+      return elapsedDays > FULL_RELEASE_HIDE_GRACE_DAYS;
     }
 
     async function load() {
