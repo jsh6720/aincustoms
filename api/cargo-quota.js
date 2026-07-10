@@ -1,4 +1,4 @@
-const { verifySession, supabaseFetch } = require("./_cargo-auth");
+const { verifySession, supabaseFetch } = require("../lib/cargo-auth");
 
 function isValidDate(value) {
   if (!value) return true;

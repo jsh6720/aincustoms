@@ -1,4 +1,4 @@
-const { verifySession, supabaseFetch } = require("./_cargo-auth");
+const { verifySession, supabaseFetch } = require("../lib/cargo-auth");
 
 function boolValue(value) {
   return value === true || value === "true" || value === "O" || value === "1" || value === 1;

@@ -1,4 +1,4 @@
-const { createSession, supabaseFetch } = require("./_cargo-auth");
+const { createSession, supabaseFetch } = require("../lib/cargo-auth");
 
 module.exports = async function handler(req, res) {
   if (req.method !== "POST") {

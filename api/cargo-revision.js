@@ -1,4 +1,4 @@
-const { verifySession, supabaseFetch } = require("./_cargo-auth");
+const { verifySession, supabaseFetch } = require("../lib/cargo-auth");
 
 function nowIso() {
   return new Date().toISOString().slice(0, 19).replace("T", " ");

@@ -1,4 +1,4 @@
-const { verifySession, supabaseFetch } = require("./_cargo-auth");
+const { verifySession, supabaseFetch } = require("../lib/cargo-auth");
 
 const STAGE_ORDER = ["입항전", "입항", "반입", "수입신고", "반출"];
 const IMPORT_DECLARE_DAYS = 30;

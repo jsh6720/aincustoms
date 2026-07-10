@@ -1,5 +1,5 @@
 const nodemailer = require("nodemailer");
-const { verifySession, supabaseFetch } = require("./_cargo-auth");
+const { verifySession, supabaseFetch } = require("../lib/cargo-auth");
 
 const RECEIPT_TO = [
   "dmswk@hyundaicorp.com",
