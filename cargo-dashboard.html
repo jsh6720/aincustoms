@@ -51,7 +51,7 @@
     .card summary { list-style:none; cursor:pointer; }
     .card summary::-webkit-details-marker { display:none; }
     .card.compact { padding:0; overflow:hidden; }
-    .card.compact .compact-line { display:grid; grid-template-columns:minmax(92px,1.05fr) minmax(112px,1fr) 18px; grid-template-areas:"bl dest arrow" "meat eta yard"; gap:3px 7px; align-items:center; min-height:44px; padding:6px 8px; font-size:9.2px; }
+    .card.compact .compact-line { display:grid; grid-template-columns:minmax(78px,.8fr) minmax(118px,1.1fr) minmax(82px,.85fr) 14px; grid-template-areas:"bl dest yard arrow" "meat eta yard arrow"; gap:3px 6px; align-items:center; min-height:44px; padding:6px 7px; font-size:8.9px; }
     .card.compact .compact-main { grid-area:bl; font-weight:900; color:#1f2933; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .card.compact .compact-dest { grid-area:dest; }
     .card.compact .compact-meat { grid-area:meat; }
@@ -1052,7 +1052,7 @@
           <span class="compact-cell compact-dest" title="${esc(destinationWithTerm(card))}"><span class="compact-label">납품처_인도조건</span><span class="compact-value">${esc(destinationWithTerm(card))}</span></span>
           <span class="compact-cell compact-meat"><span class="compact-label">육종</span><span class="compact-value">${esc(meatType(card))}</span></span>
           <span class="compact-cell compact-eta"><span class="compact-label">입항예정</span><span class="compact-value">${esc(etaText(card))}</span></span>
-          <span class="compact-cell compact-yard" title="${esc(yardText(card))}"><span class="compact-label">반입(예정)구역</span><span class="compact-value">${esc(yardText(card))}</span></span>
+          <span class="compact-cell compact-yard" title="${esc(yardText(card))}"><span class="compact-label">반입장소</span><span class="compact-value">${esc(yardText(card))}</span></span>
           <span class="compact-arrow">›</span>
         </summary>
       `;
