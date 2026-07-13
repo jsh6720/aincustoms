@@ -29,7 +29,7 @@
     .toolbar-actions { display:flex; align-items:center; gap:8px; }
     .summary { font-size:12.5px; color:#4b5663; font-weight:700; }
     #boardWrap { overflow-x:auto; overflow-y:hidden; }
-    .board { display:none; grid-template-columns:minmax(250px,.62fr) minmax(250px,.62fr) minmax(640px,1.62fr) minmax(390px,1fr) minmax(390px,1fr); gap:10px; padding:12px 14px 8px; align-items:start; min-width:1940px; width:100%; }
+    .board { display:none; grid-template-columns:minmax(310px,.78fr) minmax(310px,.78fr) minmax(760px,1.78fr) minmax(280px,.62fr) minmax(260px,.58fr); gap:10px; padding:12px 14px 8px; align-items:start; min-width:1920px; width:100%; }
     .column { border:1px solid #d6dde5; border-radius:8px; min-height:200px; display:flex; flex-direction:column; overflow:hidden; }
     .col-head { padding:8px 10px; font-weight:700; font-size:13px; color:#fff; display:flex; justify-content:space-between; align-items:center; }
     .count { background:rgba(255,255,255,.18); border-radius:999px; padding:1px 8px; font-size:11px; min-width:24px; text-align:center; }
@@ -51,12 +51,16 @@
     .card summary { list-style:none; cursor:pointer; }
     .card summary::-webkit-details-marker { display:none; }
     .card.compact { padding:0; overflow:hidden; }
-    .card.compact .compact-line { display:grid; grid-template-columns:1.35fr 1fr .72fr .82fr 1fr 20px; gap:8px; align-items:center; min-height:36px; padding:7px 8px; font-size:10.5px; }
-    .card.compact .compact-main { font-weight:900; color:#1f2933; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .card.compact .compact-line { display:grid; grid-template-columns:minmax(92px,1.05fr) minmax(112px,1fr) 18px; grid-template-areas:"bl dest arrow" "meat eta yard"; gap:3px 7px; align-items:center; min-height:44px; padding:6px 8px; font-size:9.2px; }
+    .card.compact .compact-main { grid-area:bl; font-weight:900; color:#1f2933; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .card.compact .compact-dest { grid-area:dest; }
+    .card.compact .compact-meat { grid-area:meat; }
+    .card.compact .compact-eta { grid-area:eta; }
+    .card.compact .compact-yard { grid-area:yard; }
     .card.compact .compact-cell { color:#334155; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-    .card.compact .compact-label { display:block; color:#7b8794; font-size:8.5px; font-weight:800; line-height:1.1; }
+    .card.compact .compact-label { display:block; color:#7b8794; font-size:7.8px; font-weight:800; line-height:1.05; }
     .card.compact .compact-value { font-weight:800; }
-    .card.compact .compact-arrow { color:#6b7684; font-size:12px; text-align:right; }
+    .card.compact .compact-arrow { grid-area:arrow; color:#6b7684; font-size:12px; text-align:right; }
     .card.compact[open] .compact-arrow { transform:rotate(90deg); }
     .card.compact .card-full { padding:0 8px 8px; border-top:1px solid #edf1f4; }
     .stage-arrival-before .card { border-left:4px solid #6b747f; }
@@ -206,13 +210,15 @@
     .calendar-event.request { background:#fff7ed; color:#b45309; border:1px solid #fed7aa; }
     .calendar-event.actual { background:#e8f5ee; color:#1f6f43; border:1px solid #acd7bf; }
     .progress-table-wrap { overflow:auto; max-height:calc(100vh - 190px); }
-    .progress-table { width:100%; min-width:1420px; border-collapse:collapse; table-layout:fixed; font-size:11px; }
+    .progress-table { width:100%; min-width:1640px; border-collapse:collapse; table-layout:fixed; font-size:11px; }
     .progress-table th, .progress-table td { border-bottom:1px solid #edf1f4; padding:7px 8px; text-align:left; vertical-align:middle; word-break:keep-all; overflow-wrap:anywhere; }
     .progress-table th { position:sticky; top:0; z-index:1; background:#f7f9fb; color:#4b5663; font-size:10px; font-weight:900; }
     .progress-table .center { text-align:center; font-weight:900; }
     .doc-o { color:#1b6b3a; background:#edf8f1; border:1px solid #b7dfc4; border-radius:999px; padding:1px 6px; }
     .doc-x { color:#c92a2a; background:#fff1f1; border:1px solid #ffc9c9; border-radius:999px; padding:1px 6px; }
     .doc-na { color:#8b95a1; background:#f5f7f9; border:1px solid #e2e8ee; border-radius:999px; padding:1px 6px; }
+    .doc-toggle { cursor:pointer; font:inherit; font-weight:900; }
+    .doc-toggle:hover { filter:brightness(.96); }
     @media (max-width:1700px){ .board { width:max-content; } }
   </style>
 </head>
@@ -360,6 +366,7 @@
           <table class="progress-table">
             <thead>
               <tr>
+                <th>No</th>
                 <th>화주</th>
                 <th>BL</th>
                 <th>납품처</th>
@@ -369,10 +376,12 @@
                 <th>반입(예정)구역</th>
                 <th>마일스톤</th>
                 <th>진행상태</th>
-                <th>BL</th>
+                <th>BL파일</th>
+                <th>BL원본</th>
                 <th>IV</th>
                 <th>PL</th>
-                <th>H/C</th>
+                <th>H/C파일</th>
+                <th>H/C원본</th>
                 <th>C/O</th>
                 <th>보험</th>
                 <th>운임</th>
@@ -1031,14 +1040,19 @@
     function yardText(card) {
       return card.storage_yard || card.shed_name || "-";
     }
+    function destinationWithTerm(card) {
+      const destination = card.destination || "-";
+      const term = String(card.delivery_terms || "").trim();
+      return term && destination !== "-" ? `${destination}_${term}` : destination;
+    }
     function compactSummaryHtml(card) {
       return `
         <summary class="compact-line">
-          <span class="compact-main">${esc(displayConsignee(card.consignee))}_${esc(card.bl_number || "-")}</span>
-          <span class="compact-cell"><span class="compact-label">납품처</span><span class="compact-value">${esc(card.destination || "-")}</span></span>
-          <span class="compact-cell"><span class="compact-label">육종</span><span class="compact-value">${esc(meatType(card))}</span></span>
-          <span class="compact-cell"><span class="compact-label">입항예정</span><span class="compact-value">${esc(etaText(card))}</span></span>
-          <span class="compact-cell"><span class="compact-label">반입(예정)구역</span><span class="compact-value">${esc(yardText(card))}</span></span>
+          <span class="compact-main" title="${esc(card.bl_number || "-")}">${esc(card.bl_number || "-")}</span>
+          <span class="compact-cell compact-dest" title="${esc(destinationWithTerm(card))}"><span class="compact-label">납품처_인도조건</span><span class="compact-value">${esc(destinationWithTerm(card))}</span></span>
+          <span class="compact-cell compact-meat"><span class="compact-label">육종</span><span class="compact-value">${esc(meatType(card))}</span></span>
+          <span class="compact-cell compact-eta"><span class="compact-label">입항예정</span><span class="compact-value">${esc(etaText(card))}</span></span>
+          <span class="compact-cell compact-yard" title="${esc(yardText(card))}"><span class="compact-label">반입(예정)구역</span><span class="compact-value">${esc(yardText(card))}</span></span>
           <span class="compact-arrow">›</span>
         </summary>
       `;
@@ -1054,10 +1068,22 @@
       if (!required) return `<span class="doc-na">-</span>`;
       return received ? `<span class="doc-o">O</span>` : `<span class="doc-x">X</span>`;
     }
+    function progressDocToggle(card, docType) {
+      const received = docType === "obl" ? !!card.obl_received : !!card.hc_received;
+      const date = card.actual_received_date ? `수령일 ${displayDate(card.actual_received_date)}` : "수령일 미입력";
+      const label = received ? "O" : "X";
+      return `<button type="button" class="doc-toggle ${received ? "doc-o" : "doc-x"}" title="${esc(date)}" onclick="saveProgressOriginalDoc(${currentCards.indexOf(card)}, '${docType}')">${label}</button>`;
+    }
+    function progressSort(a, b) {
+      return String(a.bl_number || "").localeCompare(String(b.bl_number || ""), "ko")
+        || String(a.destination || "").localeCompare(String(b.destination || ""), "ko")
+        || String(meatType(a)).localeCompare(String(meatType(b)), "ko");
+    }
     function renderProgressStatus() {
-      const rows = visibleCards().sort((a, b) => String(a.bl_number || "").localeCompare(String(b.bl_number || ""), "ko"));
-      document.getElementById("progressRows").innerHTML = rows.length ? rows.map(card => `
+      const rows = visibleCards().sort(progressSort);
+      document.getElementById("progressRows").innerHTML = rows.length ? rows.map((card, rowIndex) => `
         <tr>
+          <td class="center">${rowIndex + 1}</td>
           <td>${esc(displayConsignee(card.consignee || "-"))}</td>
           <td><b>${esc(card.bl_number || "-")}</b></td>
           <td>${esc(card.destination || "-")}</td>
@@ -1067,15 +1093,17 @@
           <td>${esc(yardText(card))}</td>
           <td>${esc(card.stage || "-")}</td>
           <td>${esc(card.prgs_stts || "-")}</td>
-          <td class="center">${docStatusLabel(!!card.doc_bl_received || !!card.obl_received)}</td>
+          <td class="center">${docStatusLabel(!!card.doc_bl_received)}</td>
+          <td class="center">${progressDocToggle(card, "obl")}</td>
           <td class="center">${docStatusLabel(!!card.doc_iv_received)}</td>
           <td class="center">${docStatusLabel(!!card.doc_pl_received)}</td>
-          <td class="center">${docStatusLabel(!!card.doc_hc_received || !!card.hc_received)}</td>
+          <td class="center">${docStatusLabel(!!card.doc_hc_received)}</td>
+          <td class="center">${progressDocToggle(card, "hc")}</td>
           <td class="center">${docStatusLabel(!!card.doc_co_received)}</td>
           <td class="center">${docStatusLabel(!!card.doc_insurance_received, insuranceRequired(card))}</td>
           <td class="center">${docStatusLabel(!!card.doc_freight_invoice_received, freightRequired(card))}</td>
         </tr>
-      `).join("") : '<tr><td colspan="16" style="text-align:center;color:#8b95a1">표시할 BL이 없습니다.</td></tr>';
+      `).join("") : '<tr><td colspan="19" style="text-align:center;color:#8b95a1">표시할 BL이 없습니다.</td></tr>';
     }
     function openProgressStatus() {
       document.getElementById("adminPanel").style.display = "none";
@@ -1487,6 +1515,35 @@
           bl_number: card.bl_number,
           obl_received: obl,
           hc_received: hc,
+          actual_received_date: actualReceivedDate
+        })
+      });
+      const result = await response.json();
+      if (!result.success) {
+        alert(result.message || "원본서류 수취현황 저장에 실패했습니다.");
+        return;
+      }
+      await loadData();
+    }
+    async function saveProgressOriginalDoc(cardIndex, docType) {
+      const card = currentCards[cardIndex];
+      if (!card) return;
+      const defaultDate = card.actual_received_date ? displayDate(card.actual_received_date) : new Date().toISOString().slice(0, 10);
+      const input = prompt("원본 수령일을 입력하세요. 예: 2026-07-06, 07-06, 0706", defaultDate);
+      if (input === null) return;
+      const actualReceivedDate = normalizeRequestDate(input) || input.trim();
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(actualReceivedDate)) {
+        alert("수령일은 YYYY-MM-DD, MM-DD, MMDD 형식으로 입력해 주세요.");
+        return;
+      }
+      const response = await fetch("/api/cargo-original-docs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          account_id: card.account_id,
+          bl_number: card.bl_number,
+          obl_received: docType === "obl" ? true : !!card.obl_received,
+          hc_received: docType === "hc" ? true : !!card.hc_received,
           actual_received_date: actualReceivedDate
         })
       });
