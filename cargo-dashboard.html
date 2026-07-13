@@ -51,15 +51,16 @@
     .card summary { list-style:none; cursor:pointer; }
     .card summary::-webkit-details-marker { display:none; }
     .card.compact { padding:0; overflow:hidden; }
-    .card.compact .compact-line { display:grid; grid-template-columns:minmax(128px,1.05fr) minmax(96px,.85fr) minmax(58px,.55fr) 12px; grid-template-areas:"bl dest yard arrow" "meat eta yard arrow"; gap:3px 4px; align-items:center; min-height:44px; padding:5px 6px; font-size:8.8px; }
-    .card.compact .compact-main { grid-area:bl; font-family:Consolas,monospace; font-size:9px; font-weight:900; color:#1f2933; overflow:visible; white-space:nowrap; }
+    .card.compact .compact-line { display:grid; grid-template-columns:minmax(98px,.78fr) minmax(146px,1.35fr) minmax(96px,.9fr) 10px; grid-template-areas:"bl dest yard arrow" "meat eta status arrow"; column-gap:8px; row-gap:2px; align-items:start; min-height:43px; padding:6px 8px; font-size:9px; line-height:1.12; }
+    .card.compact .compact-main { grid-area:bl; align-self:center; font-family:Consolas,monospace; font-size:9.7px; line-height:1.05; font-weight:900; color:#1f2933; overflow:visible; white-space:nowrap; }
     .card.compact .compact-dest { grid-area:dest; }
     .card.compact .compact-meat { grid-area:meat; }
     .card.compact .compact-eta { grid-area:eta; }
     .card.compact .compact-yard { grid-area:yard; }
-    .card.compact .compact-cell { color:#334155; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-    .card.compact .compact-label { display:block; color:#7b8794; font-size:7.8px; font-weight:800; line-height:1.05; }
-    .card.compact .compact-value { font-weight:800; }
+    .card.compact .compact-status { grid-area:status; }
+    .card.compact .compact-cell { color:#334155; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .card.compact .compact-label { display:block; color:#7b8794; font-size:7.6px; font-weight:800; line-height:1; margin-bottom:1px; }
+    .card.compact .compact-value { display:block; font-weight:850; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .card.compact .compact-status-value { color:#1f2933; font-weight:900; }
     .card.compact .compact-arrow { grid-area:arrow; color:#6b7684; font-size:12px; text-align:right; }
     .card.compact[open] .compact-arrow { transform:rotate(90deg); }
@@ -1093,7 +1094,8 @@
           <span class="compact-cell compact-dest" title="${esc(destinationWithTerm(card))}"><span class="compact-label">납품처_인도조건</span><span class="compact-value">${esc(destinationWithTerm(card))}</span></span>
           <span class="compact-cell compact-meat"><span class="compact-label">육종</span><span class="compact-value">${esc(meatType(card))}</span></span>
           <span class="compact-cell compact-eta"><span class="compact-label">입항예정</span><span class="compact-value">${esc(displayDate(etaText(card)))}</span></span>
-          <span class="compact-cell compact-yard" title="${esc(yardText(card))} / ${esc(progressStateText(card))}"><span class="compact-label">반입장소</span><span class="compact-value">${esc(yardText(card))}</span><span class="compact-label">진행상태</span><span class="compact-status-value">${esc(progressStateText(card))}</span></span>
+          <span class="compact-cell compact-yard" title="${esc(yardText(card))}"><span class="compact-label">반입장소</span><span class="compact-value">${esc(yardText(card))}</span></span>
+          <span class="compact-cell compact-status" title="${esc(progressStateText(card))}"><span class="compact-label">진행상태</span><span class="compact-status-value">${esc(progressStateText(card))}</span></span>
           <span class="compact-arrow">›</span>
         </summary>
       `;
