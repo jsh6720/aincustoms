@@ -216,6 +216,8 @@
     .progress-table th, .progress-table td { border-bottom:1px solid #edf1f4; padding:7px 8px; text-align:left; vertical-align:middle; word-break:keep-all; overflow-wrap:anywhere; }
     .progress-table th { position:sticky; top:0; z-index:1; background:#f7f9fb; color:#4b5663; font-size:10px; font-weight:900; }
     .progress-table .center { text-align:center; font-weight:900; }
+    .progress-table .no-cell { width:34px; min-width:34px; max-width:34px; padding-left:4px; padding-right:4px; text-align:center; }
+    .progress-table .bl-cell { width:138px; min-width:138px; white-space:nowrap; word-break:normal; overflow-wrap:normal; font-family:Consolas,monospace; }
     .doc-o { color:#1b6b3a; background:#edf8f1; border:1px solid #b7dfc4; border-radius:999px; padding:1px 6px; }
     .doc-x { color:#c92a2a; background:#fff1f1; border:1px solid #ffc9c9; border-radius:999px; padding:1px 6px; }
     .doc-na { color:#8b95a1; background:#f5f7f9; border:1px solid #e2e8ee; border-radius:999px; padding:1px 6px; }
@@ -368,9 +370,9 @@
           <table class="progress-table">
             <thead>
               <tr>
-                <th>No</th>
+                <th class="no-cell">No</th>
                 <th>화주</th>
-                <th>BL</th>
+                <th class="bl-cell">BL</th>
                 <th>납품처</th>
                 <th>육종</th>
                 <th>인도조건</th>
@@ -1116,6 +1118,25 @@
       const status = card.distribution_history_override || (card.distribution_history_number ? "O" : "X");
       return docStatusLabel(status === "O");
     }
+    function progressManualStatusToggle(card, type) {
+      const idx = currentCards.indexOf(card);
+      if (type === "animal") {
+        const lockedByApi = !card.animal_quarantine_override && inspectionPassed(card.animal_quarantine);
+        const isOn = inspectionPassed(card.animal_quarantine);
+        if (currentUserRole !== "admin" || lockedByApi) return docStatusLabel(isOn);
+        return `<button type="button" class="doc-toggle ${isOn ? "doc-o" : "doc-x"}" onclick="toggleProgressManualStatus(${idx}, 'animal')">${isOn ? "O" : "X"}</button>`;
+      }
+      if (type === "food") {
+        const lockedByApi = !card.food_quarantine_override && inspectionPassed(card.food_quarantine);
+        const isOn = inspectionPassed(card.food_quarantine);
+        if (currentUserRole !== "admin" || lockedByApi) return docStatusLabel(isOn);
+        return `<button type="button" class="doc-toggle ${isOn ? "doc-o" : "doc-x"}" onclick="toggleProgressManualStatus(${idx}, 'food')">${isOn ? "O" : "X"}</button>`;
+      }
+      if (!distributionHistoryTarget(card) && !card.distribution_history_override && !card.distribution_history_number) return `<span class="doc-na">-</span>`;
+      const isOn = (card.distribution_history_override || (card.distribution_history_number ? "O" : "X")) === "O";
+      if (currentUserRole !== "admin") return docStatusLabel(isOn);
+      return `<button type="button" class="doc-toggle ${isOn ? "doc-o" : "doc-x"}" onclick="toggleProgressManualStatus(${idx}, 'distribution')">${isOn ? "O" : "X"}</button>`;
+    }
     function progressDocToggle(card, docType) {
       const received = docType === "obl" ? !!card.obl_received : !!card.hc_received;
       const date = card.actual_received_date ? `수령일 ${displayDate(card.actual_received_date)}` : "수령일 미입력";
@@ -1131,9 +1152,9 @@
       const rows = visibleCards().sort(progressSort);
       document.getElementById("progressRows").innerHTML = rows.length ? rows.map((card, rowIndex) => `
         <tr>
-          <td class="center">${rowIndex + 1}</td>
+          <td class="center no-cell">${rowIndex + 1}</td>
           <td>${esc(displayConsignee(card.consignee || "-"))}</td>
-          <td><b>${esc(card.bl_number || "-")}</b></td>
+          <td class="bl-cell"><b>${esc(card.bl_number || "-")}</b></td>
           <td>${esc(card.destination || "-")}</td>
           <td>${esc(meatType(card))}</td>
           <td class="center">${esc(card.delivery_terms || "-")}</td>
@@ -1141,9 +1162,9 @@
           <td>${esc(yardText(card))}</td>
           <td>${esc(card.stage || "-")}</td>
           <td>${esc(progressStateText(card))}</td>
-          <td class="center">${docStatusLabel(inspectionPassed(card.animal_quarantine))}</td>
-          <td class="center">${docStatusLabel(inspectionPassed(card.food_quarantine))}</td>
-          <td class="center">${distributionStatusLabel(card)}</td>
+          <td class="center">${progressManualStatusToggle(card, "animal")}</td>
+          <td class="center">${progressManualStatusToggle(card, "food")}</td>
+          <td class="center">${progressManualStatusToggle(card, "distribution")}</td>
           <td class="center">${docStatusLabel(!!card.doc_bl_received)}</td>
           <td class="center">${progressDocToggle(card, "obl")}</td>
           <td class="center">${docStatusLabel(!!card.doc_iv_received)}</td>
@@ -1289,6 +1310,66 @@
       document.getElementById(`manualFree-${blNumber}`).value = "";
       document.getElementById(`manualWh-${blNumber}`).value = "";
       await saveManualFields(accountId, blNumber);
+    }
+
+    function distributionNumberFromPrompts(card) {
+      const current = String(card.distribution_history_number || "");
+      const currentOwn = (current.match(/본인:([^/]+)/) || [])[1]?.trim() || "";
+      const currentBoneless = (current.match(/본레스:([^/]+)/) || [])[1]?.trim() || "";
+      const own = prompt("유통이력 본인 번호를 입력하세요. 비워도 됩니다.", currentOwn);
+      if (own === null) return null;
+      const boneless = prompt("유통이력 본레스 번호를 입력하세요. 비워도 됩니다.", currentBoneless);
+      if (boneless === null) return null;
+      const parts = [];
+      if (own.trim()) parts.push(`본인:${own.trim()}`);
+      if (boneless.trim()) parts.push(`본레스:${boneless.trim()}`);
+      return parts.join(" / ");
+    }
+
+    async function toggleProgressManualStatus(cardIndex, type) {
+      if (currentUserRole !== "admin") return;
+      const card = currentCards[cardIndex];
+      if (!card || !card.bl_number) return;
+
+      const labels = { animal: "동물검역", food: "식품검역", distribution: "유통이력" };
+      let currentOn = false;
+      if (type === "animal") currentOn = inspectionPassed(card.animal_quarantine);
+      if (type === "food") currentOn = inspectionPassed(card.food_quarantine);
+      if (type === "distribution") currentOn = (card.distribution_history_override || (card.distribution_history_number ? "O" : "X")) === "O";
+
+      const next = currentOn ? "X" : "O";
+      let distributionNumber = card.distribution_history_number || "";
+      if (type === "distribution" && next === "O") {
+        const entered = distributionNumberFromPrompts(card);
+        if (entered === null) return;
+        distributionNumber = entered;
+      }
+
+      if (!confirm(`${card.bl_number} ${labels[type]} 상태를 ${next}로 변경할까요?`)) return;
+
+      const hasDistribution = distributionHistoryTarget(card) || card.distribution_history_override || card.distribution_history_number || type === "distribution";
+      const payload = {
+        action: "admin_status",
+        account_id: card.account_id,
+        bl_number: card.bl_number,
+        animal_quarantine_override: type === "animal" ? next : (card.animal_quarantine_override || ""),
+        food_quarantine_override: type === "food" ? next : (card.food_quarantine_override || ""),
+        import_declaration_override: card.import_declaration_override || "",
+        distribution_history_override: hasDistribution ? (type === "distribution" ? next : (card.distribution_history_override || "")) : "",
+        distribution_history_number: hasDistribution ? (type === "distribution" && next === "X" ? "" : distributionNumber) : "",
+      };
+      const response = await fetch("/api/cargo-quota", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const result = await response.json();
+      if (!result.success) {
+        alert(result.message || "관리자 상태 저장에 실패했습니다.");
+        return;
+      }
+      await loadData();
+      renderProgressStatus();
     }
 
     async function saveAdminStatus(accountId, blNumber, hasDistribution) {
