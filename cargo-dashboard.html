@@ -1318,18 +1318,51 @@
 
     function distributionNumberFromPrompts(card) {
       const current = String(card.distribution_history_number || "");
-      const currentOwn = (current.match(/본인:([^/]+)/) || [])[1]?.trim() || "";
-      const currentBoneless = (current.match(/본레스:([^/]+)/) || [])[1]?.trim() || "";
-      const own = prompt("유통이력 본인 번호를 입력하세요. 비워도 됩니다.", currentOwn);
-      if (own === null) return null;
-      const boneless = prompt("유통이력 본레스 번호를 입력하세요. 비워도 됩니다.", currentBoneless);
-      if (boneless === null) return null;
-      const parts = [];
-      if (own.trim()) parts.push(`본인:${own.trim()}`);
-      if (boneless.trim()) parts.push(`본레스:${boneless.trim()}`);
-      return parts.join(" / ");
+      const currentOwn = (current.match(/\uBCF8\uC778:([^/]+)/) || [])[1]?.trim() || "";
+      const currentBoneless = (current.match(/\uBCF8\uB808\uC2A4:([^/]+)/) || [])[1]?.trim() || "";
+      return new Promise((resolve) => {
+        const old = document.getElementById("distributionHistoryModalBg");
+        if (old) old.remove();
+        const bg = document.createElement("div");
+        bg.id = "distributionHistoryModalBg";
+        bg.style.cssText = "position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:9999;display:flex;align-items:center;justify-content:center;";
+        bg.innerHTML = `
+          <div style="width:min(460px,calc(100vw - 32px));background:#fff;border-radius:10px;box-shadow:0 24px 70px rgba(15,23,42,.28);padding:18px;">
+            <h3 style="margin:0 0 12px;font-size:18px;">\uC720\uD1B5\uC774\uB825 \uC2E0\uACE0\uBC88\uD638 \uC785\uB825</h3>
+            <div style="border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;padding:10px;margin-bottom:12px;font-size:12px;line-height:1.5;">
+              <div><b>B/L</b> ${esc(card.bl || "-")}</div>
+              <div><b>\uB0A9\uD488\uCC98</b> ${esc(card.consignee || card.delivery || "-")}</div>
+            </div>
+            <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;margin:8px 0 4px;">
+              <input id="distOwnCheck" type="checkbox" ${currentOwn ? "checked" : ""} style="width:14px;height:14px"> \uBCF8\uC778
+            </label>
+            <input id="distOwnInput" value="${esc(currentOwn)}" placeholder="\uBCF8\uC778 \uC2E0\uACE0\uBC88\uD638 \uC785\uB825" ${currentOwn ? "" : "disabled"} style="width:100%;box-sizing:border-box;border:1px solid #cbd5e1;border-radius:7px;padding:8px;font-size:13px;margin-bottom:10px;">
+            <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;margin:8px 0 4px;">
+              <input id="distBonelessCheck" type="checkbox" ${currentBoneless ? "checked" : ""} style="width:14px;height:14px"> \uBCF8\uB808\uC2A4
+            </label>
+            <input id="distBonelessInput" value="${esc(currentBoneless)}" placeholder="\uBCF8\uB808\uC2A4 \uC2E0\uACE0\uBC88\uD638 \uC785\uB825" ${currentBoneless ? "" : "disabled"} style="width:100%;box-sizing:border-box;border:1px solid #cbd5e1;border-radius:7px;padding:8px;font-size:13px;">
+            <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px;">
+              <button id="distCancelBtn" type="button" style="border:1px solid #cbd5e1;background:#fff;border-radius:7px;padding:8px 14px;font-weight:700;">\uCDE8\uC18C</button>
+              <button id="distSaveBtn" type="button" style="border:0;background:#1f6f50;color:#fff;border-radius:7px;padding:8px 14px;font-weight:700;">\uD655\uC778</button>
+            </div>
+          </div>`;
+        document.body.appendChild(bg);
+        const ownCheck = document.getElementById("distOwnCheck");
+        const ownInput = document.getElementById("distOwnInput");
+        const bonelessCheck = document.getElementById("distBonelessCheck");
+        const bonelessInput = document.getElementById("distBonelessInput");
+        ownCheck.addEventListener("change", () => { ownInput.disabled = !ownCheck.checked; if (ownCheck.checked) ownInput.focus(); });
+        bonelessCheck.addEventListener("change", () => { bonelessInput.disabled = !bonelessCheck.checked; if (bonelessCheck.checked) bonelessInput.focus(); });
+        document.getElementById("distCancelBtn").addEventListener("click", () => { bg.remove(); resolve(null); });
+        document.getElementById("distSaveBtn").addEventListener("click", () => {
+          const parts = [];
+          if (ownCheck.checked && ownInput.value.trim()) parts.push(`\uBCF8\uC778:${ownInput.value.trim()}`);
+          if (bonelessCheck.checked && bonelessInput.value.trim()) parts.push(`\uBCF8\uB808\uC2A4:${bonelessInput.value.trim()}`);
+          bg.remove();
+          resolve(parts.join(" / "));
+        });
+      });
     }
-
     async function toggleProgressManualStatus(cardIndex, type) {
       if (currentUserRole !== "admin") return;
       const card = currentCards[cardIndex];
@@ -1344,7 +1377,7 @@
       const next = currentOn ? "X" : "O";
       let distributionNumber = card.distribution_history_number || "";
       if (type === "distribution" && next === "O") {
-        const entered = distributionNumberFromPrompts(card);
+        const entered = await distributionNumberFromPrompts(card);
         if (entered === null) return;
         distributionNumber = entered;
       }
