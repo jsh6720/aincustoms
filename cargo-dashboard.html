@@ -60,6 +60,7 @@
     .card.compact .compact-cell { color:#334155; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .card.compact .compact-label { display:block; color:#7b8794; font-size:7.8px; font-weight:800; line-height:1.05; }
     .card.compact .compact-value { font-weight:800; }
+    .card.compact .compact-status-value { color:#1f2933; font-weight:900; }
     .card.compact .compact-arrow { grid-area:arrow; color:#6b7684; font-size:12px; text-align:right; }
     .card.compact[open] .compact-arrow { transform:rotate(90deg); }
     .card.compact .card-full { padding:0 8px 8px; border-top:1px solid #edf1f4; }
@@ -209,8 +210,9 @@
     .calendar-event { border-radius:4px; padding:2px 4px; margin-top:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:9.5px; font-weight:800; }
     .calendar-event.request { background:#fff7ed; color:#b45309; border:1px solid #fed7aa; }
     .calendar-event.actual { background:#e8f5ee; color:#1f6f43; border:1px solid #acd7bf; }
+    .calendar-event.eta { background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; }
     .progress-table-wrap { overflow:auto; max-height:calc(100vh - 190px); }
-    .progress-table { width:100%; min-width:1640px; border-collapse:collapse; table-layout:fixed; font-size:11px; }
+    .progress-table { width:100%; min-width:1860px; border-collapse:collapse; table-layout:fixed; font-size:11px; }
     .progress-table th, .progress-table td { border-bottom:1px solid #edf1f4; padding:7px 8px; text-align:left; vertical-align:middle; word-break:keep-all; overflow-wrap:anywhere; }
     .progress-table th { position:sticky; top:0; z-index:1; background:#f7f9fb; color:#4b5663; font-size:10px; font-weight:900; }
     .progress-table .center { text-align:center; font-weight:900; }
@@ -376,6 +378,9 @@
                 <th>반입(예정)구역</th>
                 <th>마일스톤</th>
                 <th>진행상태</th>
+                <th>동물검역</th>
+                <th>식품검역</th>
+                <th>유통이력</th>
                 <th>BL파일</th>
                 <th>BL원본</th>
                 <th>IV</th>
@@ -389,6 +394,19 @@
             </thead>
             <tbody id="progressRows"></tbody>
           </table>
+        </div>
+        <div class="docs-calendar">
+          <div class="calendar-head">
+            <h3 id="progressCalendarTitle">BL 일정</h3>
+            <div class="calendar-nav">
+              <button class="btn gray" onclick="moveProgressCalendarYear(-1)">전년도</button>
+              <button class="btn gray" onclick="moveProgressCalendar(-1)">이전월</button>
+              <input id="progressCalendarMonthInput" class="calendar-month-input" type="month" onchange="setProgressCalendarMonth(this.value)">
+              <button class="btn gray" onclick="moveProgressCalendar(1)">다음월</button>
+              <button class="btn gray" onclick="moveProgressCalendarYear(1)">다음년도</button>
+            </div>
+          </div>
+          <div id="progressCalendarGrid" class="calendar-grid"></div>
         </div>
       </div>
     </section>
@@ -476,6 +494,7 @@
     let showHiddenCards = false;
     let manualEditOpen = {};
     let docsCalendarMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    let progressCalendarMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
     let docsRowCards = [];
     let revisionDrafts = {};
     let revisionEditModes = {};
@@ -528,9 +547,21 @@
       const elapsedDays = Math.floor((today - lastReleaseDate) / 86400000);
       return elapsedDays > FULL_RELEASE_HIDE_GRACE_DAYS;
     }
-    function displayDate(value) {
+    function normalizedDateText(value) {
       if (!value) return "-";
-      return String(value).replace("T", " ").replace(/\.\d+(\+00:00|Z)?$/, "").replace("+00:00", "");
+      const text = String(value).trim();
+      const compact = text.match(/^(\d{4})(\d{2})(\d{2})$/);
+      if (compact) return `${compact[1]}-${compact[2]}-${compact[3]}`;
+      const dashed = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+      if (dashed) return `${dashed[1]}-${String(dashed[2]).padStart(2, "0")}-${String(dashed[3]).padStart(2, "0")}`;
+      return text.replace("T", " ").replace(/\.\d+(\+00:00|Z)?$/, "").replace("+00:00", "");
+    }
+    function displayDate(value) {
+      return normalizedDateText(value);
+    }
+    function calendarDate(value) {
+      const text = normalizedDateText(value);
+      return /^\d{4}-\d{2}-\d{2}$/.test(text) ? text : "";
     }
     function normalizeRequestDate(value) {
       const raw = String(value || "").trim();
@@ -695,7 +726,10 @@
         `;
       }).join("");
       if (document.getElementById("docsPanel").style.display !== "none") renderDocsStatus();
-      if (document.getElementById("progressPanel").style.display !== "none") renderProgressStatus();
+      if (document.getElementById("progressPanel").style.display !== "none") {
+        renderProgressStatus();
+        renderProgressCalendar();
+      }
     }
 
     function isHiddenCard(card) {
@@ -1040,6 +1074,9 @@
     function yardText(card) {
       return card.storage_yard || card.shed_name || "-";
     }
+    function progressStateText(card) {
+      return card.prgs_stts || card.cscl_prgs_stts || (card.stage === "입항전" ? "조회 전" : "-");
+    }
     function destinationWithTerm(card) {
       const destination = card.destination || "-";
       const term = String(card.delivery_terms || "").trim();
@@ -1051,8 +1088,8 @@
           <span class="compact-main" title="${esc(card.bl_number || "-")}">${esc(card.bl_number || "-")}</span>
           <span class="compact-cell compact-dest" title="${esc(destinationWithTerm(card))}"><span class="compact-label">납품처_인도조건</span><span class="compact-value">${esc(destinationWithTerm(card))}</span></span>
           <span class="compact-cell compact-meat"><span class="compact-label">육종</span><span class="compact-value">${esc(meatType(card))}</span></span>
-          <span class="compact-cell compact-eta"><span class="compact-label">입항예정</span><span class="compact-value">${esc(etaText(card))}</span></span>
-          <span class="compact-cell compact-yard" title="${esc(yardText(card))}"><span class="compact-label">반입장소</span><span class="compact-value">${esc(yardText(card))}</span></span>
+          <span class="compact-cell compact-eta"><span class="compact-label">입항예정</span><span class="compact-value">${esc(displayDate(etaText(card)))}</span></span>
+          <span class="compact-cell compact-yard" title="${esc(yardText(card))} / ${esc(progressStateText(card))}"><span class="compact-label">반입장소</span><span class="compact-value">${esc(yardText(card))}</span><span class="compact-label">진행상태</span><span class="compact-status-value">${esc(progressStateText(card))}</span></span>
           <span class="compact-arrow">›</span>
         </summary>
       `;
@@ -1067,6 +1104,17 @@
     function docStatusLabel(received, required = true) {
       if (!required) return `<span class="doc-na">-</span>`;
       return received ? `<span class="doc-o">O</span>` : `<span class="doc-x">X</span>`;
+    }
+    function inspectionPassed(value) {
+      const text = String(value || "").trim();
+      if (text === "O") return true;
+      if (text.includes("불합격")) return false;
+      return text.includes("합격");
+    }
+    function distributionStatusLabel(card) {
+      if (!distributionHistoryTarget(card) && !card.distribution_history_override && !card.distribution_history_number) return `<span class="doc-na">-</span>`;
+      const status = card.distribution_history_override || (card.distribution_history_number ? "O" : "X");
+      return docStatusLabel(status === "O");
     }
     function progressDocToggle(card, docType) {
       const received = docType === "obl" ? !!card.obl_received : !!card.hc_received;
@@ -1089,10 +1137,13 @@
           <td>${esc(card.destination || "-")}</td>
           <td>${esc(meatType(card))}</td>
           <td class="center">${esc(card.delivery_terms || "-")}</td>
-          <td>${esc(etaText(card))}</td>
+          <td>${esc(displayDate(etaText(card)))}</td>
           <td>${esc(yardText(card))}</td>
           <td>${esc(card.stage || "-")}</td>
-          <td>${esc(card.prgs_stts || "-")}</td>
+          <td>${esc(progressStateText(card))}</td>
+          <td class="center">${docStatusLabel(inspectionPassed(card.animal_quarantine))}</td>
+          <td class="center">${docStatusLabel(inspectionPassed(card.food_quarantine))}</td>
+          <td class="center">${distributionStatusLabel(card)}</td>
           <td class="center">${docStatusLabel(!!card.doc_bl_received)}</td>
           <td class="center">${progressDocToggle(card, "obl")}</td>
           <td class="center">${docStatusLabel(!!card.doc_iv_received)}</td>
@@ -1103,7 +1154,7 @@
           <td class="center">${docStatusLabel(!!card.doc_insurance_received, insuranceRequired(card))}</td>
           <td class="center">${docStatusLabel(!!card.doc_freight_invoice_received, freightRequired(card))}</td>
         </tr>
-      `).join("") : '<tr><td colspan="19" style="text-align:center;color:#8b95a1">표시할 BL이 없습니다.</td></tr>';
+      `).join("") : '<tr><td colspan="22" style="text-align:center;color:#8b95a1">표시할 BL이 없습니다.</td></tr>';
     }
     function openProgressStatus() {
       document.getElementById("adminPanel").style.display = "none";
@@ -1111,6 +1162,7 @@
       document.getElementById("docsPanel").style.display = "none";
       document.getElementById("progressPanel").style.display = "block";
       renderProgressStatus();
+      renderProgressCalendar();
     }
     function closeProgressStatus() {
       document.getElementById("progressPanel").style.display = "none";
@@ -1364,7 +1416,7 @@
       return `<span class="doc-pill ${value ? "ok" : "no"}">${value ? "O" : "X"}</span>`;
     }
     function shortDate(value) {
-      return value ? String(value).slice(0, 10) : "";
+      return calendarDate(value);
     }
     function docsPendingNote(card) {
       if (!card.pending_actual_received_date) return "";
@@ -1701,6 +1753,72 @@
       if (!match) return;
       docsCalendarMonth = new Date(Number(match[1]), Number(match[2]) - 1, 1);
       renderDocsCalendar();
+    }
+    function progressCalendarEvents() {
+      const events = [];
+      visibleCards().forEach(card => {
+        const label = card.bl_number || "-";
+        const eta = calendarDate(etaText(card));
+        if (eta) {
+          events.push({ date: eta, type: "eta", text: `입항 ${label}` });
+        }
+        const requestDate = calendarDate(card.last_original_doc_requested_receipt_date);
+        if (requestDate) {
+          events.push({ date: requestDate, type: "request", text: `서류요청 ${label}` });
+        }
+        const actualDate = calendarDate(card.actual_received_date);
+        if (actualDate) {
+          events.push({ date: actualDate, type: "actual", text: `서류수령 ${label}` });
+        }
+      });
+      return events;
+    }
+    function renderProgressCalendar() {
+      const title = document.getElementById("progressCalendarTitle");
+      const grid = document.getElementById("progressCalendarGrid");
+      const monthInput = document.getElementById("progressCalendarMonthInput");
+      if (!title || !grid) return;
+      const year = progressCalendarMonth.getFullYear();
+      const month = progressCalendarMonth.getMonth();
+      title.textContent = `${year}년 ${String(month + 1).padStart(2, "0")}월 BL 일정`;
+      if (monthInput) monthInput.value = `${year}-${String(month + 1).padStart(2, "0")}`;
+      const first = new Date(year, month, 1);
+      const start = new Date(year, month, 1 - first.getDay());
+      const eventsByDate = new Map();
+      progressCalendarEvents().forEach(event => {
+        if (!event.date) return;
+        if (!eventsByDate.has(event.date)) eventsByDate.set(event.date, []);
+        eventsByDate.get(event.date).push(event);
+      });
+      const weekdays = ["일", "월", "화", "수", "목", "금", "토"].map(day => `<div class="calendar-weekday">${day}</div>`);
+      const cells = [];
+      for (let i = 0; i < 42; i += 1) {
+        const day = new Date(start);
+        day.setDate(start.getDate() + i);
+        const dateText = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-${String(day.getDate()).padStart(2, "0")}`;
+        const dayEvents = eventsByDate.get(dateText) || [];
+        cells.push(`
+          <div class="calendar-cell ${day.getMonth() === month ? "" : "dim"}">
+            <div class="calendar-day">${day.getDate()}</div>
+            ${dayEvents.map(event => `<div class="calendar-event ${event.type}" title="${esc(event.text)}">${esc(event.text)}</div>`).join("")}
+          </div>
+        `);
+      }
+      grid.innerHTML = weekdays.join("") + cells.join("");
+    }
+    function moveProgressCalendar(delta) {
+      progressCalendarMonth = new Date(progressCalendarMonth.getFullYear(), progressCalendarMonth.getMonth() + delta, 1);
+      renderProgressCalendar();
+    }
+    function moveProgressCalendarYear(delta) {
+      progressCalendarMonth = new Date(progressCalendarMonth.getFullYear() + delta, progressCalendarMonth.getMonth(), 1);
+      renderProgressCalendar();
+    }
+    function setProgressCalendarMonth(value) {
+      const match = String(value || "").match(/^(\d{4})-(\d{2})$/);
+      if (!match) return;
+      progressCalendarMonth = new Date(Number(match[1]), Number(match[2]) - 1, 1);
+      renderProgressCalendar();
     }
 
     async function openReleaseModal(blNumber) {
