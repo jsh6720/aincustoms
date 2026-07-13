@@ -218,6 +218,7 @@
     .progress-table .center { text-align:center; font-weight:900; }
     .progress-table .no-cell { width:34px; min-width:34px; max-width:34px; padding-left:4px; padding-right:4px; text-align:center; }
     .progress-table .bl-cell { width:138px; min-width:138px; white-space:nowrap; word-break:normal; overflow-wrap:normal; font-family:Consolas,monospace; }
+    body.shipper-progress .progress-admin-only { display:none; }
     .doc-o { color:#1b6b3a; background:#edf8f1; border:1px solid #b7dfc4; border-radius:999px; padding:1px 6px; }
     .doc-x { color:#c92a2a; background:#fff1f1; border:1px solid #ffc9c9; border-radius:999px; padding:1px 6px; }
     .doc-na { color:#8b95a1; background:#f5f7f9; border:1px solid #e2e8ee; border-radius:999px; padding:1px 6px; }
@@ -380,9 +381,9 @@
                 <th>반입(예정)구역</th>
                 <th>마일스톤</th>
                 <th>진행상태</th>
-                <th>동물검역</th>
-                <th>식품검역</th>
-                <th>유통이력</th>
+                <th class="progress-admin-only">동물검역</th>
+                <th class="progress-admin-only">식품검역</th>
+                <th class="progress-admin-only">유통이력</th>
                 <th>BL파일</th>
                 <th>BL원본</th>
                 <th>IV</th>
@@ -708,6 +709,7 @@
       }
       currentUserRole = result.user.role || "shipper";
       currentUserLogin = result.user.login_id || "";
+      document.body.classList.toggle("shipper-progress", currentUserRole !== "admin");
       currentCards = result.cards || [];
       const activeCards = visibleCards();
       showCargoUi();
@@ -1162,9 +1164,9 @@
           <td>${esc(yardText(card))}</td>
           <td>${esc(card.stage || "-")}</td>
           <td>${esc(progressStateText(card))}</td>
-          <td class="center">${progressManualStatusToggle(card, "animal")}</td>
-          <td class="center">${progressManualStatusToggle(card, "food")}</td>
-          <td class="center">${progressManualStatusToggle(card, "distribution")}</td>
+          <td class="center progress-admin-only">${progressManualStatusToggle(card, "animal")}</td>
+          <td class="center progress-admin-only">${progressManualStatusToggle(card, "food")}</td>
+          <td class="center progress-admin-only">${progressManualStatusToggle(card, "distribution")}</td>
           <td class="center">${docStatusLabel(!!card.doc_bl_received)}</td>
           <td class="center">${progressDocToggle(card, "obl")}</td>
           <td class="center">${docStatusLabel(!!card.doc_iv_received)}</td>
