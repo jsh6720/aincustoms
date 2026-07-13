@@ -48,6 +48,17 @@
     .stage-warehouse .empty { grid-column:1 / -1; }
     .empty { text-align:center; color:#8b95a1; font-size:10px; padding:22px 0; }
     .card { background:#fff; border-radius:7px; border:1px solid #dce2e8; padding:7px 8px; font-size:10.4px; position:relative; box-shadow:0 1px 2px rgba(15,23,42,.05); }
+    .card summary { list-style:none; cursor:pointer; }
+    .card summary::-webkit-details-marker { display:none; }
+    .card.compact { padding:0; overflow:hidden; }
+    .card.compact .compact-line { display:grid; grid-template-columns:1.35fr 1fr .72fr .82fr 1fr 20px; gap:8px; align-items:center; min-height:36px; padding:7px 8px; font-size:10.5px; }
+    .card.compact .compact-main { font-weight:900; color:#1f2933; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .card.compact .compact-cell { color:#334155; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .card.compact .compact-label { display:block; color:#7b8794; font-size:8.5px; font-weight:800; line-height:1.1; }
+    .card.compact .compact-value { font-weight:800; }
+    .card.compact .compact-arrow { color:#6b7684; font-size:12px; text-align:right; }
+    .card.compact[open] .compact-arrow { transform:rotate(90deg); }
+    .card.compact .card-full { padding:0 8px 8px; border-top:1px solid #edf1f4; }
     .stage-arrival-before .card { border-left:4px solid #6b747f; }
     .stage-arrival .card { border-left:4px solid #5f8faa; }
     .stage-warehouse .card { border-left:4px solid #aa8f4b; }
@@ -194,6 +205,14 @@
     .calendar-event { border-radius:4px; padding:2px 4px; margin-top:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:9.5px; font-weight:800; }
     .calendar-event.request { background:#fff7ed; color:#b45309; border:1px solid #fed7aa; }
     .calendar-event.actual { background:#e8f5ee; color:#1f6f43; border:1px solid #acd7bf; }
+    .progress-table-wrap { overflow:auto; max-height:calc(100vh - 190px); }
+    .progress-table { width:100%; min-width:1420px; border-collapse:collapse; table-layout:fixed; font-size:11px; }
+    .progress-table th, .progress-table td { border-bottom:1px solid #edf1f4; padding:7px 8px; text-align:left; vertical-align:middle; word-break:keep-all; overflow-wrap:anywhere; }
+    .progress-table th { position:sticky; top:0; z-index:1; background:#f7f9fb; color:#4b5663; font-size:10px; font-weight:900; }
+    .progress-table .center { text-align:center; font-weight:900; }
+    .doc-o { color:#1b6b3a; background:#edf8f1; border:1px solid #b7dfc4; border-radius:999px; padding:1px 6px; }
+    .doc-x { color:#c92a2a; background:#fff1f1; border:1px solid #ffc9c9; border-radius:999px; padding:1px 6px; }
+    .doc-na { color:#8b95a1; background:#f5f7f9; border:1px solid #e2e8ee; border-radius:999px; padding:1px 6px; }
     @media (max-width:1700px){ .board { width:max-content; } }
   </style>
 </head>
@@ -226,6 +245,7 @@
       <div class="toolbar-actions">
         <button id="docsStatusBtn" class="btn gray" style="display:none" onclick="openDocsStatus()">원본필수서류 수취현황</button>
         <button id="docsMobileBtn" class="btn gray" style="display:none" onclick="openDocsMobile()">모바일 원본서류</button>
+        <button id="progressStatusBtn" class="btn gray" style="display:none" onclick="openProgressStatus()">BL별 진행현황</button>
         <button id="showHiddenBtn" class="btn gray" style="display:none" onclick="toggleShowHiddenCards()">숨김 포함</button>
         <button id="adminSettingsBtn" class="btn gray" style="display:none" onclick="openAdminSettings()">관리자 설정</button>
         <button class="btn" onclick="loadData()">새로고침</button>
@@ -324,6 +344,41 @@
               </tr>
             </thead>
             <tbody id="adminRows"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+    <section id="progressPanel" class="docs-panel">
+      <div class="docs-inner">
+        <div class="docs-head">
+          <h2>BL별 진행현황</h2>
+          <div class="toolbar-actions">
+            <button class="btn gray" onclick="closeProgressStatus()">닫기</button>
+          </div>
+        </div>
+        <div class="progress-table-wrap">
+          <table class="progress-table">
+            <thead>
+              <tr>
+                <th>화주</th>
+                <th>BL</th>
+                <th>납품처</th>
+                <th>육종</th>
+                <th>인도조건</th>
+                <th>입항예정</th>
+                <th>반입(예정)구역</th>
+                <th>마일스톤</th>
+                <th>진행상태</th>
+                <th>BL</th>
+                <th>IV</th>
+                <th>PL</th>
+                <th>H/C</th>
+                <th>C/O</th>
+                <th>보험</th>
+                <th>운임</th>
+              </tr>
+            </thead>
+            <tbody id="progressRows"></tbody>
           </table>
         </div>
       </div>
@@ -532,9 +587,11 @@
       document.getElementById("boardWrap").style.display = "";
       document.getElementById("board").style.display = "grid";
       document.getElementById("docsPanel").style.display = "none";
+      document.getElementById("progressPanel").style.display = "none";
       document.getElementById("logoutBtn").style.display = "";
       document.getElementById("docsStatusBtn").style.display = "";
       document.getElementById("docsMobileBtn").style.display = currentUserRole === "admin" ? "" : "none";
+      document.getElementById("progressStatusBtn").style.display = "";
       document.getElementById("showHiddenBtn").style.display = currentUserRole === "admin" ? "" : "none";
       document.getElementById("showHiddenBtn").textContent = showHiddenCards ? "숨김 제외" : "숨김 포함";
       document.getElementById("adminSettingsBtn").style.display = currentUserRole === "admin" ? "" : "none";
@@ -548,10 +605,12 @@
       document.getElementById("boardWrap").style.display = "none";
       document.getElementById("board").style.display = "none";
       document.getElementById("docsPanel").style.display = "none";
+      document.getElementById("progressPanel").style.display = "none";
       document.getElementById("adminPanel").style.display = "none";
       document.getElementById("logoutBtn").style.display = "none";
       document.getElementById("docsStatusBtn").style.display = "none";
       document.getElementById("docsMobileBtn").style.display = "none";
+      document.getElementById("progressStatusBtn").style.display = "none";
       document.getElementById("showHiddenBtn").style.display = "none";
       document.getElementById("adminSettingsBtn").style.display = "none";
       document.getElementById("loginError").textContent = message;
@@ -627,6 +686,7 @@
         `;
       }).join("");
       if (document.getElementById("docsPanel").style.display !== "none") renderDocsStatus();
+      if (document.getElementById("progressPanel").style.display !== "none") renderProgressStatus();
     }
 
     function isHiddenCard(card) {
@@ -958,6 +1018,76 @@
         </div>
       `;
     }
+    function meatType(card) {
+      const text = [card.destination, card.product_name, card.folder_name].map(v => String(v || "").toUpperCase()).join(" ");
+      if (/우육|BEEF/.test(text)) return "우육";
+      if (/돈육|PORK/.test(text)) return "돈육";
+      if (/계육|CHICKEN/.test(text)) return "계육";
+      return card.product_name || "-";
+    }
+    function etaText(card) {
+      return card.eta_date || card.entry_date || card.first_arrival_date || "-";
+    }
+    function yardText(card) {
+      return card.storage_yard || card.shed_name || "-";
+    }
+    function compactSummaryHtml(card) {
+      return `
+        <summary class="compact-line">
+          <span class="compact-main">${esc(displayConsignee(card.consignee))}_${esc(card.bl_number || "-")}</span>
+          <span class="compact-cell"><span class="compact-label">납품처</span><span class="compact-value">${esc(card.destination || "-")}</span></span>
+          <span class="compact-cell"><span class="compact-label">육종</span><span class="compact-value">${esc(meatType(card))}</span></span>
+          <span class="compact-cell"><span class="compact-label">입항예정</span><span class="compact-value">${esc(etaText(card))}</span></span>
+          <span class="compact-cell"><span class="compact-label">반입(예정)구역</span><span class="compact-value">${esc(yardText(card))}</span></span>
+          <span class="compact-arrow">›</span>
+        </summary>
+      `;
+    }
+    function freightRequired(card) {
+      return /^[EF]/.test(String(card.delivery_terms || "").toUpperCase());
+    }
+    function insuranceRequired(card) {
+      const term = String(card.delivery_terms || "").toUpperCase();
+      return !!term && !["CIF", "CIP"].includes(term);
+    }
+    function docStatusLabel(received, required = true) {
+      if (!required) return `<span class="doc-na">-</span>`;
+      return received ? `<span class="doc-o">O</span>` : `<span class="doc-x">X</span>`;
+    }
+    function renderProgressStatus() {
+      const rows = visibleCards().sort((a, b) => String(a.bl_number || "").localeCompare(String(b.bl_number || ""), "ko"));
+      document.getElementById("progressRows").innerHTML = rows.length ? rows.map(card => `
+        <tr>
+          <td>${esc(displayConsignee(card.consignee || "-"))}</td>
+          <td><b>${esc(card.bl_number || "-")}</b></td>
+          <td>${esc(card.destination || "-")}</td>
+          <td>${esc(meatType(card))}</td>
+          <td class="center">${esc(card.delivery_terms || "-")}</td>
+          <td>${esc(etaText(card))}</td>
+          <td>${esc(yardText(card))}</td>
+          <td>${esc(card.stage || "-")}</td>
+          <td>${esc(card.prgs_stts || "-")}</td>
+          <td class="center">${docStatusLabel(!!card.doc_bl_received || !!card.obl_received)}</td>
+          <td class="center">${docStatusLabel(!!card.doc_iv_received)}</td>
+          <td class="center">${docStatusLabel(!!card.doc_pl_received)}</td>
+          <td class="center">${docStatusLabel(!!card.doc_hc_received || !!card.hc_received)}</td>
+          <td class="center">${docStatusLabel(!!card.doc_co_received)}</td>
+          <td class="center">${docStatusLabel(!!card.doc_insurance_received, insuranceRequired(card))}</td>
+          <td class="center">${docStatusLabel(!!card.doc_freight_invoice_received, freightRequired(card))}</td>
+        </tr>
+      `).join("") : '<tr><td colspan="16" style="text-align:center;color:#8b95a1">표시할 BL이 없습니다.</td></tr>';
+    }
+    function openProgressStatus() {
+      document.getElementById("adminPanel").style.display = "none";
+      document.getElementById("boardWrap").style.display = "none";
+      document.getElementById("docsPanel").style.display = "none";
+      document.getElementById("progressPanel").style.display = "block";
+      renderProgressStatus();
+    }
+    function closeProgressStatus() {
+      document.getElementById("progressPanel").style.display = "none";
+      document.getElementById("boardWrap").style.display = "";
+    }
     function cardHtml(card, index) {
       const alertClass = card.quota_alert === "over" ? " over" : (card.quota_alert === "warn" ? " warn" : "");
       const importType = importStatusType(card);
@@ -965,7 +1095,10 @@
       const declareClass = card.stage === "수입신고" && importType === "declared" ? " declare-pending" : "";
       const hidden = isHiddenCard(card);
       return `
-        <article class="card${alertClass}${permitClass}${declareClass}${hidden ? " hidden-card" : ""}">
+        <article class="card compact${alertClass}${permitClass}${declareClass}${hidden ? " hidden-card" : ""}">
+          <details>
+          ${compactSummaryHtml(card)}
+          <div class="card-full">
           ${hidden ? '<span class="hidden-badge">숨김</span>' : ""}
           ${(card.revisions || []).length ? '<span class="revision-badge">확인사항</span>' : ""}
           <div class="top">
@@ -1000,6 +1133,8 @@
           ${originalDocRequestButton(card)}
           ${importRequestButton(card)}
           ${releaseRequestButton(card)}
+          </div>
+          </details>
         </article>
       `;
     }
@@ -1273,6 +1408,7 @@
     function openDocsStatus() {
       document.getElementById("adminPanel").style.display = "none";
       document.getElementById("boardWrap").style.display = "none";
+      document.getElementById("progressPanel").style.display = "none";
       document.getElementById("docsPanel").style.display = "block";
       renderDocsStatus();
     }
