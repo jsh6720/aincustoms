@@ -1,4 +1,5 @@
 const { verifySession, supabaseFetch } = require("../lib/cargo-auth");
+const { hasTransferDocument } = require("../lib/cargo-doc-status");
 
 const STAGE_ORDER = ["입항전", "입항", "반입", "수입신고", "반출"];
 const IMPORT_DECLARE_DAYS = 30;
@@ -315,10 +316,14 @@ module.exports = async function handler(req, res) {
     const importRequests = await fetchImportRequests(isAdmin ? null : accountId);
     const originalDocs = await fetchOriginalDocs(isAdmin ? null : accountId);
     const originalDocRequests = await fetchOriginalDocRequests(isAdmin ? null : accountId);
+    const cardsWithDocStatus = (cards || []).map((card) => ({
+      ...card,
+      doc_transfer_received: hasTransferDocument(card.doc_files_status),
+    }));
 
     const sorted = applyOriginalDocs(
       applyOriginalDocRequests(
-        applyImportRequests(applyUserInputs(cards || [], userInputs), importRequests),
+        applyImportRequests(applyUserInputs(cardsWithDocStatus, userInputs), importRequests),
         originalDocRequests
       ),
       originalDocs

@@ -392,6 +392,7 @@
                 <th>H/C파일</th>
                 <th>H/C원본</th>
                 <th>C/O</th>
+                <th>양도증</th>
                 <th>보험</th>
                 <th>운임</th>
               </tr>
@@ -1176,10 +1177,11 @@
           <td class="center">${docStatusLabel(!!card.doc_hc_received)}</td>
           <td class="center">${progressDocToggle(card, "hc")}</td>
           <td class="center">${docStatusLabel(!!card.doc_co_received)}</td>
+          <td class="center">${docStatusLabel(!!card.doc_transfer_received)}</td>
           <td class="center">${docStatusLabel(!!card.doc_insurance_received, insuranceRequired(card))}</td>
           <td class="center">${docStatusLabel(!!card.doc_freight_invoice_received, freightRequired(card))}</td>
         </tr>
-      `).join("") : '<tr><td colspan="22" style="text-align:center;color:#8b95a1">표시할 BL이 없습니다.</td></tr>';
+      `).join("") : '<tr><td colspan="23" style="text-align:center;color:#8b95a1">표시할 BL이 없습니다.</td></tr>';
     }
     function openProgressStatus() {
       document.getElementById("adminPanel").style.display = "none";
