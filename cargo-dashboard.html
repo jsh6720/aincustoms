@@ -44,6 +44,7 @@
     .stage-declare .col-head { background:#4a765c; }
     .stage-release .col-head { background:#625984; }
     .col-body { width:100%; min-height:0; flex:1 1 auto; padding:7px; display:flex; flex-direction:column; gap:7px; overflow-y:auto; overscroll-behavior:contain; scrollbar-gutter:stable; -webkit-overflow-scrolling:touch; }
+    .col-body > details { min-width:0; flex-shrink:0; }
     .stage-warehouse .col-body { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); align-content:start; align-items:start; }
     .stage-warehouse .empty { grid-column:1 / -1; }
     .empty { text-align:center; color:#8b95a1; font-size:10px; padding:22px 0; }
