@@ -44,7 +44,6 @@
     .stage-declare .col-head { background:#4a765c; }
     .stage-release .col-head { background:#625984; }
     .col-body { width:100%; min-height:0; flex:1 1 auto; padding:7px; display:flex; flex-direction:column; gap:7px; overflow-y:auto; overscroll-behavior:contain; scrollbar-gutter:stable; -webkit-overflow-scrolling:touch; }
-    .col-body > details { min-width:0; flex-shrink:0; }
     .stage-warehouse .col-body { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); align-content:start; align-items:start; }
     .stage-warehouse .empty { grid-column:1 / -1; }
     .empty { text-align:center; color:#8b95a1; font-size:10px; padding:22px 0; }
@@ -227,6 +226,11 @@
     .doc-toggle { cursor:pointer; font:inherit; font-weight:900; }
     .doc-toggle:hover { filter:brightness(.96); }
     @media (max-width:1700px){ .board { width:max-content; } }
+    @media (max-width:900px){
+      #boardWrap { overflow-y:visible; }
+      .column { max-height:none; }
+      .col-body { overflow-y:visible; }
+    }
   </style>
 </head>
 <body>
@@ -1310,7 +1314,16 @@
 
     function toggleManualEdit(blNumber) {
       manualEditOpen[blNumber] = !manualEditOpen[blNumber];
-      loadData();
+      const card = currentCards.find(item => item.bl_number === blNumber);
+      if (!card) return;
+      const details = Array.from(document.querySelectorAll("#board details[data-card-key]")).find(
+        item => String(item.dataset.cardKey || "").endsWith(`::${blNumber}`)
+      );
+      if (!details) return;
+      expandedCardKeys.add(cardStateKey(card));
+      details.open = true;
+      const box = details.querySelector(".manual-box");
+      if (box) box.outerHTML = manualFieldsHtml(card);
     }
 
     async function saveManualFields(accountId, blNumber) {
