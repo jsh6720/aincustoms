@@ -30,7 +30,7 @@
     .summary { font-size:12.5px; color:#4b5663; font-weight:700; }
     #boardWrap { overflow-x:auto; overflow-y:hidden; }
     .board { display:none; grid-template-columns:minmax(310px,.78fr) minmax(310px,.78fr) minmax(760px,1.78fr) minmax(280px,.62fr) minmax(260px,.58fr); gap:10px; padding:12px 14px 8px; align-items:start; min-width:1920px; width:100%; }
-    .column { border:1px solid #d6dde5; border-radius:8px; min-height:200px; display:flex; flex-direction:column; overflow:hidden; }
+    .column { border:1px solid #d6dde5; border-radius:8px; min-height:200px; max-height:calc(100vh - 150px); max-height:calc(100dvh - 150px); display:flex; flex-direction:column; overflow:hidden; }
     .col-head { padding:8px 10px; font-weight:700; font-size:13px; color:#fff; display:flex; justify-content:space-between; align-items:center; }
     .count { background:rgba(255,255,255,.18); border-radius:999px; padding:1px 8px; font-size:11px; min-width:24px; text-align:center; }
     .stage-arrival-before { background:#eef1f4; border-color:#cfd6de; }
@@ -43,11 +43,11 @@
     .stage-warehouse .col-head { background:#8b7138; }
     .stage-declare .col-head { background:#4a765c; }
     .stage-release .col-head { background:#625984; }
-    .col-body { padding:7px; display:flex; flex-direction:column; gap:7px; overflow-y:auto; max-height:calc(100vh - 150px); }
+    .col-body { width:100%; min-height:0; flex:1 1 auto; padding:7px; display:flex; flex-direction:column; gap:7px; overflow-y:auto; overscroll-behavior:contain; scrollbar-gutter:stable; -webkit-overflow-scrolling:touch; }
     .stage-warehouse .col-body { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); align-content:start; align-items:start; }
     .stage-warehouse .empty { grid-column:1 / -1; }
     .empty { text-align:center; color:#8b95a1; font-size:10px; padding:22px 0; }
-    .card { background:#fff; border-radius:7px; border:1px solid #dce2e8; padding:7px 8px; font-size:10.4px; position:relative; box-shadow:0 1px 2px rgba(15,23,42,.05); }
+    .card { flex-shrink:0; background:#fff; border-radius:7px; border:1px solid #dce2e8; padding:7px 8px; font-size:10.4px; position:relative; box-shadow:0 1px 2px rgba(15,23,42,.05); }
     .card summary { list-style:none; cursor:pointer; }
     .card summary::-webkit-details-marker { display:none; }
     .card.compact { padding:0; overflow:hidden; }
@@ -498,6 +498,8 @@
     let currentCards = [];
     let showHiddenCards = false;
     let manualEditOpen = {};
+    const expandedCardKeys = new Set();
+    const stageScrollPositions = new Map();
     let docsCalendarMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
     let progressCalendarMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
     let docsRowCards = [];
@@ -512,6 +514,29 @@
     }
     function jsStr(value) {
       return String(value ?? "").replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/\r/g, "\\r").replace(/\n/g, "\\n");
+    }
+    function cardStateKey(card) {
+      return `${card.account_id || card.consignee || ""}::${card.bl_number || ""}`;
+    }
+    function handleCardToggle(details, key) {
+      if (details.open) expandedCardKeys.add(key);
+      else expandedCardKeys.delete(key);
+    }
+    function captureBoardUiState() {
+      document.querySelectorAll("#board .col-body[data-stage]").forEach(body => {
+        stageScrollPositions.set(body.dataset.stage, body.scrollTop);
+      });
+      document.querySelectorAll("#board details[data-card-key]").forEach(details => {
+        handleCardToggle(details, details.dataset.cardKey || "");
+      });
+    }
+    function restoreBoardUiState() {
+      requestAnimationFrame(() => {
+        document.querySelectorAll("#board .col-body[data-stage]").forEach(body => {
+          const saved = stageScrollPositions.get(body.dataset.stage);
+          if (Number.isFinite(saved)) body.scrollTop = saved;
+        });
+      });
     }
     function displayConsignee(value) {
       return String(value || "-").replace(/현대코퍼레이션H|현대코퍼레이션|현대코퍼|현대코/g, "현대코퍼레이션H");
@@ -703,6 +728,7 @@
     }
 
     async function loadData() {
+      captureBoardUiState();
       const response = await fetch("/api/cargo-data?_=" + Date.now(), {cache: "no-store"});
       const result = await response.json();
       if (!result.success) {
@@ -725,12 +751,13 @@
         return `
           <section class="column ${stageClasses[stage] || ""}">
             <div class="col-head"><span>${stage}</span><span class="count">${cards.length}</span></div>
-            <div class="col-body">
+            <div class="col-body" data-stage="${esc(stage)}">
               ${cards.length ? cards.map(card => cardHtml(card, currentCards.indexOf(card))).join("") : '<div class="empty">해당 없음</div>'}
             </div>
           </section>
         `;
       }).join("");
+      restoreBoardUiState();
       if (document.getElementById("docsPanel").style.display !== "none") renderDocsStatus();
       if (document.getElementById("progressPanel").style.display !== "none") {
         renderProgressStatus();
@@ -1201,9 +1228,11 @@
       const permitClass = card.stage === "수입신고" && importType === "permit" ? " permit-ready" : "";
       const declareClass = card.stage === "수입신고" && importType === "declared" ? " declare-pending" : "";
       const hidden = isHiddenCard(card);
+      const key = cardStateKey(card);
+      const detailsOpen = expandedCardKeys.has(key) ? " open" : "";
       return `
         <article class="card compact${alertClass}${permitClass}${declareClass}${hidden ? " hidden-card" : ""}">
-          <details>
+          <details${detailsOpen} data-card-key="${esc(key)}" ontoggle="handleCardToggle(this, '${jsStr(key)}')">
           ${compactSummaryHtml(card)}
           <div class="card-full">
           ${hidden ? '<span class="hidden-badge">숨김</span>' : ""}
@@ -1284,6 +1313,8 @@
     }
 
     async function saveManualFields(accountId, blNumber) {
+      expandedCardKeys.add(cardStateKey({account_id: accountId, bl_number: blNumber}));
+      manualEditOpen[blNumber] = true;
       const payload = {
         action: "manual_fields",
         account_id: accountId,
@@ -1305,7 +1336,7 @@
         alert(result.message || "운송정보 저장에 실패했습니다.");
         return;
       }
-      manualEditOpen[blNumber] = false;
+      manualEditOpen[blNumber] = true;
       await loadData();
     }
 
