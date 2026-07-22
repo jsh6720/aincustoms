@@ -31,6 +31,11 @@ test("compact cards and progress rows use concise one-line display values", () =
   assert.match(dashboard, /class="progress-destination"/);
 });
 
+test("progress alignment classes define their required CSS semantics", () => {
+  assert.match(dashboard, /\.progress-date\s*\{[^}]*white-space:\s*nowrap/);
+  assert.match(dashboard, /\.progress-long\s*\{[^}]*text-align:\s*left/);
+});
+
 test("progress table preserves all 24 progress columns", () => {
   const tableStart = dashboard.indexOf('<table class="progress-table">');
   const tableEnd = dashboard.indexOf("</table>", tableStart);
