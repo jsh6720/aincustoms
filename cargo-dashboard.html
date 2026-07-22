@@ -942,7 +942,7 @@
         <div class="manual-box">
           <div class="manual-head">
             <span class="manual-title">운송정보</span>
-            <button class="btn gray" style="height:22px;padding:2px 7px;font-size:9.5px" onclick="toggleManualEdit('${jsStr(bl)}')">${open ? "닫기" : "입력"}</button>
+            <button type="button" class="btn gray" style="height:22px;padding:2px 7px;font-size:9.5px" onclick="toggleManualEdit(event, '${jsStr(bl)}')">${open ? "닫기" : "입력"}</button>
           </div>
           <div class="manual-summary">${pills || '<span class="manual-empty">수기 입력 없음</span>'}</div>
           ${open ? `<div class="manual-edit">
@@ -952,8 +952,8 @@
             <label>프리타임 일수<input id="manualFree-${esc(bl)}" type="number" min="1" step="1" value="${esc(values.free_time_days)}" placeholder="예: 14"></label>
             <label>보세창고 입고 예정일<input id="manualWh-${esc(bl)}" type="date" value="${esc(values.warehouse_expected_date)}"></label>
             <div class="manual-actions">
-              <button class="btn gray" style="height:22px;padding:2px 7px;font-size:9.5px" onclick="clearManualFields('${jsStr(card.account_id)}', '${jsStr(bl)}')">초기화</button>
-              <button class="btn green" style="height:22px;padding:2px 7px;font-size:9.5px" onclick="saveManualFields('${jsStr(card.account_id)}', '${jsStr(bl)}')">저장</button>
+              <button type="button" class="btn gray" style="height:22px;padding:2px 7px;font-size:9.5px" onclick="clearManualFields(event, '${jsStr(card.account_id)}', '${jsStr(bl)}')">초기화</button>
+              <button type="button" class="btn green" style="height:22px;padding:2px 7px;font-size:9.5px" onclick="saveManualFields(event, '${jsStr(card.account_id)}', '${jsStr(bl)}')">저장</button>
             </div>
           </div>` : ""}
         </div>
@@ -1312,13 +1312,28 @@
       await loadData();
     }
 
-    function toggleManualEdit(blNumber) {
+    function stopCardControlEvent(event) {
+      if (!event) return;
+      event.preventDefault();
+      event.stopPropagation();
+    }
+
+    function findCardDetails(accountId, blNumber) {
+      const key = `${accountId || ""}::${blNumber || ""}`;
+      return Array.from(document.querySelectorAll("#board details[data-card-key]")).find(
+        item => String(item.dataset.cardKey || "") === key
+      );
+    }
+
+    function toggleManualEdit(event, blNumber) {
+      if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
       manualEditOpen[blNumber] = !manualEditOpen[blNumber];
       const card = currentCards.find(item => item.bl_number === blNumber);
       if (!card) return;
-      const details = Array.from(document.querySelectorAll("#board details[data-card-key]")).find(
-        item => String(item.dataset.cardKey || "").endsWith(`::${blNumber}`)
-      );
+      const details = findCardDetails(card.account_id || card.consignee || "", blNumber);
       if (!details) return;
       expandedCardKeys.add(cardStateKey(card));
       details.open = true;
@@ -1326,7 +1341,29 @@
       if (box) box.outerHTML = manualFieldsHtml(card);
     }
 
-    async function saveManualFields(accountId, blNumber) {
+    function applyManualFieldsToCard(card, payload, input) {
+      const saved = input || {};
+      ["delivery_terms", "eta_date", "storage_yard", "free_time_days", "free_time_expiry_date", "warehouse_expected_date"].forEach(field => {
+        card[field] = Object.prototype.hasOwnProperty.call(saved, field)
+          ? (saved[field] ?? "")
+          : (payload[field] ?? "");
+      });
+    }
+
+    function renderCardInPlace(card) {
+      const details = findCardDetails(card.account_id || card.consignee || "", card.bl_number);
+      const article = details?.closest("article.card");
+      if (!article) return;
+      expandedCardKeys.add(cardStateKey(card));
+      manualEditOpen[card.bl_number] = true;
+      const index = currentCards.indexOf(card);
+      article.outerHTML = cardHtml(card, index >= 0 ? index : 0);
+      const nextDetails = findCardDetails(card.account_id || card.consignee || "", card.bl_number);
+      if (nextDetails) nextDetails.open = true;
+    }
+
+    async function saveManualFields(event, accountId, blNumber) {
+      stopCardControlEvent(event);
       expandedCardKeys.add(cardStateKey({account_id: accountId, bl_number: blNumber}));
       manualEditOpen[blNumber] = true;
       const payload = {
@@ -1350,17 +1387,21 @@
         alert(result.message || "운송정보 저장에 실패했습니다.");
         return;
       }
-      manualEditOpen[blNumber] = true;
-      await loadData();
+      const card = currentCards.find(item => item.account_id === accountId && item.bl_number === blNumber)
+        || currentCards.find(item => item.bl_number === blNumber);
+      if (!card) return;
+      applyManualFieldsToCard(card, payload, result.input);
+      renderCardInPlace(card);
     }
 
-    async function clearManualFields(accountId, blNumber) {
+    async function clearManualFields(event, accountId, blNumber) {
+      stopCardControlEvent(event);
       document.getElementById(`manualDelivery-${blNumber}`).value = "";
       document.getElementById(`manualEta-${blNumber}`).value = "";
       document.getElementById(`manualYard-${blNumber}`).value = "";
       document.getElementById(`manualFree-${blNumber}`).value = "";
       document.getElementById(`manualWh-${blNumber}`).value = "";
-      await saveManualFields(accountId, blNumber);
+      await saveManualFields(event, accountId, blNumber);
     }
 
     function distributionNumberFromPrompts(card) {
