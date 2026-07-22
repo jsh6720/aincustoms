@@ -229,6 +229,7 @@
     .progress-table .progress-long:nth-child(3) { width:138px; max-width:138px; white-space:nowrap; word-break:normal; overflow-wrap:normal; font-family:Consolas,monospace; }
     .progress-table .progress-long:nth-child(4) { width:88px; max-width:88px; white-space:nowrap; word-break:normal; overflow-wrap:normal; text-overflow:ellipsis; overflow:hidden; }
     .progress-edit-btn { width:100%; border:0; background:transparent; color:#245b8a; font:inherit; font-weight:800; text-align:left; padding:2px 4px; border-radius:4px; cursor:pointer; }
+    .progress-table .progress-date .progress-edit-btn { width:100%; text-align:center; }
     .progress-edit-btn:hover { background:#edf4f8; text-decoration:underline; }
     body.shipper-progress .progress-admin-only { display:none; }
     .doc-o { color:#1b6b3a; background:#edf8f1; border:1px solid #b7dfc4; border-radius:999px; padding:1px 6px; }
@@ -383,7 +384,6 @@
             <button class="btn gray" onclick="closeProgressStatus()">닫기</button>
           </div>
         </div>
-        <!-- Legacy source markers retained for compatibility with existing dashboard checks: <th>반입예정일</th> class="progress-shipper" class="progress-destination" -->
         <div class="progress-table-wrap">
           <table class="progress-table">
             <thead>

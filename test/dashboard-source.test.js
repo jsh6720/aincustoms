@@ -9,7 +9,6 @@ const originalDocsApi = fs.readFileSync(path.join(__dirname, "..", "api", "cargo
 const quotaApi = fs.readFileSync(path.join(__dirname, "..", "api", "cargo-quota.js"), "utf8");
 
 test("progress page includes editable warehouse schedule and calendar event", () => {
-  assert.match(dashboard, /<th>반입예정일<\/th>/);
   assert.match(dashboard, /openProgressWarehouseEditor/);
   assert.match(dashboard, /id="progressWarehouseEta" type="date"/);
   assert.match(dashboard, /warehouse_expected_date/);
@@ -27,13 +26,17 @@ test("compact cards and progress rows use concise one-line display values", () =
   assert.match(dashboard, /displayConsignee\(value\)\.slice\(0, 4\)/);
   assert.match(dashboard, /function progressDestination\(value\)/);
   assert.match(dashboard, /split\("_"\)\[0\]/);
-  assert.match(dashboard, /class="progress-shipper"/);
-  assert.match(dashboard, /class="progress-destination"/);
+  const rowStart = dashboard.indexOf("document.getElementById(\"progressRows\").innerHTML");
+  const rowEnd = dashboard.indexOf("`).join(\"\")", rowStart);
+  const row = dashboard.slice(rowStart, rowEnd);
+  assert.match(row, /<span class="[^"]*\bprogress-shipper\b[^"]*">/);
+  assert.match(row, /<span class="[^"]*\bprogress-destination\b[^"]*">/);
 });
 
 test("progress alignment classes define their required CSS semantics", () => {
   assert.match(dashboard, /\.progress-date\s*\{[^}]*white-space:\s*nowrap/);
   assert.match(dashboard, /\.progress-long\s*\{[^}]*text-align:\s*left/);
+  assert.match(dashboard, /\.progress-table\s+\.progress-date\s+\.progress-edit-btn\s*\{[^}]*width:\s*100%[^}]*text-align:\s*center/);
 });
 
 test("progress table preserves all 24 progress columns", () => {
