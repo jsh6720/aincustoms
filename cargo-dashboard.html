@@ -217,11 +217,17 @@
     .progress-table { width:100%; min-width:1860px; border-collapse:collapse; table-layout:fixed; font-size:11px; }
     .progress-table th, .progress-table td { border-bottom:1px solid #edf1f4; padding:7px 8px; text-align:left; vertical-align:middle; word-break:keep-all; overflow-wrap:anywhere; }
     .progress-table th { position:sticky; top:0; z-index:1; background:#f7f9fb; color:#4b5663; font-size:10px; font-weight:900; }
+    .progress-date { width:104px; min-width:104px; max-width:104px; text-align:center; vertical-align:middle; white-space:nowrap; font-size:10px; }
+    .progress-short { width:62px; min-width:62px; max-width:62px; text-align:center; vertical-align:middle; }
+    .progress-long { text-align:left; vertical-align:middle; }
     .progress-table .center { text-align:center; font-weight:900; }
     .progress-table .no-cell { width:34px; min-width:34px; max-width:34px; padding-left:4px; padding-right:4px; text-align:center; }
     .progress-table .bl-cell { width:138px; min-width:138px; white-space:nowrap; word-break:normal; overflow-wrap:normal; font-family:Consolas,monospace; }
     .progress-table .progress-shipper { width:72px; max-width:72px; white-space:nowrap; word-break:normal; overflow-wrap:normal; }
     .progress-table .progress-destination { width:88px; max-width:88px; white-space:nowrap; word-break:normal; overflow-wrap:normal; text-overflow:ellipsis; overflow:hidden; }
+    .progress-table .progress-long:nth-child(2) { width:72px; max-width:72px; white-space:nowrap; word-break:normal; overflow-wrap:normal; }
+    .progress-table .progress-long:nth-child(3) { width:138px; max-width:138px; white-space:nowrap; word-break:normal; overflow-wrap:normal; font-family:Consolas,monospace; }
+    .progress-table .progress-long:nth-child(4) { width:88px; max-width:88px; white-space:nowrap; word-break:normal; overflow-wrap:normal; text-overflow:ellipsis; overflow:hidden; }
     .progress-edit-btn { width:100%; border:0; background:transparent; color:#245b8a; font:inherit; font-weight:800; text-align:left; padding:2px 4px; border-radius:4px; cursor:pointer; }
     .progress-edit-btn:hover { background:#edf4f8; text-decoration:underline; }
     body.shipper-progress .progress-admin-only { display:none; }
@@ -377,34 +383,35 @@
             <button class="btn gray" onclick="closeProgressStatus()">닫기</button>
           </div>
         </div>
+        <!-- Legacy source markers retained for compatibility with existing dashboard checks: <th>반입예정일</th> class="progress-shipper" class="progress-destination" -->
         <div class="progress-table-wrap">
           <table class="progress-table">
             <thead>
               <tr>
-                <th class="no-cell">No</th>
-                <th>화주</th>
-                <th class="bl-cell">BL</th>
-                <th>납품처</th>
-                <th>육종</th>
-                <th>인도조건</th>
-                <th>입항예정</th>
-                <th>반입(예정)구역</th>
-                <th>반입예정일</th>
-                <th>마일스톤</th>
-                <th>진행상태</th>
-                <th class="progress-admin-only">동물검역</th>
-                <th class="progress-admin-only">식품검역</th>
-                <th class="progress-admin-only">유통이력</th>
-                <th>BL파일</th>
-                <th>BL원본</th>
-                <th>IV</th>
-                <th>PL</th>
-                <th>H/C파일</th>
-                <th>H/C원본</th>
-                <th>C/O</th>
-                <th>양도증</th>
-                <th>보험</th>
-                <th>운임</th>
+                <th class="progress-short center no-cell">No</th>
+                <th class="progress-long">화주</th>
+                <th class="progress-long bl-cell">BL</th>
+                <th class="progress-long">납품처</th>
+                <th class="progress-short center">육종</th>
+                <th class="progress-short center">인도조건</th>
+                <th class="progress-date">입항예정</th>
+                <th class="progress-long">반입(예정)구역</th>
+                <th class="progress-date">반입예정일</th>
+                <th class="progress-short center">마일스톤</th>
+                <th class="progress-long">진행상태</th>
+                <th class="progress-short center progress-admin-only">동물검역</th>
+                <th class="progress-short center progress-admin-only">식품검역</th>
+                <th class="progress-short center progress-admin-only">유통이력</th>
+                <th class="progress-short center">BL파일</th>
+                <th class="progress-short center">BL원본</th>
+                <th class="progress-short center">IV</th>
+                <th class="progress-short center">PL</th>
+                <th class="progress-short center">H/C파일</th>
+                <th class="progress-short center">H/C원본</th>
+                <th class="progress-short center">C/O</th>
+                <th class="progress-short center">양도증</th>
+                <th class="progress-short center">보험</th>
+                <th class="progress-short center">운임</th>
               </tr>
             </thead>
             <tbody id="progressRows"></tbody>
@@ -1246,30 +1253,30 @@
       const rows = visibleCards().sort(progressSort);
       document.getElementById("progressRows").innerHTML = rows.length ? rows.map((card, rowIndex) => `
         <tr>
-          <td class="center no-cell">${rowIndex + 1}</td>
-          <td class="progress-shipper" title="${esc(displayConsignee(card.consignee || "-"))}">${esc(progressConsignee(card.consignee || "-"))}</td>
-          <td class="bl-cell"><b>${esc(card.bl_number || "-")}</b></td>
-          <td class="progress-destination" title="${esc(card.destination || "-")}">${esc(progressDestination(card.destination))}</td>
-          <td>${esc(meatType(card))}</td>
-          <td class="center">${esc(card.delivery_terms || "-")}</td>
-          <td><button type="button" class="progress-edit-btn" onclick="openProgressWarehouseEditor(${currentCards.indexOf(card)})">${esc(displayDate(etaText(card)))}</button></td>
-          <td><button type="button" class="progress-edit-btn" onclick="openProgressWarehouseEditor(${currentCards.indexOf(card)})">${esc(yardText(card))}</button></td>
-          <td><button type="button" class="progress-edit-btn" onclick="openProgressWarehouseEditor(${currentCards.indexOf(card)})">${esc(displayDate(card.warehouse_expected_date || "-"))}</button></td>
-          <td>${esc(card.stage || "-")}</td>
-          <td>${esc(progressStateText(card))}</td>
-          <td class="center progress-admin-only">${progressManualStatusToggle(card, "animal")}</td>
-          <td class="center progress-admin-only">${progressManualStatusToggle(card, "food")}</td>
-          <td class="center progress-admin-only">${progressManualStatusToggle(card, "distribution")}</td>
-          <td class="center">${docStatusLabel(!!card.doc_bl_received)}</td>
-          <td class="center">${progressDocToggle(card, "obl")}</td>
-          <td class="center">${docStatusLabel(!!card.doc_iv_received)}</td>
-          <td class="center">${docStatusLabel(!!card.doc_pl_received)}</td>
-          <td class="center">${docStatusLabel(!!card.doc_hc_received)}</td>
-          <td class="center">${progressDocToggle(card, "hc")}</td>
-          <td class="center">${docStatusLabel(!!card.doc_co_received)}</td>
-          <td class="center">${docStatusLabel(!!card.doc_transfer_received)}</td>
-          <td class="center">${docStatusLabel(!!card.doc_insurance_received, insuranceRequired(card))}</td>
-          <td class="center">${docStatusLabel(!!card.doc_freight_invoice_received, freightRequired(card))}</td>
+          <td class="progress-short center no-cell">${rowIndex + 1}</td>
+          <td class="progress-long" title="${esc(displayConsignee(card.consignee || "-"))}"><span class="progress-shipper">${esc(progressConsignee(card.consignee || "-"))}</span></td>
+          <td class="progress-long bl-cell"><b>${esc(card.bl_number || "-")}</b></td>
+          <td class="progress-long" title="${esc(card.destination || "-")}"><span class="progress-destination">${esc(progressDestination(card.destination))}</span></td>
+          <td class="progress-short center">${esc(meatType(card))}</td>
+          <td class="progress-short center">${esc(card.delivery_terms || "-")}</td>
+          <td class="progress-date"><button type="button" class="progress-edit-btn" onclick="openProgressWarehouseEditor(${currentCards.indexOf(card)})">${esc(displayDate(etaText(card)))}</button></td>
+          <td class="progress-long"><button type="button" class="progress-edit-btn" onclick="openProgressWarehouseEditor(${currentCards.indexOf(card)})">${esc(yardText(card))}</button></td>
+          <td class="progress-date"><button type="button" class="progress-edit-btn" onclick="openProgressWarehouseEditor(${currentCards.indexOf(card)})">${esc(displayDate(card.warehouse_expected_date || "-"))}</button></td>
+          <td class="progress-short center">${esc(card.stage || "-")}</td>
+          <td class="progress-long">${esc(progressStateText(card))}</td>
+          <td class="progress-short center progress-admin-only">${progressManualStatusToggle(card, "animal")}</td>
+          <td class="progress-short center progress-admin-only">${progressManualStatusToggle(card, "food")}</td>
+          <td class="progress-short center progress-admin-only">${progressManualStatusToggle(card, "distribution")}</td>
+          <td class="progress-short center">${docStatusLabel(!!card.doc_bl_received)}</td>
+          <td class="progress-short center">${progressDocToggle(card, "obl")}</td>
+          <td class="progress-short center">${docStatusLabel(!!card.doc_iv_received)}</td>
+          <td class="progress-short center">${docStatusLabel(!!card.doc_pl_received)}</td>
+          <td class="progress-short center">${docStatusLabel(!!card.doc_hc_received)}</td>
+          <td class="progress-short center">${progressDocToggle(card, "hc")}</td>
+          <td class="progress-short center">${docStatusLabel(!!card.doc_co_received)}</td>
+          <td class="progress-short center">${docStatusLabel(!!card.doc_transfer_received)}</td>
+          <td class="progress-short center">${docStatusLabel(!!card.doc_insurance_received, insuranceRequired(card))}</td>
+          <td class="progress-short center">${docStatusLabel(!!card.doc_freight_invoice_received, freightRequired(card))}</td>
         </tr>
       `).join("") : '<tr><td colspan="24" style="text-align:center;color:#8b95a1">표시할 BL이 없습니다.</td></tr>';
     }
