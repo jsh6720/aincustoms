@@ -36,6 +36,8 @@ test("compact cards and progress rows use concise one-line display values", () =
 test("progress alignment classes define their required CSS semantics", () => {
   assert.match(dashboard, /\.progress-date\s*\{[^}]*white-space:\s*nowrap/);
   assert.match(dashboard, /\.progress-long\s*\{[^}]*text-align:\s*left/);
+  assert.match(dashboard, /\.progress-table\s+th\s*\{[^}]*text-align:\s*center/);
+  assert.match(dashboard, /\.progress-table\s+td\.progress-date\s*\{[^}]*text-align:\s*center/);
   assert.match(dashboard, /\.progress-table\s+\.progress-date\s+\.progress-edit-btn\s*\{[^}]*width:\s*100%[^}]*text-align:\s*center/);
 });
 
