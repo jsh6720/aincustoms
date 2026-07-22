@@ -2111,7 +2111,7 @@
         const actualDate = calendarDate(card.actual_received_date);
         const effectiveActualDate = actualDate || effectiveOriginalReceiptDate(card);
         if (effectiveActualDate) {
-          events.push({ date: effectiveActualDate, type: "actual", text: `서류수령 ${label}` });
+          events.push({ date: effectiveActualDate, type: "actual", text: `서류수령 ${label}${card.doc_transfer_received ? " (양도증)" : ""}` });
         }
         const warehouseDate = calendarDate(card.warehouse_expected_date);
         if (warehouseDate) {
