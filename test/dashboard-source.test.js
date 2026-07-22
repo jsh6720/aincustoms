@@ -31,6 +31,19 @@ test("compact cards and progress rows use concise one-line display values", () =
   assert.match(dashboard, /class="progress-destination"/);
 });
 
+test("progress table marks date, short, and long cells for alignment", () => {
+  assert.match(dashboard, /\.progress-date\s*\{[^}]*white-space:\s*nowrap/);
+  assert.match(dashboard, /\.progress-short\s*\{[^}]*text-align:\s*center/);
+  assert.match(dashboard, /\.progress-long\s*\{[^}]*text-align:\s*left/);
+  assert.match(dashboard, /<td class="progress-date">/);
+  assert.match(dashboard, /<td class="(?:center progress-short|progress-short center)">/);
+  assert.match(dashboard, /<td class="progress-long[^"]*">/);
+});
+
+test("progress receipt calendar labels transfer receipts", () => {
+  assert.match(dashboard, /card\.doc_transfer_received\s*\?\s*" \([^"\n]+"\s*:\s*""/);
+});
+
 test("progress original O path confirms removal without prompting for a date", () => {
   const start = dashboard.indexOf("async function saveProgressOriginalDoc");
   const end = dashboard.indexOf("async function approvePendingOriginalDoc", start);
