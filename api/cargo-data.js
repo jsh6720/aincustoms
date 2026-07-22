@@ -149,10 +149,16 @@ async function fetchImportRequests(accountId) {
 async function fetchOriginalDocs(accountId) {
   try {
     const query = accountId
-      ? `/rest/v1/cargo_original_docs?select=account_id,bl_number,obl_received,hc_received,actual_received_date,pending_actual_received_date,pending_actual_received_date_by,pending_actual_received_date_at,approved_actual_received_date_by,approved_actual_received_date_at,updated_by,updated_at&account_id=eq.${accountId}`
-      : "/rest/v1/cargo_original_docs?select=account_id,bl_number,obl_received,hc_received,actual_received_date,pending_actual_received_date,pending_actual_received_date_by,pending_actual_received_date_at,approved_actual_received_date_by,approved_actual_received_date_at,updated_by,updated_at";
+      ? `/rest/v1/cargo_original_docs?select=account_id,bl_number,obl_received,hc_received,transfer_received_override,actual_received_date,pending_actual_received_date,pending_actual_received_date_by,pending_actual_received_date_at,approved_actual_received_date_by,approved_actual_received_date_at,updated_by,updated_at&account_id=eq.${accountId}`
+      : "/rest/v1/cargo_original_docs?select=account_id,bl_number,obl_received,hc_received,transfer_received_override,actual_received_date,pending_actual_received_date,pending_actual_received_date_by,pending_actual_received_date_at,approved_actual_received_date_by,approved_actual_received_date_at,updated_by,updated_at";
     return await supabaseFetch(query);
   } catch (error) {
+    if (String(error.message || "").includes("transfer_received_override")) {
+      const fallback = accountId
+        ? `/rest/v1/cargo_original_docs?select=account_id,bl_number,obl_received,hc_received,actual_received_date,pending_actual_received_date,pending_actual_received_date_by,pending_actual_received_date_at,approved_actual_received_date_by,approved_actual_received_date_at,updated_by,updated_at&account_id=eq.${accountId}`
+        : "/rest/v1/cargo_original_docs?select=account_id,bl_number,obl_received,hc_received,actual_received_date,pending_actual_received_date,pending_actual_received_date_by,pending_actual_received_date_at,approved_actual_received_date_by,approved_actual_received_date_at,updated_by,updated_at";
+      return await supabaseFetch(fallback);
+    }
     if (String(error.message || "").includes("cargo_original_docs")) {
       return [];
     }
@@ -218,6 +224,10 @@ function applyOriginalDocs(cards, docs) {
       ...card,
       obl_received: !!item?.obl_received,
       hc_received: !!item?.hc_received,
+      transfer_received_override: item?.transfer_received_override ?? null,
+      doc_transfer_received: item?.transfer_received_override === true
+        ? true
+        : (item?.transfer_received_override === false ? false : !!card.doc_transfer_received),
       actual_received_date: item?.actual_received_date || "",
       pending_actual_received_date: item?.pending_actual_received_date || "",
       pending_actual_received_date_by: item?.pending_actual_received_date_by || "",

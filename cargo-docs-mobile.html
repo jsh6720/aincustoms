@@ -49,7 +49,7 @@
 <body>
   <header class="topbar">
     <h1>원본서류 수취관리</h1>
-    <div class="sub">관리자 모바일 전용 · OBL/H/C/요청일/수령일 일괄 저장</div>
+    <div class="sub">관리자 모바일 전용 · OBL/H/C/양도증/요청일/수령일 일괄 저장</div>
   </header>
   <div class="toolbar">
     <input id="search" placeholder="B/L, 화주, 반출처 검색" oninput="render()">
@@ -71,6 +71,10 @@
       <div class="modal-field">
         <label for="receiptMailMemo">확인사항</label>
         <textarea id="receiptMailMemo" placeholder="추가 확인사항이 있으면 입력하세요."></textarea>
+      </div>
+      <div class="modal-field">
+        <label for="receiptMailAdditionalRecipients">추가 받는 사람</label>
+        <textarea id="receiptMailAdditionalRecipients" placeholder="선택 입력 · 쉼표, 세미콜론 또는 줄바꿈으로 구분"></textarea>
       </div>
       <div class="modal-card">
         <div class="modal-row"><b>받는 사람</b><span>dmswk@hyundaicorp.com, ye25@hyundaicorp.com</span></div>
@@ -170,6 +174,7 @@
       list.innerHTML = visible.map((card, index) => {
         const obl = !!card.obl_received;
         const hc = !!card.hc_received;
+        const transferOverride = card.transfer_received_override;
         return `
           <section class="card">
             <div class="head">
@@ -196,6 +201,13 @@
                   <option value="true" ${hc ? "selected" : ""}>O</option>
                 </select>
               </label>
+              <label>양도증
+                <select id="transfer${index}">
+                  <option value="automatic" ${transferOverride === null || transferOverride === undefined ? "selected" : ""}>자동 (${card.doc_transfer_received ? "O" : "X"})</option>
+                  <option value="true" ${transferOverride === true ? "selected" : ""}>O</option>
+                  <option value="false" ${transferOverride === false ? "selected" : ""}>X</option>
+                </select>
+              </label>
               <label>수령요청일
                 <input id="request${index}" type="date" value="${esc(shortDate(card.last_original_doc_requested_receipt_date))}">
               </label>
@@ -220,6 +232,7 @@
         bl_number: card.bl_number,
         obl_received: document.getElementById(`obl${index}`).value === "true",
         hc_received: document.getElementById(`hc${index}`).value === "true",
+        transfer_received_override: document.getElementById(`transfer${index}`).value,
         requested_receipt_date: document.getElementById(`request${index}`).value || "",
         actual_received_date: document.getElementById(`actual${index}`).value || ""
       }));
@@ -268,6 +281,7 @@
       }
       document.getElementById("receiptMailPages").value = "";
       document.getElementById("receiptMailMemo").value = "";
+      document.getElementById("receiptMailAdditionalRecipients").value = "";
       document.getElementById("receiptMailModalCard").innerHTML = `
         <div class="modal-row"><b>화주명</b><span>${esc(displayConsignee(receiptMailCard.consignee))}</span></div>
         <div class="modal-row"><b>B/L</b><span>${esc(receiptMailCard.bl_number || "-")}</span></div>
@@ -297,7 +311,8 @@
           account_id: receiptMailCard.account_id,
           bl_number: receiptMailCard.bl_number,
           total_pages: totalPages,
-          memo: document.getElementById("receiptMailMemo").value
+          memo: document.getElementById("receiptMailMemo").value,
+          additional_recipients: document.getElementById("receiptMailAdditionalRecipients").value
         })
       });
       const result = await res.json();

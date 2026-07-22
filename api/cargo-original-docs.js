@@ -1,4 +1,8 @@
 const { verifySession, supabaseFetch } = require("../lib/cargo-auth");
+const {
+  normalizeTransferOverride,
+  receiptDateForSave,
+} = require("../lib/cargo-original-doc-utils");
 
 function boolValue(value) {
   return value === true || value === "true" || value === "O" || value === "1" || value === 1;
@@ -80,19 +84,30 @@ async function saveAdminItem(session, item) {
   }
 
   const approvePending = item.approve_pending === true || item.approve_pending === "true";
-  const existing = approvePending ? await findOriginalDoc(accountId, blNumber) : null;
+  const existing = await findOriginalDoc(accountId, blNumber);
+  const oblReceived = boolValue(item.obl_received);
+  const hcReceived = boolValue(item.hc_received);
+  const todayKorea = new Date(Date.now() + (9 * 60 * 60 * 1000)).toISOString().slice(0, 10);
   const actualReceivedDate = approvePending
     ? dateOrNull(existing?.pending_actual_received_date)
-    : dateOrNull(item.actual_received_date);
+    : receiptDateForSave({
+        obl_received: oblReceived,
+        hc_received: hcReceived,
+        submitted_date: item.actual_received_date || existing?.actual_received_date,
+        today: todayKorea,
+      });
 
   const payload = {
     account_id: accountId,
     bl_number: blNumber,
-    obl_received: boolValue(item.obl_received),
-    hc_received: boolValue(item.hc_received),
+    obl_received: oblReceived,
+    hc_received: hcReceived,
     actual_received_date: actualReceivedDate,
     updated_by: session.login_id || "admin",
   };
+  if (Object.prototype.hasOwnProperty.call(item, "transfer_received_override")) {
+    payload.transfer_received_override = normalizeTransferOverride(item.transfer_received_override);
+  }
 
   if (approvePending) {
     payload.pending_actual_received_date = null;

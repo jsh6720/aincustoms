@@ -212,6 +212,7 @@
     .calendar-event.request { background:#fff7ed; color:#b45309; border:1px solid #fed7aa; }
     .calendar-event.actual { background:#e8f5ee; color:#1f6f43; border:1px solid #acd7bf; }
     .calendar-event.eta { background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; }
+    .calendar-event.warehouse { background:#f7f2e8; color:#795d20; border:1px solid #dfcfaa; }
     .progress-table-wrap { overflow:auto; max-height:calc(100vh - 190px); }
     .progress-table { width:100%; min-width:1860px; border-collapse:collapse; table-layout:fixed; font-size:11px; }
     .progress-table th, .progress-table td { border-bottom:1px solid #edf1f4; padding:7px 8px; text-align:left; vertical-align:middle; word-break:keep-all; overflow-wrap:anywhere; }
@@ -219,6 +220,8 @@
     .progress-table .center { text-align:center; font-weight:900; }
     .progress-table .no-cell { width:34px; min-width:34px; max-width:34px; padding-left:4px; padding-right:4px; text-align:center; }
     .progress-table .bl-cell { width:138px; min-width:138px; white-space:nowrap; word-break:normal; overflow-wrap:normal; font-family:Consolas,monospace; }
+    .progress-edit-btn { width:100%; border:0; background:transparent; color:#245b8a; font:inherit; font-weight:800; text-align:left; padding:2px 4px; border-radius:4px; cursor:pointer; }
+    .progress-edit-btn:hover { background:#edf4f8; text-decoration:underline; }
     body.shipper-progress .progress-admin-only { display:none; }
     .doc-o { color:#1b6b3a; background:#edf8f1; border:1px solid #b7dfc4; border-radius:999px; padding:1px 6px; }
     .doc-x { color:#c92a2a; background:#fff1f1; border:1px solid #ffc9c9; border-radius:999px; padding:1px 6px; }
@@ -260,7 +263,6 @@
     <div id="toolbar" class="toolbar">
       <div id="summary" class="summary"></div>
       <div class="toolbar-actions">
-        <button id="docsStatusBtn" class="btn gray" style="display:none" onclick="openDocsStatus()">원본필수서류 수취현황</button>
         <button id="docsMobileBtn" class="btn gray" style="display:none" onclick="openDocsMobile()">모바일 원본서류</button>
         <button id="progressStatusBtn" class="btn gray" style="display:none" onclick="openProgressStatus()">BL별 진행현황</button>
         <button id="showHiddenBtn" class="btn gray" style="display:none" onclick="toggleShowHiddenCards()">숨김 포함</button>
@@ -385,6 +387,7 @@
                 <th>인도조건</th>
                 <th>입항예정</th>
                 <th>반입(예정)구역</th>
+                <th>반입예정일</th>
                 <th>마일스톤</th>
                 <th>진행상태</th>
                 <th class="progress-admin-only">동물검역</th>
@@ -475,6 +478,10 @@
         <label for="receiptMailMemo">확인사항</label>
         <textarea id="receiptMailMemo" placeholder="추가 확인사항이 있으면 입력하세요."></textarea>
       </div>
+      <div class="modal-field">
+        <label for="receiptMailAdditionalRecipients">추가 받는 사람<span class="field-hint">선택 입력 · 쉼표, 세미콜론 또는 줄바꿈으로 구분</span></label>
+        <textarea id="receiptMailAdditionalRecipients" placeholder="name@example.com"></textarea>
+      </div>
       <div class="modal-card">
         <div class="modal-row"><b>받는 사람</b><span>dmswk@hyundaicorp.com, ye25@hyundaicorp.com</span></div>
         <div class="modal-row"><b>참조</b><span>jsh@aincustoms.com, jhcho@aincustoms.com, bill@aincustoms.com</span></div>
@@ -482,6 +489,24 @@
       <div class="modal-actions">
         <button class="btn gray" onclick="closeReceiptMailModal()">취소</button>
         <button class="btn" onclick="submitReceiptMail()">메일 발송</button>
+      </div>
+    </div>
+  </div>
+  <div id="progressWarehouseModalBg" class="modal-bg">
+    <div class="modal">
+      <h2>반입예정정보</h2>
+      <div id="progressWarehouseModalCard" class="modal-card"></div>
+      <div class="modal-field">
+        <label for="progressWarehouseYard">반입(예정)구역</label>
+        <input id="progressWarehouseYard" placeholder="예: 강동냉장 보세창고">
+      </div>
+      <div class="modal-field">
+        <label for="progressWarehouseDate">반입예정일</label>
+        <input id="progressWarehouseDate" type="date">
+      </div>
+      <div class="modal-actions">
+        <button class="btn gray" onclick="closeProgressWarehouseEditor()">취소</button>
+        <button class="btn" onclick="saveProgressWarehouseEditor()">저장</button>
       </div>
     </div>
   </div>
@@ -497,6 +522,7 @@
     let releaseRequestCard = null;
     let requestMode = "release";
     let receiptMailCard = null;
+    let progressWarehouseCard = null;
     let adminAccounts = [];
     let currentUserRole = "shipper";
     let currentUserLogin = "";
@@ -664,7 +690,6 @@
       document.getElementById("docsPanel").style.display = "none";
       document.getElementById("progressPanel").style.display = "none";
       document.getElementById("logoutBtn").style.display = "";
-      document.getElementById("docsStatusBtn").style.display = "";
       document.getElementById("docsMobileBtn").style.display = currentUserRole === "admin" ? "" : "none";
       document.getElementById("progressStatusBtn").style.display = "";
       document.getElementById("showHiddenBtn").style.display = currentUserRole === "admin" ? "" : "none";
@@ -683,7 +708,6 @@
       document.getElementById("progressPanel").style.display = "none";
       document.getElementById("adminPanel").style.display = "none";
       document.getElementById("logoutBtn").style.display = "none";
-      document.getElementById("docsStatusBtn").style.display = "none";
       document.getElementById("docsMobileBtn").style.display = "none";
       document.getElementById("progressStatusBtn").style.display = "none";
       document.getElementById("showHiddenBtn").style.display = "none";
@@ -1176,9 +1200,15 @@
     }
     function progressDocToggle(card, docType) {
       const received = docType === "obl" ? !!card.obl_received : !!card.hc_received;
-      const date = card.actual_received_date ? `수령일 ${displayDate(card.actual_received_date)}` : "수령일 미입력";
+      const receiptDate = effectiveOriginalReceiptDate(card);
+      const date = receiptDate ? `수령일 ${displayDate(receiptDate)}` : "수령일 미입력";
       const label = received ? "O" : "X";
+      if (currentUserRole !== "admin") return docStatusLabel(received);
       return `<button type="button" class="doc-toggle ${received ? "doc-o" : "doc-x"}" title="${esc(date)}" onclick="saveProgressOriginalDoc(${currentCards.indexOf(card)}, '${docType}')">${label}</button>`;
+    }
+    function effectiveOriginalReceiptDate(card) {
+      if (!card?.obl_received && !card?.hc_received) return "";
+      return calendarDate(card.actual_received_date) || calendarDate(card.original_docs_updated_at);
     }
     function progressSort(a, b) {
       return String(a.bl_number || "").localeCompare(String(b.bl_number || ""), "ko")
@@ -1196,7 +1226,8 @@
           <td>${esc(meatType(card))}</td>
           <td class="center">${esc(card.delivery_terms || "-")}</td>
           <td>${esc(displayDate(etaText(card)))}</td>
-          <td>${esc(yardText(card))}</td>
+          <td><button type="button" class="progress-edit-btn" onclick="openProgressWarehouseEditor(${currentCards.indexOf(card)})">${esc(yardText(card))}</button></td>
+          <td><button type="button" class="progress-edit-btn" onclick="openProgressWarehouseEditor(${currentCards.indexOf(card)})">${esc(displayDate(card.warehouse_expected_date || "-"))}</button></td>
           <td>${esc(card.stage || "-")}</td>
           <td>${esc(progressStateText(card))}</td>
           <td class="center progress-admin-only">${progressManualStatusToggle(card, "animal")}</td>
@@ -1213,7 +1244,54 @@
           <td class="center">${docStatusLabel(!!card.doc_insurance_received, insuranceRequired(card))}</td>
           <td class="center">${docStatusLabel(!!card.doc_freight_invoice_received, freightRequired(card))}</td>
         </tr>
-      `).join("") : '<tr><td colspan="23" style="text-align:center;color:#8b95a1">표시할 BL이 없습니다.</td></tr>';
+      `).join("") : '<tr><td colspan="24" style="text-align:center;color:#8b95a1">표시할 BL이 없습니다.</td></tr>';
+    }
+    function openProgressWarehouseEditor(cardIndex) {
+      progressWarehouseCard = currentCards[cardIndex];
+      if (!progressWarehouseCard) return;
+      document.getElementById("progressWarehouseModalCard").innerHTML = `
+        <div class="modal-row"><b>화주명</b><span>${esc(displayConsignee(progressWarehouseCard.consignee || "-"))}</span></div>
+        <div class="modal-row"><b>B/L</b><span>${esc(progressWarehouseCard.bl_number || "-")}</span></div>
+      `;
+      document.getElementById("progressWarehouseYard").value = progressWarehouseCard.storage_yard || progressWarehouseCard.shed_name || "";
+      document.getElementById("progressWarehouseDate").value = calendarDate(progressWarehouseCard.warehouse_expected_date);
+      document.getElementById("progressWarehouseModalBg").style.display = "flex";
+    }
+    function closeProgressWarehouseEditor() {
+      document.getElementById("progressWarehouseModalBg").style.display = "none";
+      progressWarehouseCard = null;
+    }
+    async function saveProgressWarehouseEditor() {
+      const card = progressWarehouseCard;
+      if (!card) return;
+      const payload = {
+        action: "manual_fields",
+        account_id: card.account_id,
+        bl_number: card.bl_number,
+        delivery_terms: card.delivery_terms || "",
+        eta_date: calendarDate(card.eta_date || card.entry_date) || "",
+        storage_yard: document.getElementById("progressWarehouseYard").value.trim(),
+        free_time_days: card.free_time_days || "",
+        free_time_expiry_date: card.free_time_expiry_date || "",
+        warehouse_expected_date: document.getElementById("progressWarehouseDate").value || "",
+      };
+      const response = await fetch("/api/cargo-quota", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const result = await response.json();
+      if (!result.success) {
+        alert(result.message || "반입예정정보 저장에 실패했습니다.");
+        return;
+      }
+      applyManualFieldsToCard(card, payload, result.input);
+      closeProgressWarehouseEditor();
+      renderProgressStatus();
+      renderProgressCalendar();
+      if (result.changed_fields?.length && !result.email_sent) {
+        alert(`정보는 저장되었지만 알림 메일을 보내지 못했습니다.\n${result.email_message || "메일 환경설정을 확인해 주세요."}`);
+      }
     }
     function openProgressStatus() {
       document.getElementById("adminPanel").style.display = "none";
@@ -1786,6 +1864,29 @@
     async function saveProgressOriginalDoc(cardIndex, docType) {
       const card = currentCards[cardIndex];
       if (!card) return;
+      const received = docType === "obl" ? !!card.obl_received : !!card.hc_received;
+      const otherReceived = docType === "obl" ? !!card.hc_received : !!card.obl_received;
+      if (received) {
+        if (!confirm(`${card.bl_number} ${docType === "obl" ? "OBL" : "H/C"} 원본 수령 상태를 X로 변경할까요?`)) return;
+        const response = await fetch("/api/cargo-original-docs", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            account_id: card.account_id,
+            bl_number: card.bl_number,
+            obl_received: docType === "obl" ? false : !!card.obl_received,
+            hc_received: docType === "hc" ? false : !!card.hc_received,
+            actual_received_date: otherReceived ? card.actual_received_date : ""
+          })
+        });
+        const result = await response.json();
+        if (!result.success) {
+          alert(result.message || "원본서류 수취현황 저장에 실패했습니다.");
+          return;
+        }
+        await loadData();
+        return;
+      }
       const defaultDate = card.actual_received_date ? displayDate(card.actual_received_date) : new Date().toISOString().slice(0, 10);
       const input = prompt("원본 수령일을 입력하세요. 예: 2026-07-06, 07-06, 0706", defaultDate);
       if (input === null) return;
@@ -1973,8 +2074,13 @@
           events.push({ date: requestDate, type: "request", text: `서류요청 ${label}` });
         }
         const actualDate = calendarDate(card.actual_received_date);
-        if (actualDate) {
-          events.push({ date: actualDate, type: "actual", text: `서류수령 ${label}` });
+        const effectiveActualDate = actualDate || effectiveOriginalReceiptDate(card);
+        if (effectiveActualDate) {
+          events.push({ date: effectiveActualDate, type: "actual", text: `서류수령 ${label}` });
+        }
+        const warehouseDate = calendarDate(card.warehouse_expected_date);
+        if (warehouseDate) {
+          events.push({ date: warehouseDate, type: "warehouse", text: `반입예정 ${label}` });
         }
       });
       return events;
@@ -2206,6 +2312,7 @@
       }
       document.getElementById("receiptMailPages").value = "";
       document.getElementById("receiptMailMemo").value = "";
+      document.getElementById("receiptMailAdditionalRecipients").value = "";
       document.getElementById("receiptMailModalCard").innerHTML = `
         <div class="modal-row"><b>화주명</b><span>${esc(displayConsignee(receiptMailCard.consignee))}</span></div>
         <div class="modal-row"><b>B/L</b><span>${esc(receiptMailCard.bl_number || "-")}</span></div>
@@ -2233,7 +2340,8 @@
           account_id: receiptMailCard.account_id,
           bl_number: receiptMailCard.bl_number,
           total_pages: totalPages,
-          memo: document.getElementById("receiptMailMemo").value
+          memo: document.getElementById("receiptMailMemo").value,
+          additional_recipients: document.getElementById("receiptMailAdditionalRecipients").value
         })
       });
       const result = await response.json();

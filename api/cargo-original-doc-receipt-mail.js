@@ -1,5 +1,6 @@
 const nodemailer = require("nodemailer");
 const { verifySession, supabaseFetch } = require("../lib/cargo-auth");
+const { mergeRecipients, parseRecipientList } = require("../lib/cargo-mail-utils");
 
 const RECEIPT_TO = [
   "dmswk@hyundaicorp.com",
@@ -58,7 +59,7 @@ function buildMail(card, totalPages, memo) {
   };
 }
 
-async function sendMail(card, totalPages, memo) {
+async function sendMail(card, totalPages, memo, additionalRecipients) {
   const host = env("SMTP_HOST");
   const user = env("SMTP_USER");
   const pass = env("SMTP_PASS");
@@ -75,9 +76,10 @@ async function sendMail(card, totalPages, memo) {
     auth: { user, pass },
   });
   const mail = buildMail(card, totalPages, memo);
+  const recipients = mergeRecipients(RECEIPT_TO, additionalRecipients);
   await transporter.sendMail({
     from: env("MAIL_FROM") || user,
-    to: RECEIPT_TO.join(","),
+    to: recipients.join(","),
     cc: RECEIPT_CC.join(","),
     subject: mail.subject,
     text: mail.text,
@@ -104,6 +106,7 @@ module.exports = async function handler(req, res) {
     const blNumber = cleanText(body.bl_number, 80);
     const totalPages = cleanText(body.total_pages, 20);
     const memo = cleanText(body.memo, 1500);
+    const additionalRecipients = parseRecipientList(cleanText(body.additional_recipients, 1500));
 
     if (!accountId || !blNumber) {
       return res.status(400).json({ success: false, message: "카드 정보가 올바르지 않습니다." });
@@ -121,7 +124,7 @@ module.exports = async function handler(req, res) {
       return res.status(404).json({ success: false, message: "카드 정보를 찾지 못했습니다." });
     }
 
-    await sendMail(cards[0], totalPages, memo);
+    await sendMail(cards[0], totalPages, memo, additionalRecipients);
     return res.status(200).json({ success: true, email_sent: true });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });

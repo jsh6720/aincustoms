@@ -1,17 +1,67 @@
+const nodemailer = require("nodemailer");
 const { verifySession, supabaseFetch } = require("../lib/cargo-auth");
+const {
+  buildWarehouseChangeMail,
+  warehouseChanges,
+} = require("../lib/cargo-mail-utils");
+
+const WAREHOUSE_CHANGE_TO = [
+  "jsh@aincustoms.com",
+  "jhcho@aincustoms.com",
+  "bill@aincustoms.com",
+  "ain@aincustoms.com",
+];
 
 function isValidDate(value) {
   if (!value) return true;
   return /^\d{4}-\d{2}-\d{2}$/.test(value);
 }
 
-async function assertOwnedCard(accountId, blNumber) {
+async function findOwnedCard(accountId, blNumber) {
   const account = encodeURIComponent(accountId);
   const bl = encodeURIComponent(blNumber);
   const owned = await supabaseFetch(
-    `/rest/v1/cargo_cards?select=id&account_id=eq.${account}&bl_number=eq.${bl}&limit=1`
+    `/rest/v1/cargo_cards?select=*&account_id=eq.${account}&bl_number=eq.${bl}&limit=1`
   );
-  return !!(owned && owned.length);
+  return owned && owned[0] ? owned[0] : null;
+}
+
+async function findManualInput(accountId, blNumber) {
+  const account = encodeURIComponent(accountId);
+  const bl = encodeURIComponent(blNumber);
+  const rows = await supabaseFetch(
+    `/rest/v1/cargo_card_user_inputs?select=storage_yard,warehouse_expected_date&account_id=eq.${account}&bl_number=eq.${bl}&limit=1`
+  );
+  return rows && rows[0] ? rows[0] : {};
+}
+
+function effectiveWarehouseValues(input, card) {
+  return {
+    storage_yard: String(input?.storage_yard || card?.storage_yard || card?.shed_name || "").trim(),
+    warehouse_expected_date: String(input?.warehouse_expected_date || card?.warehouse_expected_date || "").trim(),
+  };
+}
+
+async function sendWarehouseChangeMail(card, session, previous, next) {
+  const host = process.env.SMTP_HOST || "";
+  const user = process.env.SMTP_USER || "";
+  const pass = process.env.SMTP_PASS || "";
+  if (!host || !user || !pass) {
+    throw new Error("메일 환경변수 SMTP_HOST, SMTP_USER, SMTP_PASS를 확인해 주세요.");
+  }
+  const transporter = nodemailer.createTransport({
+    host,
+    port: Number(process.env.SMTP_PORT || 465),
+    secure: String(process.env.SMTP_SECURE || "true").toLowerCase() !== "false",
+    auth: { user, pass },
+  });
+  const mail = buildWarehouseChangeMail(card, session, previous, next);
+  await transporter.sendMail({
+    from: process.env.MAIL_FROM || user,
+    to: WAREHOUSE_CHANGE_TO.join(","),
+    subject: mail.subject,
+    text: mail.text,
+  });
 }
 
 module.exports = async function handler(req, res) {
@@ -41,7 +91,8 @@ module.exports = async function handler(req, res) {
     if (!isAdmin && targetAccountId !== session.account_id) {
       return res.status(403).json({ success: false, message: "조회 권한이 없는 BL입니다." });
     }
-    if (!(await assertOwnedCard(targetAccountId, blNumber))) {
+    const card = await findOwnedCard(targetAccountId, blNumber);
+    if (!card) {
       return res.status(404).json({ success: false, message: "대상 카드를 찾을 수 없습니다." });
     }
 
@@ -91,6 +142,8 @@ module.exports = async function handler(req, res) {
         }
       }
 
+      const previousInput = !isAdmin ? await findManualInput(targetAccountId, blNumber) : {};
+      const previousWarehouse = effectiveWarehouseValues(previousInput, card);
       const rows = await supabaseFetch(
         "/rest/v1/cargo_card_user_inputs?on_conflict=account_id,bl_number",
         {
@@ -108,8 +161,30 @@ module.exports = async function handler(req, res) {
           }),
         }
       );
+      const input = rows && rows[0] ? rows[0] : null;
+      const nextWarehouse = effectiveWarehouseValues(input || {
+        storage_yard: storageYard || null,
+        warehouse_expected_date: warehouseExpectedDate || null,
+      }, card);
+      const changedFields = !isAdmin ? warehouseChanges(previousWarehouse, nextWarehouse) : [];
+      let emailSent = false;
+      let emailMessage = "";
+      if (changedFields.length) {
+        try {
+          await sendWarehouseChangeMail(card, session, previousWarehouse, nextWarehouse);
+          emailSent = true;
+        } catch (mailError) {
+          emailMessage = mailError.message;
+        }
+      }
 
-      return res.status(200).json({ success: true, input: rows && rows[0] ? rows[0] : null });
+      return res.status(200).json({
+        success: true,
+        input,
+        changed_fields: changedFields,
+        email_sent: emailSent,
+        email_message: emailMessage,
+      });
     }
 
     const isQuota = !!body.is_quota;
