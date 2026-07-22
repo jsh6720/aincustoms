@@ -122,6 +122,7 @@ async function saveAdminItem(session, item) {
   const existing = await findOriginalDoc(accountId, blNumber);
   const oblReceived = boolValue(item.obl_received);
   const hcReceived = boolValue(item.hc_received);
+  const existingHadReceipt = !!existing?.obl_received || !!existing?.hc_received;
   const todayKorea = new Date(Date.now() + (9 * 60 * 60 * 1000)).toISOString().slice(0, 10);
   const actualReceivedDate = approvePending
     ? dateOrNull(existing?.pending_actual_received_date)
@@ -130,7 +131,7 @@ async function saveAdminItem(session, item) {
         hc_received: hcReceived,
         previous_obl_received: !!existing?.obl_received,
         previous_hc_received: !!existing?.hc_received,
-        previous_date: existing?.actual_received_date,
+        previous_date: existing?.actual_received_date || (existingHadReceipt ? existing?.updated_at : ""),
         submitted_date: item.actual_received_date || existing?.actual_received_date,
         today: todayKorea,
       });
@@ -155,7 +156,18 @@ async function saveAdminItem(session, item) {
     payload.approved_actual_received_date_at = new Date().toISOString();
   }
 
-  const { rows, transferOverrideSaved } = await upsertOriginalDoc(payload);
+  const transferChanged = Object.prototype.hasOwnProperty.call(payload, "transfer_received_override")
+    && payload.transfer_received_override !== (existing?.transfer_received_override ?? null);
+  const originalChanged = !existing
+    || approvePending
+    || oblReceived !== !!existing.obl_received
+    || hcReceived !== !!existing.hc_received
+    || actualReceivedDate !== dateOrNull(existing.actual_received_date)
+    || transferChanged;
+  const saved = originalChanged
+    ? await upsertOriginalDoc(payload)
+    : { rows: [existing], transferOverrideSaved: true };
+  const { rows, transferOverrideSaved } = saved;
   const request = await saveRequestedReceiptDate(
     accountId,
     blNumber,

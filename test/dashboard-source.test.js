@@ -59,9 +59,11 @@ test("pre-migration original document saves fall back without transfer override"
   assert.match(originalDocsApi, /transfer_override_saved/);
 });
 
-test("shipper warehouse mail is sent before the database write", () => {
+test("shipper warehouse save precedes mail and includes an optimistic rollback", () => {
+  const blockAt = quotaApi.indexOf('if (action === "manual_fields")');
   const mailAt = quotaApi.indexOf("await sendWarehouseChangeMail");
-  const saveAt = quotaApi.indexOf('"/rest/v1/cargo_card_user_inputs?on_conflict=account_id,bl_number"', mailAt);
-  assert.ok(mailAt >= 0 && saveAt > mailAt);
-  assert.match(quotaApi, /변경사항을 저장하지 않았습니다/);
+  const saveAt = quotaApi.indexOf("const rows = await supabaseFetch", blockAt);
+  assert.ok(saveAt >= 0 && mailAt > saveAt);
+  assert.match(quotaApi, /updated_at=eq\.\$\{updated\}/);
+  assert.match(quotaApi, /변경을 취소했습니다/);
 });

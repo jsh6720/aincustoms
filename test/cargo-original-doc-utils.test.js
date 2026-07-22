@@ -64,6 +64,18 @@ test("fills today's date only for a newly received document", () => {
     null
   );
   assert.equal(
+    receiptDateForSave({
+      obl_received: true,
+      hc_received: false,
+      previous_obl_received: true,
+      previous_hc_received: false,
+      previous_date: "2026-07-19T23:30:00Z",
+      submitted_date: "",
+      today: "2026-07-22",
+    }),
+    "2026-07-20"
+  );
+  assert.equal(
     receiptDateForSave({ obl_received: false, hc_received: false, submitted_date: "", today: "2026-07-22" }),
     null
   );

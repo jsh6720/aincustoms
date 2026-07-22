@@ -149,6 +149,8 @@ module.exports = async function handler(req, res) {
       const nextPayload = {
         account_id: targetAccountId,
         bl_number: blNumber,
+      };
+      const normalizedFields = {
         delivery_terms: deliveryTerms || null,
         eta_date: etaDate || null,
         storage_yard: storageYard || null,
@@ -156,34 +158,73 @@ module.exports = async function handler(req, res) {
         free_time_expiry_date: freeTimeExpiryDate || null,
         warehouse_expected_date: warehouseExpectedDate || null,
       };
-      const nextWarehouse = effectiveWarehouseValues(nextPayload, card);
-      const changedFields = !isAdmin ? warehouseChanges(previousWarehouse, nextWarehouse) : [];
-      if (changedFields.length) {
-        try {
-          await sendWarehouseChangeMail(card, session, previousWarehouse, nextWarehouse);
-        } catch (mailError) {
-          return res.status(502).json({
-            success: false,
-            message: `반입예정정보 메일 발송에 실패하여 변경사항을 저장하지 않았습니다: ${mailError.message}`,
-          });
+      for (const [field, value] of Object.entries(normalizedFields)) {
+        if (Object.prototype.hasOwnProperty.call(body, field)) {
+          nextPayload[field] = value;
         }
       }
+      if (Object.keys(nextPayload).length === 2) {
+        return res.status(400).json({ success: false, message: "저장할 운송정보가 없습니다." });
+      }
+      const nextInput = { ...previousInput, ...nextPayload };
+      const nextWarehouse = effectiveWarehouseValues(nextInput, card);
+      const changedFields = !isAdmin ? warehouseChanges(previousWarehouse, nextWarehouse) : [];
+      const accountFilter = encodeURIComponent(targetAccountId);
+      const blFilter = encodeURIComponent(blNumber);
+      const inputExists = !!previousInput?.account_id;
       const rows = await supabaseFetch(
-        "/rest/v1/cargo_card_user_inputs?on_conflict=account_id,bl_number",
+        inputExists
+          ? `/rest/v1/cargo_card_user_inputs?account_id=eq.${accountFilter}&bl_number=eq.${blFilter}`
+          : "/rest/v1/cargo_card_user_inputs",
         {
-          method: "POST",
-          headers: { Prefer: "resolution=merge-duplicates,return=representation" },
+          method: inputExists ? "PATCH" : "POST",
+          headers: { Prefer: "return=representation" },
           body: JSON.stringify(nextPayload),
         }
       );
       const input = rows && rows[0] ? rows[0] : null;
+      let emailSent = false;
+      let emailMessage = "";
+      if (changedFields.length) {
+        try {
+          await sendWarehouseChangeMail(card, session, previousWarehouse, nextWarehouse);
+          emailSent = true;
+        } catch (mailError) {
+          emailMessage = mailError.message;
+          const savedUpdatedAt = input?.updated_at;
+          const rollbackPayload = Object.fromEntries(
+            changedFields.map((field) => [field, previousInput?.[field] ?? null])
+          );
+          let rolledBack = false;
+          if (savedUpdatedAt) {
+            const account = encodeURIComponent(targetAccountId);
+            const bl = encodeURIComponent(blNumber);
+            const updated = encodeURIComponent(savedUpdatedAt);
+            const rollbackRows = await supabaseFetch(
+              `/rest/v1/cargo_card_user_inputs?account_id=eq.${account}&bl_number=eq.${bl}&updated_at=eq.${updated}`,
+              {
+                method: "PATCH",
+                headers: { Prefer: "return=representation" },
+                body: JSON.stringify(rollbackPayload),
+              }
+            );
+            rolledBack = Array.isArray(rollbackRows) && rollbackRows.length > 0;
+          }
+          if (rolledBack) {
+            return res.status(502).json({
+              success: false,
+              message: `메일 발송에 실패하여 반입예정정보 변경을 취소했습니다: ${emailMessage}`,
+            });
+          }
+        }
+      }
 
       return res.status(200).json({
         success: true,
         input,
         changed_fields: changedFields,
-        email_sent: changedFields.length > 0,
-        email_message: "",
+        email_sent: emailSent,
+        email_message: emailMessage,
       });
     }
 
