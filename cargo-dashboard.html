@@ -624,6 +624,21 @@
       const text = normalizedDateText(value);
       return /^\d{4}-\d{2}-\d{2}$/.test(text) ? text : "";
     }
+    function koreaCalendarDate(value) {
+      const raw = String(value || "").trim();
+      if (!raw) return "";
+      if (/^\d{4}-\d{1,2}-\d{1,2}$/.test(raw) || /^\d{8}$/.test(raw)) {
+        return calendarDate(raw);
+      }
+      const parsed = new Date(raw);
+      if (!Number.isNaN(parsed.getTime())) {
+        return new Date(parsed.getTime() + (9 * 60 * 60 * 1000)).toISOString().slice(0, 10);
+      }
+      return calendarDate(raw);
+    }
+    function koreaToday() {
+      return new Date(Date.now() + (9 * 60 * 60 * 1000)).toISOString().slice(0, 10);
+    }
     function normalizeRequestDate(value) {
       const raw = String(value || "").trim();
       if (!raw) return "";
@@ -1208,7 +1223,7 @@
     }
     function effectiveOriginalReceiptDate(card) {
       if (!card?.obl_received && !card?.hc_received) return "";
-      return calendarDate(card.actual_received_date) || calendarDate(card.original_docs_updated_at);
+      return calendarDate(card.actual_received_date) || koreaCalendarDate(card.original_docs_updated_at);
     }
     function progressSort(a, b) {
       return String(a.bl_number || "").localeCompare(String(b.bl_number || ""), "ko")
@@ -1268,11 +1283,7 @@
         action: "manual_fields",
         account_id: card.account_id,
         bl_number: card.bl_number,
-        delivery_terms: card.delivery_terms || "",
-        eta_date: calendarDate(card.eta_date || card.entry_date) || "",
         storage_yard: document.getElementById("progressWarehouseYard").value.trim(),
-        free_time_days: card.free_time_days || "",
-        free_time_expiry_date: card.free_time_expiry_date || "",
         warehouse_expected_date: document.getElementById("progressWarehouseDate").value || "",
       };
       const response = await fetch("/api/cargo-quota", {
@@ -1887,7 +1898,7 @@
         await loadData();
         return;
       }
-      const defaultDate = card.actual_received_date ? displayDate(card.actual_received_date) : new Date().toISOString().slice(0, 10);
+      const defaultDate = card.actual_received_date ? displayDate(card.actual_received_date) : koreaToday();
       const input = prompt("원본 수령일을 입력하세요. 예: 2026-07-06, 07-06, 0706", defaultDate);
       if (input === null) return;
       const actualReceivedDate = normalizeRequestDate(input) || input.trim();

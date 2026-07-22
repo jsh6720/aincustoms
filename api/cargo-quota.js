@@ -2,6 +2,7 @@ const nodemailer = require("nodemailer");
 const { verifySession, supabaseFetch } = require("../lib/cargo-auth");
 const {
   buildWarehouseChangeMail,
+  mergeManualFields,
   warehouseChanges,
 } = require("../lib/cargo-mail-utils");
 
@@ -30,7 +31,7 @@ async function findManualInput(accountId, blNumber) {
   const account = encodeURIComponent(accountId);
   const bl = encodeURIComponent(blNumber);
   const rows = await supabaseFetch(
-    `/rest/v1/cargo_card_user_inputs?select=storage_yard,warehouse_expected_date&account_id=eq.${account}&bl_number=eq.${bl}&limit=1`
+    `/rest/v1/cargo_card_user_inputs?select=*&account_id=eq.${account}&bl_number=eq.${bl}&limit=1`
   );
   return rows && rows[0] ? rows[0] : {};
 }
@@ -126,12 +127,14 @@ module.exports = async function handler(req, res) {
     }
 
     if (action === "manual_fields") {
-      const deliveryTerms = String(body.delivery_terms || "").trim();
-      const etaDate = String(body.eta_date || "").trim();
-      const storageYard = String(body.storage_yard || "").trim();
-      const freeTimeDays = String(body.free_time_days || "").trim();
-      const freeTimeExpiryDate = String(body.free_time_expiry_date || "").trim();
-      const warehouseExpectedDate = String(body.warehouse_expected_date || "").trim();
+      const previousInput = await findManualInput(targetAccountId, blNumber);
+      const merged = mergeManualFields(previousInput, body);
+      const deliveryTerms = String(merged.delivery_terms || "").trim();
+      const etaDate = String(merged.eta_date || "").trim();
+      const storageYard = String(merged.storage_yard || "").trim();
+      const freeTimeDays = String(merged.free_time_days ?? "").trim();
+      const freeTimeExpiryDate = String(merged.free_time_expiry_date || "").trim();
+      const warehouseExpectedDate = String(merged.warehouse_expected_date || "").trim();
 
       if (freeTimeDays && !/^\d+$/.test(freeTimeDays)) {
         return res.status(400).json({ success: false, message: "프리타임 일수는 숫자로 입력해 주세요." });
@@ -142,48 +145,45 @@ module.exports = async function handler(req, res) {
         }
       }
 
-      const previousInput = !isAdmin ? await findManualInput(targetAccountId, blNumber) : {};
       const previousWarehouse = effectiveWarehouseValues(previousInput, card);
+      const nextPayload = {
+        account_id: targetAccountId,
+        bl_number: blNumber,
+        delivery_terms: deliveryTerms || null,
+        eta_date: etaDate || null,
+        storage_yard: storageYard || null,
+        free_time_days: freeTimeDays ? Number(freeTimeDays) : null,
+        free_time_expiry_date: freeTimeExpiryDate || null,
+        warehouse_expected_date: warehouseExpectedDate || null,
+      };
+      const nextWarehouse = effectiveWarehouseValues(nextPayload, card);
+      const changedFields = !isAdmin ? warehouseChanges(previousWarehouse, nextWarehouse) : [];
+      if (changedFields.length) {
+        try {
+          await sendWarehouseChangeMail(card, session, previousWarehouse, nextWarehouse);
+        } catch (mailError) {
+          return res.status(502).json({
+            success: false,
+            message: `반입예정정보 메일 발송에 실패하여 변경사항을 저장하지 않았습니다: ${mailError.message}`,
+          });
+        }
+      }
       const rows = await supabaseFetch(
         "/rest/v1/cargo_card_user_inputs?on_conflict=account_id,bl_number",
         {
           method: "POST",
           headers: { Prefer: "resolution=merge-duplicates,return=representation" },
-          body: JSON.stringify({
-            account_id: targetAccountId,
-            bl_number: blNumber,
-            delivery_terms: deliveryTerms || null,
-            eta_date: etaDate || null,
-            storage_yard: storageYard || null,
-            free_time_days: freeTimeDays ? Number(freeTimeDays) : null,
-            free_time_expiry_date: freeTimeExpiryDate || null,
-            warehouse_expected_date: warehouseExpectedDate || null,
-          }),
+          body: JSON.stringify(nextPayload),
         }
       );
       const input = rows && rows[0] ? rows[0] : null;
-      const nextWarehouse = effectiveWarehouseValues(input || {
-        storage_yard: storageYard || null,
-        warehouse_expected_date: warehouseExpectedDate || null,
-      }, card);
-      const changedFields = !isAdmin ? warehouseChanges(previousWarehouse, nextWarehouse) : [];
-      let emailSent = false;
-      let emailMessage = "";
-      if (changedFields.length) {
-        try {
-          await sendWarehouseChangeMail(card, session, previousWarehouse, nextWarehouse);
-          emailSent = true;
-        } catch (mailError) {
-          emailMessage = mailError.message;
-        }
-      }
 
       return res.status(200).json({
         success: true,
         input,
         changed_fields: changedFields,
-        email_sent: emailSent,
-        email_message: emailMessage,
+        email_sent: changedFields.length > 0,
+        email_message: "",
       });
     }
 

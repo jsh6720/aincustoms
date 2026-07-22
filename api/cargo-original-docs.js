@@ -1,5 +1,6 @@
 const { verifySession, supabaseFetch } = require("../lib/cargo-auth");
 const {
+  isMissingTransferOverrideColumn,
   normalizeTransferOverride,
   receiptDateForSave,
 } = require("../lib/cargo-original-doc-utils");
@@ -30,6 +31,40 @@ async function findOriginalDoc(accountId, blNumber) {
     `/rest/v1/cargo_original_docs?select=*&account_id=eq.${account}&bl_number=eq.${bl}&limit=1`
   );
   return rows && rows[0] ? rows[0] : null;
+}
+
+async function upsertOriginalDoc(payload) {
+  const options = {
+    method: "POST",
+    headers: { Prefer: "resolution=merge-duplicates,return=representation" },
+    body: JSON.stringify(payload),
+  };
+  try {
+    return {
+      rows: await supabaseFetch(
+        "/rest/v1/cargo_original_docs?on_conflict=account_id,bl_number",
+        options
+      ),
+      transferOverrideSaved: true,
+    };
+  } catch (error) {
+    if (!Object.prototype.hasOwnProperty.call(payload, "transfer_received_override")
+        || !isMissingTransferOverrideColumn(error)) {
+      throw error;
+    }
+    const fallbackPayload = { ...payload };
+    delete fallbackPayload.transfer_received_override;
+    return {
+      rows: await supabaseFetch(
+        "/rest/v1/cargo_original_docs?on_conflict=account_id,bl_number",
+        {
+          ...options,
+          body: JSON.stringify(fallbackPayload),
+        }
+      ),
+      transferOverrideSaved: false,
+    };
+  }
 }
 
 async function findLatestOriginalDocRequest(accountId, blNumber) {
@@ -93,6 +128,9 @@ async function saveAdminItem(session, item) {
     : receiptDateForSave({
         obl_received: oblReceived,
         hc_received: hcReceived,
+        previous_obl_received: !!existing?.obl_received,
+        previous_hc_received: !!existing?.hc_received,
+        previous_date: existing?.actual_received_date,
         submitted_date: item.actual_received_date || existing?.actual_received_date,
         today: todayKorea,
       });
@@ -117,11 +155,7 @@ async function saveAdminItem(session, item) {
     payload.approved_actual_received_date_at = new Date().toISOString();
   }
 
-  const rows = await supabaseFetch("/rest/v1/cargo_original_docs?on_conflict=account_id,bl_number", {
-    method: "POST",
-    headers: { Prefer: "resolution=merge-duplicates,return=representation" },
-    body: JSON.stringify(payload),
-  });
+  const { rows, transferOverrideSaved } = await upsertOriginalDoc(payload);
   const request = await saveRequestedReceiptDate(
     accountId,
     blNumber,
@@ -132,6 +166,7 @@ async function saveAdminItem(session, item) {
   return {
     item: rows && rows[0] ? rows[0] : payload,
     request,
+    transfer_override_saved: transferOverrideSaved,
   };
 }
 
@@ -193,6 +228,10 @@ module.exports = async function handler(req, res) {
         items: saved.map((row) => row.item),
         requests: saved.map((row) => row.request).filter(Boolean),
         item: saved[0]?.item || null,
+        transfer_override_saved: saved.every((row) => row.transfer_override_saved !== false),
+        warning: saved.some((row) => row.transfer_override_saved === false)
+          ? "양도증 수동 상태 컬럼이 아직 없어 OBL/H/C와 날짜만 저장했습니다. Supabase SQL 마이그레이션을 실행해 주세요."
+          : "",
       });
     }
 

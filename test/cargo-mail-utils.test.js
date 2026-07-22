@@ -3,6 +3,7 @@ const assert = require("node:assert/strict");
 
 const {
   buildWarehouseChangeMail,
+  mergeManualFields,
   mergeRecipients,
   parseRecipientList,
   warehouseChanges,
@@ -14,6 +15,30 @@ test("parses, validates, and de-duplicates recipient lists", () => {
     ["a@example.com", "B@example.com"]
   );
   assert.throws(() => parseRecipientList("not-an-email"), /올바르지 않은 이메일/);
+});
+
+test("merges a warehouse-only patch without clearing other manual fields", () => {
+  assert.deepEqual(
+    mergeManualFields(
+      {
+        delivery_terms: "CIF",
+        eta_date: "2026-07-25",
+        storage_yard: "기존창고",
+        free_time_days: 14,
+        free_time_expiry_date: "2026-08-07",
+        warehouse_expected_date: "2026-07-24",
+      },
+      { storage_yard: "새창고", warehouse_expected_date: "2026-07-26" }
+    ),
+    {
+      delivery_terms: "CIF",
+      eta_date: "2026-07-25",
+      storage_yard: "새창고",
+      free_time_days: 14,
+      free_time_expiry_date: "2026-08-07",
+      warehouse_expected_date: "2026-07-26",
+    }
+  );
 });
 
 test("merges fixed and additional recipients case-insensitively", () => {
