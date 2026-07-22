@@ -11,13 +11,24 @@ const quotaApi = fs.readFileSync(path.join(__dirname, "..", "api", "cargo-quota.
 test("progress page includes editable warehouse schedule and calendar event", () => {
   assert.match(dashboard, /<th>반입예정일<\/th>/);
   assert.match(dashboard, /openProgressWarehouseEditor/);
+  assert.match(dashboard, /id="progressWarehouseEta" type="date"/);
   assert.match(dashboard, /warehouse_expected_date/);
   assert.match(dashboard, /type: "warehouse"/);
   const start = dashboard.indexOf("async function saveProgressWarehouseEditor");
   const end = dashboard.indexOf("function openProgressStatus", start);
   const body = dashboard.slice(start, end);
-  assert.doesNotMatch(body, /eta_date:/);
+  assert.match(body, /payload\.eta_date = etaDate/);
   assert.doesNotMatch(body, /free_time_days:/);
+});
+
+test("compact cards and progress rows use concise one-line display values", () => {
+  assert.match(dashboard, /grid-template-columns:minmax\(88px,max-content\)/);
+  assert.match(dashboard, /function progressConsignee\(value\)/);
+  assert.match(dashboard, /displayConsignee\(value\)\.slice\(0, 4\)/);
+  assert.match(dashboard, /function progressDestination\(value\)/);
+  assert.match(dashboard, /split\("_"\)\[0\]/);
+  assert.match(dashboard, /class="progress-shipper"/);
+  assert.match(dashboard, /class="progress-destination"/);
 });
 
 test("progress original O path confirms removal without prompting for a date", () => {

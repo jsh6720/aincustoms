@@ -51,8 +51,8 @@
     .card summary { list-style:none; cursor:pointer; }
     .card summary::-webkit-details-marker { display:none; }
     .card.compact { padding:0; overflow:hidden; }
-    .card.compact .compact-line { display:grid; grid-template-columns:minmax(98px,.78fr) minmax(146px,1.35fr) minmax(96px,.9fr) 10px; grid-template-areas:"bl dest yard arrow" "meat eta status arrow"; column-gap:8px; row-gap:2px; align-items:start; min-height:43px; padding:6px 8px; font-size:9px; line-height:1.12; }
-    .card.compact .compact-main { grid-area:bl; align-self:center; font-family:Consolas,monospace; font-size:9.7px; line-height:1.05; font-weight:900; color:#1f2933; overflow:visible; white-space:nowrap; }
+    .card.compact .compact-line { display:grid; grid-template-columns:minmax(88px,max-content) minmax(128px,1.45fr) minmax(86px,1fr) 8px; grid-template-areas:"bl dest yard arrow" "meat eta status arrow"; column-gap:4px; row-gap:2px; align-items:start; min-height:43px; padding:6px; font-size:9px; line-height:1.12; }
+    .card.compact .compact-main { grid-area:bl; align-self:center; font-family:Consolas,monospace; font-size:10.2px; line-height:1.05; font-weight:900; color:#1f2933; overflow:visible; white-space:nowrap; }
     .card.compact .compact-dest { grid-area:dest; }
     .card.compact .compact-meat { grid-area:meat; }
     .card.compact .compact-eta { grid-area:eta; }
@@ -220,6 +220,8 @@
     .progress-table .center { text-align:center; font-weight:900; }
     .progress-table .no-cell { width:34px; min-width:34px; max-width:34px; padding-left:4px; padding-right:4px; text-align:center; }
     .progress-table .bl-cell { width:138px; min-width:138px; white-space:nowrap; word-break:normal; overflow-wrap:normal; font-family:Consolas,monospace; }
+    .progress-table .progress-shipper { width:72px; max-width:72px; white-space:nowrap; word-break:normal; overflow-wrap:normal; }
+    .progress-table .progress-destination { width:88px; max-width:88px; white-space:nowrap; word-break:normal; overflow-wrap:normal; text-overflow:ellipsis; overflow:hidden; }
     .progress-edit-btn { width:100%; border:0; background:transparent; color:#245b8a; font:inherit; font-weight:800; text-align:left; padding:2px 4px; border-radius:4px; cursor:pointer; }
     .progress-edit-btn:hover { background:#edf4f8; text-decoration:underline; }
     body.shipper-progress .progress-admin-only { display:none; }
@@ -494,8 +496,12 @@
   </div>
   <div id="progressWarehouseModalBg" class="modal-bg">
     <div class="modal">
-      <h2>반입예정정보</h2>
+      <h2>운송/반입예정정보</h2>
       <div id="progressWarehouseModalCard" class="modal-card"></div>
+      <div class="modal-field">
+        <label for="progressWarehouseEta">입항예정일</label>
+        <input id="progressWarehouseEta" type="date">
+      </div>
       <div class="modal-field">
         <label for="progressWarehouseYard">반입(예정)구역</label>
         <input id="progressWarehouseYard" placeholder="예: 강동냉장 보세창고">
@@ -1159,6 +1165,12 @@
       const term = String(card.delivery_terms || "").trim();
       return term && destination !== "-" ? `${destination}_${term}` : destination;
     }
+    function progressConsignee(value) {
+      return displayConsignee(value).slice(0, 4);
+    }
+    function progressDestination(value) {
+      return String(value || "-").split("_")[0] || "-";
+    }
     function compactSummaryHtml(card) {
       return `
         <summary class="compact-line">
@@ -1235,12 +1247,12 @@
       document.getElementById("progressRows").innerHTML = rows.length ? rows.map((card, rowIndex) => `
         <tr>
           <td class="center no-cell">${rowIndex + 1}</td>
-          <td>${esc(displayConsignee(card.consignee || "-"))}</td>
+          <td class="progress-shipper" title="${esc(displayConsignee(card.consignee || "-"))}">${esc(progressConsignee(card.consignee || "-"))}</td>
           <td class="bl-cell"><b>${esc(card.bl_number || "-")}</b></td>
-          <td>${esc(card.destination || "-")}</td>
+          <td class="progress-destination" title="${esc(card.destination || "-")}">${esc(progressDestination(card.destination))}</td>
           <td>${esc(meatType(card))}</td>
           <td class="center">${esc(card.delivery_terms || "-")}</td>
-          <td>${esc(displayDate(etaText(card)))}</td>
+          <td><button type="button" class="progress-edit-btn" onclick="openProgressWarehouseEditor(${currentCards.indexOf(card)})">${esc(displayDate(etaText(card)))}</button></td>
           <td><button type="button" class="progress-edit-btn" onclick="openProgressWarehouseEditor(${currentCards.indexOf(card)})">${esc(yardText(card))}</button></td>
           <td><button type="button" class="progress-edit-btn" onclick="openProgressWarehouseEditor(${currentCards.indexOf(card)})">${esc(displayDate(card.warehouse_expected_date || "-"))}</button></td>
           <td>${esc(card.stage || "-")}</td>
@@ -1268,6 +1280,7 @@
         <div class="modal-row"><b>화주명</b><span>${esc(displayConsignee(progressWarehouseCard.consignee || "-"))}</span></div>
         <div class="modal-row"><b>B/L</b><span>${esc(progressWarehouseCard.bl_number || "-")}</span></div>
       `;
+      document.getElementById("progressWarehouseEta").value = calendarDate(etaText(progressWarehouseCard));
       document.getElementById("progressWarehouseYard").value = progressWarehouseCard.storage_yard || progressWarehouseCard.shed_name || "";
       document.getElementById("progressWarehouseDate").value = calendarDate(progressWarehouseCard.warehouse_expected_date);
       document.getElementById("progressWarehouseModalBg").style.display = "flex";
@@ -1286,6 +1299,10 @@
         storage_yard: document.getElementById("progressWarehouseYard").value.trim(),
         warehouse_expected_date: document.getElementById("progressWarehouseDate").value || "",
       };
+      const etaDate = document.getElementById("progressWarehouseEta").value || "";
+      if (etaDate !== calendarDate(etaText(card)) || card.eta_date) {
+        payload.eta_date = etaDate;
+      }
       const response = await fetch("/api/cargo-quota", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
