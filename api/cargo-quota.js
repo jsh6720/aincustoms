@@ -1,6 +1,7 @@
 const nodemailer = require("nodemailer");
 const { verifySession, supabaseFetch } = require("../lib/cargo-auth");
 const {
+  buildTransportRollbackPayload,
   buildWarehouseChangeMail,
   mergeManualFields,
   warehouseChanges,
@@ -128,6 +129,7 @@ module.exports = async function handler(req, res) {
 
     if (action === "manual_fields") {
       const previousInput = await findManualInput(targetAccountId, blNumber);
+      const sendNotification = body.send_notification === true;
       const merged = mergeManualFields(previousInput, body);
       const deliveryTerms = String(merged.delivery_terms || "").trim();
       const etaDate = String(merged.eta_date || "").trim();
@@ -169,6 +171,9 @@ module.exports = async function handler(req, res) {
       const nextInput = { ...previousInput, ...nextPayload };
       const nextWarehouse = effectiveWarehouseValues(nextInput, card);
       const changedFields = !isAdmin ? warehouseChanges(previousWarehouse, nextWarehouse) : [];
+      nextPayload.transport_updated_by_role = isAdmin ? "admin" : "shipper";
+      nextPayload.transport_updated_by_login = session.login_id || "";
+      nextPayload.transport_updated_at = new Date().toISOString();
       const accountFilter = encodeURIComponent(targetAccountId);
       const blFilter = encodeURIComponent(blNumber);
       const inputExists = !!previousInput?.account_id;
@@ -185,16 +190,14 @@ module.exports = async function handler(req, res) {
       const input = rows && rows[0] ? rows[0] : null;
       let emailSent = false;
       let emailMessage = "";
-      if (changedFields.length) {
+      if (!isAdmin && sendNotification && changedFields.length) {
         try {
           await sendWarehouseChangeMail(card, session, previousWarehouse, nextWarehouse);
           emailSent = true;
         } catch (mailError) {
           emailMessage = mailError.message;
           const savedUpdatedAt = input?.updated_at;
-          const rollbackPayload = Object.fromEntries(
-            changedFields.map((field) => [field, previousInput?.[field] ?? null])
-          );
+          const rollbackPayload = buildTransportRollbackPayload(previousInput, nextPayload);
           let rolledBack = false;
           if (savedUpdatedAt) {
             const account = encodeURIComponent(targetAccountId);
@@ -251,6 +254,12 @@ module.exports = async function handler(req, res) {
 
     return res.status(200).json({ success: true, input: rows && rows[0] ? rows[0] : null });
   } catch (error) {
+    if (["transport_updated_by_role", "transport_updated_by_login", "transport_updated_at"].some((name) => String(error.message || "").includes(name))) {
+      return res.status(500).json({
+        success: false,
+        message: "Supabase에서 add_progress_request_metadata.sql을 먼저 실행해 주세요.",
+      });
+    }
     if (["delivery_terms", "eta_date", "storage_yard", "free_time_days", "free_time_expiry_date", "warehouse_expected_date", "animal_quarantine_override", "food_quarantine_override", "import_declaration_override", "distribution_history_override", "distribution_history_number"].some((name) => String(error.message || "").includes(name))) {
       return res.status(500).json({
         success: false,

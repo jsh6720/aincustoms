@@ -2,6 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 
 const {
+  buildTransportRollbackPayload,
   buildWarehouseChangeMail,
   mergeManualFields,
   mergeRecipients,
@@ -62,6 +63,37 @@ test("detects only effective warehouse value changes", () => {
       { storage_yard: "부산신항", warehouse_expected_date: "2026-07-24" }
     ),
     []
+  );
+});
+
+test("builds transport rollback values with previous provenance", () => {
+  assert.deepEqual(
+    buildTransportRollbackPayload(
+      {
+        delivery_terms: "CIF",
+        storage_yard: "Previous yard",
+        warehouse_expected_date: "2026-07-24",
+        transport_updated_by_role: "admin",
+        transport_updated_by_login: "AIN",
+        transport_updated_at: "2026-07-22T01:02:03.000Z",
+      },
+      {
+        delivery_terms: "FOB",
+        storage_yard: "Next yard",
+        warehouse_expected_date: "2026-07-25",
+        transport_updated_by_role: "shipper",
+        transport_updated_by_login: "SHIPPER-1",
+        transport_updated_at: "2026-07-23T04:05:06.000Z",
+      }
+    ),
+    {
+      delivery_terms: "CIF",
+      storage_yard: "Previous yard",
+      warehouse_expected_date: "2026-07-24",
+      transport_updated_by_role: "admin",
+      transport_updated_by_login: "AIN",
+      transport_updated_at: "2026-07-22T01:02:03.000Z",
+    }
   );
 });
 
