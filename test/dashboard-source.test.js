@@ -2,11 +2,45 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
+const vm = require("node:vm");
 
 const dashboard = fs.readFileSync(path.join(__dirname, "..", "cargo-dashboard.html"), "utf8");
 const mobile = fs.readFileSync(path.join(__dirname, "..", "cargo-docs-mobile.html"), "utf8");
 const originalDocsApi = fs.readFileSync(path.join(__dirname, "..", "api", "cargo-original-docs.js"), "utf8");
 const quotaApi = fs.readFileSync(path.join(__dirname, "..", "api", "cargo-quota.js"), "utf8");
+
+function requestControlContext(role, cards, overrides = {}) {
+  const start = dashboard.indexOf("function progressRequestToggle");
+  const end = dashboard.indexOf("function renderProgressStatus", start);
+  assert.ok(start >= 0 && end > start, "progress request helper source should exist");
+  const context = {
+    currentUserRole: role,
+    currentCards: cards,
+    displayDate: (value) => String(value || "-"),
+    esc: (value) => String(value ?? "").replace(/[&<>"']/g, (character) => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;",
+    }[character])),
+    jsStr: (value) => String(value ?? "").replace(/\\/g, "\\\\").replace(/'/g, "\\'"),
+    ...overrides,
+  };
+  vm.createContext(context);
+  vm.runInContext(
+    `${dashboard.slice(start, end)}
+this.renderRequestControl = progressRequestToggle;
+this.handleRequestAction = handleProgressRequestAction;`,
+    context
+  );
+  return context;
+}
+
+function requestControlHarness(role, cards) {
+  const context = requestControlContext(role, cards);
+  return (card, type) => context.renderRequestControl(card, type);
+}
 
 test("progress page includes editable warehouse schedule and calendar event", () => {
   assert.match(dashboard, /openProgressWarehouseEditor/);
@@ -130,6 +164,150 @@ test("shipper progress request controls use exact stages and latest request deta
   assert.match(helper, /openImportModal/);
   assert.match(helper, /progress-request-detail/);
   assert.match(helper, /disabled/);
+});
+
+test("progress request helper renders complete cells only for shippers", () => {
+  const card = { bl_number: "BL-1", stage: "입항" };
+  assert.equal(requestControlHarness("admin", [card])(card, "docs"), "");
+
+  const html = requestControlHarness("shipper", [card])(card, "docs");
+  assert.equal((html.match(/<td\b/g) || []).length, 1);
+  assert.equal((html.match(/<button\b/g) || []).length, 1);
+  assert.match(html, /data-progress-request-type="docs"/);
+  assert.match(html, /data-card-index="0"/);
+  assert.doesNotMatch(html, /\sonclick=/i);
+});
+
+test("progress request helper never interpolates a hostile BL into event attributes", () => {
+  const hostileBl = `BL'"><img src=x onerror="globalThis.pwned=true">&`;
+  const card = { bl_number: hostileBl, stage: "입항" };
+  const html = requestControlHarness("shipper", [card])(card, "import");
+
+  assert.doesNotMatch(html, /\sonclick=/i);
+  assert.doesNotMatch(html, /onerror=/i);
+  assert.doesNotMatch(html, /<img/i);
+  assert.doesNotMatch(html, /globalThis\.pwned/);
+});
+
+test("restricted request controls stay focusable and describe their restriction", () => {
+  const card = { bl_number: "BL-2", stage: "수입신고" };
+  const html = requestControlHarness("shipper", [card])(card, "docs");
+  const descriptionId = html.match(/aria-describedby="([^"]+)"/)?.[1];
+
+  assert.match(html, /aria-disabled="true"/);
+  assert.doesNotMatch(html, /\sdisabled(?:\s|>|=)/);
+  assert.ok(descriptionId);
+  assert.match(html, new RegExp(`id="${descriptionId}"`));
+  assert.match(html, /입항전\/입항\/반입 단계에서만 서류수령 요청할 수 있습니다/);
+});
+
+test("latest request details are associated with the focusable control", () => {
+  const card = {
+    bl_number: "BL-3",
+    stage: "반입",
+    last_import_request: {
+      requester_name: "담당자",
+      requester_email: "owner@example.com",
+      requested_import_date: "2026-07-23",
+      created_at: "2026-07-22T15:00:00Z",
+      memo: "검토 요청",
+    },
+  };
+  const html = requestControlHarness("shipper", [card])(card, "import");
+  const descriptionId = html.match(/aria-describedby="([^"]+)"/)?.[1];
+
+  assert.match(html, /aria-disabled="false"/);
+  assert.ok(descriptionId);
+  assert.match(html, new RegExp(`id="${descriptionId}"`));
+  assert.match(html, /담당자/);
+  assert.match(html, /owner@example\.com/);
+  assert.match(html, /검토 요청/);
+});
+
+test("progress request tooltip uses fixed viewport placement above and below controls", () => {
+  assert.match(dashboard, /\.progress-request-detail\s*\{[^}]*position:\s*fixed/);
+  const start = dashboard.indexOf("function positionProgressRequestTooltip");
+  const end = dashboard.indexOf("function scheduleProgressRequestTooltip", start);
+  assert.ok(start >= 0 && end > start, "tooltip positioning function should exist");
+
+  const detail = {
+    dataset: {},
+    style: {},
+    getBoundingClientRect: () => ({ width: 230, height: 120 }),
+  };
+  let controlRect = { left: 740, right: 794, top: 550, bottom: 572, width: 54, height: 22 };
+  const button = {
+    getAttribute: () => "request-detail-0-docs",
+    getBoundingClientRect: () => controlRect,
+  };
+  const context = {
+    document: { getElementById: () => detail },
+    window: { innerWidth: 800, innerHeight: 600 },
+  };
+  vm.createContext(context);
+  vm.runInContext(`${dashboard.slice(start, end)}\nthis.positionTooltip = positionProgressRequestTooltip;`, context);
+
+  context.positionTooltip(button);
+  assert.equal(detail.dataset.placement, "above");
+  assert.equal(detail.style.left, "562px");
+  assert.equal(detail.style.top, "424px");
+
+  controlRect = { left: 0, right: 54, top: 8, bottom: 30, width: 54, height: 22 };
+  context.positionTooltip(button);
+  assert.equal(detail.dataset.placement, "below");
+  assert.equal(detail.style.left, "8px");
+  assert.equal(detail.style.top, "36px");
+});
+
+test("progress request actions use one delegated guarded handler", () => {
+  assert.match(dashboard, /function handleProgressRequestAction\(event\)/);
+  assert.match(dashboard, /progressRows\.addEventListener\("click", handleProgressRequestAction\)/);
+  assert.match(dashboard, /button\.getAttribute\("aria-disabled"\) === "true"/);
+  assert.match(dashboard, /card\.bl_number/);
+});
+
+test("delegated request action resolves the live card and guards restricted stages", () => {
+  const hostileBl = `BL'"><svg onload="globalThis.pwned=true">`;
+  const cards = [
+    { bl_number: hostileBl, stage: "입항" },
+    { bl_number: "BL-LOCKED", stage: "수입신고" },
+  ];
+  const calls = [];
+  const rows = { contains: () => true };
+  const context = requestControlContext("shipper", cards, {
+    document: {
+      getElementById: (id) => id === "progressRows" ? rows : null,
+    },
+    requestAnimationFrame: () => {},
+    openOriginalDocModal: (blNumber) => calls.push(["docs", blNumber]),
+    openImportModal: (blNumber) => calls.push(["import", blNumber]),
+  });
+  const buttonFor = (cardIndex, type, ariaDisabled) => ({
+    dataset: { cardIndex: String(cardIndex), progressRequestType: type },
+    getAttribute: () => ariaDisabled,
+    closest: () => ({ contains: () => true }),
+  });
+
+  context.handleRequestAction({
+    target: { closest: () => buttonFor(0, "import", "false") },
+  });
+  assert.deepEqual(calls, [["import", hostileBl]]);
+
+  context.handleRequestAction({
+    target: { closest: () => buttonFor(1, "docs", "true") },
+  });
+  assert.deepEqual(calls, [["import", hostileBl]]);
+});
+
+test("no request modal opener interpolates BL values into inline handlers", () => {
+  assert.doesNotMatch(
+    dashboard,
+    /onclick="open(?:Release|Import|OriginalDoc)Modal\('\$\{jsStr\(card\.bl_number\)\}'\)"/
+  );
+  assert.match(dashboard, /data-cargo-request-type="release"/);
+  assert.match(dashboard, /data-cargo-request-type="import"/);
+  assert.match(dashboard, /data-cargo-request-type="docs"/);
+  assert.match(dashboard, /board\.addEventListener\("click", handleCardRequestAction\)/);
 });
 
 test("progress receipt calendar uses the exact transfer suffix in its receipt event", () => {
