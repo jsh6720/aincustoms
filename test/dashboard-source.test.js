@@ -41,7 +41,17 @@ test("progress alignment classes define their required CSS semantics", () => {
   assert.match(dashboard, /\.progress-table\s+\.progress-date\s+\.progress-edit-btn\s*\{[^}]*width:\s*100%[^}]*text-align:\s*center/);
 });
 
-test("progress table preserves all 24 progress columns", () => {
+test("progress view defaults after load and keeps explicit board navigation", () => {
+  assert.match(dashboard, /let currentPrimaryView = "progress"/);
+  assert.match(dashboard, /function showPrimaryView\(view\)/);
+  assert.match(dashboard, /currentPrimaryView = view === "board" \? "board" : "progress"/);
+  assert.match(dashboard, /showPrimaryView\(currentPrimaryView\)/);
+  assert.match(dashboard, /function togglePrimaryView\(\)/);
+  assert.match(dashboard, /보드 보기/);
+  assert.match(dashboard, /BL별 진행현황/);
+});
+
+test("progress table adds two complete shipper request columns to the 24 admin columns", () => {
   const tableStart = dashboard.indexOf('<table class="progress-table">');
   const tableEnd = dashboard.indexOf("</table>", tableStart);
   const table = dashboard.slice(tableStart, tableEnd);
@@ -50,8 +60,12 @@ test("progress table preserves all 24 progress columns", () => {
   const rowEnd = dashboard.indexOf("`).join(\"\")", rowStart);
   const row = dashboard.slice(rowStart, rowEnd);
 
-  assert.equal((header.match(/<th\b/g) || []).length, 24);
+  assert.equal((header.match(/<th\b/g) || []).length, 26);
   assert.equal((row.match(/<td\b/g) || []).length, 24);
+  assert.equal((row.match(/\$\{progressRequestToggle\(card, "(?:docs|import)"\)\}/g) || []).length, 2);
+  assert.match(dashboard, /if \(currentUserRole === "admin"\) return ""/);
+  assert.match(dashboard, /body:not\(\.shipper-progress\) \.progress-shipper-only\s*\{\s*display:none/);
+  assert.match(dashboard, /colspan="\$\{currentUserRole === "admin" \? 24 : 26\}"/);
 });
 
 test("progress table binds date classes to ETA and warehouse date columns", () => {
@@ -85,9 +99,9 @@ test("progress table binds long and centered short classes to intended columns",
 
   assert.equal(headerClasses.filter((classes) => classes.includes("progress-long")).length, 5);
   assert.equal(rowClasses.filter((classes) => classes.includes("progress-long")).length, 5);
-  assert.equal(headerClasses.filter((classes) => classes.includes("progress-short")).length, 17);
+  assert.equal(headerClasses.filter((classes) => classes.includes("progress-short")).length, 19);
   assert.equal(rowClasses.filter((classes) => classes.includes("progress-short")).length, 17);
-  assert.equal(headerClasses.filter((classes) => hasTokens(classes, "progress-short", "center")).length, 17);
+  assert.equal(headerClasses.filter((classes) => hasTokens(classes, "progress-short", "center")).length, 19);
   assert.equal(rowClasses.filter((classes) => hasTokens(classes, "progress-short", "center")).length, 17);
   assert.match(header, /<th class="[^"]*\bprogress-long\b[^"]*">\uBC18\uC785\(\uC608\uC815\)\uAD6C\uC5ED<\/th>/);
   assert.match(header, /<th class="[^"]*\bprogress-long\b[^"]*">\uC9C4\uD589\uC0C1\uD0DC<\/th>/);
@@ -96,6 +110,26 @@ test("progress table binds long and centered short classes to intended columns",
   assert.match(header, /<th class="[^"]*\bprogress-short\b[^"]*">\uB9C8\uC77C\uC2A4\uD1A4<\/th>/);
   assert.match(row, /<td class="[^"]*\bprogress-long\b[^"]*"><button[^>]*>[\s\S]*?yardText\(card\)/);
   assert.match(row, /<td class="[^"]*\bprogress-long\b[^"]*">\$\{esc\(progressStateText\(card\)\)\}<\/td>/);
+});
+
+test("shipper progress request controls use exact stages and latest request details", () => {
+  const start = dashboard.indexOf("function progressRequestToggle");
+  const end = dashboard.indexOf("function renderProgressStatus", start);
+  const helper = dashboard.slice(start, end);
+
+  assert.match(dashboard, /서류수령요청/);
+  assert.match(dashboard, /수입신고요청/);
+  assert.match(helper, /요청 O/);
+  assert.match(helper, /요청 X/);
+  assert.match(helper, /progress-shipper-only/);
+  assert.match(helper, /\["입항전", "입항", "반입"\]/);
+  assert.match(helper, /\["입항", "반입"\]/);
+  assert.match(helper, /last_original_doc_request/);
+  assert.match(helper, /last_import_request/);
+  assert.match(helper, /openOriginalDocModal/);
+  assert.match(helper, /openImportModal/);
+  assert.match(helper, /progress-request-detail/);
+  assert.match(helper, /disabled/);
 });
 
 test("progress receipt calendar uses the exact transfer suffix in its receipt event", () => {

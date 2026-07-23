@@ -5,6 +5,7 @@ const path = require("node:path");
 const test = require("node:test");
 
 const root = path.resolve(__dirname, "..");
+const dashboard = fs.readFileSync(path.join(root, "cargo-dashboard.html"), "utf8");
 const migration = fs.readFileSync(
   path.join(root, "supabase/migrations/20260723_add_progress_request_metadata.sql"),
   "utf8"
@@ -664,6 +665,32 @@ test("request APIs contain the approved stage sets", () => {
   assert.match(originalRequestApi, /\["입항전",\s*"입항",\s*"반입"\]/);
   assert.match(importRequestApi, /\["입항",\s*"반입"\]/);
   assert.match(importRequestApi, /requested_import_date/);
+});
+
+test("dashboard import request mode defaults and submits the requested import date", () => {
+  assert.match(dashboard, /id="importRequestDateWrap"/);
+  assert.match(dashboard, /id="importRequestDate" type="date"/);
+  const openStart = dashboard.indexOf("async function openImportModal");
+  const openEnd = dashboard.indexOf("function closeReleaseModal", openStart);
+  const openBody = dashboard.slice(openStart, openEnd);
+  assert.match(openBody, /last_import_requested_import_date \|\| koreaToday\(\)/);
+  assert.match(openBody, /importRequestDateWrap"\)\.style\.display = ""/);
+
+  const submitStart = dashboard.indexOf("async function submitReleaseRequest");
+  const submitEnd = dashboard.indexOf("function openReceiptMailModal", submitStart);
+  const submitBody = dashboard.slice(submitStart, submitEnd);
+  assert.match(submitBody, /requested_import_date: document\.getElementById\("importRequestDate"\)\.value/);
+  assert.match(submitBody, /if \(requestSubmitting\) return/);
+  assert.match(submitBody, /requestSubmitBtn/);
+  assert.match(submitBody, /await loadData\(\)/);
+});
+
+test("progress calendar includes the latest import request date", () => {
+  const start = dashboard.indexOf("function progressCalendarEvents()");
+  const end = dashboard.indexOf("function renderProgressCalendar", start);
+  const body = dashboard.slice(start, end);
+  assert.match(body, /last_import_requested_import_date/);
+  assert.match(body, /수입신고요청/);
 });
 
 test("import request handler defaults, persists, returns, and emails the Korea request date", { concurrency: false }, async () => {

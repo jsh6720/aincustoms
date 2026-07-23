@@ -214,7 +214,7 @@
     .calendar-event.eta { background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; }
     .calendar-event.warehouse { background:#f7f2e8; color:#795d20; border:1px solid #dfcfaa; }
     .progress-table-wrap { overflow:auto; max-height:calc(100vh - 190px); }
-    .progress-table { width:100%; min-width:1860px; border-collapse:collapse; table-layout:fixed; font-size:11px; }
+    .progress-table { width:100%; min-width:1984px; border-collapse:collapse; table-layout:fixed; font-size:11px; }
     .progress-table th, .progress-table td { border-bottom:1px solid #edf1f4; padding:7px 8px; text-align:left; vertical-align:middle; word-break:keep-all; overflow-wrap:anywhere; }
     .progress-table th { position:sticky; top:0; z-index:1; background:#f7f9fb; color:#4b5663; font-size:10px; font-weight:900; text-align:center; }
     .progress-date { width:104px; min-width:104px; max-width:104px; text-align:center; vertical-align:middle; white-space:nowrap; font-size:10px; }
@@ -232,7 +232,19 @@
     .progress-table .progress-date .progress-edit-btn { width:100%; text-align:center; }
     .progress-table td.progress-date { text-align:center; }
     .progress-edit-btn:hover { background:#edf4f8; text-decoration:underline; }
+    .progress-request-wrap { display:inline-flex; position:relative; justify-content:center; }
+    .progress-request-toggle { width:54px; height:22px; border:1px solid #b7dfc4; border-radius:4px; background:#edf8f1; color:#1b6b3a; padding:0 4px; font:inherit; font-size:9.5px; font-weight:900; white-space:nowrap; cursor:pointer; }
+    .progress-request-toggle.request-x { border-color:#d7dee5; background:#f5f7f9; color:#596573; }
+    .progress-request-toggle:hover:not(:disabled) { filter:brightness(.96); }
+    .progress-request-toggle:disabled { border-color:#dfe4e9; background:#f1f3f5; color:#9aa3ad; cursor:not-allowed; }
+    .progress-request-detail { display:none; position:absolute; left:50%; top:calc(100% + 5px); z-index:20; width:230px; transform:translateX(-50%); border:1px solid #cfd8e2; border-radius:6px; padding:7px 8px; background:#fff; color:#26313d; box-shadow:0 8px 20px rgba(15,23,42,.18); text-align:left; white-space:normal; font-size:9.5px; font-weight:600; line-height:1.35; pointer-events:none; }
+    .progress-request-wrap:hover .progress-request-detail, .progress-request-wrap:focus-within .progress-request-detail { display:block; }
+    .progress-request-detail-row { display:grid; grid-template-columns:62px minmax(0, 1fr); gap:5px; padding:1px 0; word-break:break-word; }
+    .progress-request-detail-row b { color:#697582; font-weight:800; }
+    .progress-request-empty { color:#7b8794; text-align:center; }
     body.shipper-progress .progress-admin-only { display:none; }
+    body:not(.shipper-progress) .progress-shipper-only { display:none; }
+    body:not(.shipper-progress) .progress-table { min-width:1860px; }
     .doc-o { color:#1b6b3a; background:#edf8f1; border:1px solid #b7dfc4; border-radius:999px; padding:1px 6px; }
     .doc-x { color:#c92a2a; background:#fff1f1; border:1px solid #ffc9c9; border-radius:999px; padding:1px 6px; }
     .doc-na { color:#8b95a1; background:#f5f7f9; border:1px solid #e2e8ee; border-radius:999px; padding:1px 6px; }
@@ -274,7 +286,7 @@
       <div id="summary" class="summary"></div>
       <div class="toolbar-actions">
         <button id="docsMobileBtn" class="btn gray" style="display:none" onclick="openDocsMobile()">모바일 원본서류</button>
-        <button id="progressStatusBtn" class="btn gray" style="display:none" onclick="openProgressStatus()">BL별 진행현황</button>
+        <button id="progressStatusBtn" class="btn gray" style="display:none" onclick="togglePrimaryView()">보드 보기</button>
         <button id="showHiddenBtn" class="btn gray" style="display:none" onclick="toggleShowHiddenCards()">숨김 포함</button>
         <button id="adminSettingsBtn" class="btn gray" style="display:none" onclick="openAdminSettings()">관리자 설정</button>
         <button class="btn" onclick="loadData()">새로고침</button>
@@ -382,7 +394,7 @@
         <div class="docs-head">
           <h2>BL별 진행현황</h2>
           <div class="toolbar-actions">
-            <button class="btn gray" onclick="closeProgressStatus()">닫기</button>
+            <button class="btn gray" onclick="closeProgressStatus()">보드 보기</button>
           </div>
         </div>
         <div class="progress-table-wrap">
@@ -400,6 +412,8 @@
                 <th class="progress-date">반입예정일</th>
                 <th class="progress-short center">마일스톤</th>
                 <th class="progress-long">진행상태</th>
+                <th class="progress-short center progress-shipper-only">서류수령요청</th>
+                <th class="progress-short center progress-shipper-only">수입신고요청</th>
                 <th class="progress-short center progress-admin-only">동물검역</th>
                 <th class="progress-short center progress-admin-only">식품검역</th>
                 <th class="progress-short center progress-admin-only">유통이력</th>
@@ -466,13 +480,17 @@
           <span id="releaseDateWeekday" class="weekday-hint"></span>
         </div>
       </div>
+      <div class="modal-field" id="importRequestDateWrap" style="display:none">
+        <label for="importRequestDate">수입신고 요청일자</label>
+        <input id="importRequestDate" type="date">
+      </div>
       <div class="modal-field">
         <label for="releaseMemo">요청사항</label>
         <textarea id="releaseMemo" placeholder="차량, 운송, 기타 요청사항을 입력하세요."></textarea>
       </div>
       <div class="modal-actions">
         <button class="btn gray" onclick="closeReleaseModal()">취소</button>
-        <button class="btn" onclick="submitReleaseRequest()">요청 발송</button>
+        <button id="requestSubmitBtn" class="btn" onclick="submitReleaseRequest()">요청 발송</button>
       </div>
     </div>
   </div>
@@ -541,6 +559,8 @@
     let currentUserRole = "shipper";
     let currentUserLogin = "";
     let currentCards = [];
+    let currentPrimaryView = "progress";
+    let requestSubmitting = false;
     let showHiddenCards = false;
     let manualEditOpen = {};
     const expandedCardKeys = new Set();
@@ -710,20 +730,37 @@
       if (normalized) input.value = normalized.slice(5);
       updateRequestWeekday();
     }
+    function showPrimaryView(view) {
+      currentPrimaryView = view === "board" ? "board" : "progress";
+      document.getElementById("boardWrap").style.display =
+        currentPrimaryView === "board" ? "" : "none";
+      document.getElementById("board").style.display = "grid";
+      document.getElementById("progressPanel").style.display =
+        currentPrimaryView === "progress" ? "block" : "none";
+      const viewButton = document.getElementById("progressStatusBtn");
+      if (viewButton) {
+        viewButton.textContent = currentPrimaryView === "progress" ? "보드 보기" : "BL별 진행현황";
+      }
+      if (currentPrimaryView === "progress") {
+        renderProgressStatus();
+        renderProgressCalendar();
+      }
+    }
+    function togglePrimaryView() {
+      showPrimaryView(currentPrimaryView === "progress" ? "board" : "progress");
+    }
     function showCargoUi() {
       document.getElementById("loginPanel").style.display = "none";
       document.getElementById("adminPanel").style.display = "none";
       document.getElementById("toolbar").style.display = "flex";
-      document.getElementById("boardWrap").style.display = "";
-      document.getElementById("board").style.display = "grid";
       document.getElementById("docsPanel").style.display = "none";
-      document.getElementById("progressPanel").style.display = "none";
       document.getElementById("logoutBtn").style.display = "";
       document.getElementById("docsMobileBtn").style.display = currentUserRole === "admin" ? "" : "none";
       document.getElementById("progressStatusBtn").style.display = "";
       document.getElementById("showHiddenBtn").style.display = currentUserRole === "admin" ? "" : "none";
       document.getElementById("showHiddenBtn").textContent = showHiddenCards ? "숨김 제외" : "숨김 포함";
       document.getElementById("adminSettingsBtn").style.display = currentUserRole === "admin" ? "" : "none";
+      showPrimaryView(currentPrimaryView);
     }
     function showAdminUi() {
       document.getElementById("adminPanel").style.display = "block";
@@ -770,6 +807,7 @@
         location.href = next;
         return;
       }
+      currentPrimaryView = "progress";
       if (result.user.role === "admin") {
         await loadData();
       } else {
@@ -816,11 +854,8 @@
         `;
       }).join("");
       restoreBoardUiState();
+      showPrimaryView(currentPrimaryView);
       if (document.getElementById("docsPanel").style.display !== "none") renderDocsStatus();
-      if (document.getElementById("progressPanel").style.display !== "none") {
-        renderProgressStatus();
-        renderProgressCalendar();
-      }
     }
 
     function isHiddenCard(card) {
@@ -1250,6 +1285,35 @@
         || String(a.destination || "").localeCompare(String(b.destination || ""), "ko")
         || String(meatType(a)).localeCompare(String(meatType(b)), "ko");
     }
+    function progressRequestToggle(card, type) {
+      if (currentUserRole === "admin") return "";
+      const isDocs = type === "docs";
+      const latest = isDocs ? card.last_original_doc_request : card.last_import_request;
+      const allowedStages = isDocs ? ["입항전", "입항", "반입"] : ["입항", "반입"];
+      const allowed = allowedStages.includes(card.stage);
+      const action = isDocs ? "openOriginalDocModal" : "openImportModal";
+      const status = latest ? "요청 O" : "요청 X";
+      const requestedDate = isDocs ? latest?.requested_receipt_date : latest?.requested_import_date;
+      const requestedDateLabel = isDocs ? "수령요청일" : "신고요청일";
+      const disabledReason = `${allowedStages.join("/")} 단계에서만 ${isDocs ? "서류수령" : "수입신고"} 요청할 수 있습니다.`;
+      const details = latest ? [
+        ["요청담당자", latest.requester_name || "-"],
+        ["요청인 메일", latest.requester_email || "-"],
+        [requestedDateLabel, displayDate(requestedDate)],
+        ["요청일시", displayDate(latest.created_at)],
+        ["요청사항", latest.memo || "-"]
+      ].map(([label, value]) => `<span class="progress-request-detail-row"><b>${esc(label)}</b><span>${esc(value)}</span></span>`).join("") :
+        '<span class="progress-request-empty">최근 요청 이력이 없습니다.</span>';
+      const command = allowed ? `onclick="${action}('${jsStr(card.bl_number)}')"` : "disabled";
+      return `
+        <td class="progress-short center progress-shipper-only">
+          <span class="progress-request-wrap">
+            <button type="button" class="progress-request-toggle ${latest ? "" : "request-x"}" title="${esc(allowed ? "최근 요청 상세를 확인하거나 다시 요청합니다." : disabledReason)}" ${command}>${status}</button>
+            <span class="progress-request-detail" role="tooltip">${details}</span>
+          </span>
+        </td>
+      `;
+    }
     function renderProgressStatus() {
       const rows = visibleCards().sort(progressSort);
       document.getElementById("progressRows").innerHTML = rows.length ? rows.map((card, rowIndex) => `
@@ -1265,6 +1329,8 @@
           <td class="progress-date"><button type="button" class="progress-edit-btn" onclick="openProgressWarehouseEditor(${currentCards.indexOf(card)})">${esc(displayDate(card.warehouse_expected_date || "-"))}</button></td>
           <td class="progress-short center">${esc(card.stage || "-")}</td>
           <td class="progress-long">${esc(progressStateText(card))}</td>
+          ${progressRequestToggle(card, "docs")}
+          ${progressRequestToggle(card, "import")}
           <td class="progress-short center progress-admin-only">${progressManualStatusToggle(card, "animal")}</td>
           <td class="progress-short center progress-admin-only">${progressManualStatusToggle(card, "food")}</td>
           <td class="progress-short center progress-admin-only">${progressManualStatusToggle(card, "distribution")}</td>
@@ -1279,7 +1345,7 @@
           <td class="progress-short center">${docStatusLabel(!!card.doc_insurance_received, insuranceRequired(card))}</td>
           <td class="progress-short center">${docStatusLabel(!!card.doc_freight_invoice_received, freightRequired(card))}</td>
         </tr>
-      `).join("") : '<tr><td colspan="24" style="text-align:center;color:#8b95a1">표시할 BL이 없습니다.</td></tr>';
+      `).join("") : `<tr><td colspan="${currentUserRole === "admin" ? 24 : 26}" style="text-align:center;color:#8b95a1">표시할 BL이 없습니다.</td></tr>`;
     }
     function openProgressWarehouseEditor(cardIndex) {
       progressWarehouseCard = currentCards[cardIndex];
@@ -1330,16 +1396,11 @@
       }
     }
     function openProgressStatus() {
-      document.getElementById("adminPanel").style.display = "none";
-      document.getElementById("boardWrap").style.display = "none";
       document.getElementById("docsPanel").style.display = "none";
-      document.getElementById("progressPanel").style.display = "block";
-      renderProgressStatus();
-      renderProgressCalendar();
+      showPrimaryView("progress");
     }
     function closeProgressStatus() {
-      document.getElementById("progressPanel").style.display = "none";
-      document.getElementById("boardWrap").style.display = "";
+      showPrimaryView("board");
     }
     function cardHtml(card, index) {
       const alertClass = card.quota_alert === "over" ? " over" : (card.quota_alert === "warn" ? " warn" : "");
@@ -1817,8 +1878,7 @@
     }
     function closeDocsStatus() {
       document.getElementById("docsPanel").style.display = "none";
-      document.getElementById("boardWrap").style.display = "";
-      document.getElementById("board").style.display = "grid";
+      showPrimaryView(currentPrimaryView);
     }
     async function saveOriginalDocs(cardIndex, rowIndex, approvePending) {
       const card = currentCards[cardIndex];
@@ -2109,6 +2169,10 @@
         if (requestDate) {
           events.push({ date: requestDate, type: "request", text: `서류요청 ${label}` });
         }
+        const importRequestDate = calendarDate(card.last_import_requested_import_date);
+        if (importRequestDate) {
+          events.push({ date: importRequestDate, type: "request", text: `수입신고요청 ${label}` });
+        }
         const actualDate = calendarDate(card.actual_received_date);
         const effectiveActualDate = actualDate || effectiveOriginalReceiptDate(card);
         if (effectiveActualDate) {
@@ -2186,6 +2250,7 @@
       document.getElementById("requestModalTitle").textContent = "출고요청";
       document.getElementById("releaseTypeOptions").style.display = "flex";
       document.getElementById("releaseWeightWrap").style.display = "none";
+      document.getElementById("importRequestDateWrap").style.display = "none";
       document.getElementById("releaseAddress").closest(".modal-field").style.display = "";
       document.querySelector("label[for='releaseAddress']").textContent = "출고지주소";
       document.querySelector("label[for='releaseDate']").innerHTML = '출고월일<span class="field-hint">올해 연도로 자동 저장됩니다.</span>';
@@ -2225,6 +2290,7 @@
       document.getElementById("requestModalTitle").textContent = "원본서류 도착/수령 요청";
       document.getElementById("releaseTypeOptions").style.display = "none";
       document.getElementById("releaseWeightWrap").style.display = "none";
+      document.getElementById("importRequestDateWrap").style.display = "none";
       document.getElementById("releaseAddress").closest(".modal-field").style.display = "none";
       document.querySelector("label[for='releaseDate']").innerHTML = '수령요청일자<span class="field-hint">올해 연도로 자동 저장됩니다.</span>';
       document.getElementById("releaseWeight").value = "";
@@ -2260,6 +2326,7 @@
       document.getElementById("requestModalTitle").textContent = "수입신고요청";
       document.getElementById("releaseTypeOptions").style.display = "none";
       document.getElementById("releaseWeightWrap").style.display = "none";
+      document.getElementById("importRequestDateWrap").style.display = "";
       document.getElementById("releaseAddress").closest(".modal-field").style.display = "";
       document.querySelector("label[for='releaseAddress']").textContent = "출고지주소";
       document.querySelector("label[for='releaseDate']").innerHTML = '출고월일<span class="field-hint">올해 연도로 자동 저장됩니다.</span>';
@@ -2269,6 +2336,7 @@
       document.getElementById("releaseAddress").value = releaseRequestCard.last_import_delivery_address || "";
       document.getElementById("releaseAddress").placeholder = "미정";
       document.getElementById("releaseDate").value = toRequestMonthDay(releaseRequestCard.last_import_requested_release_date);
+      document.getElementById("importRequestDate").value = releaseRequestCard.last_import_requested_import_date || koreaToday();
       updateRequestWeekday();
       document.getElementById("releaseMemo").value = "";
       document.getElementById("releaseModalCard").innerHTML = `
@@ -2285,6 +2353,7 @@
       releaseRequestCard = null;
       requestMode = "release";
       document.getElementById("releaseAddress").closest(".modal-field").style.display = "";
+      document.getElementById("importRequestDateWrap").style.display = "none";
       document.getElementById("releaseDateWeekday").textContent = "";
     }
     function toggleReleaseType() {
@@ -2292,6 +2361,7 @@
       document.getElementById("releaseWeightWrap").style.display = type === "partial" ? "" : "none";
     }
     async function submitReleaseRequest() {
+      if (requestSubmitting) return;
       if (!releaseRequestCard) return;
       const type = document.querySelector('input[name="releaseType"]:checked').value;
       const requestedReleaseDate = normalizeRequestDate(document.getElementById("releaseDate").value);
@@ -2317,7 +2387,10 @@
         requester_email: commonBody.requester_email,
         requested_receipt_date: requestedReleaseDate,
         memo: commonBody.memo
-      } : (requestMode === "import" ? commonBody : {
+      } : (requestMode === "import" ? {
+        ...commonBody,
+        requested_import_date: document.getElementById("importRequestDate").value
+      } : {
         ...commonBody,
         request_type: type,
         requested_weight: type === "partial" ? document.getElementById("releaseWeight").value : ""
@@ -2326,19 +2399,30 @@
         requestMode === "docs"
           ? "/api/cargo-original-doc-request"
           : (requestMode === "import" ? "/api/cargo-import-request" : "/api/cargo-release-request");
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body)
-      });
-      const result = await response.json();
-      if (!result.success) {
-        alert(result.message || (requestMode === "docs" ? "원본서류 도착/수령 요청에 실패했습니다." : (requestMode === "import" ? "수입신고요청에 실패했습니다." : "출고요청에 실패했습니다.")));
-        return;
+      const submittedMode = requestMode;
+      requestSubmitting = true;
+      document.getElementById("requestSubmitBtn").disabled = true;
+      try {
+        const response = await fetch(endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body)
+        });
+        const result = await response.json();
+        if (!result.success) {
+          alert(result.message || (submittedMode === "docs" ? "원본서류 도착/수령 요청에 실패했습니다." : (submittedMode === "import" ? "수입신고요청에 실패했습니다." : "출고요청에 실패했습니다.")));
+          return;
+        }
+        const successText = submittedMode === "docs" ? "원본서류 도착/수령 요청" : (submittedMode === "import" ? "수입신고요청" : "출고요청");
+        await loadData();
+        closeReleaseModal();
+        alert(result.email_sent ? `${successText}이 발송되었습니다.` : `${successText}은 저장되었습니다. 메일 발송 환경변수를 확인해 주세요.`);
+      } catch (error) {
+        alert(error.message || "요청 처리 중 오류가 발생했습니다.");
+      } finally {
+        requestSubmitting = false;
+        document.getElementById("requestSubmitBtn").disabled = false;
       }
-      const successText = requestMode === "docs" ? "원본서류 도착/수령 요청" : (requestMode === "import" ? "수입신고요청" : "출고요청");
-      closeReleaseModal();
-      alert(result.email_sent ? `${successText}이 발송되었습니다.` : `${successText}은 저장되었습니다. 메일 발송 환경변수를 확인해 주세요.`);
     }
     function openReceiptMailModal(cardIndex) {
       receiptMailCard = currentCards[cardIndex];
