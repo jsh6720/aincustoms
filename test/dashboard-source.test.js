@@ -24,7 +24,6 @@ function requestControlContext(role, cards, overrides = {}) {
       '"': "&quot;",
       "'": "&#39;",
     }[character])),
-    jsStr: (value) => String(value ?? "").replace(/\\/g, "\\\\").replace(/'/g, "\\'"),
     ...overrides,
   };
   vm.createContext(context);
@@ -40,6 +39,33 @@ this.handleRequestAction = handleProgressRequestAction;`,
 function requestControlHarness(role, cards) {
   const context = requestControlContext(role, cards);
   return (card, type) => context.renderRequestControl(card, type);
+}
+
+function dashboardRuntimeContext(role, cards, overrides = {}) {
+  const script = dashboard.match(/<script>([\s\S]*?)<\/script>/)?.[1];
+  assert.ok(script, "dashboard inline script should exist");
+  const withoutBoot = script.replace(
+    /\s*bindProgressRequestControls\(\);\s*loadData\(\);\s*$/,
+    ""
+  );
+  const context = {
+    console,
+    currentTestCalls: [],
+    __testCards: cards,
+  };
+  vm.createContext(context);
+  vm.runInContext(
+    `${withoutBoot}
+currentUserRole = ${JSON.stringify(role)};
+currentCards = __testCards;
+this.renderFullCard = cardHtml;
+this.dispatchBoardClick = handleBoardCardClick;
+this.dispatchBoardChange = handleBoardCardChange;
+this.dispatchBoardInput = handleBoardCardInput;`,
+    context
+  );
+  Object.assign(context, overrides);
+  return context;
 }
 
 test("progress page includes editable warehouse schedule and calendar event", () => {
@@ -308,6 +334,106 @@ test("no request modal opener interpolates BL values into inline handlers", () =
   assert.match(dashboard, /data-cargo-request-type="import"/);
   assert.match(dashboard, /data-cargo-request-type="docs"/);
   assert.match(dashboard, /board\.addEventListener\("click", handleCardRequestAction\)/);
+});
+
+test("full board card rendering keeps hostile identifiers inert", () => {
+  const hostileBl = `BL'\" data-injected=\"yes\"><img src=x onerror=\"globalThis.pwned=true\">&`;
+  const hostileAccount = `account'\" onpointerenter=\"globalThis.pwned=true`;
+  const hostileRevisionId = `revision'\" autofocus onfocus=\"globalThis.pwned=true`;
+  const card = {
+    account_id: hostileAccount,
+    bl_number: hostileBl,
+    consignee: "Runtime shipper",
+    stage: "반입",
+    is_quota: true,
+    quota_permit_date: "2026-07-23",
+    revisions: [{
+      id: hostileRevisionId,
+      text: `Review <svg onload=\"globalThis.pwned=true\">`,
+      created_by: "shipper",
+      done: false,
+    }],
+  };
+  const context = dashboardRuntimeContext("admin", [card]);
+  const html = context.renderFullCard(card, 0);
+
+  assert.match(html, /BL&#39;&quot; data-injected=&quot;yes&quot;&gt;&lt;img/);
+  assert.doesNotMatch(html, /<img\b/i);
+  assert.doesNotMatch(html, /<svg\b/i);
+  assert.doesNotMatch(html, /\sdata-injected="yes"/i);
+  assert.doesNotMatch(html, /\sonpointerenter="globalThis\.pwned=true/i);
+  assert.doesNotMatch(html, /\sonfocus="globalThis\.pwned=true/i);
+  assert.doesNotMatch(html, /\sonerror="globalThis\.pwned=true/i);
+  for (const [, handler] of html.matchAll(/\son(?:click|change|input|keydown|toggle)="([^"]*)"/gi)) {
+    assert.doesNotMatch(handler, /data-injected|globalThis|<img|<svg/i);
+  }
+});
+
+test("board data controls dispatch hostile identifiers from live card state", () => {
+  const hostileBl = `BL'"><img src=x onerror="globalThis.pwned=true">`;
+  const hostileAccount = `account'\" data-injected=\"yes`;
+  const hostileRevisionId = `revision'\" onfocus=\"globalThis.pwned=true`;
+  const card = {
+    account_id: hostileAccount,
+    bl_number: hostileBl,
+    stage: "반입",
+    revisions: [{ id: hostileRevisionId, text: "Check", done: false }],
+  };
+  const calls = [];
+  const board = { contains: () => true };
+  const context = dashboardRuntimeContext("admin", [card], {
+    document: {
+      getElementById: (id) => id === "board" ? board : null,
+    },
+    setCardHidden: (...args) => calls.push(["hide", ...args]),
+    toggleRevisionDone: (...args) => calls.push(["done", ...args]),
+  });
+  const control = (action, extra = {}) => {
+    const element = {
+      dataset: { cardAction: action, cardIndex: "0", ...extra },
+    };
+    element.closest = () => element;
+    return element;
+  };
+
+  context.dispatchBoardClick({
+    target: { closest: () => control("card-visibility", { hidden: "true" }) },
+    preventDefault() {},
+    stopPropagation() {},
+  });
+  const doneControl = control("revision-done", { revisionIndex: "0" });
+  doneControl.checked = true;
+  context.dispatchBoardChange({ target: doneControl });
+
+  assert.deepEqual(calls, [
+    ["hide", hostileAccount, hostileBl, true],
+    ["done", hostileBl, hostileAccount, hostileRevisionId, true],
+  ]);
+});
+
+test("board data-bearing controls use delegation instead of jsStr inline handlers", () => {
+  assert.doesNotMatch(dashboard, /function jsStr\(/);
+  assert.doesNotMatch(dashboard, /\$\{jsStr\(/);
+  const allowedIndexExpressions = new Set([
+    "index",
+    "idx",
+    "sourceIndex",
+    "currentCards.indexOf(card)",
+  ]);
+  for (const [, handler] of dashboard.matchAll(/\son(?:click|change|input|keydown|toggle)="([^"]*)"/gi)) {
+    for (const [, expression] of handler.matchAll(/\$\{([^}]+)\}/g)) {
+      assert.ok(
+        allowedIndexExpressions.has(expression.trim()),
+        `inline handler interpolation must be index-only: ${expression}`
+      );
+    }
+  }
+  assert.match(dashboard, /board\.addEventListener\("click", handleBoardCardClick\)/);
+  assert.match(dashboard, /board\.addEventListener\("change", handleBoardCardChange\)/);
+  assert.match(dashboard, /board\.addEventListener\("input", handleBoardCardInput\)/);
+  assert.match(dashboard, /board\.addEventListener\("keydown", handleBoardCardKeydown\)/);
+  assert.match(dashboard, /board\.addEventListener\("toggle", handleBoardCardToggle, true\)/);
+  assert.match(dashboard, /adminRows\.addEventListener\("click", handleAdminAccountAction\)/);
 });
 
 test("progress receipt calendar uses the exact transfer suffix in its receipt event", () => {

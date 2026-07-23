@@ -577,9 +577,6 @@
         "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
       }[ch]));
     }
-    function jsStr(value) {
-      return String(value ?? "").replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/\r/g, "\\r").replace(/\n/g, "\\n");
-    }
     function cardStateKey(card) {
       return `${card.account_id || card.consignee || ""}::${card.bl_number || ""}`;
     }
@@ -925,10 +922,9 @@
       const number = card.distribution_history_number ? ` ${esc(card.distribution_history_number)}` : "";
       return `<span class="badge ${cls}">유통이력 ${esc(status)}${number}</span>`;
     }
-    function adminStatusHtml(card) {
+    function adminStatusHtml(card, cardIndex) {
       if (currentUserRole !== "admin") return "";
       const bl = card.bl_number || "";
-      const accountId = card.account_id || "";
       const showDistribution = distributionHistoryTarget(card) || card.distribution_history_override || card.distribution_history_number;
       return `
         <div class="admin-status-box">
@@ -951,18 +947,18 @@
             </label>` : ""}
           </div>
           <div class="admin-status-actions">
-            <button class="btn green" style="height:22px;padding:2px 8px;font-size:9.5px" onclick="saveAdminStatus('${jsStr(accountId)}', '${jsStr(bl)}', ${showDistribution ? "true" : "false"})">저장</button>
+            <button type="button" class="btn green" data-card-action="admin-status-save" data-card-index="${cardIndex}" style="height:22px;padding:2px 8px;font-size:9.5px">저장</button>
           </div>
         </div>
       `;
     }
-    function quotaHtml(card) {
+    function quotaHtml(card, cardIndex) {
       const checked = card.is_quota ? "checked" : "";
       const disabled = currentUserRole === "admin" ? "disabled" : "";
       const dateLine = card.is_quota ? `
         <div class="quota-date">
           <span>추천서 교부일</span>
-          <input type="date" ${disabled} value="${esc(card.quota_permit_date || "")}" onchange="saveQuotaInput('${jsStr(card.bl_number)}', true, this.value)">
+          <input type="date" ${disabled} value="${esc(card.quota_permit_date || "")}" data-card-action="quota-date" data-card-index="${cardIndex}">
         </div>
       ` : "";
       const importClass = card.import_declare_alert || (card.is_quota && card.import_declare_message && !String(card.import_declare_message).includes("완료")) ? "danger" : "";
@@ -973,7 +969,7 @@
         <div class="quota-box">
           <div class="quota-line">
             <label class="quota-check">
-              <input type="checkbox" ${checked} ${disabled} onchange="saveQuotaInput('${jsStr(card.bl_number)}', this.checked, this.checked ? '${jsStr(card.quota_permit_date || "")}' : '')">
+              <input type="checkbox" ${checked} ${disabled} data-card-action="quota-toggle" data-card-index="${cardIndex}">
               할당관세 대상
             </label>
           </div>
@@ -1007,7 +1003,7 @@
       }
       return values.free_time_expiry_date;
     }
-    function manualFieldsHtml(card) {
+    function manualFieldsHtml(card, cardIndex) {
       const bl = card.bl_number || "";
       const open = !!manualEditOpen[bl];
       const values = {
@@ -1030,7 +1026,7 @@
         <div class="manual-box">
           <div class="manual-head">
             <span class="manual-title">운송정보</span>
-            <button type="button" class="btn gray" style="height:22px;padding:2px 7px;font-size:9.5px" onclick="toggleManualEdit(event, '${jsStr(bl)}')">${open ? "닫기" : "입력"}</button>
+            <button type="button" class="btn gray" data-card-action="manual-toggle" data-card-index="${cardIndex}" style="height:22px;padding:2px 7px;font-size:9.5px">${open ? "닫기" : "입력"}</button>
           </div>
           <div class="manual-summary">${pills || '<span class="manual-empty">수기 입력 없음</span>'}</div>
           ${open ? `<div class="manual-edit">
@@ -1040,20 +1036,20 @@
             <label>프리타임 일수<input id="manualFree-${esc(bl)}" type="number" min="1" step="1" value="${esc(values.free_time_days)}" placeholder="예: 14"></label>
             <label>보세창고 입고 예정일<input id="manualWh-${esc(bl)}" type="date" value="${esc(values.warehouse_expected_date)}"></label>
             <div class="manual-actions">
-              <button type="button" class="btn gray" style="height:22px;padding:2px 7px;font-size:9.5px" onclick="clearManualFields(event, '${jsStr(card.account_id)}', '${jsStr(bl)}')">초기화</button>
-              <button type="button" class="btn green" style="height:22px;padding:2px 7px;font-size:9.5px" onclick="saveManualFields(event, '${jsStr(card.account_id)}', '${jsStr(bl)}')">저장</button>
+              <button type="button" class="btn gray" data-card-action="manual-clear" data-card-index="${cardIndex}" style="height:22px;padding:2px 7px;font-size:9.5px">초기화</button>
+              <button type="button" class="btn green" data-card-action="manual-save" data-card-index="${cardIndex}" style="height:22px;padding:2px 7px;font-size:9.5px">저장</button>
             </div>
           </div>` : ""}
         </div>
       `;
     }
-    function revisionsHtml(card) {
+    function revisionsHtml(card, cardIndex) {
       const revisions = card.revisions || [];
       return `
         <div class="revision-box">
           <div class="revision-title">확인사항</div>
           ${revisions.length ? `<div class="revision-list">
-            ${revisions.map(item => {
+            ${revisions.map((item, revisionIndex) => {
               const itemId = item.id || "";
               const isEditing = itemId && revisionEditModes[itemId];
               const editValue = itemId ? (revisionEditDrafts[itemId] ?? item.text ?? "") : "";
@@ -1062,15 +1058,15 @@
               const revisionText = esc(item.text || item);
               const canDelete = currentUserRole === "admin" || revisionOwner(item);
               const deleteButton = canDelete
-                ? `<button class="btn danger" onclick="deleteRevision('${jsStr(card.bl_number)}', '${jsStr(card.account_id)}', '${jsStr(itemId)}')">삭제</button>`
+                ? `<button type="button" class="btn danger" data-card-action="revision-delete" data-card-index="${cardIndex}" data-revision-index="${revisionIndex}">삭제</button>`
                 : "";
               if (isEditing) {
                 return `
                   <div class="revision-item">
-                    <input id="editRev${esc(itemId)}" value="${esc(editValue)}" oninput="revisionEditDrafts['${jsStr(itemId)}']=this.value">
+                    <input id="editRev${esc(itemId)}" value="${esc(editValue)}" data-card-action="revision-edit-draft" data-card-index="${cardIndex}" data-revision-index="${revisionIndex}">
                     <div class="revision-actions">
-                      <button class="btn gray" onclick="cancelEditRevision('${jsStr(itemId)}')">취소</button>
-                      <button class="btn green" onclick="saveEditRevision('${jsStr(card.bl_number)}', '${jsStr(card.account_id)}', '${jsStr(itemId)}')">저장</button>
+                      <button type="button" class="btn gray" data-card-action="revision-cancel" data-card-index="${cardIndex}" data-revision-index="${revisionIndex}">취소</button>
+                      <button type="button" class="btn green" data-card-action="revision-save" data-card-index="${cardIndex}" data-revision-index="${revisionIndex}">저장</button>
                     </div>
                   </div>
                 `;
@@ -1078,7 +1074,7 @@
               return `
               <div class="revision-item">
                 <div class="revision-main">
-                  ${itemId ? `<input class="revision-check" type="checkbox" ${isDone ? "checked" : ""} title="완료" onclick="toggleRevisionDone('${jsStr(card.bl_number)}', '${jsStr(card.account_id)}', '${jsStr(itemId)}', this.checked)">` : ""}
+                  ${itemId ? `<input class="revision-check" type="checkbox" ${isDone ? "checked" : ""} title="완료" data-card-action="revision-done" data-card-index="${cardIndex}" data-revision-index="${revisionIndex}">` : ""}
                   <span class="revision-text${isDone ? " done" : ""}" title="${revisionText}">
                     <span class="revision-label">${revisionText}</span>
                     <span class="revision-tooltip">${revisionText}</span>
@@ -1086,7 +1082,7 @@
                   <span class="revision-source">${source}</span>
                 </div>
                 ${itemId ? `<div class="revision-actions">
-                  <button class="btn gray" onclick="startEditRevision('${jsStr(itemId)}', '${jsStr(item.text || "")}')">수정</button>
+                  <button type="button" class="btn gray" data-card-action="revision-edit" data-card-index="${cardIndex}" data-revision-index="${revisionIndex}">수정</button>
                   ${deleteButton}
                 </div>` : ""}
               </div>
@@ -1095,9 +1091,8 @@
           </div>` : ""}
           <div class="revision-form">
             <input id="rev${esc(card.bl_number)}" value="${esc(revisionDrafts[card.bl_number] || "")}" placeholder="확인사항 추가..."
-                   oninput="revisionDrafts['${jsStr(card.bl_number)}']=this.value"
-                   onkeydown="if(event.key==='Enter')addRevision('${jsStr(card.bl_number)}','${jsStr(card.account_id)}')">
-            <button class="btn green" onclick="addRevision('${jsStr(card.bl_number)}','${jsStr(card.account_id)}')">추가</button>
+                   data-card-action="revision-draft" data-card-index="${cardIndex}">
+            <button type="button" class="btn green" data-card-action="revision-add" data-card-index="${cardIndex}">추가</button>
           </div>
         </div>
       `;
@@ -1274,7 +1269,7 @@
       const date = receiptDate ? `수령일 ${displayDate(receiptDate)}` : "수령일 미입력";
       const label = received ? "O" : "X";
       if (currentUserRole !== "admin") return docStatusLabel(received);
-      return `<button type="button" class="doc-toggle ${received ? "doc-o" : "doc-x"}" title="${esc(date)}" onclick="saveProgressOriginalDoc(${currentCards.indexOf(card)}, '${docType}')">${label}</button>`;
+      return `<button type="button" class="doc-toggle ${received ? "doc-o" : "doc-x"}" title="${esc(date)}" data-doc-type="${esc(docType)}" onclick="saveProgressOriginalDoc(${currentCards.indexOf(card)}, this.dataset.docType)">${label}</button>`;
     }
     function effectiveOriginalReceiptDate(card) {
       if (!card?.obl_received && !card?.hc_received) return "";
@@ -1401,15 +1396,105 @@
       else if (type === "import" && card.stage === "반입") openImportModal(card.bl_number);
       else if (type === "docs" && ["입항전", "입항"].includes(card.stage)) openOriginalDocModal(card.bl_number);
     }
+    function boardControlContext(event) {
+      const control = event.target?.closest?.("[data-card-action]");
+      const board = document.getElementById("board");
+      if (!control || !board.contains(control)) return null;
+      const cardIndex = Number.parseInt(control.dataset.cardIndex, 10);
+      const card = Number.isInteger(cardIndex) ? currentCards[cardIndex] : null;
+      if (!card) return null;
+      const revisionIndex = Number.parseInt(control.dataset.revisionIndex, 10);
+      const revision = Number.isInteger(revisionIndex) ? (card.revisions || [])[revisionIndex] : null;
+      return { control, card, revision };
+    }
+    function handleBoardCardClick(event) {
+      const context = boardControlContext(event);
+      if (!context) return;
+      const { control, card, revision } = context;
+      const action = control.dataset.cardAction;
+      if (action === "card-visibility") {
+        setCardHidden(card.account_id, card.bl_number, control.dataset.hidden === "true");
+      } else if (action === "admin-status-save") {
+        const showDistribution = !!(distributionHistoryTarget(card) || card.distribution_history_override || card.distribution_history_number);
+        saveAdminStatus(card.account_id, card.bl_number, showDistribution);
+      } else if (action === "manual-toggle") {
+        toggleManualEdit(event, card.bl_number);
+      } else if (action === "manual-clear") {
+        clearManualFields(event, card.account_id, card.bl_number);
+      } else if (action === "manual-save") {
+        saveManualFields(event, card.account_id, card.bl_number);
+      } else if (action === "revision-edit" && revision?.id) {
+        startEditRevision(revision.id, revision.text || "");
+      } else if (action === "revision-cancel" && revision?.id) {
+        cancelEditRevision(revision.id);
+      } else if (action === "revision-save" && revision?.id) {
+        saveEditRevision(card.bl_number, card.account_id, revision.id);
+      } else if (action === "revision-delete" && revision?.id) {
+        deleteRevision(card.bl_number, card.account_id, revision.id);
+      } else if (action === "revision-add") {
+        addRevision(card.bl_number, card.account_id);
+      }
+    }
+    function handleBoardCardChange(event) {
+      const context = boardControlContext(event);
+      if (!context) return;
+      const { control, card, revision } = context;
+      const action = control.dataset.cardAction;
+      if (action === "quota-date") {
+        saveQuotaInput(card.bl_number, true, control.value);
+      } else if (action === "quota-toggle") {
+        saveQuotaInput(card.bl_number, control.checked, control.checked ? (card.quota_permit_date || "") : "");
+      } else if (action === "revision-done" && revision?.id) {
+        toggleRevisionDone(card.bl_number, card.account_id, revision.id, control.checked);
+      }
+    }
+    function handleBoardCardInput(event) {
+      const context = boardControlContext(event);
+      if (!context) return;
+      const { control, card, revision } = context;
+      if (control.dataset.cardAction === "revision-draft") {
+        revisionDrafts[card.bl_number] = control.value;
+      } else if (control.dataset.cardAction === "revision-edit-draft" && revision?.id) {
+        revisionEditDrafts[revision.id] = control.value;
+      }
+    }
+    function handleBoardCardKeydown(event) {
+      if (event.key !== "Enter") return;
+      const context = boardControlContext(event);
+      if (!context || context.control.dataset.cardAction !== "revision-draft") return;
+      event.preventDefault();
+      addRevision(context.card.bl_number, context.card.account_id);
+    }
+    function handleBoardCardToggle(event) {
+      const details = event.target?.closest?.("details[data-card-key]");
+      const board = document.getElementById("board");
+      if (!details || !board.contains(details)) return;
+      handleCardToggle(details, details.dataset.cardKey || "");
+    }
+    function handleAdminAccountAction(event) {
+      const button = event.target?.closest?.("[data-admin-account-index]");
+      const adminRows = document.getElementById("adminRows");
+      if (!button || !adminRows.contains(button)) return;
+      const accountIndex = Number.parseInt(button.dataset.adminAccountIndex, 10);
+      const account = Number.isInteger(accountIndex) ? adminAccounts[accountIndex] : null;
+      if (account) editAdminAccount(account.id);
+    }
     function bindProgressRequestControls() {
       const progressRows = document.getElementById("progressRows");
       const board = document.getElementById("board");
+      const adminRows = document.getElementById("adminRows");
       progressRows.addEventListener("click", handleProgressRequestAction);
       progressRows.addEventListener("pointerover", handleProgressRequestTooltipShow);
       progressRows.addEventListener("pointerout", handleProgressRequestTooltipHide);
       progressRows.addEventListener("focusin", handleProgressRequestTooltipShow);
       progressRows.addEventListener("focusout", handleProgressRequestTooltipHide);
       board.addEventListener("click", handleCardRequestAction);
+      board.addEventListener("click", handleBoardCardClick);
+      board.addEventListener("change", handleBoardCardChange);
+      board.addEventListener("input", handleBoardCardInput);
+      board.addEventListener("keydown", handleBoardCardKeydown);
+      board.addEventListener("toggle", handleBoardCardToggle, true);
+      adminRows.addEventListener("click", handleAdminAccountAction);
       document.querySelector(".progress-table-wrap").addEventListener("scroll", repositionProgressRequestTooltip, { passive: true });
       window.addEventListener("resize", repositionProgressRequestTooltip);
     }
@@ -1512,7 +1597,7 @@
       const detailsOpen = expandedCardKeys.has(key) ? " open" : "";
       return `
         <article class="card compact${alertClass}${permitClass}${declareClass}${hidden ? " hidden-card" : ""}">
-          <details${detailsOpen} data-card-key="${esc(key)}" ontoggle="handleCardToggle(this, '${jsStr(key)}')">
+          <details${detailsOpen} data-card-key="${esc(key)}">
           ${compactSummaryHtml(card)}
           <div class="card-full">
           ${hidden ? '<span class="hidden-badge">숨김</span>' : ""}
@@ -1522,7 +1607,7 @@
               <div class="consignee">${esc(displayConsignee(card.consignee))}</div>
               <div class="bl">${esc(card.bl_number)}</div>
             </div>
-            ${adminHideButton(card)}
+            ${adminHideButton(card, index)}
           </div>
           <div class="grid">
             <div class="k">반출처</div><div class="v">${esc(card.destination || "-")}</div>
@@ -1540,12 +1625,12 @@
             ${permitBadge(card)}
             ${distributionHistoryBadge(card)}
           </div>
-          ${adminStatusHtml(card)}
-          ${manualFieldsHtml(card)}
+          ${adminStatusHtml(card, index)}
+          ${manualFieldsHtml(card, index)}
           ${originalDocsHtml(card, index)}
           ${releaseHtml(card)}
-          ${quotaHtml(card)}
-          ${revisionsHtml(card)}
+          ${quotaHtml(card, index)}
+          ${revisionsHtml(card, index)}
           ${originalDocRequestButton(card, index)}
           ${importRequestButton(card, index)}
           ${releaseRequestButton(card, index)}
@@ -1555,12 +1640,12 @@
       `;
     }
 
-    function adminHideButton(card) {
+    function adminHideButton(card, cardIndex) {
       if (currentUserRole !== "admin") return "";
       const hidden = isHiddenCard(card);
       return `
         <div class="admin-card-actions">
-          <button class="hide-card-btn${hidden ? " restore" : ""}" onclick="setCardHidden('${jsStr(card.account_id)}', '${jsStr(card.bl_number)}', ${hidden ? "false" : "true"})">
+          <button type="button" class="hide-card-btn${hidden ? " restore" : ""}" data-card-action="card-visibility" data-card-index="${cardIndex}" data-hidden="${hidden ? "false" : "true"}">
             ${hidden ? "숨김 해제" : "숨김"}
           </button>
         </div>
@@ -1613,7 +1698,7 @@
       expandedCardKeys.add(cardStateKey(card));
       details.open = true;
       const box = details.querySelector(".manual-box");
-      if (box) box.outerHTML = manualFieldsHtml(card);
+      if (box) box.outerHTML = manualFieldsHtml(card, currentCards.indexOf(card));
     }
 
     function applyManualFieldsToCard(card, payload, input) {
@@ -2583,7 +2668,7 @@
       showAdminUi();
       adminAccounts = result.accounts || [];
       const rows = document.getElementById("adminRows");
-      rows.innerHTML = adminAccounts.map(account => `
+      rows.innerHTML = adminAccounts.map((account, accountIndex) => `
         <tr>
           <td>${account.role === "admin" ? "관리자" : "화주"}</td>
           <td><b>${esc(account.login_id)}</b></td>
@@ -2591,7 +2676,7 @@
           <td>${esc(account.consignee_filter || "-")}</td>
           <td>${esc(account.release_request_to || "-")}</td>
           <td>${account.is_active ? "사용" : "중지"}</td>
-          <td><button class="btn gray" onclick="editAdminAccount('${jsStr(account.id)}')">수정</button></td>
+          <td><button type="button" class="btn gray" data-admin-account-index="${accountIndex}">수정</button></td>
         </tr>
       `).join("");
     }
