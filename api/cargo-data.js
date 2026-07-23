@@ -11,6 +11,20 @@ function isoDate(value) {
   return String(value).slice(0, 10);
 }
 
+function koreaDateFromTimestamp(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
 function addDays(value, days) {
   const dateText = isoDate(value);
   if (!dateText) return null;
@@ -111,13 +125,13 @@ function computeQuotaMessages(card) {
 async function fetchUserInputs(accountId) {
   try {
     const query = accountId
-      ? `/rest/v1/cargo_card_user_inputs?select=account_id,bl_number,is_quota,quota_permit_date,is_hidden,hidden_at,hidden_by,delivery_terms,eta_date,storage_yard,free_time_days,free_time_expiry_date,warehouse_expected_date,animal_quarantine_override,food_quarantine_override,import_declaration_override,distribution_history_override,distribution_history_number,updated_at&account_id=eq.${accountId}`
-      : "/rest/v1/cargo_card_user_inputs?select=account_id,bl_number,is_quota,quota_permit_date,is_hidden,hidden_at,hidden_by,delivery_terms,eta_date,storage_yard,free_time_days,free_time_expiry_date,warehouse_expected_date,animal_quarantine_override,food_quarantine_override,import_declaration_override,distribution_history_override,distribution_history_number,updated_at";
+      ? `/rest/v1/cargo_card_user_inputs?select=account_id,bl_number,is_quota,quota_permit_date,is_hidden,hidden_at,hidden_by,delivery_terms,eta_date,storage_yard,free_time_days,free_time_expiry_date,warehouse_expected_date,animal_quarantine_override,food_quarantine_override,import_declaration_override,distribution_history_override,distribution_history_number,transport_updated_by_role,transport_updated_by_login,transport_updated_at,updated_at&account_id=eq.${accountId}`
+      : "/rest/v1/cargo_card_user_inputs?select=account_id,bl_number,is_quota,quota_permit_date,is_hidden,hidden_at,hidden_by,delivery_terms,eta_date,storage_yard,free_time_days,free_time_expiry_date,warehouse_expected_date,animal_quarantine_override,food_quarantine_override,import_declaration_override,distribution_history_override,distribution_history_number,transport_updated_by_role,transport_updated_by_login,transport_updated_at,updated_at";
     return await supabaseFetch(
       query
     );
   } catch (error) {
-    if (["is_hidden", "delivery_terms", "eta_date", "storage_yard", "free_time_days", "free_time_expiry_date", "warehouse_expected_date", "animal_quarantine_override", "food_quarantine_override", "import_declaration_override", "distribution_history_override", "distribution_history_number"].some((name) => String(error.message || "").includes(name))) {
+    if (["is_hidden", "delivery_terms", "eta_date", "storage_yard", "free_time_days", "free_time_expiry_date", "warehouse_expected_date", "animal_quarantine_override", "food_quarantine_override", "import_declaration_override", "distribution_history_override", "distribution_history_number", "transport_updated_by_role", "transport_updated_by_login", "transport_updated_at"].some((name) => String(error.message || "").includes(name))) {
       const fallback = accountId
         ? `/rest/v1/cargo_card_user_inputs?select=account_id,bl_number,is_quota,quota_permit_date,updated_at&account_id=eq.${accountId}`
         : "/rest/v1/cargo_card_user_inputs?select=account_id,bl_number,is_quota,quota_permit_date,updated_at";
@@ -133,12 +147,18 @@ async function fetchUserInputs(accountId) {
 async function fetchImportRequests(accountId) {
   try {
     const query = accountId
-      ? `/rest/v1/cargo_import_requests?select=account_id,bl_number,requester_name,requester_email,delivery_address,requested_release_date,memo,created_at&account_id=eq.${accountId}&order=created_at.desc`
-      : "/rest/v1/cargo_import_requests?select=account_id,bl_number,requester_name,requester_email,delivery_address,requested_release_date,memo,created_at&order=created_at.desc";
+      ? `/rest/v1/cargo_import_requests?select=account_id,bl_number,requester_name,requester_email,delivery_address,requested_release_date,requested_import_date,memo,created_at&account_id=eq.${accountId}&order=created_at.desc`
+      : "/rest/v1/cargo_import_requests?select=account_id,bl_number,requester_name,requester_email,delivery_address,requested_release_date,requested_import_date,memo,created_at&order=created_at.desc";
     return await supabaseFetch(
       query
     );
   } catch (error) {
+    if (String(error.message || "").includes("requested_import_date")) {
+      const fallback = accountId
+        ? `/rest/v1/cargo_import_requests?select=account_id,bl_number,requester_name,requester_email,delivery_address,requested_release_date,memo,created_at&account_id=eq.${accountId}&order=created_at.desc`
+        : "/rest/v1/cargo_import_requests?select=account_id,bl_number,requester_name,requester_email,delivery_address,requested_release_date,memo,created_at&order=created_at.desc";
+      return await supabaseFetch(fallback);
+    }
     if (String(error.message || "").includes("cargo_import_requests")) {
       return [];
     }
@@ -203,6 +223,9 @@ function applyUserInputs(cards, inputs) {
       import_declaration_override: input.import_declaration_override || "",
       distribution_history_override: input.distribution_history_override || "",
       distribution_history_number: input.distribution_history_number || "",
+      transport_updated_by_role: input.transport_updated_by_role || "",
+      transport_updated_by_login: input.transport_updated_by_login || "",
+      transport_updated_at: input.transport_updated_at || null,
       animal_quarantine: input.animal_quarantine_override || card.animal_quarantine || "",
       food_quarantine: input.food_quarantine_override || card.food_quarantine || "",
       import_declared: input.import_declaration_override === "O" ? true : (input.import_declaration_override === "X" ? false : card.import_declared),
@@ -283,6 +306,9 @@ function applyImportRequests(cards, requests) {
       last_import_requester_email: item.requester_email || "",
       last_import_delivery_address: item.delivery_address || "",
       last_import_requested_release_date: item.requested_release_date || "",
+      last_import_requested_import_date:
+        item.requested_import_date || koreaDateFromTimestamp(item.created_at),
+      last_import_request_created_at: item.created_at || null,
     };
   });
 }
