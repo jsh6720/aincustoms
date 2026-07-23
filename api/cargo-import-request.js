@@ -1,5 +1,8 @@
 const nodemailer = require("nodemailer");
 const { verifySession, supabaseFetch } = require("../lib/cargo-auth");
+const { koreaDate, normalizeIsoDate } = require("../lib/cargo-request-utils");
+
+const ALLOWED_STAGES = ["입항", "반입"];
 
 function env(name) {
   return process.env[name] || "";
@@ -50,6 +53,7 @@ function buildMail(card, request, session) {
     `요청인 메일(CC): ${request.requester_email || "-"}`,
     `출고지주소: ${displayText(request.delivery_address)}`,
     `출고일자: ${displayDate(request.requested_release_date)}`,
+    `수입신고 요청일자: ${request.requested_import_date || "-"}`,
     `요청사항: ${request.memo || "-"}`,
     `요청시각: ${new Date().toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })}`,
     "",
@@ -118,6 +122,7 @@ module.exports = async function handler(req, res) {
     const requesterEmail = String(body.requester_email || "").trim().slice(0, 254);
     const deliveryAddress = String(body.delivery_address || "").trim().slice(0, 500);
     const requestedReleaseDate = String(body.requested_release_date || "").trim().slice(0, 10);
+    const requestedImportDate = normalizeIsoDate(body.requested_import_date, koreaDate());
 
     if (!blNumber) {
       return res.status(400).json({ success: false, message: "BL 번호가 없습니다." });
@@ -127,6 +132,9 @@ module.exports = async function handler(req, res) {
     }
     if (requesterEmail && !isValidEmail(requesterEmail)) {
       return res.status(400).json({ success: false, message: "요청인 메일을 정확히 입력해 주세요." });
+    }
+    if (!requestedImportDate) {
+      return res.status(400).json({ success: false, message: "수입신고 요청일자 형식이 올바르지 않습니다." });
     }
 
     const accountId = encodeURIComponent(session.account_id);
@@ -142,8 +150,8 @@ module.exports = async function handler(req, res) {
       return res.status(404).json({ success: false, message: "조회 권한이 없는 BL입니다." });
     }
     const card = cards[0];
-    if (card.stage !== "반입") {
-      return res.status(400).json({ success: false, message: "반입 마일스톤의 카드만 수입신고요청할 수 있습니다." });
+    if (!ALLOWED_STAGES.includes(card.stage)) {
+      return res.status(400).json({ success: false, message: "입항 또는 반입 마일스톤의 카드만 수입신고요청할 수 있습니다." });
     }
 
     const requestPayload = {
@@ -153,6 +161,7 @@ module.exports = async function handler(req, res) {
       requester_email: requesterEmail,
       delivery_address: deliveryAddress || null,
       requested_release_date: requestedReleaseDate || null,
+      requested_import_date: requestedImportDate,
       memo,
       status: "requested",
       card_snapshot: card,

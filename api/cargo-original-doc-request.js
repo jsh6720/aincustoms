@@ -1,6 +1,8 @@
 const nodemailer = require("nodemailer");
 const { verifySession, supabaseFetch } = require("../lib/cargo-auth");
 
+const ALLOWED_STAGES = ["입항전", "입항", "반입"];
+
 function env(name) {
   return process.env[name] || "";
 }
@@ -134,8 +136,8 @@ module.exports = async function handler(req, res) {
       return res.status(404).json({ success: false, message: "조회 권한이 없는 BL입니다." });
     }
     const card = cards[0];
-    if (card.stage !== "입항전" && card.stage !== "입항") {
-      return res.status(400).json({ success: false, message: "입항전 또는 입항 마일스톤의 카드만 원본서류 도착/수령 요청할 수 있습니다." });
+    if (!ALLOWED_STAGES.includes(card.stage)) {
+      return res.status(400).json({ success: false, message: "입항전, 입항 또는 반입 마일스톤의 카드만 원본서류 도착/수령 요청할 수 있습니다." });
     }
 
     const requestPayload = {
