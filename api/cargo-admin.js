@@ -39,7 +39,7 @@ module.exports = async function handler(req, res) {
         p_consignee_filter: cleanText(body.consignee_filter, 200),
         p_release_request_to: cleanText(body.release_request_to, 1000),
         p_is_active: body.is_active !== false,
-        p_role: body.role === "admin" ? "admin" : "shipper",
+        p_role: body.role === "admin" || body.role === "viewer" ? body.role : "shipper",
       };
 
       if (!payload.p_login_id) {

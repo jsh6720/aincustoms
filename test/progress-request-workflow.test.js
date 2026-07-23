@@ -29,7 +29,11 @@ function loadImportRequestHandler({ verifySession, supabaseFetch, sendMail }) {
   delete require.cache[importRequestHandlerPath];
   Module._load = function mockedLoad(request, parent, isMain) {
     if (parent?.filename === importRequestHandlerPath && request === "../lib/cargo-auth") {
-      return { verifySession, supabaseFetch };
+      return {
+        verifySession,
+        requireWritableSession: (req, res) => verifySession(req, res),
+        supabaseFetch,
+      };
     }
     if (parent?.filename === importRequestHandlerPath && request === "nodemailer") {
       return {
@@ -51,7 +55,11 @@ function loadQuotaHandler({ verifySession, supabaseFetch, sendMail }) {
   delete require.cache[quotaHandlerPath];
   Module._load = function mockedLoad(request, parent, isMain) {
     if (parent?.filename === quotaHandlerPath && request === "../lib/cargo-auth") {
-      return { verifySession, supabaseFetch };
+      return {
+        verifySession,
+        requireWritableSession: (req, res) => verifySession(req, res),
+        supabaseFetch,
+      };
     }
     if (parent?.filename === quotaHandlerPath && request === "nodemailer") {
       return {

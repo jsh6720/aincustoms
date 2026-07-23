@@ -1,5 +1,5 @@
 const nodemailer = require("nodemailer");
-const { verifySession, supabaseFetch } = require("../lib/cargo-auth");
+const { requireWritableSession, supabaseFetch } = require("../lib/cargo-auth");
 const { koreaDate, normalizeIsoDate } = require("../lib/cargo-request-utils");
 
 const ALLOWED_STAGES = ["입항", "반입"];
@@ -110,10 +110,8 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    const session = verifySession(req);
-    if (!session) {
-      return res.status(401).json({ success: false, message: "로그인이 필요합니다." });
-    }
+    const session = requireWritableSession(req, res);
+    if (!session) return;
 
     const body = typeof req.body === "string" ? JSON.parse(req.body || "{}") : (req.body || {});
     const blNumber = String(body.bl_number || "").trim();

@@ -258,6 +258,9 @@
     .progress-admin-request-list { display:flex; gap:3px; margin-top:4px; flex-wrap:wrap; }
     .progress-admin-request-badge { border:1px solid #c8d8e8; border-radius:999px; background:#eef4fa; color:#315c82; padding:1px 5px; font:inherit; font-size:9px; font-weight:900; cursor:help; }
     body.shipper-progress .progress-admin-only { display:none; }
+    body.viewer-progress .progress-shipper-only { display:none; }
+    body.viewer-progress .progress-edit-btn { pointer-events:none; background:transparent; box-shadow:none; color:inherit; text-decoration:none; }
+    body.viewer-progress #boardWrap { display:none !important; }
     body:not(.shipper-progress) .progress-shipper-only { display:none; }
     body:not(.shipper-progress) .progress-table { min-width:1860px; }
     .doc-o { color:#1b6b3a; background:#edf8f1; border:1px solid #b7dfc4; border-radius:999px; padding:1px 6px; }
@@ -367,6 +370,7 @@
           <label>권한</label>
           <select id="adminRole">
             <option value="shipper">화주</option>
+            <option value="viewer">전체조회(읽기 전용)</option>
             <option value="admin">관리자</option>
           </select>
           <label>아이디</label>
@@ -754,6 +758,7 @@
     }
     function showPrimaryView(view) {
       currentPrimaryView = view === "board" ? "board" : "progress";
+      if (currentUserRole === "viewer") currentPrimaryView = "progress";
       document.getElementById("boardWrap").style.display =
         currentPrimaryView === "board" ? "" : "none";
       document.getElementById("board").style.display = "grid";
@@ -778,7 +783,8 @@
       document.getElementById("docsPanel").style.display = "none";
       document.getElementById("logoutBtn").style.display = "";
       document.getElementById("docsMobileBtn").style.display = currentUserRole === "admin" ? "" : "none";
-      document.getElementById("progressStatusBtn").style.display = "";
+      document.getElementById("progressStatusBtn").style.display =
+        currentUserRole === "viewer" ? "none" : "";
       document.getElementById("showHiddenBtn").style.display = currentUserRole === "admin" ? "" : "none";
       document.getElementById("showHiddenBtn").textContent = showHiddenCards ? "숨김 제외" : "숨김 포함";
       document.getElementById("adminSettingsBtn").style.display = currentUserRole === "admin" ? "" : "none";
@@ -855,7 +861,8 @@
       }
       currentUserRole = result.user.role || "shipper";
       currentUserLogin = result.user.login_id || "";
-      document.body.classList.toggle("shipper-progress", currentUserRole !== "admin");
+      document.body.classList.toggle("shipper-progress", currentUserRole === "shipper");
+      document.body.classList.toggle("viewer-progress", currentUserRole === "viewer");
       currentCards = result.cards || [];
       const activeCards = visibleCards();
       showCargoUi();
@@ -884,7 +891,11 @@
       return card && (card.is_hidden === true || card.is_hidden === "true");
     }
     function isVisibleCard(card) {
-      return !isFullyReleased(card) && (!isHiddenCard(card) || (currentUserRole === "admin" && showHiddenCards));
+      return !isFullyReleased(card) && (
+        !isHiddenCard(card) ||
+        currentUserRole === "viewer" ||
+        (currentUserRole === "admin" && showHiddenCards)
+      );
     }
     function visibleCards() {
       return currentCards.filter(isVisibleCard);
@@ -1328,6 +1339,9 @@
         ? ` aria-describedby="progress-transport-detail-${cardIndex}-${field}"`
         : "";
     }
+    function progressTransportDisabled() {
+      return currentUserRole === "viewer" ? " disabled" : "";
+    }
     function progressRevisionTooltip(card) {
       const bl = card?.bl_number || "-";
       const revisions = Array.isArray(card?.revisions) ? card.revisions : [];
@@ -1383,7 +1397,7 @@
       }).join("")}</span>`;
     }
     function progressRequestToggle(card, type) {
-      if (currentUserRole === "admin") return "";
+      if (currentUserRole === "admin" || currentUserRole === "viewer") return "";
       const isDocs = type === "docs";
       const latest = isDocs ? card.last_original_doc_request : card.last_import_request;
       const allowedStages = progressRequestAllowedStages(type);
@@ -1618,6 +1632,7 @@
             <span class="progress-request-wrap progress-transport-wrap">
               <button type="button" class="progress-edit-btn${transportProvenanceClass(card)} progress-tooltip-control"
                 title="${esc(transportProvenanceTitle(card))}"${progressTransportAria(card, currentCards.indexOf(card), "eta")}
+                ${progressTransportDisabled()}
                 onclick="openProgressWarehouseEditor(${currentCards.indexOf(card)})">${esc(displayDate(etaText(card)))}</button>
               ${progressTransportTooltip(card, currentCards.indexOf(card), "eta")}
             </span>
@@ -1626,6 +1641,7 @@
             <span class="progress-request-wrap progress-transport-wrap">
               <button type="button" class="progress-edit-btn${transportProvenanceClass(card)} progress-tooltip-control"
                 title="${esc(transportProvenanceTitle(card))}"${progressTransportAria(card, currentCards.indexOf(card), "yard")}
+                ${progressTransportDisabled()}
                 onclick="openProgressWarehouseEditor(${currentCards.indexOf(card)})">${esc(yardText(card))}</button>
               ${progressTransportTooltip(card, currentCards.indexOf(card), "yard")}
             </span>
@@ -1634,6 +1650,7 @@
             <span class="progress-request-wrap progress-transport-wrap">
               <button type="button" class="progress-edit-btn${transportProvenanceClass(card)} progress-tooltip-control"
                 title="${esc(transportProvenanceTitle(card))}"${progressTransportAria(card, currentCards.indexOf(card), "warehouse")}
+                ${progressTransportDisabled()}
                 onclick="openProgressWarehouseEditor(${currentCards.indexOf(card)})">${esc(displayDate(card.warehouse_expected_date || "-"))}</button>
               ${progressTransportTooltip(card, currentCards.indexOf(card), "warehouse")}
             </span>
@@ -1659,6 +1676,7 @@
       `).join("") : `<tr><td colspan="${currentUserRole === "admin" ? 24 : 26}" style="text-align:center;color:#8b95a1">표시할 BL이 없습니다.</td></tr>`;
     }
     function openProgressWarehouseEditor(cardIndex) {
+      if (currentUserRole === "viewer") return;
       progressWarehouseCard = currentCards[cardIndex];
       if (!progressWarehouseCard) return;
       progressWarehouseSaving = false;
@@ -2865,7 +2883,7 @@
       const rows = document.getElementById("adminRows");
       rows.innerHTML = adminAccounts.map((account, accountIndex) => `
         <tr>
-          <td>${account.role === "admin" ? "관리자" : "화주"}</td>
+          <td>${account.role === "admin" ? "관리자" : account.role === "viewer" ? "전체조회" : "화주"}</td>
           <td><b>${esc(account.login_id)}</b></td>
           <td>${esc(displayConsignee(account.display_name))}</td>
           <td>${esc(account.consignee_filter || "-")}</td>

@@ -1,4 +1,4 @@
-const { verifySession, supabaseFetch } = require("../lib/cargo-auth");
+const { verifySession, canReadAllCargo, supabaseFetch } = require("../lib/cargo-auth");
 const { hasTransferDocument } = require("../lib/cargo-doc-status");
 
 const STAGE_ORDER = ["입항전", "입항", "반입", "수입신고", "반출"];
@@ -341,17 +341,17 @@ module.exports = async function handler(req, res) {
       return res.status(401).json({ success: false, message: "로그인이 필요합니다." });
     }
 
-    const isAdmin = (session.role || "shipper") === "admin";
+    const readsAllCargo = canReadAllCargo(session.role);
     const accountId = encodeURIComponent(session.account_id);
     const cards = await supabaseFetch(
-      isAdmin
+      readsAllCargo
         ? "/rest/v1/cargo_cards?select=*&order=synced_at.desc"
         : `/rest/v1/cargo_cards?select=*&account_id=eq.${accountId}&order=synced_at.desc`
     );
-    const userInputs = await fetchUserInputs(isAdmin ? null : accountId);
-    const importRequests = await fetchImportRequests(isAdmin ? null : accountId);
-    const originalDocs = await fetchOriginalDocs(isAdmin ? null : accountId);
-    const originalDocRequests = await fetchOriginalDocRequests(isAdmin ? null : accountId);
+    const userInputs = await fetchUserInputs(readsAllCargo ? null : accountId);
+    const importRequests = await fetchImportRequests(readsAllCargo ? null : accountId);
+    const originalDocs = await fetchOriginalDocs(readsAllCargo ? null : accountId);
+    const originalDocRequests = await fetchOriginalDocRequests(readsAllCargo ? null : accountId);
     const cardsWithDocStatus = (cards || []).map((card) => ({
       ...card,
       doc_transfer_received: hasTransferDocument(card.doc_files_status),
