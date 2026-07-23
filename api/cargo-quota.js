@@ -177,9 +177,19 @@ module.exports = async function handler(req, res) {
       const accountFilter = encodeURIComponent(targetAccountId);
       const blFilter = encodeURIComponent(blNumber);
       const inputExists = !!previousInput?.account_id;
+      const previousUpdatedAt = previousInput?.updated_at;
+      if (inputExists && !previousUpdatedAt) {
+        return res.status(409).json({
+          success: false,
+          message: "운송정보가 다른 사용자에 의해 변경되었습니다. 새로고침 후 다시 시도해 주세요.",
+        });
+      }
+      const previousUpdatedAtFilter = inputExists
+        ? `&updated_at=eq.${encodeURIComponent(previousUpdatedAt)}`
+        : "";
       const rows = await supabaseFetch(
         inputExists
-          ? `/rest/v1/cargo_card_user_inputs?account_id=eq.${accountFilter}&bl_number=eq.${blFilter}`
+          ? `/rest/v1/cargo_card_user_inputs?account_id=eq.${accountFilter}&bl_number=eq.${blFilter}${previousUpdatedAtFilter}`
           : "/rest/v1/cargo_card_user_inputs",
         {
           method: inputExists ? "PATCH" : "POST",
@@ -188,6 +198,12 @@ module.exports = async function handler(req, res) {
         }
       );
       const input = rows && rows[0] ? rows[0] : null;
+      if (inputExists && !input) {
+        return res.status(409).json({
+          success: false,
+          message: "운송정보가 다른 사용자에 의해 변경되었습니다. 새로고침 후 다시 시도해 주세요.",
+        });
+      }
       let emailSent = false;
       let emailMessage = "";
       if (!isAdmin && sendNotification && changedFields.length) {
@@ -200,18 +216,22 @@ module.exports = async function handler(req, res) {
           const rollbackPayload = buildTransportRollbackPayload(previousInput, nextPayload);
           let rolledBack = false;
           if (savedUpdatedAt) {
-            const account = encodeURIComponent(targetAccountId);
-            const bl = encodeURIComponent(blNumber);
-            const updated = encodeURIComponent(savedUpdatedAt);
-            const rollbackRows = await supabaseFetch(
-              `/rest/v1/cargo_card_user_inputs?account_id=eq.${account}&bl_number=eq.${bl}&updated_at=eq.${updated}`,
-              {
-                method: "PATCH",
-                headers: { Prefer: "return=representation" },
-                body: JSON.stringify(rollbackPayload),
-              }
-            );
-            rolledBack = Array.isArray(rollbackRows) && rollbackRows.length > 0;
+            try {
+              const account = encodeURIComponent(targetAccountId);
+              const bl = encodeURIComponent(blNumber);
+              const updated = encodeURIComponent(savedUpdatedAt);
+              const rollbackRows = await supabaseFetch(
+                `/rest/v1/cargo_card_user_inputs?account_id=eq.${account}&bl_number=eq.${bl}&updated_at=eq.${updated}`,
+                {
+                  method: "PATCH",
+                  headers: { Prefer: "return=representation" },
+                  body: JSON.stringify(rollbackPayload),
+                }
+              );
+              rolledBack = Array.isArray(rollbackRows) && rollbackRows.length > 0;
+            } catch (_) {
+              rolledBack = false;
+            }
           }
           if (rolledBack) {
             return res.status(502).json({
@@ -219,6 +239,20 @@ module.exports = async function handler(req, res) {
               message: `메일 발송에 실패하여 반입예정정보 변경을 취소했습니다: ${emailMessage}`,
             });
           }
+          let currentInput = null;
+          try {
+            const latestInput = await findManualInput(targetAccountId, blNumber);
+            currentInput = latestInput?.account_id ? latestInput : null;
+          } catch (_) {
+            currentInput = null;
+          }
+          return res.status(409).json({
+            success: false,
+            message: "메일 발송에 실패했고 저장 취소를 확인할 수 없습니다. 최신 정보를 새로고침한 후 다시 시도해 주세요.",
+            input: currentInput,
+            email_sent: false,
+            email_message: emailMessage,
+          });
         }
       }
 

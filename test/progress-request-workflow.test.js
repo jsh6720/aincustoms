@@ -84,15 +84,29 @@ function createResponse() {
 }
 
 function createQuotaFixture({
+  currentInput = null,
+  omitSavedUpdatedAt = false,
   session,
   previousInput,
+  rollbackConflict = false,
+  rollbackError = null,
+  saveConflict = false,
   sendMail = async () => {},
   saveError = null,
 }) {
+  const storedPreviousInput = previousInput?.account_id
+    ? {
+        updated_at: previousInput.updated_at || "2026-07-22T00:00:00.000Z",
+        ...previousInput,
+      }
+    : previousInput;
   const calls = {
+    inputReads: 0,
     mail: [],
     rollbackPayload: null,
+    rollbackUrl: null,
     savedPayload: null,
+    saveUrl: null,
   };
   const handler = loadQuotaHandler({
     verifySession: () => session,
@@ -111,19 +125,33 @@ function createQuotaFixture({
         }];
       }
       if (url.includes("cargo_card_user_inputs?select=*")) {
-        return previousInput?.account_id ? [previousInput] : [];
+        calls.inputReads += 1;
+        const input = calls.inputReads > 1 && currentInput
+          ? currentInput
+          : storedPreviousInput;
+        return input?.account_id ? [input] : [];
       }
-      if (url.includes("updated_at=eq.")) {
+      if (calls.savedPayload) {
+        calls.rollbackUrl = url;
         calls.rollbackPayload = JSON.parse(options.body);
-        return [{ ...previousInput, ...calls.rollbackPayload }];
+        if (rollbackError) throw rollbackError;
+        if (rollbackConflict) return [];
+        return [{ ...storedPreviousInput, ...calls.rollbackPayload }];
       }
-      if (saveError) throw saveError;
+      calls.saveUrl = url;
       calls.savedPayload = JSON.parse(options.body);
-      return [{
-        ...previousInput,
+      if (saveError) throw saveError;
+      if (saveConflict) return [];
+      const savedInput = {
+        ...storedPreviousInput,
         ...calls.savedPayload,
-        updated_at: "2026-07-23T02:03:04.000Z",
-      }];
+      };
+      if (!omitSavedUpdatedAt) {
+        savedInput.updated_at = "2026-07-23T02:03:04.000Z";
+      } else {
+        delete savedInput.updated_at;
+      }
+      return [savedInput];
     },
   });
   return { calls, handler };
@@ -178,6 +206,51 @@ test("manual transport save honors explicit notification choice", () => {
   assert.match(quotaApi, /transport_updated_by_role/);
   assert.match(quotaApi, /transport_updated_by_login/);
   assert.match(quotaApi, /transport_updated_at/);
+});
+
+test("existing transport save uses compare-and-set and conflicts without mail", { concurrency: false }, async () => {
+  const { calls, handler } = createQuotaFixture({
+    session: {
+      account_id: "account-1",
+      role: "shipper",
+      login_id: "SHIPPER-1",
+    },
+    previousInput: {
+      account_id: "account-1",
+      bl_number: "BL-1",
+      storage_yard: "Previous yard",
+      updated_at: "2026-07-22T01:02:03.000Z",
+    },
+    saveConflict: true,
+  });
+  const response = createResponse();
+
+  await withEnvironment(
+    {
+      SMTP_HOST: "smtp.example.com",
+      SMTP_USER: "mailer@example.com",
+      SMTP_PASS: "secret",
+    },
+    () => handler({
+      method: "POST",
+      body: {
+        action: "manual_fields",
+        bl_number: "BL-1",
+        storage_yard: "Next yard",
+        send_notification: true,
+      },
+    }, response)
+  );
+
+  assert.match(
+    calls.saveUrl,
+    /account_id=eq\.account-1&bl_number=eq\.BL-1&updated_at=eq\.2026-07-22T01%3A02%3A03\.000Z/
+  );
+  assert.equal(response.statusCode, 409);
+  assert.equal(response.body.success, false);
+  assert.match(response.body.message, /새로고침.*다시 시도/);
+  assert.equal(calls.mail.length, 0);
+  assert.equal(calls.rollbackUrl, null);
 });
 
 test("shipper save-only persists provenance without SMTP", { concurrency: false }, async () => {
@@ -298,6 +371,46 @@ test("shipper notification requires an effective warehouse change", { concurrenc
   assert.equal(calls.mail.length, 0);
 });
 
+test("non-boolean notification values never send mail", { concurrency: false }, async () => {
+  for (const sendNotification of ["true", 1]) {
+    const { calls, handler } = createQuotaFixture({
+      session: {
+        account_id: "account-1",
+        role: "shipper",
+        login_id: "SHIPPER-1",
+      },
+      previousInput: {
+        account_id: "account-1",
+        bl_number: "BL-1",
+        storage_yard: "Previous yard",
+      },
+    });
+    const response = createResponse();
+
+    await withEnvironment(
+      {
+        SMTP_HOST: "smtp.example.com",
+        SMTP_USER: "mailer@example.com",
+        SMTP_PASS: "secret",
+      },
+      () => handler({
+        method: "POST",
+        body: {
+          action: "manual_fields",
+          bl_number: "BL-1",
+          storage_yard: "Next yard",
+          send_notification: sendNotification,
+        },
+      }, response)
+    );
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.email_sent, false);
+    assert.equal(response.body.email_message, "");
+    assert.equal(calls.mail.length, 0);
+  }
+});
+
 test("mail failure rolls back transport fields and previous provenance", { concurrency: false }, async () => {
   const previousInput = {
     account_id: "account-1",
@@ -351,6 +464,159 @@ test("mail failure rolls back transport fields and previous provenance", { concu
     transport_updated_by_login: "AIN",
     transport_updated_at: "2026-07-22T01:02:03.000Z",
   });
+});
+
+test("mail failure with a conflicting rollback never returns success", { concurrency: false }, async () => {
+  const currentInput = {
+    account_id: "account-1",
+    bl_number: "BL-1",
+    storage_yard: "Newer yard",
+    updated_at: "2026-07-23T02:04:05.000Z",
+  };
+  const { calls, handler } = createQuotaFixture({
+    currentInput,
+    rollbackConflict: true,
+    session: {
+      account_id: "account-1",
+      role: "shipper",
+      login_id: "SHIPPER-1",
+    },
+    previousInput: {
+      account_id: "account-1",
+      bl_number: "BL-1",
+      storage_yard: "Previous yard",
+      transport_updated_by_role: "admin",
+      transport_updated_by_login: "AIN",
+      transport_updated_at: "2026-07-22T01:02:03.000Z",
+      updated_at: "2026-07-22T01:02:04.000Z",
+    },
+    sendMail: async () => {
+      throw new Error("SMTP rejected the message");
+    },
+  });
+  const response = createResponse();
+
+  await withEnvironment(
+    {
+      SMTP_HOST: "smtp.example.com",
+      SMTP_USER: "mailer@example.com",
+      SMTP_PASS: "secret",
+    },
+    () => handler({
+      method: "POST",
+      body: {
+        action: "manual_fields",
+        bl_number: "BL-1",
+        storage_yard: "Next yard",
+        send_notification: true,
+      },
+    }, response)
+  );
+
+  assert.equal(response.statusCode, 409);
+  assert.equal(response.body.success, false);
+  assert.match(response.body.message, /저장 취소를 확인할 수 없습니다.*새로고침/);
+  assert.equal(response.body.email_sent, false);
+  assert.equal(response.body.email_message, "SMTP rejected the message");
+  assert.deepEqual(response.body.input, currentInput);
+  assert.equal(calls.inputReads, 2);
+  assert.match(calls.rollbackUrl, /updated_at=eq\.2026-07-23T02%3A03%3A04\.000Z/);
+});
+
+test("mail failure without saved updated_at never returns success", { concurrency: false }, async () => {
+  const currentInput = {
+    account_id: "account-1",
+    bl_number: "BL-1",
+    storage_yard: "Next yard",
+    updated_at: "2026-07-23T02:03:04.000Z",
+  };
+  const { calls, handler } = createQuotaFixture({
+    currentInput,
+    omitSavedUpdatedAt: true,
+    session: {
+      account_id: "account-1",
+      role: "shipper",
+      login_id: "SHIPPER-1",
+    },
+    previousInput: {
+      account_id: "account-1",
+      bl_number: "BL-1",
+      storage_yard: "Previous yard",
+    },
+    sendMail: async () => {
+      throw new Error("SMTP rejected the message");
+    },
+  });
+  const response = createResponse();
+
+  await withEnvironment(
+    {
+      SMTP_HOST: "smtp.example.com",
+      SMTP_USER: "mailer@example.com",
+      SMTP_PASS: "secret",
+    },
+    () => handler({
+      method: "POST",
+      body: {
+        action: "manual_fields",
+        bl_number: "BL-1",
+        storage_yard: "Next yard",
+        send_notification: true,
+      },
+    }, response)
+  );
+
+  assert.equal(response.statusCode, 409);
+  assert.equal(response.body.success, false);
+  assert.match(response.body.message, /저장 취소를 확인할 수 없습니다.*새로고침/);
+  assert.equal(response.body.email_sent, false);
+  assert.equal(response.body.email_message, "SMTP rejected the message");
+  assert.deepEqual(response.body.input, currentInput);
+  assert.equal(calls.rollbackUrl, null);
+  assert.equal(calls.inputReads, 2);
+});
+
+test("mail failure with a rollback error never returns success", { concurrency: false }, async () => {
+  const { calls, handler } = createQuotaFixture({
+    rollbackError: new Error("rollback request failed"),
+    session: {
+      account_id: "account-1",
+      role: "shipper",
+      login_id: "SHIPPER-1",
+    },
+    previousInput: {
+      account_id: "account-1",
+      bl_number: "BL-1",
+      storage_yard: "Previous yard",
+    },
+    sendMail: async () => {
+      throw new Error("SMTP rejected the message");
+    },
+  });
+  const response = createResponse();
+
+  await withEnvironment(
+    {
+      SMTP_HOST: "smtp.example.com",
+      SMTP_USER: "mailer@example.com",
+      SMTP_PASS: "secret",
+    },
+    () => handler({
+      method: "POST",
+      body: {
+        action: "manual_fields",
+        bl_number: "BL-1",
+        storage_yard: "Next yard",
+        send_notification: true,
+      },
+    }, response)
+  );
+
+  assert.equal(response.statusCode, 409);
+  assert.equal(response.body.success, false);
+  assert.match(response.body.message, /저장 취소를 확인할 수 없습니다.*새로고침/);
+  assert.equal(response.body.email_message, "SMTP rejected the message");
+  assert.equal(calls.inputReads, 2);
 });
 
 test("missing provenance columns name the progress metadata migration", { concurrency: false }, async () => {
