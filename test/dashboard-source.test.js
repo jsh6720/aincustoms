@@ -68,6 +68,180 @@ this.dispatchBoardInput = handleBoardCardInput;`,
   return context;
 }
 
+function progressCalendarHarness(cards) {
+  const start = dashboard.indexOf("function progressCalendarEvents()");
+  const end = dashboard.indexOf("function renderProgressCalendar", start);
+  assert.ok(start >= 0 && end > start, "progress calendar helper source should exist");
+  const context = {
+    cards,
+    visibleCards: () => cards,
+    calendarDate(value) {
+      const text = String(value || "");
+      return /^\d{4}-\d{2}-\d{2}$/.test(text) ? text : "";
+    },
+    etaText: (card) => card.eta_date || "",
+    koreaCalendarDate: () => "",
+  };
+  vm.createContext(context);
+  vm.runInContext(
+    `${dashboard.slice(start, end)}
+this.events = progressCalendarEvents;`,
+    context
+  );
+  return context.events();
+}
+
+test("progress transport editor renders role-specific save commands", () => {
+  assert.match(dashboard, /id="progressWarehouseModalActions"/);
+  const openStart = dashboard.indexOf("function openProgressWarehouseEditor");
+  const openEnd = dashboard.indexOf("function closeProgressWarehouseEditor", openStart);
+  const openBody = dashboard.slice(openStart, openEnd);
+  assert.match(openBody, /currentUserRole === "admin"/);
+  assert.match(openBody, /saveProgressWarehouseEditor\(false\)/);
+  assert.match(openBody, /저장만/);
+  assert.match(openBody, /saveProgressWarehouseEditor\(true\)/);
+  assert.match(openBody, /저장\+메일/);
+
+  const saveStart = dashboard.indexOf("async function saveProgressWarehouseEditor");
+  const saveEnd = dashboard.indexOf("function openProgressStatus", saveStart);
+  const saveBody = dashboard.slice(saveStart, saveEnd);
+  assert.match(saveBody, /send_notification:\s*sendNotification === true/);
+  assert.match(saveBody, /response\.status === 409/);
+  assert.match(saveBody, /await loadData\(\)/);
+  assert.match(saveBody, /메일 발송에 실패/);
+  assert.match(saveBody, /저장되었습니다/);
+  assert.match(saveBody, /메일로 발송되었습니다/);
+});
+
+test("shipper transport provenance is subtle and exposes identity only by tooltip", () => {
+  assert.match(dashboard, /function transportProvenanceClass\(card\)/);
+  assert.match(dashboard, /function transportProvenanceTitle\(card\)/);
+  assert.match(dashboard, /transport_updated_by_role === "shipper"/);
+  assert.match(dashboard, /\.progress-shipper-input\s*\{[^}]*background:\s*#eaf4ff/);
+  const rowStart = dashboard.indexOf("document.getElementById(\"progressRows\").innerHTML");
+  const rowEnd = dashboard.indexOf("`).join(\"\")", rowStart);
+  const row = dashboard.slice(rowStart, rowEnd);
+  assert.match(row, /transportProvenanceClass\(card\)/);
+  assert.match(row, /title="\$\{esc\(transportProvenanceTitle\(card\)\)\}"/);
+  assert.doesNotMatch(row, /transport_updated_by_login/);
+  assert.doesNotMatch(row, /transport_updated_at/);
+});
+
+test("transport provenance shows the precise Korea-local input time", () => {
+  const context = dashboardRuntimeContext("admin", [{
+    bl_number: "BL-TIME",
+    transport_updated_by_role: "shipper",
+    transport_updated_by_login: "HCH",
+    transport_updated_at: "2026-07-23T04:05:06.000Z",
+  }]);
+  assert.equal(
+    vm.runInContext("displayDateTime(__testCards[0].transport_updated_at)", context),
+    "2026-07-23 13:05"
+  );
+  const tooltip = vm.runInContext(
+    "progressTransportTooltip(__testCards[0], 0, 'eta')",
+    context
+  );
+  assert.match(tooltip, /2026-07-23 13:05/);
+  assert.match(tooltip, /HCH/);
+});
+
+test("progress BL tooltip escapes every confirmation and has no mutation controls", () => {
+  assert.match(dashboard, /function progressRevisionTooltip\(card\)/);
+  const card = {
+    bl_number: "BL-REV",
+    revisions: [
+      { text: `<img src=x onerror="globalThis.pwned=true">`, done: false, created_by: "shipper" },
+      { text: "완료 항목", done: true, created_by: "admin" },
+    ],
+  };
+  const context = dashboardRuntimeContext("shipper", [card]);
+  const html = vm.runInContext("progressRevisionTooltip(__testCards[0])", context);
+  assert.match(html, /&lt;img/);
+  assert.doesNotMatch(html, /<img\b/i);
+  assert.match(html, /&lt;img/);
+  assert.match(html, /아인/);
+  assert.match(html, /화주/);
+  assert.match(html, /progress-revision-done/);
+  assert.doesNotMatch(html, /수정|삭제|button/i);
+  assert.match(html, /tabindex="0"/);
+  assert.match(html, /role="tooltip"/);
+});
+
+test("admin request indicators stay inside the state cell and expose latest request details", () => {
+  assert.match(dashboard, /function progressAdminRequestIndicators\(card\)/);
+  const rowStart = dashboard.indexOf("document.getElementById(\"progressRows\").innerHTML");
+  const rowEnd = dashboard.indexOf("`).join(\"\")", rowStart);
+  const row = dashboard.slice(rowStart, rowEnd);
+  assert.match(
+    row,
+    /<td class="progress-long progress-state-cell">[\s\S]*progressAdminRequestIndicators\(card\)[\s\S]*<\/td>/
+  );
+  const card = {
+    stage: "반입",
+    last_original_doc_request: {
+      requester_name: "화주 담당",
+      requester_email: "shipper@example.com",
+      requested_receipt_date: "2026-07-24",
+      memo: "원본 요청",
+    },
+    last_import_request: {
+      requester_name: "화주 담당",
+      requester_email: "shipper@example.com",
+      requested_import_date: "2026-07-25",
+      memo: "신고 요청",
+    },
+  };
+  const context = dashboardRuntimeContext("admin", [card]);
+  const html = vm.runInContext("progressAdminRequestIndicators(__testCards[0])", context);
+  assert.equal((html.match(/화주요청/g) || []).length, 2);
+  assert.match(html, /서류수령/);
+  assert.match(html, /수입신고/);
+  assert.match(html, /shipper@example\.com/);
+  assert.doesNotMatch(html, /<td\b/i);
+});
+
+test("progress calendar separates import, original, and transfer receipt events", () => {
+  const events = progressCalendarHarness([
+    {
+      bl_number: "ONEYBNEG04197300",
+      last_import_requested_import_date: "2026-07-23",
+      last_original_doc_requested_receipt_date: "2026-07-22",
+      actual_received_date: "2026-07-24",
+      obl_received: true,
+      hc_received: false,
+      doc_transfer_received: true,
+      warehouse_expected_date: "2026-07-25",
+      eta_date: "2026-07-21",
+    },
+    {
+      bl_number: "BL-HC",
+      actual_received_date: "2026-07-26",
+      obl_received: false,
+      hc_received: true,
+    },
+    {
+      bl_number: "BL-BOTH",
+      actual_received_date: "2026-07-27",
+      obl_received: true,
+      hc_received: true,
+    },
+  ]);
+
+  assert.ok(events.some((event) =>
+    event.date === "2026-07-23" &&
+    event.type === "import-request" &&
+    event.text === "수입신고요청 ONEYBNEG04197300"
+  ));
+  assert.ok(events.some((event) => event.text === "서류수령 ONEYBNEG04197300 (OBL)"));
+  assert.ok(events.some((event) => event.text === "서류수령 ONEYBNEG04197300 (양도증)"));
+  assert.ok(events.some((event) => event.text === "서류수령 BL-HC (H/C)"));
+  assert.ok(events.some((event) => event.text === "서류수령 BL-BOTH (OBL, H/C)"));
+  assert.ok(events.some((event) => event.text === "입항 ONEYBNEG04197300"));
+  assert.ok(events.some((event) => event.text === "서류요청 ONEYBNEG04197300"));
+  assert.ok(events.some((event) => event.text === "반입예정 ONEYBNEG04197300"));
+});
+
 test("progress page includes editable warehouse schedule and calendar event", () => {
   assert.match(dashboard, /openProgressWarehouseEditor/);
   assert.match(dashboard, /id="progressWarehouseEta" type="date"/);
@@ -142,8 +316,8 @@ test("progress table binds date classes to ETA and warehouse date columns", () =
   assert.equal(rowClasses.filter((classes) => classes.includes("progress-date")).length, 2);
   assert.match(header, /<th class="[^"]*\bprogress-date\b[^"]*">\uC785\uD56D\uC608\uC815<\/th>/);
   assert.match(header, /<th class="[^"]*\bprogress-date\b[^"]*">\uBC18\uC785\uC608\uC815\uC77C<\/th>/);
-  assert.match(row, /<td class="[^"]*\bprogress-date\b[^"]*"><button[^>]*>[\s\S]*?displayDate\(etaText\(card\)\)/);
-  assert.match(row, /<td class="[^"]*\bprogress-date\b[^"]*"><button[^>]*>[\s\S]*?displayDate\(card\.warehouse_expected_date/);
+  assert.match(row, /<td class="[^"]*\bprogress-date\b[^"]*">[\s\S]*?<button[^>]*>[\s\S]*?displayDate\(etaText\(card\)\)/);
+  assert.match(row, /<td class="[^"]*\bprogress-date\b[^"]*">[\s\S]*?<button[^>]*>[\s\S]*?displayDate\(card\.warehouse_expected_date/);
 });
 
 test("progress table binds long and centered short classes to intended columns", () => {
@@ -168,8 +342,8 @@ test("progress table binds long and centered short classes to intended columns",
   assert.match(header, /<th class="[^"]*\bprogress-short\b[^"]*">\uC721\uC885<\/th>/);
   assert.match(header, /<th class="[^"]*\bprogress-short\b[^"]*">\uC778\uB3C4\uC870\uAC74<\/th>/);
   assert.match(header, /<th class="[^"]*\bprogress-short\b[^"]*">\uB9C8\uC77C\uC2A4\uD1A4<\/th>/);
-  assert.match(row, /<td class="[^"]*\bprogress-long\b[^"]*"><button[^>]*>[\s\S]*?yardText\(card\)/);
-  assert.match(row, /<td class="[^"]*\bprogress-long\b[^"]*">\$\{esc\(progressStateText\(card\)\)\}<\/td>/);
+  assert.match(row, /<td class="[^"]*\bprogress-long\b[^"]*">[\s\S]*?<button[^>]*>[\s\S]*?yardText\(card\)/);
+  assert.match(row, /<td class="progress-long progress-state-cell"><span>\$\{esc\(progressStateText\(card\)\)\}<\/span>\$\{progressAdminRequestIndicators\(card\)\}<\/td>/);
 });
 
 test("shipper progress request controls use exact stages and latest request details", () => {
@@ -436,15 +610,16 @@ test("board data-bearing controls use delegation instead of jsStr inline handler
   assert.match(dashboard, /adminRows\.addEventListener\("click", handleAdminAccountAction\)/);
 });
 
-test("progress receipt calendar uses the exact transfer suffix in its receipt event", () => {
+test("progress receipt calendar keeps transfer receipt as an independent event", () => {
   const start = dashboard.indexOf("function progressCalendarEvents()");
   const end = dashboard.indexOf("function renderProgressCalendar", start);
   const body = dashboard.slice(start, end);
-  const receiptStart = body.indexOf("const effectiveActualDate");
+  const receiptStart = body.indexOf("const originalReceiptTypes");
   const receiptEnd = body.indexOf("const warehouseDate", receiptStart);
   const receiptEvent = body.slice(receiptStart, receiptEnd);
 
-  assert.match(receiptEvent, /text:\s*`[^`]*\$\{label\}\$\{card\.doc_transfer_received \? " \(\uC591\uB3C4\uC99D\)" : ""\}`/);
+  assert.match(receiptEvent, /originalReceiptTypes\.join\(", "\)/);
+  assert.match(receiptEvent, /text:\s*`서류수령 \$\{label\} \(양도증\)`/);
 });
 
 test("progress original O path confirms removal without prompting for a date", () => {

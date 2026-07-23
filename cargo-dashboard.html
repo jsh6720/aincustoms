@@ -210,7 +210,9 @@
     .calendar-day { font-weight:800; color:#4b5663; margin-bottom:4px; }
     .calendar-event { border-radius:4px; padding:2px 4px; margin-top:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:9.5px; font-weight:800; }
     .calendar-event.request { background:#fff7ed; color:#b45309; border:1px solid #fed7aa; }
+    .calendar-event.import-request { background:#eef4ff; color:#245b8a; border:1px solid #bfd3eb; }
     .calendar-event.actual { background:#e8f5ee; color:#1f6f43; border:1px solid #acd7bf; }
+    .calendar-event.transfer { background:#f5f0ff; color:#6941a5; border:1px solid #d8c8f0; }
     .calendar-event.eta { background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; }
     .calendar-event.warehouse { background:#f7f2e8; color:#795d20; border:1px solid #dfcfaa; }
     .progress-table-wrap { overflow:auto; max-height:calc(100vh - 190px); }
@@ -232,7 +234,10 @@
     .progress-table .progress-date .progress-edit-btn { width:100%; text-align:center; }
     .progress-table td.progress-date { text-align:center; }
     .progress-edit-btn:hover { background:#edf4f8; text-decoration:underline; }
+    .progress-edit-btn.progress-shipper-input { background:#eaf4ff; box-shadow:inset 2px 0 #7fb2dd; }
+    .progress-transport-wrap { width:100%; }
     .progress-request-wrap { display:inline-flex; position:relative; justify-content:center; }
+    .progress-tooltip-control:focus-visible { outline:2px solid #3978aa; outline-offset:2px; }
     .progress-request-toggle { width:54px; height:22px; border:1px solid #b7dfc4; border-radius:4px; background:#edf8f1; color:#1b6b3a; padding:0 4px; font:inherit; font-size:9.5px; font-weight:900; white-space:nowrap; cursor:pointer; }
     .progress-request-toggle.request-x { border-color:#d7dee5; background:#f5f7f9; color:#596573; }
     .progress-request-toggle:hover:not(:disabled) { filter:brightness(.96); }
@@ -242,6 +247,16 @@
     .progress-request-detail-row { display:grid; grid-template-columns:62px minmax(0, 1fr); gap:5px; padding:1px 0; word-break:break-word; }
     .progress-request-detail-row b { color:#697582; font-weight:800; }
     .progress-request-empty { color:#7b8794; text-align:center; }
+    .progress-bl-wrap { justify-content:flex-start; max-width:100%; }
+    .progress-bl-value { display:inline-block; max-width:100%; border-radius:3px; cursor:help; }
+    .progress-revision-detail { width:290px; }
+    .progress-revision-row { display:grid; grid-template-columns:34px minmax(0, 1fr); gap:6px; padding:3px 0; border-bottom:1px solid #edf1f4; }
+    .progress-revision-row:last-child { border-bottom:0; }
+    .progress-revision-row.progress-revision-done span:last-child { color:#7b8794; text-decoration:line-through; }
+    .progress-revision-source { color:#245b8a; font-weight:900; }
+    .progress-state-cell { min-width:132px; }
+    .progress-admin-request-list { display:flex; gap:3px; margin-top:4px; flex-wrap:wrap; }
+    .progress-admin-request-badge { border:1px solid #c8d8e8; border-radius:999px; background:#eef4fa; color:#315c82; padding:1px 5px; font:inherit; font-size:9px; font-weight:900; cursor:help; }
     body.shipper-progress .progress-admin-only { display:none; }
     body:not(.shipper-progress) .progress-shipper-only { display:none; }
     body:not(.shipper-progress) .progress-table { min-width:1860px; }
@@ -536,10 +551,7 @@
         <label for="progressWarehouseDate">반입예정일</label>
         <input id="progressWarehouseDate" type="date">
       </div>
-      <div class="modal-actions">
-        <button class="btn gray" onclick="closeProgressWarehouseEditor()">취소</button>
-        <button class="btn" onclick="saveProgressWarehouseEditor()">저장</button>
-      </div>
+      <div id="progressWarehouseModalActions" class="modal-actions"></div>
     </div>
   </div>
 
@@ -555,6 +567,7 @@
     let requestMode = "release";
     let receiptMailCard = null;
     let progressWarehouseCard = null;
+    let progressWarehouseSaving = false;
     let adminAccounts = [];
     let currentUserRole = "shipper";
     let currentUserLogin = "";
@@ -650,6 +663,18 @@
     }
     function displayDate(value) {
       return normalizedDateText(value);
+    }
+    function displayDateTime(value) {
+      const raw = String(value || "").trim();
+      if (!raw) return "-";
+      if (/[zZ]$|[+-]\d{2}:\d{2}$/.test(raw)) {
+        const parsed = new Date(raw);
+        if (!Number.isNaN(parsed.getTime())) {
+          const korea = new Date(parsed.getTime() + (9 * 60 * 60 * 1000));
+          return `${korea.toISOString().slice(0, 10)} ${korea.toISOString().slice(11, 16)}`;
+        }
+      }
+      return normalizedDateText(raw);
     }
     function calendarDate(value) {
       const text = normalizedDateText(value);
@@ -1280,6 +1305,83 @@
         || String(a.destination || "").localeCompare(String(b.destination || ""), "ko")
         || String(meatType(a)).localeCompare(String(meatType(b)), "ko");
     }
+    function transportProvenanceClass(card) {
+      return card?.transport_updated_by_role === "shipper" ? " progress-shipper-input" : "";
+    }
+    function transportProvenanceTitle(card) {
+      if (card?.transport_updated_by_role !== "shipper") return "";
+      return `화주 입력 · ${card.transport_updated_by_login || "-"} · ${displayDateTime(card.transport_updated_at)}`;
+    }
+    function progressTransportTooltip(card, cardIndex, field) {
+      if (card?.transport_updated_by_role !== "shipper") return "";
+      const descriptionId = `progress-transport-detail-${cardIndex}-${field}`;
+      return `
+        <span id="${descriptionId}" class="progress-request-detail" role="tooltip">
+          <span class="progress-request-detail-row"><b>입력구분</b><span>화주</span></span>
+          <span class="progress-request-detail-row"><b>입력자</b><span>${esc(card.transport_updated_by_login || "-")}</span></span>
+          <span class="progress-request-detail-row"><b>입력일시</b><span>${esc(displayDateTime(card.transport_updated_at))}</span></span>
+        </span>
+      `;
+    }
+    function progressTransportAria(card, cardIndex, field) {
+      return card?.transport_updated_by_role === "shipper"
+        ? ` aria-describedby="progress-transport-detail-${cardIndex}-${field}"`
+        : "";
+    }
+    function progressRevisionTooltip(card) {
+      const bl = card?.bl_number || "-";
+      const revisions = Array.isArray(card?.revisions) ? card.revisions : [];
+      if (!revisions.length) return `<b>${esc(bl)}</b>`;
+      const descriptionId = `progress-revisions-${currentCards.indexOf(card)}`;
+      const rows = revisions.map(item => {
+        const revision = item && typeof item === "object" ? item : { text: item };
+        return `
+          <span class="progress-revision-row${revision.done === true ? " progress-revision-done" : ""}">
+            <span class="progress-revision-source">${esc(revisionSource(revision))}</span>
+            <span>${esc(revision.text || "")}</span>
+          </span>
+        `;
+      }).join("");
+      return `
+        <span class="progress-request-wrap progress-bl-wrap">
+          <span class="progress-bl-value progress-tooltip-control" tabindex="0"
+            aria-describedby="${descriptionId}"><b>${esc(bl)}</b></span>
+          <span id="${descriptionId}" class="progress-request-detail progress-revision-detail" role="tooltip">${rows}</span>
+        </span>
+      `;
+    }
+    function progressRequestDetailRows(latest, type) {
+      if (!latest) return '<span class="progress-request-empty">최근 요청 이력이 없습니다.</span>';
+      const isDocs = type === "docs";
+      const requestedDate = isDocs ? latest.requested_receipt_date : latest.requested_import_date;
+      const requestedDateLabel = isDocs ? "수령요청일" : "신고요청일";
+      return [
+        ["요청담당자", latest.requester_name || "-"],
+        ["요청인 메일", latest.requester_email || "-"],
+        [requestedDateLabel, displayDate(requestedDate)],
+        ["요청일시", displayDateTime(latest.created_at)],
+        ["요청사항", latest.memo || "-"]
+      ].map(([label, value]) => `<span class="progress-request-detail-row"><b>${esc(label)}</b><span>${esc(value)}</span></span>`).join("");
+    }
+    function progressAdminRequestIndicators(card) {
+      if (currentUserRole !== "admin") return "";
+      const cardIndex = currentCards.indexOf(card);
+      const requests = [
+        ["docs", "서류수령", card.last_original_doc_request],
+        ["import", "수입신고", card.last_import_request]
+      ].filter(([, , latest]) => !!latest);
+      if (!requests.length) return "";
+      return `<span class="progress-admin-request-list">${requests.map(([type, label, latest]) => {
+        const descriptionId = `progress-admin-request-${cardIndex}-${type}`;
+        return `
+          <span class="progress-request-wrap">
+            <button type="button" class="progress-admin-request-badge progress-tooltip-control"
+              aria-describedby="${descriptionId}">${esc(label)} 화주요청</button>
+            <span id="${descriptionId}" class="progress-request-detail" role="tooltip">${progressRequestDetailRows(latest, type)}</span>
+          </span>
+        `;
+      }).join("")}</span>`;
+    }
     function progressRequestToggle(card, type) {
       if (currentUserRole === "admin") return "";
       const isDocs = type === "docs";
@@ -1287,15 +1389,13 @@
       const allowedStages = progressRequestAllowedStages(type);
       const allowed = allowedStages.includes(card.stage);
       const status = latest ? "요청 O" : "요청 X";
-      const requestedDate = isDocs ? latest?.requested_receipt_date : latest?.requested_import_date;
-      const requestedDateLabel = isDocs ? "수령요청일" : "신고요청일";
       const disabledReason = `${allowedStages.join("/")} 단계에서만 ${isDocs ? "서류수령" : "수입신고"} 요청할 수 있습니다.`;
       const cardIndex = currentCards.indexOf(card);
       const descriptionId = `progress-request-detail-${cardIndex}-${type}`;
       const detailRows = latest ? [
         ["요청담당자", latest.requester_name || "-"],
         ["요청인 메일", latest.requester_email || "-"],
-        [requestedDateLabel, displayDate(requestedDate)],
+        [isDocs ? "수령요청일" : "신고요청일", displayDate(isDocs ? latest.requested_receipt_date : latest.requested_import_date)],
         ["요청일시", displayDate(latest.created_at)],
         ["요청사항", latest.memo || "-"]
       ].map(([label, value]) => `<span class="progress-request-detail-row"><b>${esc(label)}</b><span>${esc(value)}</span></span>`).join("") :
@@ -1305,7 +1405,7 @@
       return `
         <td class="progress-short center progress-shipper-only">
           <span class="progress-request-wrap">
-            <button type="button" class="progress-request-toggle ${latest ? "" : "request-x"}"
+            <button type="button" class="progress-request-toggle progress-tooltip-control ${latest ? "" : "request-x"}"
               data-progress-request-type="${type}" data-card-index="${cardIndex}"
               aria-label="${isDocs ? "서류수령요청" : "수입신고요청"} ${status}"
               aria-disabled="${allowed ? "false" : "true"}" aria-describedby="${descriptionId}">${status}</button>
@@ -1353,6 +1453,11 @@
       const rows = document.getElementById("progressRows");
       return button && rows.contains(button) ? button : null;
     }
+    function progressTooltipControlFromEvent(event) {
+      const control = event.target?.closest?.(".progress-tooltip-control");
+      const rows = document.getElementById("progressRows");
+      return control && rows.contains(control) ? control : null;
+    }
     function handleProgressRequestAction(event) {
       const button = progressRequestButtonFromEvent(event);
       if (!button) return;
@@ -1368,13 +1473,13 @@
       else if (type === "import") openImportModal(card.bl_number);
     }
     function handleProgressRequestTooltipShow(event) {
-      const button = progressRequestButtonFromEvent(event);
-      if (button) scheduleProgressRequestTooltip(button);
+      const control = progressTooltipControlFromEvent(event);
+      if (control) scheduleProgressRequestTooltip(control);
     }
     function handleProgressRequestTooltipHide(event) {
-      const button = progressRequestButtonFromEvent(event);
-      if (!button || event.relatedTarget?.closest?.(".progress-request-wrap") !== button.closest(".progress-request-wrap")) {
-        if (activeProgressRequestButton === button) activeProgressRequestButton = null;
+      const control = progressTooltipControlFromEvent(event);
+      if (!control || event.relatedTarget?.closest?.(".progress-request-wrap") !== control.closest(".progress-request-wrap")) {
+        if (activeProgressRequestButton === control) activeProgressRequestButton = null;
       }
     }
     function repositionProgressRequestTooltip() {
@@ -1505,15 +1610,36 @@
         <tr>
           <td class="progress-short center no-cell">${rowIndex + 1}</td>
           <td class="progress-long" title="${esc(displayConsignee(card.consignee || "-"))}"><span class="progress-shipper">${esc(progressConsignee(card.consignee || "-"))}</span></td>
-          <td class="progress-long bl-cell"><b>${esc(card.bl_number || "-")}</b></td>
+          <td class="progress-long bl-cell">${progressRevisionTooltip(card)}</td>
           <td class="progress-long" title="${esc(card.destination || "-")}"><span class="progress-destination">${esc(progressDestination(card.destination))}</span></td>
           <td class="progress-short center">${esc(meatType(card))}</td>
           <td class="progress-short center">${esc(card.delivery_terms || "-")}</td>
-          <td class="progress-date"><button type="button" class="progress-edit-btn" onclick="openProgressWarehouseEditor(${currentCards.indexOf(card)})">${esc(displayDate(etaText(card)))}</button></td>
-          <td class="progress-long"><button type="button" class="progress-edit-btn" onclick="openProgressWarehouseEditor(${currentCards.indexOf(card)})">${esc(yardText(card))}</button></td>
-          <td class="progress-date"><button type="button" class="progress-edit-btn" onclick="openProgressWarehouseEditor(${currentCards.indexOf(card)})">${esc(displayDate(card.warehouse_expected_date || "-"))}</button></td>
+          <td class="progress-date">
+            <span class="progress-request-wrap progress-transport-wrap">
+              <button type="button" class="progress-edit-btn${transportProvenanceClass(card)} progress-tooltip-control"
+                title="${esc(transportProvenanceTitle(card))}"${progressTransportAria(card, currentCards.indexOf(card), "eta")}
+                onclick="openProgressWarehouseEditor(${currentCards.indexOf(card)})">${esc(displayDate(etaText(card)))}</button>
+              ${progressTransportTooltip(card, currentCards.indexOf(card), "eta")}
+            </span>
+          </td>
+          <td class="progress-long">
+            <span class="progress-request-wrap progress-transport-wrap">
+              <button type="button" class="progress-edit-btn${transportProvenanceClass(card)} progress-tooltip-control"
+                title="${esc(transportProvenanceTitle(card))}"${progressTransportAria(card, currentCards.indexOf(card), "yard")}
+                onclick="openProgressWarehouseEditor(${currentCards.indexOf(card)})">${esc(yardText(card))}</button>
+              ${progressTransportTooltip(card, currentCards.indexOf(card), "yard")}
+            </span>
+          </td>
+          <td class="progress-date">
+            <span class="progress-request-wrap progress-transport-wrap">
+              <button type="button" class="progress-edit-btn${transportProvenanceClass(card)} progress-tooltip-control"
+                title="${esc(transportProvenanceTitle(card))}"${progressTransportAria(card, currentCards.indexOf(card), "warehouse")}
+                onclick="openProgressWarehouseEditor(${currentCards.indexOf(card)})">${esc(displayDate(card.warehouse_expected_date || "-"))}</button>
+              ${progressTransportTooltip(card, currentCards.indexOf(card), "warehouse")}
+            </span>
+          </td>
           <td class="progress-short center">${esc(card.stage || "-")}</td>
-          <td class="progress-long">${esc(progressStateText(card))}</td>
+          <td class="progress-long progress-state-cell"><span>${esc(progressStateText(card))}</span>${progressAdminRequestIndicators(card)}</td>
           ${progressRequestToggle(card, "docs")}
           ${progressRequestToggle(card, "import")}
           <td class="progress-short center progress-admin-only">${progressManualStatusToggle(card, "animal")}</td>
@@ -1535,6 +1661,7 @@
     function openProgressWarehouseEditor(cardIndex) {
       progressWarehouseCard = currentCards[cardIndex];
       if (!progressWarehouseCard) return;
+      progressWarehouseSaving = false;
       document.getElementById("progressWarehouseModalCard").innerHTML = `
         <div class="modal-row"><b>화주명</b><span>${esc(displayConsignee(progressWarehouseCard.consignee || "-"))}</span></div>
         <div class="modal-row"><b>B/L</b><span>${esc(progressWarehouseCard.bl_number || "-")}</span></div>
@@ -1542,42 +1669,83 @@
       document.getElementById("progressWarehouseEta").value = calendarDate(etaText(progressWarehouseCard));
       document.getElementById("progressWarehouseYard").value = progressWarehouseCard.storage_yard || progressWarehouseCard.shed_name || "";
       document.getElementById("progressWarehouseDate").value = calendarDate(progressWarehouseCard.warehouse_expected_date);
+      document.getElementById("progressWarehouseModalActions").innerHTML = currentUserRole === "admin"
+        ? `
+          <button class="btn gray" onclick="closeProgressWarehouseEditor()">취소</button>
+          <button class="btn" onclick="saveProgressWarehouseEditor(false)">저장</button>
+        `
+        : `
+          <button class="btn gray" onclick="closeProgressWarehouseEditor()">취소</button>
+          <button class="btn gray" onclick="saveProgressWarehouseEditor(false)">저장만</button>
+          <button class="btn" onclick="saveProgressWarehouseEditor(true)">저장+메일</button>
+        `;
       document.getElementById("progressWarehouseModalBg").style.display = "flex";
     }
     function closeProgressWarehouseEditor() {
       document.getElementById("progressWarehouseModalBg").style.display = "none";
       progressWarehouseCard = null;
+      progressWarehouseSaving = false;
     }
-    async function saveProgressWarehouseEditor() {
+    async function saveProgressWarehouseEditor(sendNotification) {
       const card = progressWarehouseCard;
-      if (!card) return;
+      if (!card || progressWarehouseSaving) return;
+      progressWarehouseSaving = true;
+      const actions = document.getElementById("progressWarehouseModalActions");
+      actions.querySelectorAll("button").forEach(button => { button.disabled = true; });
       const payload = {
         action: "manual_fields",
         account_id: card.account_id,
         bl_number: card.bl_number,
         storage_yard: document.getElementById("progressWarehouseYard").value.trim(),
         warehouse_expected_date: document.getElementById("progressWarehouseDate").value || "",
+        send_notification: sendNotification === true,
       };
       const etaDate = document.getElementById("progressWarehouseEta").value || "";
       if (etaDate !== calendarDate(etaText(card)) || card.eta_date) {
         payload.eta_date = etaDate;
       }
-      const response = await fetch("/api/cargo-quota", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const result = await response.json();
-      if (!result.success) {
-        alert(result.message || "반입예정정보 저장에 실패했습니다.");
-        return;
-      }
-      applyManualFieldsToCard(card, payload, result.input);
-      closeProgressWarehouseEditor();
-      renderProgressStatus();
-      renderProgressCalendar();
-      if (result.changed_fields?.length && !result.email_sent) {
-        alert(`정보는 저장되었지만 알림 메일을 보내지 못했습니다.\n${result.email_message || "메일 환경설정을 확인해 주세요."}`);
+      const blNumber = card.bl_number;
+      try {
+        const response = await fetch("/api/cargo-quota", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const result = await response.json();
+        if (response.status === 409) {
+          alert(result.message || "다른 사용자가 먼저 변경했습니다. 최신 정보를 다시 불러옵니다.");
+          progressWarehouseCard = null;
+          await loadData();
+          const latestIndex = currentCards.findIndex(item => item.bl_number === blNumber);
+          if (latestIndex >= 0) openProgressWarehouseEditor(latestIndex);
+          return;
+        }
+        if (!result.success) {
+          if (sendNotification === true) {
+            alert(`저장 또는 메일 발송에 실패했습니다.\n${result.email_message || result.message || "잠시 후 다시 시도해 주세요."}`);
+          } else {
+            alert(result.message || "반입예정정보 저장에 실패했습니다.");
+          }
+          return;
+        }
+        applyManualFieldsToCard(card, payload, result.input);
+        closeProgressWarehouseEditor();
+        renderProgressStatus();
+        renderProgressCalendar();
+        if (sendNotification === true && result.email_sent) {
+          alert("반입예정정보가 저장되고 메일로 발송되었습니다.");
+        } else if (sendNotification === true) {
+          alert(`반입예정정보는 저장되었지만 메일 발송에 실패했습니다.\n${result.email_message || "메일 환경설정을 확인해 주세요."}`);
+        } else {
+          alert("반입예정정보가 저장되었습니다.");
+        }
+      } catch (error) {
+        alert(`반입예정정보 처리 중 오류가 발생했습니다.\n${error.message || error}`);
+      } finally {
+        progressWarehouseSaving = false;
+        if (document.getElementById("progressWarehouseModalBg").style.display === "flex") {
+          actions.querySelectorAll("button").forEach(button => { button.disabled = false; });
+        }
       }
     }
     function openProgressStatus() {
@@ -1703,7 +1871,17 @@
 
     function applyManualFieldsToCard(card, payload, input) {
       const saved = input || {};
-      ["delivery_terms", "eta_date", "storage_yard", "free_time_days", "free_time_expiry_date", "warehouse_expected_date"].forEach(field => {
+      [
+        "delivery_terms",
+        "eta_date",
+        "storage_yard",
+        "free_time_days",
+        "free_time_expiry_date",
+        "warehouse_expected_date",
+        "transport_updated_by_role",
+        "transport_updated_by_login",
+        "transport_updated_at"
+      ].forEach(field => {
         card[field] = Object.prototype.hasOwnProperty.call(saved, field)
           ? (saved[field] ?? "")
           : (payload[field] ?? "");
@@ -2354,14 +2532,31 @@
         if (requestDate) {
           events.push({ date: requestDate, type: "request", text: `서류요청 ${label}` });
         }
-        const importRequestDate = calendarDate(card.last_import_requested_import_date);
+        const importRequestDate = calendarDate(
+          card.last_import_requested_import_date
+          || card.last_import_request?.requested_import_date
+          || card.last_import_request?.created_at
+        );
         if (importRequestDate) {
-          events.push({ date: importRequestDate, type: "request", text: `수입신고요청 ${label}` });
+          events.push({ date: importRequestDate, type: "import-request", text: `수입신고요청 ${label}` });
         }
+        const originalReceiptTypes = [];
+        if (card.obl_received) originalReceiptTypes.push("OBL");
+        if (card.hc_received) originalReceiptTypes.push("H/C");
         const actualDate = calendarDate(card.actual_received_date);
-        const effectiveActualDate = actualDate || effectiveOriginalReceiptDate(card);
-        if (effectiveActualDate) {
-          events.push({ date: effectiveActualDate, type: "actual", text: `서류수령 ${label}${card.doc_transfer_received ? " (양도증)" : ""}` });
+        const originalReceiptDate = actualDate
+          || (originalReceiptTypes.length ? koreaCalendarDate(card.original_docs_updated_at) : "");
+        if (originalReceiptDate && originalReceiptTypes.length) {
+          events.push({
+            date: originalReceiptDate,
+            type: "actual",
+            text: `서류수령 ${label} (${originalReceiptTypes.join(", ")})`
+          });
+        }
+        const transferReceiptDate = actualDate
+          || (card.doc_transfer_received ? koreaCalendarDate(card.original_docs_updated_at) : "");
+        if (transferReceiptDate && card.doc_transfer_received) {
+          events.push({ date: transferReceiptDate, type: "transfer", text: `서류수령 ${label} (양도증)` });
         }
         const warehouseDate = calendarDate(card.warehouse_expected_date);
         if (warehouseDate) {

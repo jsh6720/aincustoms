@@ -691,6 +691,21 @@ test("progress calendar includes the latest import request date", () => {
   const body = dashboard.slice(start, end);
   assert.match(body, /last_import_requested_import_date/);
   assert.match(body, /수입신고요청/);
+  assert.match(body, /type:\s*"import-request"/);
+  assert.match(body, /originalReceiptTypes\.push\("OBL"\)/);
+  assert.match(body, /originalReceiptTypes\.push\("H\/C"\)/);
+  assert.match(body, /originalReceiptTypes\.join\(", "\)/);
+  assert.match(body, /\(양도증\)/);
+});
+
+test("progress transport save sends an exact notification boolean and handles stale data", () => {
+  const start = dashboard.indexOf("async function saveProgressWarehouseEditor");
+  const end = dashboard.indexOf("function openProgressStatus", start);
+  const body = dashboard.slice(start, end);
+  assert.match(body, /send_notification:\s*sendNotification === true/);
+  assert.match(body, /response\.status === 409/);
+  assert.match(body, /await loadData\(\)/);
+  assert.match(body, /saveProgressWarehouseEditor\(sendNotification\)/);
 });
 
 test("import request handler defaults, persists, returns, and emails the Korea request date", { concurrency: false }, async () => {
