@@ -222,7 +222,7 @@
     .calendar-legend-label.eta { background:#eff6ff; color:#1d4ed8; border-color:#bfdbfe; }
     .calendar-legend input { width:auto; height:auto; margin:0; }
     .progress-table-wrap { overflow:auto; max-height:calc(100vh - 190px); }
-    .progress-table { width:100%; min-width:1984px; border-collapse:collapse; table-layout:fixed; font-size:11px; }
+    .progress-table { width:100%; min-width:2180px; border-collapse:collapse; table-layout:fixed; font-size:11px; }
     .progress-table th, .progress-table td { border-bottom:1px solid #edf1f4; padding:7px 8px; text-align:left; vertical-align:middle; word-break:keep-all; overflow-wrap:anywhere; }
     .progress-table th { position:sticky; top:0; z-index:1; background:#f7f9fb; color:#4b5663; font-size:10px; font-weight:900; text-align:center; }
     .progress-date { width:104px; min-width:104px; max-width:104px; text-align:center; vertical-align:middle; white-space:nowrap; font-size:10px; }
@@ -269,6 +269,7 @@
     body:not(.shipper-progress) .progress-shipper-only { display:none; }
     body:not(.shipper-progress) .progress-table { min-width:1860px; }
     .doc-o { color:#1b6b3a; background:#edf8f1; border:1px solid #b7dfc4; border-radius:999px; padding:1px 6px; }
+    .doc-triangle { color:#9a6700; background:#fff8db; border:1px solid #ead58b; border-radius:999px; padding:1px 6px; }
     .doc-x { color:#c92a2a; background:#fff1f1; border:1px solid #ffc9c9; border-radius:999px; padding:1px 6px; }
     .doc-na { color:#8b95a1; background:#f5f7f9; border:1px solid #e2e8ee; border-radius:999px; padding:1px 6px; }
     .doc-toggle { cursor:pointer; font:inherit; font-weight:900; }
@@ -454,15 +455,18 @@
                 <th class="progress-short center">육종</th>
                 <th class="progress-short center">인도조건</th>
                 <th class="progress-date">입항예정</th>
+                <th class="progress-date">만기(프리타임)</th>
                 <th class="progress-long">반입(예정)구역</th>
                 <th class="progress-date">반입예정일</th>
                 <th class="progress-short center">마일스톤</th>
                 <th class="progress-long">진행상태</th>
                 <th class="progress-short center progress-shipper-only">서류수령요청</th>
                 <th class="progress-short center progress-shipper-only">수입신고요청</th>
+                <th class="progress-date progress-admin-only">OBL 접수일</th>
                 <th class="progress-short center progress-admin-only">동물검역</th>
                 <th class="progress-short center progress-admin-only">식품검역</th>
                 <th class="progress-short center progress-admin-only">유통이력</th>
+                <th class="progress-short center progress-admin-only">스티커요청</th>
                 <th class="progress-short center">BL파일</th>
                 <th class="progress-short center">BL원본</th>
                 <th class="progress-short center">IV</th>
@@ -580,6 +584,10 @@
       <div class="modal-field">
         <label for="progressWarehouseEta">입항예정일</label>
         <input id="progressWarehouseEta" type="date">
+      </div>
+      <div class="modal-field">
+        <label for="progressFreeTimeExpiry">만기(프리타임)<span class="field-hint">기본 3일 · 입항일 포함</span></label>
+        <input id="progressFreeTimeExpiry" type="date">
       </div>
       <div class="modal-field">
         <label for="progressWarehouseYard">반입(예정)구역</label>
@@ -977,7 +985,12 @@
     }
 
     function isHiddenCard(card) {
-      return card && (card.is_hidden === true || card.is_hidden === "true");
+      return card && (
+        card.is_hidden === true ||
+        card.is_hidden === "true" ||
+        card.source_missing === true ||
+        card.permanently_excluded === true
+      );
     }
     function isVisibleCard(card) {
       return !isFullyReleased(card) && (
@@ -1040,6 +1053,15 @@
         <option value="X" ${v === "X" ? "selected" : ""}>X</option>
       `;
     }
+    function inspectionOptions(value) {
+      const v = value || "";
+      return `
+        <option value="" ${!v ? "selected" : ""}>자동</option>
+        <option value="O" ${v === "O" ? "selected" : ""}>O (합격)</option>
+        <option value="△" ${v === "△" ? "selected" : ""}>△ (신청서 작성)</option>
+        <option value="X" ${v === "X" ? "selected" : ""}>X</option>
+      `;
+    }
     function distributionHistoryBadge(card) {
       if (!distributionHistoryTarget(card) && !card.distribution_history_override && !card.distribution_history_number) return "";
       const status = card.distribution_history_override || "-";
@@ -1056,10 +1078,10 @@
           <div class="admin-status-title">관리자 상태관리</div>
           <div class="admin-status-grid">
             <label>동물검역
-              <select id="adminAnimal-${esc(bl)}">${oxOptions(card.animal_quarantine_override)}</select>
+              <select id="adminAnimal-${esc(bl)}">${inspectionOptions(card.animal_quarantine_override)}</select>
             </label>
             <label>식품검역
-              <select id="adminFood-${esc(bl)}">${oxOptions(card.food_quarantine_override)}</select>
+              <select id="adminFood-${esc(bl)}">${inspectionOptions(card.food_quarantine_override)}</select>
             </label>
             <label>수입신고
               <select id="adminImport-${esc(bl)}">${oxOptions(card.import_declaration_override)}</select>
@@ -1070,6 +1092,9 @@
             <label class="wide">유통이력 신고번호
               <input id="adminDistNo-${esc(bl)}" value="${esc(card.distribution_history_number || "")}" placeholder="필요 시 입력">
             </label>` : ""}
+            <label>스티커요청
+              <select id="adminSticker-${esc(bl)}">${oxOptions(card.sticker_requested ? "O" : "X")}</select>
+            </label>
           </div>
           <div class="admin-status-actions">
             <button type="button" class="btn green" data-card-action="admin-status-save" data-card-index="${cardIndex}" style="height:22px;padding:2px 8px;font-size:9.5px">저장</button>
@@ -1118,15 +1143,29 @@
       return `${y}-${m}-${d}`;
     }
     function freeTimeBaseDate(card, values) {
-      return manualValue(card, "first_arrival_date") || values.eta_date || "";
+      return values.eta_date || manualValue(card, "first_arrival_date") || "";
     }
     function freeTimeDisplay(card, values) {
-      const days = parseInt(values.free_time_days, 10);
+      const override = values.free_time_expiry_override || values.free_time_expiry_date;
+      if (override) return `${parseInt(values.free_time_days, 10) || 3}일 (${override})`;
+      const days = parseInt(values.free_time_days, 10) || 3;
       if (Number.isFinite(days) && days > 0) {
         const expiry = addDaysInclusive(freeTimeBaseDate(card, values), String(days));
         return `${days}일${expiry ? ` (${expiry})` : ""}`;
       }
-      return values.free_time_expiry_date;
+      return "";
+    }
+    function freeTimeExpiryText(card) {
+      const values = {
+        eta_date: manualValue(card, "eta_date"),
+        free_time_days: manualValue(card, "free_time_days") || "3",
+        free_time_expiry_date: manualValue(card, "free_time_expiry_date"),
+        free_time_expiry_override: manualValue(card, "free_time_expiry_override"),
+      };
+      return values.free_time_expiry_override
+        || values.free_time_expiry_date
+        || addDaysInclusive(freeTimeBaseDate(card, values), values.free_time_days)
+        || "-";
     }
     function manualFieldsHtml(card, cardIndex) {
       const bl = card.bl_number || "";
@@ -1135,8 +1174,9 @@
         delivery_terms: manualValue(card, "delivery_terms"),
         eta_date: manualValue(card, "eta_date"),
         storage_yard: manualValue(card, "storage_yard"),
-        free_time_days: manualValue(card, "free_time_days"),
+        free_time_days: manualValue(card, "free_time_days") || "3",
         free_time_expiry_date: manualValue(card, "free_time_expiry_date"),
+        free_time_expiry_override: manualValue(card, "free_time_expiry_override"),
         warehouse_expected_date: manualValue(card, "warehouse_expected_date"),
       };
       const freeTimeText = freeTimeDisplay(card, values);
@@ -1158,7 +1198,7 @@
             <label>인도조건<input id="manualDelivery-${esc(bl)}" value="${esc(values.delivery_terms)}" placeholder="예: CIF, FOB"></label>
             <label>입항예정일<input id="manualEta-${esc(bl)}" type="date" value="${esc(values.eta_date)}"></label>
             <label>장치장<input id="manualYard-${esc(bl)}" value="${esc(values.storage_yard)}" placeholder="예: 부산신항"></label>
-            <label>프리타임 일수<input id="manualFree-${esc(bl)}" type="number" min="1" step="1" value="${esc(values.free_time_days)}" placeholder="예: 14"></label>
+             <label>프리타임 일수<input id="manualFree-${esc(bl)}" type="number" min="1" step="1" value="${esc(values.free_time_days)}" placeholder="기본 3"></label>
             <label>보세창고 입고 예정일<input id="manualWh-${esc(bl)}" type="date" value="${esc(values.warehouse_expected_date)}"></label>
             <div class="manual-actions">
               <button type="button" class="btn gray" data-card-action="manual-clear" data-card-index="${cardIndex}" style="height:22px;padding:2px 7px;font-size:9.5px">초기화</button>
@@ -1315,7 +1355,7 @@
       return card.product_name || "-";
     }
     function etaText(card) {
-      return card.eta_date || card.entry_date || card.first_arrival_date || "-";
+      return card.eta_date || card.first_arrival_date || card.entry_date || "-";
     }
     function yardText(card) {
       return card.storage_yard || card.shed_name || "-";
@@ -1358,6 +1398,11 @@
       if (!required) return `<span class="doc-na">-</span>`;
       return received ? `<span class="doc-o">O</span>` : `<span class="doc-x">X</span>`;
     }
+    function inspectionStatusLabel(status) {
+      if (status === "O") return `<span class="doc-o">O</span>`;
+      if (status === "△") return `<span class="doc-triangle">△</span>`;
+      return `<span class="doc-x">X</span>`;
+    }
     function inspectionPassed(value) {
       const text = String(value || "").trim();
       if (text === "O") return true;
@@ -1385,15 +1430,22 @@
       const idx = currentCards.indexOf(card);
       if (type === "animal") {
         const lockedByApi = !card.animal_quarantine_override && inspectionPassed(card.animal_quarantine);
-        const isOn = inspectionPassed(card.animal_quarantine);
-        if (currentUserRole !== "admin" || lockedByApi) return docStatusLabel(isOn);
-        return `<button type="button" class="doc-toggle ${isOn ? "doc-o" : "doc-x"}" onclick="toggleProgressManualStatus(${idx}, 'animal')">${isOn ? "O" : "X"}</button>`;
+        const status = card.animal_quarantine_override || (inspectionPassed(card.animal_quarantine) ? "O" : "X");
+        if (currentUserRole !== "admin" || lockedByApi) return inspectionStatusLabel(status);
+        const statusClass = status === "O" ? "doc-o" : (status === "△" ? "doc-triangle" : "doc-x");
+        return `<button type="button" class="doc-toggle ${statusClass}" onclick="toggleProgressManualStatus(${idx}, 'animal')">${status}</button>`;
       }
       if (type === "food") {
         const lockedByApi = !card.food_quarantine_override && inspectionPassed(card.food_quarantine);
-        const isOn = inspectionPassed(card.food_quarantine);
-        if (currentUserRole !== "admin" || lockedByApi) return docStatusLabel(isOn);
-        return `<button type="button" class="doc-toggle ${isOn ? "doc-o" : "doc-x"}" onclick="toggleProgressManualStatus(${idx}, 'food')">${isOn ? "O" : "X"}</button>`;
+        const status = card.food_quarantine_override || (inspectionPassed(card.food_quarantine) ? "O" : "X");
+        if (currentUserRole !== "admin" || lockedByApi) return inspectionStatusLabel(status);
+        const statusClass = status === "O" ? "doc-o" : (status === "△" ? "doc-triangle" : "doc-x");
+        return `<button type="button" class="doc-toggle ${statusClass}" onclick="toggleProgressManualStatus(${idx}, 'food')">${status}</button>`;
+      }
+      if (type === "sticker") {
+        const isOn = card.sticker_requested === true;
+        if (currentUserRole !== "admin") return docStatusLabel(isOn);
+        return `<button type="button" class="doc-toggle ${isOn ? "doc-o" : "doc-x"}" onclick="toggleProgressManualStatus(${idx}, 'sticker')">${isOn ? "O" : "X"}</button>`;
       }
       if (!distributionHistoryTarget(card) && !card.distribution_history_override && !card.distribution_history_number) return `<span class="doc-na">-</span>`;
       const isOn = (card.distribution_history_override || (card.distribution_history_number ? "O" : "X")) === "O";
@@ -1417,14 +1469,29 @@
       if (currentUserRole !== "admin") return docStatusLabel(received);
       return `<button type="button" class="doc-toggle ${received ? "doc-o" : "doc-x"}" title="${esc(date)}" data-doc-type="${esc(docType)}" onclick="saveProgressOriginalDoc(${currentCards.indexOf(card)}, this.dataset.docType)">${label}</button>`;
     }
+    function progressOblCarrierToggle(card) {
+      const submitted = card.obl_carrier_submitted === true;
+      const date = calendarDate(card.obl_carrier_submitted_date);
+      if (currentUserRole !== "admin") return submitted ? esc(displayDate(date)) : "-";
+      return `<button type="button" class="progress-edit-btn ${submitted ? "doc-o" : "doc-x"}"
+        title="${submitted ? `접수자 ${esc(card.obl_carrier_submitted_by || "-")}` : "OBL 선사 접수일 입력"}"
+        onclick="saveProgressOblCarrier(${currentCards.indexOf(card)})">${submitted ? esc(displayDate(date)) : "X"}</button>`;
+    }
     function effectiveOriginalReceiptDate(card) {
       if (!card?.obl_received && !card?.hc_received) return "";
       return calendarDate(card.actual_received_date) || koreaCalendarDate(card.original_docs_updated_at);
     }
     function progressSort(a, b) {
-      return String(a.bl_number || "").localeCompare(String(b.bl_number || ""), "ko")
-        || String(a.destination || "").localeCompare(String(b.destination || ""), "ko")
-        || String(meatType(a)).localeCompare(String(meatType(b)), "ko");
+      const stages = ["입항전", "입항", "반입", "수입신고", "반출"];
+      const destinationCompare = progressDestination(a.destination).localeCompare(progressDestination(b.destination), "ko");
+      if (destinationCompare) return destinationCompare;
+      const etaA = calendarDate(etaText(a)) || "9999-12-31";
+      const etaB = calendarDate(etaText(b)) || "9999-12-31";
+      const etaCompare = etaA.localeCompare(etaB);
+      if (etaCompare) return etaCompare;
+      const stageCompare = (stages.indexOf(a.stage) < 0 ? stages.length : stages.indexOf(a.stage))
+        - (stages.indexOf(b.stage) < 0 ? stages.length : stages.indexOf(b.stage));
+      return stageCompare || String(a.bl_number || "").localeCompare(String(b.bl_number || ""), "ko");
     }
     function transportProvenanceClass(card) {
       return card?.transport_updated_by_role === "shipper" ? " progress-shipper-input" : "";
@@ -1643,6 +1710,8 @@
       const action = control.dataset.cardAction;
       if (action === "card-visibility") {
         setCardHidden(card.account_id, card.bl_number, control.dataset.hidden === "true");
+      } else if (action === "card-exclusion") {
+        setCardExclusion(card.account_id, card.bl_number, control.dataset.excluded === "true");
       } else if (action === "admin-status-save") {
         const showDistribution = !!(distributionHistoryTarget(card) || card.distribution_history_override || card.distribution_history_number);
         saveAdminStatus(card.account_id, card.bl_number, showDistribution);
@@ -1747,6 +1816,10 @@
               ${progressTransportTooltip(card, currentCards.indexOf(card), "eta")}
             </span>
           </td>
+          <td class="progress-date">
+            <button type="button" class="progress-edit-btn" ${progressTransportDisabled()}
+              onclick="openProgressWarehouseEditor(${currentCards.indexOf(card)})">${esc(displayDate(freeTimeExpiryText(card)))}</button>
+          </td>
           <td class="progress-long">
             <span class="progress-request-wrap progress-transport-wrap">
               <button type="button" class="progress-edit-btn${transportProvenanceClass(card)} progress-tooltip-control"
@@ -1769,9 +1842,11 @@
           <td class="progress-long progress-state-cell"><span>${esc(progressStateText(card))}</span>${progressAdminRequestIndicators(card)}</td>
           ${progressRequestToggle(card, "docs")}
           ${progressRequestToggle(card, "import")}
+          <td class="progress-date progress-admin-only">${progressOblCarrierToggle(card)}</td>
           <td class="progress-short center progress-admin-only">${progressManualStatusToggle(card, "animal")}</td>
           <td class="progress-short center progress-admin-only">${progressManualStatusToggle(card, "food")}</td>
           <td class="progress-short center progress-admin-only">${progressManualStatusToggle(card, "distribution")}</td>
+          <td class="progress-short center progress-admin-only">${progressManualStatusToggle(card, "sticker")}</td>
           <td class="progress-short center">${docStatusLabel(!!card.doc_bl_received)}</td>
           <td class="progress-short center">${progressDocToggle(card, "obl")}</td>
           <td class="progress-short center">${docStatusLabel(!!card.doc_iv_received)}</td>
@@ -1783,7 +1858,60 @@
           <td class="progress-short center">${docStatusLabel(!!card.doc_insurance_received, insuranceRequired(card))}</td>
           <td class="progress-short center">${docStatusLabel(!!card.doc_freight_invoice_received, freightRequired(card))}</td>
         </tr>
-      `).join("") : `<tr><td colspan="${currentUserRole === "admin" ? 24 : 26}" style="text-align:center;color:#8b95a1">표시할 BL이 없습니다.</td></tr>`;
+      `).join("") : `<tr><td colspan="${currentUserRole === "admin" ? 27 : 24}" style="text-align:center;color:#8b95a1">표시할 BL이 없습니다.</td></tr>`;
+    }
+    async function saveProgressOblCarrier(cardIndex) {
+      if (currentUserRole !== "admin") return;
+      const card = currentCards[cardIndex];
+      if (!card) return;
+      const submitted = card.obl_carrier_submitted === true;
+      let date = "";
+      if (submitted) {
+        if (!confirm(`${card.bl_number} OBL 선사 접수 상태를 취소할까요?`)) return;
+      } else {
+        date = prompt("OBL 선사 접수일을 입력해 주세요. (YYYY-MM-DD)", koreaCalendarDate(new Date().toISOString())) || "";
+        if (!date) return;
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+          alert("날짜는 YYYY-MM-DD 형식으로 입력해 주세요.");
+          return;
+        }
+      }
+      const response = await fetch("/api/cargo-quota", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "obl_carrier_submission",
+          account_id: card.account_id,
+          bl_number: card.bl_number,
+          obl_carrier_submitted: !submitted,
+          obl_carrier_submitted_date: date,
+        }),
+      });
+      const result = await response.json();
+      if (!result.success) {
+        alert(result.message || "OBL 접수 상태 저장에 실패했습니다.");
+        return;
+      }
+      if (!submitted && confirm("OBL 접수 확인 메일도 발송할까요?")) {
+        const additionalRecipients = prompt("추가 받는 사람이 있으면 이메일을 입력해 주세요. (선택)", "") || "";
+        const memo = prompt("확인사항이 있으면 입력해 주세요. (선택)", "") || "";
+        const mailResponse = await fetch("/api/cargo-original-doc-receipt-mail", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "obl_carrier_submission",
+            account_id: card.account_id,
+            bl_number: card.bl_number,
+            obl_carrier_submitted_date: date,
+            memo,
+            additional_recipients: additionalRecipients,
+          }),
+        });
+        const mailResult = await mailResponse.json();
+        if (!mailResult.success) alert(mailResult.message || "OBL 접수 메일 발송에 실패했습니다.");
+      }
+      await loadData();
+      renderProgressStatus();
     }
     function openProgressWarehouseEditor(cardIndex) {
       if (currentUserRole === "viewer") return;
@@ -1795,6 +1923,7 @@
         <div class="modal-row"><b>B/L</b><span>${esc(progressWarehouseCard.bl_number || "-")}</span></div>
       `;
       document.getElementById("progressWarehouseEta").value = calendarDate(etaText(progressWarehouseCard));
+      document.getElementById("progressFreeTimeExpiry").value = calendarDate(freeTimeExpiryText(progressWarehouseCard));
       document.getElementById("progressWarehouseYard").value = progressWarehouseCard.storage_yard || progressWarehouseCard.shed_name || "";
       document.getElementById("progressWarehouseDate").value = calendarDate(progressWarehouseCard.warehouse_expected_date);
       document.getElementById("progressWarehouseModalActions").innerHTML = currentUserRole === "admin"
@@ -1829,8 +1958,15 @@
         send_notification: sendNotification === true,
       };
       const etaDate = document.getElementById("progressWarehouseEta").value || "";
-      if (etaDate !== calendarDate(etaText(card)) || card.eta_date) {
+      if (etaDate !== calendarDate(etaText(card))) {
         payload.eta_date = etaDate;
+      }
+      const expiryDate = document.getElementById("progressFreeTimeExpiry").value || "";
+      if (expiryDate !== calendarDate(freeTimeExpiryText(card))) {
+        payload.free_time_expiry_override = expiryDate;
+      }
+      if (!card.free_time_days || Number(card.free_time_days) !== 3) {
+        payload.free_time_days = 3;
       }
       const blNumber = card.bl_number;
       try {
@@ -1934,11 +2070,15 @@
     function adminHideButton(card, cardIndex) {
       if (currentUserRole !== "admin") return "";
       const hidden = isHiddenCard(card);
+      const lifecycleAction = card.permanently_excluded
+        ? `<button type="button" class="hide-card-btn restore" data-card-action="card-exclusion" data-card-index="${cardIndex}" data-excluded="false">제외 복구</button>`
+        : (hidden
+          ? `<button type="button" class="hide-card-btn" data-card-action="card-exclusion" data-card-index="${cardIndex}" data-excluded="true">영구 제외</button>`
+          : "");
       return `
         <div class="admin-card-actions">
-          <button type="button" class="hide-card-btn${hidden ? " restore" : ""}" data-card-action="card-visibility" data-card-index="${cardIndex}" data-hidden="${hidden ? "false" : "true"}">
-            ${hidden ? "숨김 해제" : "숨김"}
-          </button>
+          ${!card.source_missing && !card.permanently_excluded ? `<button type="button" class="hide-card-btn${hidden ? " restore" : ""}" data-card-action="card-visibility" data-card-index="${cardIndex}" data-hidden="${hidden ? "false" : "true"}">${hidden ? "숨김 해제" : "숨김"}</button>` : ""}
+          ${lifecycleAction}
         </div>
       `;
     }
@@ -1958,6 +2098,28 @@
       const result = await response.json();
       if (!result.success) {
         alert(result.message || "카드 숨김 상태 저장에 실패했습니다.");
+        return;
+      }
+      await loadData();
+    }
+
+    async function setCardExclusion(accountId, blNumber, excluded) {
+      const message = excluded
+        ? "이 BL을 영구 제외하시겠습니까? 제외 이력에서 다시 복구할 수 있습니다."
+        : "이 BL의 영구 제외를 복구하시겠습니까?";
+      if (!confirm(message)) return;
+      const response = await fetch("/api/cargo-card-visibility", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: excluded ? "permanent_exclude" : "restore_exclusion",
+          account_id: accountId,
+          bl_number: blNumber,
+        }),
+      });
+      const result = await response.json();
+      if (!result.success) {
+        alert(result.message || "영구 제외 상태 저장에 실패했습니다.");
         return;
       }
       await loadData();
@@ -2000,6 +2162,7 @@
         "storage_yard",
         "free_time_days",
         "free_time_expiry_date",
+        "free_time_expiry_override",
         "warehouse_expected_date",
         "transport_updated_by_role",
         "transport_updated_by_login",
@@ -2034,8 +2197,8 @@
         delivery_terms: document.getElementById(`manualDelivery-${blNumber}`)?.value || "",
         eta_date: document.getElementById(`manualEta-${blNumber}`)?.value || "",
         storage_yard: document.getElementById(`manualYard-${blNumber}`)?.value || "",
-        free_time_days: document.getElementById(`manualFree-${blNumber}`)?.value || "",
-        free_time_expiry_date: "",
+        free_time_days: document.getElementById(`manualFree-${blNumber}`)?.value || "3",
+        free_time_expiry_override: "",
         warehouse_expected_date: document.getElementById(`manualWh-${blNumber}`)?.value || "",
       };
       const response = await fetch("/api/cargo-quota", {
@@ -2060,7 +2223,7 @@
       document.getElementById(`manualDelivery-${blNumber}`).value = "";
       document.getElementById(`manualEta-${blNumber}`).value = "";
       document.getElementById(`manualYard-${blNumber}`).value = "";
-      document.getElementById(`manualFree-${blNumber}`).value = "";
+      document.getElementById(`manualFree-${blNumber}`).value = "3";
       document.getElementById(`manualWh-${blNumber}`).value = "";
       await saveManualFields(event, accountId, blNumber);
     }
@@ -2121,13 +2284,19 @@
       const card = currentCards[cardIndex];
       if (!card || !card.bl_number) return;
 
-      const labels = { animal: "동물검역", food: "식품검역", distribution: "유통이력" };
+      const labels = { animal: "동물검역", food: "식품검역", distribution: "유통이력", sticker: "스티커요청" };
       let currentOn = false;
       if (type === "animal") currentOn = inspectionPassed(card.animal_quarantine);
       if (type === "food") currentOn = inspectionPassed(card.food_quarantine);
       if (type === "distribution") currentOn = (card.distribution_history_override || (card.distribution_history_number ? "O" : "X")) === "O";
+      if (type === "sticker") currentOn = card.sticker_requested === true;
 
-      const next = currentOn ? "X" : "O";
+      let next = currentOn ? "X" : "O";
+      if (type === "animal" || type === "food") {
+        const field = type === "animal" ? "animal_quarantine_override" : "food_quarantine_override";
+        const current = card[field] || (currentOn ? "O" : "X");
+        next = current === "X" ? "△" : (current === "△" ? "O" : "X");
+      }
       let distributionNumber = card.distribution_history_number || "";
       if (type === "distribution" && next === "O") {
         const entered = await distributionNumberFromPrompts(card);
@@ -2137,17 +2306,18 @@
 
       if (!confirm(`${card.bl_number} ${labels[type]} 상태를 ${next}로 변경할까요?`)) return;
 
-      const hasDistribution = distributionHistoryTarget(card) || card.distribution_history_override || card.distribution_history_number || type === "distribution";
       const payload = {
         action: "admin_status",
         account_id: card.account_id,
         bl_number: card.bl_number,
-        animal_quarantine_override: type === "animal" ? next : (card.animal_quarantine_override || ""),
-        food_quarantine_override: type === "food" ? next : (card.food_quarantine_override || ""),
-        import_declaration_override: card.import_declaration_override || "",
-        distribution_history_override: hasDistribution ? (type === "distribution" ? next : (card.distribution_history_override || "")) : "",
-        distribution_history_number: hasDistribution ? (type === "distribution" && next === "X" ? "" : distributionNumber) : "",
       };
+      if (type === "animal") payload.animal_quarantine_override = next;
+      if (type === "food") payload.food_quarantine_override = next;
+      if (type === "distribution") {
+        payload.distribution_history_override = next;
+        payload.distribution_history_number = next === "X" ? "" : distributionNumber;
+      }
+      if (type === "sticker") payload.sticker_requested = next === "O";
       const response = await fetch("/api/cargo-quota", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -2182,6 +2352,7 @@
         import_declaration_override: document.getElementById(`adminImport-${blNumber}`)?.value || "",
         distribution_history_override: distributionStatus,
         distribution_history_number: distributionNumber,
+        sticker_requested: (document.getElementById(`adminSticker-${blNumber}`)?.value || "X") === "O",
       };
       const response = await fetch("/api/cargo-quota", {
         method: "POST",

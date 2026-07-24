@@ -59,7 +59,35 @@ function buildMail(card, totalPages, memo) {
   };
 }
 
-async function sendMail(card, totalPages, memo, additionalRecipients) {
+function buildOblCarrierMail(card, submittedDate, memo) {
+  const consignee = card.consignee || "-";
+  const blNumber = card.bl_number || "-";
+  return {
+    subject: `[OBL 선사 접수 확인] ${consignee} / ${blNumber}`,
+    text: [
+      "안녕하세요.",
+      "",
+      "아래 건의 OBL 원본을 선사에 접수하였습니다.",
+      `OBL 접수일: ${submittedDate}`,
+      "",
+      "[화물 정보]",
+      `화주명: ${consignee}`,
+      `B/L: ${blNumber}`,
+      `반출처: ${card.destination || "-"}`,
+      `품명: ${card.product_name || "-"}`,
+      `마일스톤: ${card.stage || "-"}`,
+      `진행상태: ${card.prgs_stts || "-"}`,
+      "",
+      "[확인사항]",
+      memo || "-",
+      "",
+      "감사합니다.",
+      "아인합동관세사무소",
+    ].join("\n"),
+  };
+}
+
+async function sendMail(mail, additionalRecipients) {
   const host = env("SMTP_HOST");
   const user = env("SMTP_USER");
   const pass = env("SMTP_PASS");
@@ -75,7 +103,6 @@ async function sendMail(card, totalPages, memo, additionalRecipients) {
     secure,
     auth: { user, pass },
   });
-  const mail = buildMail(card, totalPages, memo);
   const recipients = mergeRecipients(RECEIPT_TO, additionalRecipients);
   await transporter.sendMail({
     from: env("MAIL_FROM") || user,
@@ -106,13 +133,21 @@ module.exports = async function handler(req, res) {
     const blNumber = cleanText(body.bl_number, 80);
     const totalPages = cleanText(body.total_pages, 20);
     const memo = cleanText(body.memo, 1500);
+    const action = cleanText(body.action, 80) || "hc_receipt";
+    const submittedDate = cleanText(body.obl_carrier_submitted_date, 20);
     const additionalRecipients = parseRecipientList(cleanText(body.additional_recipients, 1500));
 
     if (!accountId || !blNumber) {
       return res.status(400).json({ success: false, message: "카드 정보가 올바르지 않습니다." });
     }
-    if (!totalPages || Number(totalPages) <= 0) {
+    if (action === "hc_receipt" && (!totalPages || Number(totalPages) <= 0)) {
       return res.status(400).json({ success: false, message: "수령한 전체 페이지를 입력해 주세요." });
+    }
+    if (action === "obl_carrier_submission" && !/^\d{4}-\d{2}-\d{2}$/.test(submittedDate)) {
+      return res.status(400).json({ success: false, message: "OBL 접수일을 입력해 주세요." });
+    }
+    if (!["hc_receipt", "obl_carrier_submission"].includes(action)) {
+      return res.status(400).json({ success: false, message: "지원하지 않는 메일 유형입니다." });
     }
 
     const account = encodeURIComponent(accountId);
@@ -124,7 +159,10 @@ module.exports = async function handler(req, res) {
       return res.status(404).json({ success: false, message: "카드 정보를 찾지 못했습니다." });
     }
 
-    await sendMail(cards[0], totalPages, memo, additionalRecipients);
+    const mail = action === "obl_carrier_submission"
+      ? buildOblCarrierMail(cards[0], submittedDate, memo)
+      : buildMail(cards[0], totalPages, memo);
+    await sendMail(mail, additionalRecipients);
     return res.status(200).json({ success: true, email_sent: true });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });

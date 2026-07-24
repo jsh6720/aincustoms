@@ -4,6 +4,10 @@ const {
   normalizeTransferOverride,
   receiptDateForSave,
 } = require("../lib/cargo-original-doc-utils");
+const {
+  linkedAccountIds,
+  mergeOriginalDocRows,
+} = require("../lib/cargo-linked-records");
 
 function boolValue(value) {
   return value === true || value === "true" || value === "O" || value === "1" || value === 1;
@@ -31,6 +35,43 @@ async function findOriginalDoc(accountId, blNumber) {
     `/rest/v1/cargo_original_docs?select=*&account_id=eq.${account}&bl_number=eq.${bl}&limit=1`
   );
   return rows && rows[0] ? rows[0] : null;
+}
+
+async function findLinkedCards(card) {
+  const bl = encodeURIComponent(card.bl_number);
+  const folderName = String(card.folder_name || "").trim();
+  if (!folderName) return [card];
+  const folder = encodeURIComponent(folderName);
+  const rows = await supabaseFetch(
+    `/rest/v1/cargo_cards?select=account_id,bl_number,folder_name&bl_number=eq.${bl}&folder_name=eq.${folder}`
+  );
+  return rows && rows.length ? rows : [card];
+}
+
+async function findLinkedOriginalDocs(card, linkedCards) {
+  const accountIds = linkedAccountIds(card, linkedCards);
+  const rows = [];
+  for (const accountId of accountIds) {
+    const item = await findOriginalDoc(accountId, card.bl_number);
+    if (item) rows.push(item);
+  }
+  return rows;
+}
+
+async function upsertLinkedOriginalDocs(card, linkedCards, payload) {
+  const accountIds = linkedAccountIds(card, linkedCards);
+  const results = [];
+  let transferOverrideSaved = true;
+  for (const accountId of accountIds) {
+    const saved = await upsertOriginalDoc({
+      ...payload,
+      account_id: accountId,
+      bl_number: card.bl_number,
+    });
+    transferOverrideSaved = transferOverrideSaved && saved.transferOverrideSaved;
+    if (saved.rows && saved.rows[0]) results.push(saved.rows[0]);
+  }
+  return { rows: results, transferOverrideSaved };
 }
 
 async function upsertOriginalDoc(payload) {
@@ -71,15 +112,33 @@ async function findLatestOriginalDocRequest(accountId, blNumber) {
   const account = encodeURIComponent(accountId);
   const bl = encodeURIComponent(blNumber);
   const rows = await supabaseFetch(
-    `/rest/v1/cargo_original_doc_requests?select=id,account_id,bl_number,requested_receipt_date&account_id=eq.${account}&bl_number=eq.${bl}&order=created_at.desc&limit=1`
+    `/rest/v1/cargo_original_doc_requests?select=id,account_id,bl_number,requested_receipt_date,created_at&account_id=eq.${account}&bl_number=eq.${bl}&order=created_at.desc&limit=1`
   );
   return rows && rows[0] ? rows[0] : null;
 }
 
-async function saveRequestedReceiptDate(accountId, blNumber, requestedReceiptDate, card) {
+async function findLatestLinkedOriginalDocRequest(card, linkedCards) {
+  const requests = [];
+  for (const accountId of linkedAccountIds(card, linkedCards)) {
+    const item = await findLatestOriginalDocRequest(accountId, card.bl_number);
+    if (item) requests.push(item);
+  }
+  requests.sort((left, right) => (
+    String(right.created_at || "").localeCompare(String(left.created_at || ""))
+  ));
+  return requests[0] || null;
+}
+
+async function saveRequestedReceiptDate(
+  accountId,
+  blNumber,
+  requestedReceiptDate,
+  card,
+  linkedCards
+) {
   if (requestedReceiptDate === undefined) return null;
   const nextDate = dateOrNull(requestedReceiptDate);
-  const latest = await findLatestOriginalDocRequest(accountId, blNumber);
+  const latest = await findLatestLinkedOriginalDocRequest(card, linkedCards);
   if (latest) {
     const id = encodeURIComponent(latest.id);
     const rows = await supabaseFetch(`/rest/v1/cargo_original_doc_requests?id=eq.${id}`, {
@@ -119,7 +178,10 @@ async function saveAdminItem(session, item) {
   }
 
   const approvePending = item.approve_pending === true || item.approve_pending === "true";
-  const existing = await findOriginalDoc(accountId, blNumber);
+  const linkedCards = await findLinkedCards(card);
+  const existing = mergeOriginalDocRows(
+    await findLinkedOriginalDocs(card, linkedCards)
+  );
   const oblReceived = boolValue(item.obl_received);
   const hcReceived = boolValue(item.hc_received);
   const existingHadReceipt = !!existing?.obl_received || !!existing?.hc_received;
@@ -165,14 +227,15 @@ async function saveAdminItem(session, item) {
     || actualReceivedDate !== dateOrNull(existing.actual_received_date)
     || transferChanged;
   const saved = originalChanged
-    ? await upsertOriginalDoc(payload)
+    ? await upsertLinkedOriginalDocs(card, linkedCards, payload)
     : { rows: [existing], transferOverrideSaved: true };
   const { rows, transferOverrideSaved } = saved;
   const request = await saveRequestedReceiptDate(
     accountId,
     blNumber,
     item.requested_receipt_date,
-    card
+    card,
+    linkedCards
   );
 
   return {
@@ -192,23 +255,18 @@ async function saveShipperPending(session, body) {
   if (!actualReceivedDate) {
     throw new Error("실제수령일을 입력해 주세요.");
   }
-  const card = await findCard(accountId, blNumber);
+  const card = await findCard(accountId, blNumber, true);
   if (!card) {
     throw new Error("해당 B/L 카드를 찾을 수 없습니다.");
   }
+  const linkedCards = await findLinkedCards(card);
   const payload = {
-    account_id: accountId,
-    bl_number: blNumber,
     pending_actual_received_date: actualReceivedDate,
     pending_actual_received_date_by: session.login_id || "shipper",
     pending_actual_received_date_at: new Date().toISOString(),
     updated_by: session.login_id || "shipper",
   };
-  const rows = await supabaseFetch("/rest/v1/cargo_original_docs?on_conflict=account_id,bl_number", {
-    method: "POST",
-    headers: { Prefer: "resolution=merge-duplicates,return=representation" },
-    body: JSON.stringify(payload),
-  });
+  const { rows } = await upsertLinkedOriginalDocs(card, linkedCards, payload);
   return rows && rows[0] ? rows[0] : payload;
 }
 

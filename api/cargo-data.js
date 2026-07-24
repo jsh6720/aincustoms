@@ -5,6 +5,10 @@ const {
   validateCalendarPreferences,
 } = require("../lib/cargo-calendar-preferences");
 const { mergeDuplicateCargoCards } = require("../lib/cargo-card-merge");
+const {
+  latestLinkedRequest,
+  mergeLinkedOriginalDocs,
+} = require("../lib/cargo-linked-records");
 
 const STAGE_ORDER = ["입항전", "입항", "반입", "수입신고", "반출"];
 const IMPORT_DECLARE_DAYS = 30;
@@ -130,13 +134,13 @@ function computeQuotaMessages(card) {
 async function fetchUserInputs(accountId) {
   try {
     const query = accountId
-      ? `/rest/v1/cargo_card_user_inputs?select=account_id,bl_number,is_quota,quota_permit_date,is_hidden,hidden_at,hidden_by,delivery_terms,eta_date,storage_yard,free_time_days,free_time_expiry_date,warehouse_expected_date,animal_quarantine_override,food_quarantine_override,import_declaration_override,distribution_history_override,distribution_history_number,transport_updated_by_role,transport_updated_by_login,transport_updated_at,updated_at&account_id=eq.${accountId}`
-      : "/rest/v1/cargo_card_user_inputs?select=account_id,bl_number,is_quota,quota_permit_date,is_hidden,hidden_at,hidden_by,delivery_terms,eta_date,storage_yard,free_time_days,free_time_expiry_date,warehouse_expected_date,animal_quarantine_override,food_quarantine_override,import_declaration_override,distribution_history_override,distribution_history_number,transport_updated_by_role,transport_updated_by_login,transport_updated_at,updated_at";
+      ? `/rest/v1/cargo_card_user_inputs?select=account_id,bl_number,is_quota,quota_permit_date,is_hidden,hidden_at,hidden_by,delivery_terms,eta_date,storage_yard,free_time_days,free_time_expiry_date,free_time_expiry_override,warehouse_expected_date,animal_quarantine_override,food_quarantine_override,import_declaration_override,distribution_history_override,distribution_history_number,sticker_requested,obl_carrier_submitted,obl_carrier_submitted_date,obl_carrier_submitted_by,obl_carrier_submitted_at,transport_updated_by_role,transport_updated_by_login,transport_updated_at,updated_at&account_id=eq.${accountId}`
+      : "/rest/v1/cargo_card_user_inputs?select=account_id,bl_number,is_quota,quota_permit_date,is_hidden,hidden_at,hidden_by,delivery_terms,eta_date,storage_yard,free_time_days,free_time_expiry_date,free_time_expiry_override,warehouse_expected_date,animal_quarantine_override,food_quarantine_override,import_declaration_override,distribution_history_override,distribution_history_number,sticker_requested,obl_carrier_submitted,obl_carrier_submitted_date,obl_carrier_submitted_by,obl_carrier_submitted_at,transport_updated_by_role,transport_updated_by_login,transport_updated_at,updated_at";
     return await supabaseFetch(
       query
     );
   } catch (error) {
-    if (["is_hidden", "delivery_terms", "eta_date", "storage_yard", "free_time_days", "free_time_expiry_date", "warehouse_expected_date", "animal_quarantine_override", "food_quarantine_override", "import_declaration_override", "distribution_history_override", "distribution_history_number", "transport_updated_by_role", "transport_updated_by_login", "transport_updated_at"].some((name) => String(error.message || "").includes(name))) {
+    if (["is_hidden", "delivery_terms", "eta_date", "storage_yard", "free_time_days", "free_time_expiry_date", "free_time_expiry_override", "warehouse_expected_date", "animal_quarantine_override", "food_quarantine_override", "import_declaration_override", "distribution_history_override", "distribution_history_number", "sticker_requested", "obl_carrier_submitted", "transport_updated_by_role", "transport_updated_by_login", "transport_updated_at"].some((name) => String(error.message || "").includes(name))) {
       const fallback = accountId
         ? `/rest/v1/cargo_card_user_inputs?select=account_id,bl_number,is_quota,quota_permit_date,updated_at&account_id=eq.${accountId}`
         : "/rest/v1/cargo_card_user_inputs?select=account_id,bl_number,is_quota,quota_permit_date,updated_at";
@@ -205,11 +209,23 @@ async function fetchOriginalDocRequests(accountId) {
   }
 }
 
+async function fetchLifecycle(accountId) {
+  try {
+    const query = accountId
+      ? `/rest/v1/cargo_card_lifecycle?select=account_id,bl_number,source_missing,source_missing_at,permanently_excluded,permanently_excluded_at,permanently_excluded_by,restored_at,restored_by,updated_at&account_id=eq.${accountId}`
+      : "/rest/v1/cargo_card_lifecycle?select=account_id,bl_number,source_missing,source_missing_at,permanently_excluded,permanently_excluded_at,permanently_excluded_by,restored_at,restored_by,updated_at";
+    return await supabaseFetch(query);
+  } catch (error) {
+    if (String(error.message || "").includes("cargo_card_lifecycle")) return [];
+    throw error;
+  }
+}
+
 function applyUserInputs(cards, inputs) {
   const byBl = new Map((inputs || []).map((item) => [`${item.account_id || ""}|${item.bl_number}`, item]));
   return (cards || []).map((card) => {
     const input = byBl.get(`${card.account_id || ""}|${card.bl_number}`) || byBl.get(`|${card.bl_number}`);
-    if (!input) return card;
+    if (!input) return { ...card, free_time_days: 3 };
     return computeQuotaMessages({
       ...card,
       is_quota: !!input.is_quota,
@@ -220,14 +236,20 @@ function applyUserInputs(cards, inputs) {
       delivery_terms: input.delivery_terms || card.delivery_terms || "",
       eta_date: input.eta_date || card.eta_date || "",
       storage_yard: input.storage_yard || card.storage_yard || "",
-      free_time_days: input.free_time_days || card.free_time_days || "",
+      free_time_days: Number(input.free_time_days || 3),
       free_time_expiry_date: input.free_time_expiry_date || card.free_time_expiry_date || "",
+      free_time_expiry_override: input.free_time_expiry_override || "",
       warehouse_expected_date: input.warehouse_expected_date || card.warehouse_expected_date || "",
       animal_quarantine_override: input.animal_quarantine_override || "",
       food_quarantine_override: input.food_quarantine_override || "",
       import_declaration_override: input.import_declaration_override || "",
       distribution_history_override: input.distribution_history_override || "",
       distribution_history_number: input.distribution_history_number || "",
+      sticker_requested: input.sticker_requested === true,
+      obl_carrier_submitted: input.obl_carrier_submitted === true,
+      obl_carrier_submitted_date: input.obl_carrier_submitted_date || "",
+      obl_carrier_submitted_by: input.obl_carrier_submitted_by || "",
+      obl_carrier_submitted_at: input.obl_carrier_submitted_at || null,
       transport_updated_by_role: input.transport_updated_by_role || "",
       transport_updated_by_login: input.transport_updated_by_login || "",
       transport_updated_at: input.transport_updated_at || null,
@@ -239,15 +261,37 @@ function applyUserInputs(cards, inputs) {
   });
 }
 
-function applyOriginalDocs(cards, docs) {
-  const byBl = new Map();
-  (docs || []).forEach((item) => {
-    const key = `${item.account_id || ""}|${item.bl_number}`;
-    if (item.bl_number) byBl.set(key, item);
-  });
-
+function applyLifecycle(cards, lifecycleRows) {
+  const byBl = new Map(
+    (lifecycleRows || []).map((item) => [`${item.account_id || ""}|${item.bl_number}`, item])
+  );
   return (cards || []).map((card) => {
-    const item = byBl.get(`${card.account_id || ""}|${card.bl_number}`) || byBl.get(`|${card.bl_number}`);
+    const lifecycle =
+      byBl.get(`${card.account_id || ""}|${card.bl_number}`) ||
+      byBl.get(`|${card.bl_number}`) ||
+      {};
+    const sourceMissing = lifecycle.source_missing === true;
+    const permanentlyExcluded = lifecycle.permanently_excluded === true;
+    return {
+      ...card,
+      source_missing: sourceMissing,
+      source_missing_at: lifecycle.source_missing_at || null,
+      permanently_excluded: permanentlyExcluded,
+      permanently_excluded_at: lifecycle.permanently_excluded_at || null,
+      permanently_excluded_by: lifecycle.permanently_excluded_by || "",
+      lifecycle_restored_at: lifecycle.restored_at || null,
+      lifecycle_restored_by: lifecycle.restored_by || "",
+      is_hidden: card.is_hidden === true || sourceMissing || permanentlyExcluded,
+      hidden_reason: permanentlyExcluded
+        ? "영구 제외"
+        : (sourceMissing ? "로컬 폴더 없음" : (card.is_hidden ? "관리자 숨김" : "")),
+    };
+  });
+}
+
+function applyOriginalDocs(cards, docs, cardRefs = cards) {
+  return (cards || []).map((card) => {
+    const item = mergeLinkedOriginalDocs(card, cardRefs, docs);
     return {
       ...card,
       obl_received: !!item?.obl_received,
@@ -268,17 +312,9 @@ function applyOriginalDocs(cards, docs) {
   });
 }
 
-function applyOriginalDocRequests(cards, requests) {
-  const byBl = new Map();
-  (requests || []).forEach((item) => {
-    const key = `${item.account_id || ""}|${item.bl_number}`;
-    if (item.bl_number && !byBl.has(key)) {
-      byBl.set(key, item);
-    }
-  });
-
+function applyOriginalDocRequests(cards, requests, cardRefs = cards) {
   return (cards || []).map((card) => {
-    const item = byBl.get(`${card.account_id || ""}|${card.bl_number}`) || byBl.get(`|${card.bl_number}`);
+    const item = latestLinkedRequest(card, cardRefs, requests);
     if (!item) return card;
     return {
       ...card,
@@ -424,21 +460,32 @@ module.exports = async function handler(req, res) {
         ? "/rest/v1/cargo_cards?select=*&order=synced_at.desc"
         : `/rest/v1/cargo_cards?select=*&account_id=eq.${accountId}&order=synced_at.desc`
     );
+    const cardRefs = readsAllCargo
+      ? cards
+      : await supabaseFetch(
+          "/rest/v1/cargo_cards?select=account_id,bl_number,folder_name"
+        );
     const userInputs = await fetchUserInputs(readsAllCargo ? null : accountId);
+    const lifecycleRows = await fetchLifecycle(readsAllCargo ? null : accountId);
     const importRequests = await fetchImportRequests(readsAllCargo ? null : accountId);
-    const originalDocs = await fetchOriginalDocs(readsAllCargo ? null : accountId);
-    const originalDocRequests = await fetchOriginalDocRequests(readsAllCargo ? null : accountId);
+    const originalDocs = await fetchOriginalDocs(null);
+    const originalDocRequests = await fetchOriginalDocRequests(null);
     const cardsWithDocStatus = (cards || []).map((card) => ({
       ...card,
       doc_transfer_received: hasTransferDocument(card.doc_files_status),
     }));
 
-    const enrichedCards = applyOriginalDocs(
-      applyOriginalDocRequests(
-        applyImportRequests(applyUserInputs(cardsWithDocStatus, userInputs), importRequests),
-        originalDocRequests
+    const enrichedCards = applyLifecycle(
+      applyOriginalDocs(
+        applyOriginalDocRequests(
+          applyImportRequests(applyUserInputs(cardsWithDocStatus, userInputs), importRequests),
+          originalDocRequests,
+          cardRefs
+        ),
+        originalDocs,
+        cardRefs
       ),
-      originalDocs
+      lifecycleRows
     );
     const sorted = (readsAllCargo
       ? mergeDuplicateCargoCards(enrichedCards)

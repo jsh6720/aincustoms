@@ -6,6 +6,7 @@ const {
   mergeManualFields,
   warehouseChanges,
 } = require("../lib/cargo-mail-utils");
+const { normalizeInspectionStatus } = require("../lib/cargo-progress-utils");
 
 const WAREHOUSE_CHANGE_TO = [
   "jsh@aincustoms.com",
@@ -105,6 +106,50 @@ module.exports = async function handler(req, res) {
         const text = String(value || "").trim().toUpperCase();
         return text === "O" || text === "X" ? text : null;
       };
+      const payload = {
+        account_id: targetAccountId,
+        bl_number: blNumber,
+      };
+      if (Object.prototype.hasOwnProperty.call(body, "animal_quarantine_override")) {
+        payload.animal_quarantine_override = normalizeInspectionStatus(body.animal_quarantine_override);
+      }
+      if (Object.prototype.hasOwnProperty.call(body, "food_quarantine_override")) {
+        payload.food_quarantine_override = normalizeInspectionStatus(body.food_quarantine_override);
+      }
+      if (Object.prototype.hasOwnProperty.call(body, "import_declaration_override")) {
+        payload.import_declaration_override = cleanOX(body.import_declaration_override);
+      }
+      if (Object.prototype.hasOwnProperty.call(body, "distribution_history_override")) {
+        payload.distribution_history_override = cleanOX(body.distribution_history_override);
+      }
+      if (Object.prototype.hasOwnProperty.call(body, "distribution_history_number")) {
+        payload.distribution_history_number =
+          String(body.distribution_history_number || "").trim() || null;
+      }
+      if (Object.prototype.hasOwnProperty.call(body, "sticker_requested")) {
+        payload.sticker_requested = body.sticker_requested === true;
+      }
+      const rows = await supabaseFetch(
+        "/rest/v1/cargo_card_user_inputs?on_conflict=account_id,bl_number",
+        {
+          method: "POST",
+          headers: { Prefer: "resolution=merge-duplicates,return=representation" },
+          body: JSON.stringify(payload),
+        }
+      );
+
+      return res.status(200).json({ success: true, input: rows && rows[0] ? rows[0] : null });
+    }
+
+    if (action === "obl_carrier_submission") {
+      if (!isAdmin) {
+        return res.status(403).json({ success: false, message: "관리자만 변경할 수 있습니다." });
+      }
+      const submitted = body.obl_carrier_submitted === true;
+      const submittedDate = String(body.obl_carrier_submitted_date || "").trim();
+      if (submitted && !isValidDate(submittedDate)) {
+        return res.status(400).json({ success: false, message: "OBL 접수일 형식이 올바르지 않습니다." });
+      }
       const rows = await supabaseFetch(
         "/rest/v1/cargo_card_user_inputs?on_conflict=account_id,bl_number",
         {
@@ -113,15 +158,13 @@ module.exports = async function handler(req, res) {
           body: JSON.stringify({
             account_id: targetAccountId,
             bl_number: blNumber,
-            animal_quarantine_override: cleanOX(body.animal_quarantine_override),
-            food_quarantine_override: cleanOX(body.food_quarantine_override),
-            import_declaration_override: cleanOX(body.import_declaration_override),
-            distribution_history_override: cleanOX(body.distribution_history_override),
-            distribution_history_number: String(body.distribution_history_number || "").trim() || null,
+            obl_carrier_submitted: submitted,
+            obl_carrier_submitted_date: submitted ? submittedDate : null,
+            obl_carrier_submitted_by: submitted ? (session.login_id || "admin") : null,
+            obl_carrier_submitted_at: submitted ? new Date().toISOString() : null,
           }),
         }
       );
-
       return res.status(200).json({ success: true, input: rows && rows[0] ? rows[0] : null });
     }
 
@@ -132,8 +175,10 @@ module.exports = async function handler(req, res) {
       const deliveryTerms = String(merged.delivery_terms || "").trim();
       const etaDate = String(merged.eta_date || "").trim();
       const storageYard = String(merged.storage_yard || "").trim();
-      const freeTimeDays = String(merged.free_time_days ?? "").trim();
-      const freeTimeExpiryDate = String(merged.free_time_expiry_date || "").trim();
+      const freeTimeDays = String(merged.free_time_days ?? "3").trim() || "3";
+      const freeTimeExpiryDate = String(
+        merged.free_time_expiry_override || merged.free_time_expiry_date || ""
+      ).trim();
       const warehouseExpectedDate = String(merged.warehouse_expected_date || "").trim();
 
       if (freeTimeDays && !/^\d+$/.test(freeTimeDays)) {
@@ -154,8 +199,8 @@ module.exports = async function handler(req, res) {
         delivery_terms: deliveryTerms || null,
         eta_date: etaDate || null,
         storage_yard: storageYard || null,
-        free_time_days: freeTimeDays ? Number(freeTimeDays) : null,
-        free_time_expiry_date: freeTimeExpiryDate || null,
+        free_time_days: Number(freeTimeDays),
+        free_time_expiry_override: freeTimeExpiryDate || null,
         warehouse_expected_date: warehouseExpectedDate || null,
       };
       for (const [field, value] of Object.entries(normalizedFields)) {
@@ -292,10 +337,10 @@ module.exports = async function handler(req, res) {
         message: "Supabase에서 add_progress_request_metadata.sql을 먼저 실행해 주세요.",
       });
     }
-    if (["delivery_terms", "eta_date", "storage_yard", "free_time_days", "free_time_expiry_date", "warehouse_expected_date", "animal_quarantine_override", "food_quarantine_override", "import_declaration_override", "distribution_history_override", "distribution_history_number"].some((name) => String(error.message || "").includes(name))) {
+    if (["delivery_terms", "eta_date", "storage_yard", "free_time_days", "free_time_expiry_date", "free_time_expiry_override", "warehouse_expected_date", "animal_quarantine_override", "food_quarantine_override", "import_declaration_override", "distribution_history_override", "distribution_history_number", "sticker_requested", "obl_carrier_submitted"].some((name) => String(error.message || "").includes(name))) {
       return res.status(500).json({
         success: false,
-        message: "Supabase에서 add_cargo_manual_fields.sql을 먼저 실행해 주세요.",
+        message: "Supabase에서 20260724_add_progress_operations.sql을 먼저 실행해 주세요.",
       });
     }
     if (String(error.message || "").includes("cargo_card_user_inputs")) {

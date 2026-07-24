@@ -8,6 +8,7 @@ const dashboard = fs.readFileSync(path.join(__dirname, "..", "cargo-dashboard.ht
 const mobile = fs.readFileSync(path.join(__dirname, "..", "cargo-docs-mobile.html"), "utf8");
 const originalDocsApi = fs.readFileSync(path.join(__dirname, "..", "api", "cargo-original-docs.js"), "utf8");
 const quotaApi = fs.readFileSync(path.join(__dirname, "..", "api", "cargo-quota.js"), "utf8");
+const visibilityApi = fs.readFileSync(path.join(__dirname, "..", "api", "cargo-card-visibility.js"), "utf8");
 
 function requestControlContext(role, cards, overrides = {}) {
   const start = dashboard.indexOf("function progressRequestToggle");
@@ -127,6 +128,17 @@ this.calendarPreferencesForTest = () => ({ ...calendarPreferences });`,
 function currentCalendarPreferences(context) {
   return { ...context.calendarPreferencesForTest() };
 }
+
+test("dashboard exposes the new progress operations without another API function", () => {
+  assert.match(dashboard, /만기\(프리타임\)/);
+  assert.match(dashboard, /OBL 접수일/);
+  assert.match(dashboard, /스티커요청/);
+  assert.match(dashboard, /△/);
+  assert.match(quotaApi, /sticker_requested/);
+  assert.match(quotaApi, /obl_carrier_submitted/);
+  assert.match(visibilityApi, /permanent_exclude/);
+  assert.match(visibilityApi, /restore_exclusion/);
+});
 
 test("progress transport editor renders role-specific save commands", () => {
   assert.match(dashboard, /id="progressWarehouseModalActions"/);
@@ -480,7 +492,7 @@ test("latest calendar preference failure restores the last saved value", async (
   assert.deepEqual(context.errors, ["latest save failed"]);
 });
 
-test("progress table adds two complete shipper request columns to the 24 admin columns", () => {
+test("progress table keeps role-specific request and operations columns aligned", () => {
   const tableStart = dashboard.indexOf('<table class="progress-table">');
   const tableEnd = dashboard.indexOf("</table>", tableStart);
   const table = dashboard.slice(tableStart, tableEnd);
@@ -489,12 +501,12 @@ test("progress table adds two complete shipper request columns to the 24 admin c
   const rowEnd = dashboard.indexOf("`).join(\"\")", rowStart);
   const row = dashboard.slice(rowStart, rowEnd);
 
-  assert.equal((header.match(/<th\b/g) || []).length, 26);
-  assert.equal((row.match(/<td\b/g) || []).length, 24);
+  assert.equal((header.match(/<th\b/g) || []).length, 29);
+  assert.equal((row.match(/<td\b/g) || []).length, 27);
   assert.equal((row.match(/\$\{progressRequestToggle\(card, "(?:docs|import)"\)\}/g) || []).length, 2);
   assert.match(dashboard, /if \(currentUserRole === "admin"\) return ""/);
   assert.match(dashboard, /body:not\(\.shipper-progress\) \.progress-shipper-only\s*\{\s*display:none/);
-  assert.match(dashboard, /colspan="\$\{currentUserRole === "admin" \? 24 : 26\}"/);
+  assert.match(dashboard, /colspan="\$\{currentUserRole === "admin" \? 27 : 24\}"/);
 });
 
 test("progress table binds date classes to ETA and warehouse date columns", () => {
@@ -507,8 +519,8 @@ test("progress table binds date classes to ETA and warehouse date columns", () =
   const headerClasses = [...header.matchAll(/<th\b[^>]*class="([^"]*)"/g)].map((match) => match[1].split(/\s+/));
   const rowClasses = [...row.matchAll(/<td\b[^>]*class="([^"]*)"/g)].map((match) => match[1].split(/\s+/));
 
-  assert.equal(headerClasses.filter((classes) => classes.includes("progress-date")).length, 2);
-  assert.equal(rowClasses.filter((classes) => classes.includes("progress-date")).length, 2);
+  assert.equal(headerClasses.filter((classes) => classes.includes("progress-date")).length, 4);
+  assert.equal(rowClasses.filter((classes) => classes.includes("progress-date")).length, 4);
   assert.match(header, /<th class="[^"]*\bprogress-date\b[^"]*">\uC785\uD56D\uC608\uC815<\/th>/);
   assert.match(header, /<th class="[^"]*\bprogress-date\b[^"]*">\uBC18\uC785\uC608\uC815\uC77C<\/th>/);
   assert.match(row, /<td class="[^"]*\bprogress-date\b[^"]*">[\s\S]*?<button[^>]*>[\s\S]*?displayDate\(etaText\(card\)\)/);
@@ -528,10 +540,10 @@ test("progress table binds long and centered short classes to intended columns",
 
   assert.equal(headerClasses.filter((classes) => classes.includes("progress-long")).length, 5);
   assert.equal(rowClasses.filter((classes) => classes.includes("progress-long")).length, 5);
-  assert.equal(headerClasses.filter((classes) => classes.includes("progress-short")).length, 19);
-  assert.equal(rowClasses.filter((classes) => classes.includes("progress-short")).length, 17);
-  assert.equal(headerClasses.filter((classes) => hasTokens(classes, "progress-short", "center")).length, 19);
-  assert.equal(rowClasses.filter((classes) => hasTokens(classes, "progress-short", "center")).length, 17);
+  assert.equal(headerClasses.filter((classes) => classes.includes("progress-short")).length, 20);
+  assert.equal(rowClasses.filter((classes) => classes.includes("progress-short")).length, 18);
+  assert.equal(headerClasses.filter((classes) => hasTokens(classes, "progress-short", "center")).length, 20);
+  assert.equal(rowClasses.filter((classes) => hasTokens(classes, "progress-short", "center")).length, 18);
   assert.match(header, /<th class="[^"]*\bprogress-long\b[^"]*">\uBC18\uC785\(\uC608\uC815\)\uAD6C\uC5ED<\/th>/);
   assert.match(header, /<th class="[^"]*\bprogress-long\b[^"]*">\uC9C4\uD589\uC0C1\uD0DC<\/th>/);
   assert.match(header, /<th class="[^"]*\bprogress-short\b[^"]*">\uC721\uC885<\/th>/);
@@ -920,4 +932,22 @@ test("board admin status editor rejects distribution O without a number", () => 
   assert.match(body, /distributionStatus === "O" && distributionNumbers\.length === 0/);
   assert.match(body, /유통이력 신고번호를 하나 이상 입력해 주세요\./);
   assert.match(body, /return;/);
+});
+
+test("mobile original document manager supports OBL carrier submission and mail", () => {
+  assert.match(mobile, /OBL 선사 접수/);
+  assert.match(mobile, /obl_carrier_submitted_date/);
+  assert.match(mobile, /action:\s*"obl_carrier_submission"/);
+  assert.match(mobile, /action:\s*"obl_carrier_submission"/);
+  assert.match(mobile, /\/api\/cargo-original-doc-receipt-mail/);
+});
+
+test("dashboard exposes lifecycle exclusion and three-day free-time operations", () => {
+  assert.match(dashboard, /만기\(프리타임\)/);
+  assert.match(dashboard, /스티커요청/);
+  assert.match(dashboard, /OBL 접수일/);
+  assert.match(dashboard, /permanent_exclude/);
+  assert.match(dashboard, /restore_exclusion/);
+  assert.match(visibilityApi, /action === "permanent_exclude"/);
+  assert.match(visibilityApi, /action === "restore_exclusion"/);
 });

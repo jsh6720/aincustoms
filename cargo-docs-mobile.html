@@ -29,6 +29,9 @@
     select, input { height:34px; border:1px solid #cfd6de; border-radius:6px; padding:0 8px; font-size:13px; background:#fff; }
     textarea { width:100%; min-height:84px; border:1px solid #cfd6de; border-radius:6px; padding:8px; font-size:13px; font-family:inherit; resize:vertical; }
     .card-actions { display:flex; justify-content:flex-end; margin-top:9px; padding-top:8px; border-top:1px solid #edf1f4; }
+    .carrier-box { margin:0 0 9px; padding:9px; border:1px solid #cbdbea; border-radius:7px; background:#f4f8fc; }
+    .carrier-box .carrier-actions { display:flex; justify-content:flex-end; gap:6px; margin-top:7px; }
+    .carrier-box .btn { height:32px; }
     .mail-btn { background:#3b5b92; }
     .pending { margin-top:7px; color:#b45309; font-size:11px; font-weight:900; }
     .empty, .error { margin:30px 12px; text-align:center; color:#7b8794; font-size:13px; line-height:1.5; }
@@ -86,11 +89,34 @@
       </div>
     </div>
   </div>
+  <div id="oblCarrierMailModalBg" class="modal-bg">
+    <div class="modal">
+      <h2>OBL 선사 접수 확인 메일</h2>
+      <div id="oblCarrierMailModalCard" class="modal-card"></div>
+      <div class="modal-field">
+        <label for="oblCarrierMailDate">OBL 선사 접수일</label>
+        <input id="oblCarrierMailDate" type="date">
+      </div>
+      <div class="modal-field">
+        <label for="oblCarrierMailMemo">확인사항</label>
+        <textarea id="oblCarrierMailMemo" placeholder="추가 확인사항이 있으면 입력하세요."></textarea>
+      </div>
+      <div class="modal-field">
+        <label for="oblCarrierMailAdditionalRecipients">추가 받는 사람</label>
+        <textarea id="oblCarrierMailAdditionalRecipients" placeholder="선택 입력 · 쉼표, 세미콜론 또는 줄바꿈으로 구분"></textarea>
+      </div>
+      <div class="modal-actions">
+        <button class="btn gray" onclick="closeOblCarrierMailModal()">취소</button>
+        <button class="btn" onclick="submitOblCarrierMail()">저장 후 메일 발송</button>
+      </div>
+    </div>
+  </div>
 
   <script>
     let cards = [];
     let visible = [];
     let receiptMailCard = null;
+    let oblCarrierMailCard = null;
 
     function esc(value) {
       return String(value ?? "").replace(/[&<>"']/g, ch => ({
@@ -188,6 +214,15 @@
               <div class="k">반출처</div><div class="v">${esc(card.destination || "-")}</div>
               <div class="k">품명</div><div class="v">${esc(card.product_name || "-")}</div>
             </div>
+            <div class="carrier-box">
+              <label>OBL 선사 접수일
+                <input id="oblCarrier${index}" type="date" value="${esc(shortDate(card.obl_carrier_submitted_date))}">
+              </label>
+              <div class="carrier-actions">
+                <button class="btn gray" onclick="saveOblCarrier(${index}, false)">접수 저장</button>
+                <button class="btn mail-btn" onclick="openOblCarrierMailModal(${index})">접수·메일</button>
+              </div>
+            </div>
             <div class="controls">
               <label>OBL
                 <select id="obl${index}">
@@ -270,6 +305,87 @@
         alert(result.message || "실제수령일 승인에 실패했습니다.");
         return;
       }
+      await load();
+    }
+
+    async function saveOblCarrier(index, reload = true) {
+      const card = visible[index];
+      if (!card) return false;
+      const date = document.getElementById(`oblCarrier${index}`)?.value || "";
+      if (!date && !confirm(`${card.bl_number} OBL 선사 접수 상태를 취소할까요?`)) return false;
+      const res = await fetch("/api/cargo-quota", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "obl_carrier_submission",
+          account_id: card.account_id,
+          bl_number: card.bl_number,
+          obl_carrier_submitted: !!date,
+          obl_carrier_submitted_date: date
+        })
+      });
+      const result = await res.json();
+      if (!result.success) {
+        alert(result.message || "OBL 선사 접수일 저장에 실패했습니다.");
+        return false;
+      }
+      if (reload) await load();
+      return true;
+    }
+
+    function openOblCarrierMailModal(index) {
+      oblCarrierMailCard = visible[index];
+      if (!oblCarrierMailCard) return;
+      const date = document.getElementById(`oblCarrier${index}`)?.value
+        || shortDate(oblCarrierMailCard.obl_carrier_submitted_date)
+        || shortDate(new Date().toISOString());
+      document.getElementById("oblCarrierMailDate").value = date;
+      document.getElementById("oblCarrierMailMemo").value = "";
+      document.getElementById("oblCarrierMailAdditionalRecipients").value = "";
+      document.getElementById("oblCarrierMailModalCard").innerHTML = `
+        <div class="modal-row"><b>화주명</b><span>${esc(displayConsignee(oblCarrierMailCard.consignee))}</span></div>
+        <div class="modal-row"><b>B/L</b><span>${esc(oblCarrierMailCard.bl_number || "-")}</span></div>
+        <div class="modal-row"><b>반출처</b><span>${esc(oblCarrierMailCard.destination || "-")}</span></div>
+      `;
+      document.getElementById("oblCarrierMailModalBg").style.display = "flex";
+    }
+
+    function closeOblCarrierMailModal() {
+      document.getElementById("oblCarrierMailModalBg").style.display = "none";
+      oblCarrierMailCard = null;
+    }
+
+    async function submitOblCarrierMail() {
+      if (!oblCarrierMailCard) return;
+      const date = document.getElementById("oblCarrierMailDate").value;
+      if (!date) {
+        alert("OBL 선사 접수일을 입력해 주세요.");
+        return;
+      }
+      const cardIndex = visible.indexOf(oblCarrierMailCard);
+      const cardDateInput = document.getElementById(`oblCarrier${cardIndex}`);
+      if (cardDateInput) cardDateInput.value = date;
+      if (!await saveOblCarrier(cardIndex, false)) return;
+
+      const res = await fetch("/api/cargo-original-doc-receipt-mail", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "obl_carrier_submission",
+          account_id: oblCarrierMailCard.account_id,
+          bl_number: oblCarrierMailCard.bl_number,
+          obl_carrier_submitted_date: date,
+          memo: document.getElementById("oblCarrierMailMemo").value,
+          additional_recipients: document.getElementById("oblCarrierMailAdditionalRecipients").value
+        })
+      });
+      const result = await res.json();
+      if (!result.success) {
+        alert(result.message || "OBL 선사 접수 확인 메일 발송에 실패했습니다.");
+        return;
+      }
+      closeOblCarrierMailModal();
+      alert("OBL 선사 접수일을 저장하고 확인 메일을 발송했습니다.");
       await load();
     }
 
