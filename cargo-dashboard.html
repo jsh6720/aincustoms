@@ -2163,6 +2163,16 @@
     }
 
     async function saveAdminStatus(accountId, blNumber, hasDistribution) {
+      const distributionStatus = hasDistribution ? (document.getElementById(`adminDist-${blNumber}`)?.value || "") : "";
+      const distributionNumber = hasDistribution ? (document.getElementById(`adminDistNo-${blNumber}`)?.value || "").trim() : "";
+      const distributionNumbers = distributionNumber.split(/\s*\/\s*/).map((item) => {
+        const separator = item.indexOf(":");
+        return (separator >= 0 ? item.slice(separator + 1) : item).trim();
+      }).filter(Boolean);
+      if (distributionStatus === "O" && distributionNumbers.length === 0) {
+        alert("유통이력 신고번호를 하나 이상 입력해 주세요.");
+        return;
+      }
       const payload = {
         action: "admin_status",
         account_id: accountId,
@@ -2170,8 +2180,8 @@
         animal_quarantine_override: document.getElementById(`adminAnimal-${blNumber}`)?.value || "",
         food_quarantine_override: document.getElementById(`adminFood-${blNumber}`)?.value || "",
         import_declaration_override: document.getElementById(`adminImport-${blNumber}`)?.value || "",
-        distribution_history_override: hasDistribution ? (document.getElementById(`adminDist-${blNumber}`)?.value || "") : "",
-        distribution_history_number: hasDistribution ? (document.getElementById(`adminDistNo-${blNumber}`)?.value || "") : "",
+        distribution_history_override: distributionStatus,
+        distribution_history_number: distributionNumber,
       };
       const response = await fetch("/api/cargo-quota", {
         method: "POST",

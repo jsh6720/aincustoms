@@ -911,3 +911,13 @@ test("separator-only distribution values have no dangling tooltip relationship",
   assert.doesNotMatch(html, /aria-describedby=/);
   assert.doesNotMatch(html, /distribution-number-wrap" tabindex=/);
 });
+
+test("board admin status editor rejects distribution O without a number", () => {
+  const start = dashboard.indexOf("async function saveAdminStatus");
+  const end = dashboard.indexOf("async function saveQuotaInput", start);
+  const body = dashboard.slice(start, end);
+
+  assert.match(body, /distributionStatus === "O" && distributionNumbers\.length === 0/);
+  assert.match(body, /유통이력 신고번호를 하나 이상 입력해 주세요\./);
+  assert.match(body, /return;/);
+});
