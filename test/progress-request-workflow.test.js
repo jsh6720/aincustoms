@@ -703,7 +703,7 @@ test("progress calendar includes the latest import request date", () => {
   assert.match(body, /originalReceiptTypes\.push\("OBL"\)/);
   assert.match(body, /originalReceiptTypes\.push\("H\/C"\)/);
   assert.match(body, /originalReceiptTypes\.join\(", "\)/);
-  assert.match(body, /\(양도증\)/);
+  assert.doesNotMatch(body, /\(양도증\)/);
 });
 
 test("progress transport save sends an exact notification boolean and handles stale data", () => {
