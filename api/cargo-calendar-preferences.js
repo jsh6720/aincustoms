@@ -1,4 +1,4 @@
-const { verifySession, supabaseFetch } = require("../lib/cargo-auth");
+const { createSession, verifySession, supabaseFetch } = require("../lib/cargo-auth");
 const {
   normalizeCalendarPreferences,
   validateCalendarPreferences,
@@ -36,6 +36,16 @@ module.exports = async function handler(req, res) {
     const savedPreferences = rows && rows[0]
       ? normalizeCalendarPreferences(rows[0].calendar_preferences)
       : preferences;
+    const token = createSession({
+      ...session,
+      calendar_preferences: savedPreferences,
+    });
+    const maxAge = Math.max(0, Math.floor(session.exp) - Math.floor(Date.now() / 1000));
+
+    res.setHeader(
+      "Set-Cookie",
+      `cargo_session=${encodeURIComponent(token)}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${maxAge}`
+    );
 
     return res.status(200).json({
       success: true,

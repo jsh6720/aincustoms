@@ -78,6 +78,7 @@ test("viewer saves only their normalized calendar preferences", async () => {
   const calls = [];
   const handler = loadHandler(preferenceHandlerPath, {
     verifySession: () => ({ account_id: "viewer-account", role: "viewer" }),
+    createSession: () => "refreshed-token",
     supabaseFetch: async (url, options) => {
       calls.push({ url, options });
       return [{
@@ -112,6 +113,62 @@ test("viewer saves only their normalized calendar preferences", async () => {
       import_request: false,
       warehouse_expected: true,
     },
+  });
+});
+
+test("saving preferences refreshes the session used by a cargo-data reload", async () => {
+  const originalSession = {
+    account_id: "account-1",
+    login_id: "shipper",
+    display_name: "Shipper",
+    role: "shipper",
+    calendar_preferences: { import_request: true, warehouse_expected: true },
+    exp: Math.floor(Date.now() / 1000) + 60,
+  };
+  let refreshedSession;
+  const preferenceHandler = loadHandler(preferenceHandlerPath, {
+    verifySession: () => originalSession,
+    createSession: (session) => {
+      refreshedSession = session;
+      return "refreshed-token";
+    },
+    supabaseFetch: async () => [{
+      calendar_preferences: { import_request: false, warehouse_expected: true },
+    }],
+  });
+  const preferenceResponse = createResponse();
+
+  await preferenceHandler({
+    method: "PATCH",
+    body: { import_request: false },
+  }, preferenceResponse);
+
+  assert.match(
+    preferenceResponse.headers["Set-Cookie"],
+    /^cargo_session=refreshed-token; Path=\/; HttpOnly; Secure; SameSite=Lax; Max-Age=(?:5[0-9]|60)$/
+  );
+  assert.deepEqual(refreshedSession, {
+    ...originalSession,
+    calendar_preferences: { import_request: false, warehouse_expected: true },
+  });
+
+  const dataHandler = loadHandler(dataHandlerPath, {
+    canReadAllCargo: () => false,
+    verifySession: (req) => req.headers.cookie.startsWith("cargo_session=refreshed-token")
+      ? refreshedSession
+      : null,
+    supabaseFetch: async () => [],
+  });
+  const dataResponse = createResponse();
+
+  await dataHandler({
+    method: "GET",
+    headers: { cookie: preferenceResponse.headers["Set-Cookie"] },
+  }, dataResponse);
+
+  assert.deepEqual(dataResponse.body.user.calendar_preferences, {
+    import_request: false,
+    warehouse_expected: true,
   });
 });
 
