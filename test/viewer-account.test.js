@@ -88,18 +88,18 @@ test("administrator account API accepts viewer without a consignee filter", () =
   assert.match(source, /payload\.p_role === "shipper" && !payload\.p_consignee_filter/);
 });
 
-test("dashboard renders viewer as a read-only all-cargo progress screen", () => {
+test("dashboard renders viewer as a read-only all-cargo board", () => {
   const source = read("cargo-dashboard.html");
   assert.match(source, /<option value="viewer">전체조회\(읽기 전용\)<\/option>/);
   assert.match(source, /document\.body\.classList\.toggle\("viewer-progress", currentUserRole === "viewer"\)/);
+  assert.match(source, /let currentPrimaryView = "board"/);
   assert.match(source, /currentUserRole === "viewer"\s*\?\s*"none"\s*:\s*""/);
   assert.match(source, /if \(currentUserRole === "admin" \|\| currentUserRole === "viewer"\) return "";/);
   assert.match(source, /body\.viewer-progress \.progress-edit-btn/);
   assert.match(source, /body\.viewer-progress \.progress-shipper-only/);
-  assert.match(
-    source,
-    /if \(currentUserRole === "viewer"\) currentPrimaryView = "progress"/
-  );
+  assert.doesNotMatch(source, /if \(currentUserRole === "viewer"\) currentPrimaryView = "progress"/);
+  assert.doesNotMatch(source, /body\.viewer-progress #boardWrap/);
+  assert.match(source, /const detailsContent = currentUserRole === "viewer"/);
   assert.match(
     source,
     /!isHiddenCard\(card\)\s*\|\|\s*currentUserRole === "viewer"/
