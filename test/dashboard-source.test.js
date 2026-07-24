@@ -68,12 +68,17 @@ this.dispatchBoardInput = handleBoardCardInput;`,
   return context;
 }
 
-function progressCalendarHarness(cards) {
+function progressCalendarHarness(cards, calendarPreferences = {}) {
   const start = dashboard.indexOf("function progressCalendarEvents()");
   const end = dashboard.indexOf("function renderProgressCalendar", start);
   assert.ok(start >= 0 && end > start, "progress calendar helper source should exist");
   const context = {
     cards,
+    calendarPreferences: {
+      import_request: true,
+      warehouse_expected: true,
+      ...calendarPreferences,
+    },
     visibleCards: () => cards,
     calendarDate(value) {
       const text = String(value || "");
@@ -242,6 +247,29 @@ test("progress calendar separates import, original, and transfer receipt events"
   assert.ok(events.some((event) => event.text === "반입예정 ONEYBNEG04197300"));
 });
 
+test("progress calendar keeps base events while filtering optional event groups", () => {
+  const events = progressCalendarHarness([{
+    bl_number: "BL-PREFERENCES",
+    eta_date: "2026-07-21",
+    last_original_doc_requested_receipt_date: "2026-07-22",
+    last_import_requested_import_date: "2026-07-23",
+    actual_received_date: "2026-07-24",
+    obl_received: true,
+    doc_transfer_received: true,
+    warehouse_expected_date: "2026-07-25",
+  }], {
+    import_request: false,
+    warehouse_expected: false,
+  });
+
+  assert.ok(events.some((event) => event.type === "eta"));
+  assert.ok(events.some((event) => event.type === "request"));
+  assert.ok(events.some((event) => event.type === "actual"));
+  assert.ok(events.some((event) => event.type === "transfer"));
+  assert.ok(!events.some((event) => event.type === "import-request"));
+  assert.ok(!events.some((event) => event.type === "warehouse"));
+});
+
 test("progress page includes editable warehouse schedule and calendar event", () => {
   assert.match(dashboard, /openProgressWarehouseEditor/);
   assert.match(dashboard, /id="progressWarehouseEta" type="date"/);
@@ -275,14 +303,43 @@ test("progress alignment classes define their required CSS semantics", () => {
   assert.match(dashboard, /\.progress-table\s+\.progress-date\s+\.progress-edit-btn\s*\{[^}]*width:\s*100%[^}]*text-align:\s*center/);
 });
 
-test("progress view defaults after load and keeps explicit board navigation", () => {
-  assert.match(dashboard, /let currentPrimaryView = "progress"/);
+test("dashboard defaults every role to the board and exposes progress navigation", () => {
+  assert.match(dashboard, /let currentPrimaryView = "board"/);
   assert.match(dashboard, /function showPrimaryView\(view\)/);
   assert.match(dashboard, /currentPrimaryView = view === "board" \? "board" : "progress"/);
+  assert.doesNotMatch(dashboard, /currentUserRole === "viewer"\) currentPrimaryView = "progress"/);
+  assert.doesNotMatch(dashboard, /body\.viewer-progress #boardWrap/);
   assert.match(dashboard, /showPrimaryView\(currentPrimaryView\)/);
   assert.match(dashboard, /function togglePrimaryView\(\)/);
-  assert.match(dashboard, /보드 보기/);
-  assert.match(dashboard, /BL별 진행현황/);
+  assert.match(dashboard, />BL 진행<\/button>/);
+  assert.match(dashboard, />대시보드<\/button>/);
+  assert.match(dashboard, /currentPrimaryView = "board";/);
+});
+
+test("viewer board cards remain read-only", () => {
+  const context = dashboardRuntimeContext("viewer", [{
+    bl_number: "BL-VIEWER",
+    account_id: "viewer-account",
+    stage: "반입",
+    is_quota: true,
+    quota_permit_date: "2026-07-24",
+    revisions: [{ id: "revision-1", text: "Read only", done: false, created_by: "shipper" }],
+  }]);
+  const html = context.renderFullCard(context.__testCards[0], 0);
+
+  assert.doesNotMatch(html, /data-card-action="(?:quota|manual|revision)/);
+  assert.doesNotMatch(html, /<button\b/);
+});
+
+test("calendar legend initializes and saves optional visibility preferences", () => {
+  assert.match(dashboard, /data-calendar-preference="import_request"/);
+  assert.match(dashboard, /data-calendar-preference="warehouse_expected"/);
+  assert.match(dashboard, /let calendarPreferences = \{\s*import_request: true,\s*warehouse_expected: true,\s*\}/);
+  assert.match(dashboard, /result\.user\.calendar_preferences/);
+  assert.match(dashboard, /async function saveCalendarPreference\(key, checked\)/);
+  assert.match(dashboard, /fetch\("\/api\/cargo-calendar-preferences"/);
+  assert.match(dashboard, /calendarPreferences\[key\] = previousValue/);
+  assert.match(dashboard, /renderProgressCalendar\(\)/);
 });
 
 test("progress table adds two complete shipper request columns to the 24 admin columns", () => {

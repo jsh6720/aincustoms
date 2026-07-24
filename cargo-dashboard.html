@@ -215,6 +215,12 @@
     .calendar-event.transfer { background:#f5f0ff; color:#6941a5; border:1px solid #d8c8f0; }
     .calendar-event.eta { background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; }
     .calendar-event.warehouse { background:#f7f2e8; color:#795d20; border:1px solid #dfcfaa; }
+    .calendar-legend { display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin:0 0 8px; }
+    .calendar-legend-label, .calendar-legend label { display:inline-flex; align-items:center; gap:4px; margin:0; border:1px solid #dfe5eb; border-radius:4px; padding:3px 5px; font-size:10px; font-weight:800; color:#4b5663; background:#fff; }
+    .calendar-legend-label.request { background:#fff7ed; color:#b45309; border-color:#fed7aa; }
+    .calendar-legend-label.actual { background:#e8f5ee; color:#1f6f43; border-color:#acd7bf; }
+    .calendar-legend-label.eta { background:#eff6ff; color:#1d4ed8; border-color:#bfdbfe; }
+    .calendar-legend input { width:auto; height:auto; margin:0; }
     .progress-table-wrap { overflow:auto; max-height:calc(100vh - 190px); }
     .progress-table { width:100%; min-width:1984px; border-collapse:collapse; table-layout:fixed; font-size:11px; }
     .progress-table th, .progress-table td { border-bottom:1px solid #edf1f4; padding:7px 8px; text-align:left; vertical-align:middle; word-break:keep-all; overflow-wrap:anywhere; }
@@ -260,7 +266,6 @@
     body.shipper-progress .progress-admin-only { display:none; }
     body.viewer-progress .progress-shipper-only { display:none; }
     body.viewer-progress .progress-edit-btn { pointer-events:none; background:transparent; box-shadow:none; color:inherit; text-decoration:none; }
-    body.viewer-progress #boardWrap { display:none !important; }
     body:not(.shipper-progress) .progress-shipper-only { display:none; }
     body:not(.shipper-progress) .progress-table { min-width:1860px; }
     .doc-o { color:#1b6b3a; background:#edf8f1; border:1px solid #b7dfc4; border-radius:999px; padding:1px 6px; }
@@ -304,7 +309,7 @@
       <div id="summary" class="summary"></div>
       <div class="toolbar-actions">
         <button id="docsMobileBtn" class="btn gray" style="display:none" onclick="openDocsMobile()">모바일 원본서류</button>
-        <button id="progressStatusBtn" class="btn gray" style="display:none" onclick="togglePrimaryView()">보드 보기</button>
+        <button id="progressStatusBtn" class="btn gray" style="display:none" onclick="togglePrimaryView()">BL 진행</button>
         <button id="showHiddenBtn" class="btn gray" style="display:none" onclick="toggleShowHiddenCards()">숨김 포함</button>
         <button id="adminSettingsBtn" class="btn gray" style="display:none" onclick="openAdminSettings()">관리자 설정</button>
         <button class="btn" onclick="loadData()">새로고침</button>
@@ -413,7 +418,7 @@
         <div class="docs-head">
           <h2>BL별 진행현황</h2>
           <div class="toolbar-actions">
-            <button class="btn gray" onclick="closeProgressStatus()">보드 보기</button>
+            <button class="btn gray" onclick="closeProgressStatus()">대시보드</button>
           </div>
         </div>
         <div class="progress-table-wrap">
@@ -461,6 +466,13 @@
               <button class="btn gray" onclick="moveProgressCalendar(1)">다음월</button>
               <button class="btn gray" onclick="moveProgressCalendarYear(1)">다음년도</button>
             </div>
+          </div>
+          <div class="calendar-legend" aria-label="캘린더 일정 범례">
+            <span class="calendar-legend-label request">서류요청</span>
+            <span class="calendar-legend-label actual">서류수령</span>
+            <span class="calendar-legend-label eta">입항예정</span>
+            <label><input type="checkbox" data-calendar-preference="import_request" onchange="saveCalendarPreference('import_request', this.checked)"> 수입신고요청</label>
+            <label><input type="checkbox" data-calendar-preference="warehouse_expected" onchange="saveCalendarPreference('warehouse_expected', this.checked)"> 반입예정</label>
           </div>
           <div id="progressCalendarGrid" class="calendar-grid"></div>
         </div>
@@ -576,7 +588,8 @@
     let currentUserRole = "shipper";
     let currentUserLogin = "";
     let currentCards = [];
-    let currentPrimaryView = "progress";
+    let currentPrimaryView = "board";
+    let calendarPreferences = { import_request: true, warehouse_expected: true, };
     let requestSubmitting = false;
     let showHiddenCards = false;
     let manualEditOpen = {};
@@ -756,9 +769,41 @@
       if (normalized) input.value = normalized.slice(5);
       updateRequestWeekday();
     }
+    function setCalendarPreferences(preferences) {
+      const source = preferences && typeof preferences === "object" ? preferences : {};
+      calendarPreferences = {
+        import_request: source.import_request !== false,
+        warehouse_expected: source.warehouse_expected !== false,
+      };
+      document.querySelectorAll("[data-calendar-preference]").forEach(input => {
+        input.checked = calendarPreferences[input.dataset.calendarPreference] !== false;
+      });
+    }
+    async function saveCalendarPreference(key, checked) {
+      if (!(key in calendarPreferences)) return;
+      const previousValue = calendarPreferences[key];
+      calendarPreferences[key] = checked === true;
+      renderProgressCalendar();
+      try {
+        const response = await fetch("/api/cargo-calendar-preferences", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(calendarPreferences),
+        });
+        const result = await response.json();
+        if (!response.ok || !result.success) {
+          throw new Error(result.message || "캘린더 설정을 저장하지 못했습니다.");
+        }
+        setCalendarPreferences(result.calendar_preferences);
+      } catch (error) {
+        calendarPreferences[key] = previousValue;
+        setCalendarPreferences(calendarPreferences);
+        renderProgressCalendar();
+        alert(error.message || "캘린더 설정을 저장하지 못했습니다.");
+      }
+    }
     function showPrimaryView(view) {
       currentPrimaryView = view === "board" ? "board" : "progress";
-      if (currentUserRole === "viewer") currentPrimaryView = "progress";
       document.getElementById("boardWrap").style.display =
         currentPrimaryView === "board" ? "" : "none";
       document.getElementById("board").style.display = "grid";
@@ -766,7 +811,7 @@
         currentPrimaryView === "progress" ? "block" : "none";
       const viewButton = document.getElementById("progressStatusBtn");
       if (viewButton) {
-        viewButton.textContent = currentPrimaryView === "progress" ? "보드 보기" : "BL별 진행현황";
+        viewButton.textContent = currentPrimaryView === "progress" ? "대시보드" : "BL 진행";
       }
       if (currentPrimaryView === "progress") {
         renderProgressStatus();
@@ -835,7 +880,8 @@
         location.href = next;
         return;
       }
-      currentPrimaryView = "progress";
+      currentPrimaryView = "board";
+      setCalendarPreferences(result.user.calendar_preferences);
       if (result.user.role === "admin") {
         await loadData();
       } else {
@@ -861,6 +907,7 @@
       }
       currentUserRole = result.user.role || "shipper";
       currentUserLogin = result.user.login_id || "";
+      setCalendarPreferences(result.user.calendar_preferences);
       document.body.classList.toggle("shipper-progress", currentUserRole === "shipper");
       document.body.classList.toggle("viewer-progress", currentUserRole === "viewer");
       currentCards = result.cards || [];
@@ -1781,6 +1828,9 @@
       const hidden = isHiddenCard(card);
       const key = cardStateKey(card);
       const detailsOpen = expandedCardKeys.has(key) ? " open" : "";
+      const detailsContent = currentUserRole === "viewer"
+        ? `${originalDocsHtml(card, index)}${releaseHtml(card)}`
+        : `${adminStatusHtml(card, index)}${manualFieldsHtml(card, index)}${originalDocsHtml(card, index)}${releaseHtml(card)}${quotaHtml(card, index)}${revisionsHtml(card, index)}${originalDocRequestButton(card, index)}${importRequestButton(card, index)}${releaseRequestButton(card, index)}`;
       return `
         <article class="card compact${alertClass}${permitClass}${declareClass}${hidden ? " hidden-card" : ""}">
           <details${detailsOpen} data-card-key="${esc(key)}">
@@ -1811,15 +1861,7 @@
             ${permitBadge(card)}
             ${distributionHistoryBadge(card)}
           </div>
-          ${adminStatusHtml(card, index)}
-          ${manualFieldsHtml(card, index)}
-          ${originalDocsHtml(card, index)}
-          ${releaseHtml(card)}
-          ${quotaHtml(card, index)}
-          ${revisionsHtml(card, index)}
-          ${originalDocRequestButton(card, index)}
-          ${importRequestButton(card, index)}
-          ${releaseRequestButton(card, index)}
+          ${detailsContent}
           </div>
           </details>
         </article>
@@ -2555,7 +2597,7 @@
           || card.last_import_request?.requested_import_date
           || card.last_import_request?.created_at
         );
-        if (importRequestDate) {
+        if (calendarPreferences.import_request && importRequestDate) {
           events.push({ date: importRequestDate, type: "import-request", text: `수입신고요청 ${label}` });
         }
         const originalReceiptTypes = [];
@@ -2577,7 +2619,7 @@
           events.push({ date: transferReceiptDate, type: "transfer", text: `서류수령 ${label} (양도증)` });
         }
         const warehouseDate = calendarDate(card.warehouse_expected_date);
-        if (warehouseDate) {
+        if (calendarPreferences.warehouse_expected && warehouseDate) {
           events.push({ date: warehouseDate, type: "warehouse", text: `반입예정 ${label}` });
         }
       });
