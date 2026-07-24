@@ -71,6 +71,10 @@ test("rejects unsupported calendar preference keys and non-boolean values", () =
   const { validateCalendarPreferences } = require("../lib/cargo-calendar-preferences");
 
   assert.throws(
+    () => validateCalendarPreferences({ import_request: true }),
+    /exactly.*import_request.*warehouse_expected/i
+  );
+  assert.throws(
     () => validateCalendarPreferences({ import_request: true, other: false }),
     /unsupported/i
   );
@@ -107,7 +111,7 @@ test("PATCH cargo-data lets a viewer save only their normalized calendar prefere
 
   await handler({
     method: "PATCH",
-    body: { import_request: false },
+    body: { import_request: false, warehouse_expected: true },
   }, response);
 
   assert.equal(response.statusCode, 200);
@@ -154,7 +158,7 @@ test("PATCH cargo-data refreshes the session used by a cargo-data reload", async
 
   await preferenceHandler({
     method: "PATCH",
-    body: { import_request: false },
+    body: { import_request: false, warehouse_expected: true },
   }, preferenceResponse);
 
   assert.match(
@@ -199,7 +203,7 @@ test("PATCH cargo-data rejects invalid preferences before writing", async () => 
 
   await handler({
     method: "PATCH",
-    body: { import_request: "false" },
+    body: { import_request: "false", warehouse_expected: true },
   }, response);
 
   assert.equal(response.statusCode, 400);
@@ -216,7 +220,10 @@ test("PATCH cargo-data rejects a missing session", async () => {
   });
   const response = createResponse();
 
-  await handler({ method: "PATCH", body: {} }, response);
+  await handler({
+    method: "PATCH",
+    body: { import_request: true, warehouse_expected: true },
+  }, response);
 
   assert.equal(response.statusCode, 401);
   assert.equal(response.body.success, false);
@@ -231,7 +238,10 @@ test("PATCH cargo-data names the required migration for a missing column", async
   });
   const response = createResponse();
 
-  await handler({ method: "PATCH", body: {} }, response);
+  await handler({
+    method: "PATCH",
+    body: { import_request: true, warehouse_expected: true },
+  }, response);
 
   assert.equal(response.statusCode, 500);
   assert.match(response.body.message, /20260724_add_calendar_preferences_and_ctf\.sql/);
@@ -264,9 +274,14 @@ test("login signs normalized calendar preferences into the session", async () =>
     import_request: false,
     warehouse_expected: true,
   });
+  assert.deepEqual(response.body.user.calendar_preferences, {
+    import_request: false,
+    warehouse_expected: true,
+  });
 });
 
-test("cargo data returns normalized calendar preferences from the session", async () => {
+test("cargo data returns newer database preferences instead of an old session cookie", async () => {
+  const calls = [];
   const handler = loadHandler(dataHandlerPath, {
     canReadAllCargo: () => false,
     verifySession: () => ({
@@ -274,9 +289,20 @@ test("cargo data returns normalized calendar preferences from the session", asyn
       login_id: "shipper",
       display_name: "Shipper",
       role: "shipper",
-      calendar_preferences: { warehouse_expected: false },
+      calendar_preferences: { import_request: true, warehouse_expected: true },
     }),
-    supabaseFetch: async () => [],
+    supabaseFetch: async (url) => {
+      calls.push(url);
+      if (url.startsWith("/rest/v1/shipper_accounts?")) {
+        return [{
+          calendar_preferences: {
+            import_request: false,
+            warehouse_expected: false,
+          },
+        }];
+      }
+      return [];
+    },
   });
   const response = createResponse();
 
@@ -284,9 +310,12 @@ test("cargo data returns normalized calendar preferences from the session", asyn
 
   assert.equal(response.statusCode, 200);
   assert.deepEqual(response.body.user.calendar_preferences, {
-    import_request: true,
+    import_request: false,
     warehouse_expected: false,
   });
+  assert.ok(calls.some((url) => (
+    url === "/rest/v1/shipper_accounts?select=calendar_preferences&id=eq.account-1&limit=1"
+  )));
 });
 
 test("calendar preference migration adds preferences and provisions the CTF account", () => {
@@ -304,5 +333,9 @@ test("calendar preference migration adds preferences and provisions the CTF acco
   assert.match(sql, /'CTF'/);
   assert.match(sql, /'캐틀팜'/);
   assert.match(sql, /extensions\.crypt\('ctf1234', extensions\.gen_salt\('bf'\)\)/);
-  assert.match(sql, /on conflict \(login_id\) do update/i);
+  assert.match(sql, /order by\s+case when login_id = 'CTF' then 0 else 1 end/i);
+  assert.match(sql, /login_id = 'CTF_RETIRED_' \|\| replace\(id::text, '-', ''\)/i);
+  assert.match(sql, /is_active = false/i);
+  assert.match(sql, /and id <> v_canonical_id/i);
+  assert.match(sql, /where id = v_canonical_id/i);
 });

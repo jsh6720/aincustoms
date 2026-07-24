@@ -365,6 +365,10 @@ test("viewer board cards remain read-only", () => {
 });
 
 test("calendar legend initializes and saves optional visibility preferences", () => {
+  assert.match(
+    dashboard,
+    /<div class="calendar-legend" role="group" aria-label="캘린더 일정 범례">/
+  );
   assert.match(dashboard, /data-calendar-preference="import_request"/);
   assert.match(dashboard, /data-calendar-preference="warehouse_expected"/);
   assert.match(dashboard, /let calendarPreferences = \{\s*import_request: true,\s*warehouse_expected: true,\s*\}/);

@@ -24,6 +24,7 @@ module.exports = async function handler(req, res) {
     }
 
     const account = accounts[0];
+    const calendarPreferences = normalizeCalendarPreferences(account.calendar_preferences);
     const expiresAt = Math.floor(Date.now() / 1000) + 8 * 60 * 60;
     const token = createSession({
       account_id: account.id,
@@ -32,7 +33,7 @@ module.exports = async function handler(req, res) {
       consignee_filter: account.consignee_filter,
       role: account.role || "shipper",
       release_request_to: account.release_request_to || "",
-      calendar_preferences: normalizeCalendarPreferences(account.calendar_preferences),
+      calendar_preferences: calendarPreferences,
       exp: expiresAt,
     });
 
@@ -47,6 +48,7 @@ module.exports = async function handler(req, res) {
         login_id: account.login_id,
         display_name: account.display_name,
         role: account.role || "shipper",
+        calendar_preferences: calendarPreferences,
       },
     });
   } catch (error) {

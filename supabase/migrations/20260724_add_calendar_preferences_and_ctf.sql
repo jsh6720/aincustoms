@@ -46,40 +46,53 @@ $$;
 revoke all on function public.verify_shipper_login(text, text) from public;
 grant execute on function public.verify_shipper_login(text, text) to service_role;
 
-update public.shipper_accounts
-set login_id = 'CTF',
-    password_hash = extensions.crypt('ctf1234', extensions.gen_salt('bf')),
-    display_name = '캐틀팜',
-    consignee_filter = '캐틀팜',
-    role = 'shipper',
-    is_active = true,
-    updated_at = now()
-where lower(login_id) = lower('CTF');
-
-insert into public.shipper_accounts (
-  login_id,
-  password_hash,
-  display_name,
-  consignee_filter,
-  role,
-  is_active
-)
-select
-  'CTF',
-  extensions.crypt('ctf1234', extensions.gen_salt('bf')),
-  '캐틀팜',
-  '캐틀팜',
-  'shipper',
-  true
-where not exists (
-  select 1
+do $$
+declare
+  v_canonical_id uuid;
+begin
+  select id
+  into v_canonical_id
   from public.shipper_accounts
   where lower(login_id) = lower('CTF')
-)
-on conflict (login_id) do update
-set password_hash = excluded.password_hash,
-    display_name = excluded.display_name,
-    consignee_filter = excluded.consignee_filter,
-    role = excluded.role,
-    is_active = excluded.is_active,
-    updated_at = now();
+  order by
+    case when login_id = 'CTF' then 0 else 1 end,
+    id
+  limit 1;
+
+  if v_canonical_id is not null then
+    update public.shipper_accounts
+    set login_id = 'CTF_RETIRED_' || replace(id::text, '-', ''),
+        is_active = false,
+        updated_at = now()
+    where lower(login_id) = lower('CTF')
+      and id <> v_canonical_id;
+
+    update public.shipper_accounts
+    set login_id = 'CTF',
+        password_hash = extensions.crypt('ctf1234', extensions.gen_salt('bf')),
+        display_name = '캐틀팜',
+        consignee_filter = '캐틀팜',
+        role = 'shipper',
+        is_active = true,
+        updated_at = now()
+    where id = v_canonical_id;
+  else
+    insert into public.shipper_accounts (
+      login_id,
+      password_hash,
+      display_name,
+      consignee_filter,
+      role,
+      is_active
+    )
+    values (
+      'CTF',
+      extensions.crypt('ctf1234', extensions.gen_salt('bf')),
+      '캐틀팜',
+      '캐틀팜',
+      'shipper',
+      true
+    );
+  end if;
+end;
+$$;

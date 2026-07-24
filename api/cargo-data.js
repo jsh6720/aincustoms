@@ -333,6 +333,16 @@ function sortCards(a, b) {
   return String(a.warehouse_arrival_date || "9999").localeCompare(String(b.warehouse_arrival_date || "9999"));
 }
 
+async function fetchCalendarPreferences(accountId, fallback) {
+  const rows = await supabaseFetch(
+    `/rest/v1/shipper_accounts?select=calendar_preferences&id=eq.${accountId}&limit=1`
+  );
+  if (!rows || !rows[0]) {
+    return normalizeCalendarPreferences(fallback);
+  }
+  return normalizeCalendarPreferences(rows[0].calendar_preferences);
+}
+
 async function saveCalendarPreferences(req, res) {
   try {
     const session = verifySession(req);
@@ -404,6 +414,10 @@ module.exports = async function handler(req, res) {
 
     const readsAllCargo = canReadAllCargo(session.role);
     const accountId = encodeURIComponent(session.account_id);
+    const currentCalendarPreferences = await fetchCalendarPreferences(
+      accountId,
+      session.calendar_preferences
+    );
     const cards = await supabaseFetch(
       readsAllCargo
         ? "/rest/v1/cargo_cards?select=*&order=synced_at.desc"
@@ -439,7 +453,7 @@ module.exports = async function handler(req, res) {
         login_id: session.login_id,
         display_name: session.display_name,
         role: session.role || "shipper",
-        calendar_preferences: normalizeCalendarPreferences(session.calendar_preferences),
+        calendar_preferences: currentCalendarPreferences,
       },
       stages: STAGE_ORDER,
       counts,
@@ -448,6 +462,12 @@ module.exports = async function handler(req, res) {
       last_update: sorted[0] ? sorted[0].synced_at : null,
     });
   } catch (error) {
+    if (String(error.message || "").includes("calendar_preferences")) {
+      return res.status(500).json({
+        success: false,
+        message: "Run 20260724_add_calendar_preferences_and_ctf.sql in Supabase first.",
+      });
+    }
     return res.status(500).json({ success: false, message: error.message });
   }
 };
