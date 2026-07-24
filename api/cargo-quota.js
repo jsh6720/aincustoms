@@ -38,6 +38,33 @@ async function findManualInput(accountId, blNumber) {
   return rows && rows[0] ? rows[0] : {};
 }
 
+async function linkedDocumentDeliveryTargets(card) {
+  const accountId = String(card?.account_id || "").trim();
+  const blNumber = String(card?.bl_number || "").trim();
+  const folderName = String(card?.folder_name || "").trim();
+  if (!accountId || !blNumber) return [];
+  if (!folderName) {
+    return [{ account_id: accountId, bl_number: blNumber }];
+  }
+
+  const bl = encodeURIComponent(blNumber);
+  const rows = await supabaseFetch(
+    `/rest/v1/cargo_cards?select=account_id,bl_number,folder_name&bl_number=eq.${bl}`
+  );
+  const targets = (rows || []).filter((item) => (
+    String(item.folder_name || "").trim() === folderName
+  ));
+  if (!targets.length) {
+    return [{ account_id: accountId, bl_number: blNumber }];
+  }
+  return Array.from(
+    new Map(targets.map((item) => [
+      `${item.account_id}|${item.bl_number}`,
+      { account_id: item.account_id, bl_number: item.bl_number },
+    ])).values()
+  );
+}
+
 function effectiveWarehouseValues(input, card) {
   return {
     storage_yard: String(input?.storage_yard || card?.storage_yard || card?.shed_name || "").trim(),
@@ -129,6 +156,50 @@ module.exports = async function handler(req, res) {
       if (Object.prototype.hasOwnProperty.call(body, "sticker_requested")) {
         payload.sticker_requested = body.sticker_requested === true;
       }
+      const deliveryFields = [
+        "docs_delivered_samhyeon",
+        "docs_delivered_warehouse",
+      ];
+      const hasDeliveryChange = deliveryFields.some((field) => (
+        Object.prototype.hasOwnProperty.call(body, field)
+      ));
+      for (const field of deliveryFields) {
+        if (!Object.prototype.hasOwnProperty.call(body, field)) continue;
+        if (typeof body[field] !== "boolean") {
+          return res.status(400).json({
+            success: false,
+            message: "서류전달 상태는 O 또는 X로 선택해 주세요.",
+          });
+        }
+        payload[field] = body[field];
+      }
+
+      if (hasDeliveryChange) {
+        const deliveryPayload = {};
+        for (const field of deliveryFields) {
+          if (Object.prototype.hasOwnProperty.call(payload, field)) {
+            deliveryPayload[field] = payload[field];
+          }
+        }
+        const targets = await linkedDocumentDeliveryTargets(card);
+        const linkedPayloads = targets.map((target) => ({
+          ...target,
+          ...deliveryPayload,
+        }));
+        const rows = await supabaseFetch(
+          "/rest/v1/cargo_card_user_inputs?on_conflict=account_id,bl_number",
+          {
+            method: "POST",
+            headers: { Prefer: "resolution=merge-duplicates,return=representation" },
+            body: JSON.stringify(linkedPayloads),
+          }
+        );
+        return res.status(200).json({
+          success: true,
+          input: rows && rows[0] ? rows[0] : null,
+          inputs: rows || [],
+        });
+      }
       const rows = await supabaseFetch(
         "/rest/v1/cargo_card_user_inputs?on_conflict=account_id,bl_number",
         {
@@ -214,7 +285,9 @@ module.exports = async function handler(req, res) {
       const nextInput = { ...previousInput, ...nextPayload };
       const nextWarehouse = effectiveWarehouseValues(nextInput, card);
       const changedFields = !isAdmin ? warehouseChanges(previousWarehouse, nextWarehouse) : [];
-      nextPayload.transport_updated_by_role = isAdmin ? "admin" : "shipper";
+      nextPayload.transport_updated_by_role = isAdmin
+        ? "admin"
+        : (session.account_category === "destination" ? "destination" : "shipper");
       nextPayload.transport_updated_by_login = session.login_id || "";
       nextPayload.transport_updated_at = new Date().toISOString();
       const accountFilter = encodeURIComponent(targetAccountId);
@@ -331,6 +404,12 @@ module.exports = async function handler(req, res) {
 
     return res.status(200).json({ success: true, input: rows && rows[0] ? rows[0] : null });
   } catch (error) {
+    if (["docs_delivered_samhyeon", "docs_delivered_warehouse", "account_category"].some((name) => String(error.message || "").includes(name))) {
+      return res.status(500).json({
+        success: false,
+        message: "Supabase에서 20260724_add_document_delivery_status.sql을 먼저 실행해 주세요.",
+      });
+    }
     if (["transport_updated_by_role", "transport_updated_by_login", "transport_updated_at"].some((name) => String(error.message || "").includes(name))) {
       return res.status(500).json({
         success: false,

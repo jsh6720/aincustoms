@@ -87,6 +87,9 @@ function progressCalendarHarness(cards, calendarPreferences = {}) {
     },
     etaText: (card) => card.eta_date || "",
     koreaCalendarDate: () => "",
+    effectiveOriginalReceiptDate: (card) => (
+      card.actual_received_date || card.original_docs_updated_at || ""
+    ),
   };
   vm.createContext(context);
   vm.runInContext(
@@ -96,6 +99,16 @@ this.events = progressCalendarEvents;`,
   );
   return context.events();
 }
+
+test("dashboard arrival text prefers Customs entry date over a stale manual ETA", () => {
+  const context = dashboardRuntimeContext("admin", [{
+    stage: "반입",
+    entry_date: "20260723",
+    eta_date: "2026-07-24",
+    first_arrival_date: "2026-07-24",
+  }]);
+  assert.equal(vm.runInContext("etaText(__testCards[0])", context), "2026-07-23");
+});
 
 function calendarPreferenceHarness(overrides = {}) {
   const start = dashboard.indexOf("let calendarPreferences");
@@ -501,12 +514,13 @@ test("progress table keeps role-specific request and operations columns aligned"
   const rowEnd = dashboard.indexOf("`).join(\"\")", rowStart);
   const row = dashboard.slice(rowStart, rowEnd);
 
-  assert.equal((header.match(/<th\b/g) || []).length, 29);
+  assert.equal((header.match(/<th\b/g) || []).length, 30);
   assert.equal((row.match(/<td\b/g) || []).length, 27);
   assert.equal((row.match(/\$\{progressRequestToggle\(card, "(?:docs|import)"\)\}/g) || []).length, 2);
+  assert.equal((row.match(/\$\{progressDeliveryStatus\(card\)\}/g) || []).length, 1);
   assert.match(dashboard, /if \(currentUserRole === "admin"\) return ""/);
   assert.match(dashboard, /body:not\(\.shipper-progress\) \.progress-shipper-only\s*\{\s*display:none/);
-  assert.match(dashboard, /colspan="\$\{currentUserRole === "admin" \? 27 : 24\}"/);
+  assert.match(dashboard, /colspan="\$\{currentUserRole === "admin" \? 28 : 25\}"/);
 });
 
 test("progress table binds date classes to ETA and warehouse date columns", () => {
@@ -851,6 +865,9 @@ test("mobile original document manager supports transfer override", () => {
 test("legacy original receipt fallback uses Korea-local update date", () => {
   assert.match(dashboard, /function koreaCalendarDate/);
   assert.match(dashboard, /koreaCalendarDate\(card\.original_docs_updated_at\)/);
+  const start = dashboard.indexOf("function progressCalendarEvents()");
+  const end = dashboard.indexOf("function renderProgressCalendar", start);
+  assert.match(dashboard.slice(start, end), /effectiveOriginalReceiptDate\(card\)/);
   assert.match(dashboard, /koreaToday\(\)/);
 });
 

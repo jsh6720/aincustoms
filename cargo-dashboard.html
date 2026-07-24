@@ -178,11 +178,12 @@
     .admin-table th, .admin-table td { border-bottom:1px solid #edf1f4; text-align:left; padding:8px; vertical-align:top; }
     .admin-table th { background:#f7f9fb; color:#4b5663; font-weight:700; }
     .admin-table th:nth-child(1), .admin-table td:nth-child(1) { width:58px; }
-    .admin-table th:nth-child(2), .admin-table td:nth-child(2) { width:110px; }
-    .admin-table th:nth-child(3), .admin-table td:nth-child(3) { width:150px; }
-    .admin-table th:nth-child(4), .admin-table td:nth-child(4) { width:120px; }
-    .admin-table th:nth-child(6), .admin-table td:nth-child(6) { width:56px; text-align:center; }
-    .admin-table th:nth-child(7), .admin-table td:nth-child(7) { width:62px; text-align:center; }
+    .admin-table th:nth-child(2), .admin-table td:nth-child(2) { width:70px; }
+    .admin-table th:nth-child(3), .admin-table td:nth-child(3) { width:110px; }
+    .admin-table th:nth-child(4), .admin-table td:nth-child(4) { width:150px; }
+    .admin-table th:nth-child(5), .admin-table td:nth-child(5) { width:120px; }
+    .admin-table th:nth-child(7), .admin-table td:nth-child(7) { width:56px; text-align:center; }
+    .admin-table th:nth-child(8), .admin-table td:nth-child(8) { width:62px; text-align:center; }
     .admin-table td { word-break:break-word; overflow-wrap:anywhere; }
     .admin-actions { display:flex; gap:6px; flex-wrap:wrap; }
     .docs-panel { display:none; padding:12px 16px 18px; }
@@ -241,6 +242,13 @@
     .progress-table td.progress-date { text-align:center; }
     .progress-edit-btn:hover { background:#edf4f8; text-decoration:underline; }
     .progress-edit-btn.progress-shipper-input { background:#eaf4ff; box-shadow:inset 2px 0 #7fb2dd; }
+    .progress-edit-btn.progress-destination-input { background:#edf8f1; box-shadow:inset 2px 0 #75b88d; }
+    .progress-edit-btn.progress-admin-input { background:#f1f3f5; box-shadow:inset 2px 0 #9aa4af; }
+    .progress-delivery { width:100px; min-width:100px; max-width:100px; text-align:center; }
+    .delivery-status { display:grid; grid-template-columns:1fr 1fr; gap:3px; min-width:0; }
+    .delivery-status-item { display:flex; align-items:center; justify-content:center; gap:2px; min-width:0; }
+    .delivery-status-label { color:#697582; font-size:8px; font-weight:800; white-space:nowrap; }
+    .delivery-status .doc-toggle { min-width:22px; padding:1px 4px; font-size:9px; line-height:16px; }
     .progress-transport-wrap { width:100%; }
     .progress-request-wrap { display:inline-flex; position:relative; justify-content:center; }
     .progress-tooltip-control:focus-visible { outline:2px solid #3978aa; outline-offset:2px; }
@@ -401,6 +409,11 @@
             <option value="viewer">전체조회(읽기 전용)</option>
             <option value="admin">관리자</option>
           </select>
+          <label>입력 구분</label>
+          <select id="adminAccountCategory">
+            <option value="shipper">화주</option>
+            <option value="destination">납품처</option>
+          </select>
           <label>아이디</label>
           <input id="adminLoginId">
           <label>비밀번호</label>
@@ -423,6 +436,7 @@
             <thead>
               <tr>
                 <th>권한</th>
+                <th>입력구분</th>
                 <th>아이디</th>
                 <th>표시명</th>
                 <th>필터텍스트</th>
@@ -460,6 +474,7 @@
                 <th class="progress-date">반입예정일</th>
                 <th class="progress-short center">마일스톤</th>
                 <th class="progress-long">진행상태</th>
+                <th class="progress-delivery">서류전달</th>
                 <th class="progress-short center progress-shipper-only">서류수령요청</th>
                 <th class="progress-short center progress-shipper-only">수입신고요청</th>
                 <th class="progress-date progress-admin-only">OBL 접수일</th>
@@ -1143,7 +1158,10 @@
       return `${y}-${m}-${d}`;
     }
     function freeTimeBaseDate(card, values) {
-      return values.eta_date || manualValue(card, "first_arrival_date") || "";
+      return calendarDate(card.entry_date)
+        || values.eta_date
+        || manualValue(card, "first_arrival_date")
+        || "";
     }
     function freeTimeDisplay(card, values) {
       const override = values.free_time_expiry_override || values.free_time_expiry_date;
@@ -1355,7 +1373,10 @@
       return card.product_name || "-";
     }
     function etaText(card) {
-      return card.eta_date || card.first_arrival_date || card.entry_date || "-";
+      return calendarDate(card.entry_date)
+        || calendarDate(card.eta_date)
+        || calendarDate(card.first_arrival_date)
+        || "-";
     }
     function yardText(card) {
       return card.storage_yard || card.shed_name || "-";
@@ -1493,28 +1514,98 @@
         - (stages.indexOf(b.stage) < 0 ? stages.length : stages.indexOf(b.stage));
       return stageCompare || String(a.bl_number || "").localeCompare(String(b.bl_number || ""), "ko");
     }
+    function transportProvenanceLabel(role) {
+      if (role === "admin") return "관리자(AIN)";
+      if (role === "destination") return "납품처";
+      if (role === "shipper") return "화주";
+      return "";
+    }
     function transportProvenanceClass(card) {
-      return card?.transport_updated_by_role === "shipper" ? " progress-shipper-input" : "";
+      if (card?.transport_updated_by_role === "destination") return " progress-destination-input";
+      if (card?.transport_updated_by_role === "shipper") return " progress-shipper-input";
+      if (card?.transport_updated_by_role === "admin") return " progress-admin-input";
+      return "";
     }
     function transportProvenanceTitle(card) {
-      if (card?.transport_updated_by_role !== "shipper") return "";
-      return `화주 입력 · ${card.transport_updated_by_login || "-"} · ${displayDateTime(card.transport_updated_at)}`;
+      const label = transportProvenanceLabel(card?.transport_updated_by_role);
+      if (!label) return "";
+      return `${label} 입력 · ${card.transport_updated_by_login || "-"} · ${displayDateTime(card.transport_updated_at)}`;
     }
     function progressTransportTooltip(card, cardIndex, field) {
-      if (card?.transport_updated_by_role !== "shipper") return "";
+      const label = transportProvenanceLabel(card?.transport_updated_by_role);
+      if (!label) return "";
       const descriptionId = `progress-transport-detail-${cardIndex}-${field}`;
       return `
         <span id="${descriptionId}" class="progress-request-detail" role="tooltip">
-          <span class="progress-request-detail-row"><b>입력구분</b><span>화주</span></span>
+          <span class="progress-request-detail-row"><b>입력구분</b><span>${esc(label)}</span></span>
           <span class="progress-request-detail-row"><b>입력자</b><span>${esc(card.transport_updated_by_login || "-")}</span></span>
           <span class="progress-request-detail-row"><b>입력일시</b><span>${esc(displayDateTime(card.transport_updated_at))}</span></span>
         </span>
       `;
     }
     function progressTransportAria(card, cardIndex, field) {
-      return card?.transport_updated_by_role === "shipper"
+      return transportProvenanceLabel(card?.transport_updated_by_role)
         ? ` aria-describedby="progress-transport-detail-${cardIndex}-${field}"`
         : "";
+    }
+    function progressDeliveryStatus(card) {
+      const idx = currentCards.indexOf(card);
+      const items = [
+        ["삼현", "samhyeon", card.docs_delivered_samhyeon === true],
+        ["창고", "warehouse", card.docs_delivered_warehouse === true],
+      ];
+      return `
+        <td class="progress-delivery">
+          <div class="delivery-status">
+            ${items.map(([label, target, enabled]) => `
+              <span class="delivery-status-item">
+                <span class="delivery-status-label">${label}</span>
+                ${currentUserRole === "admin"
+                  ? `<button type="button" class="doc-toggle ${enabled ? "doc-o" : "doc-x"}"
+                      data-progress-delivery-target="${target}"
+                      data-card-index="${idx}">${enabled ? "O" : "X"}</button>`
+                  : `<span class="${enabled ? "doc-o" : "doc-x"}">${enabled ? "O" : "X"}</span>`}
+              </span>
+            `).join("")}
+          </div>
+        </td>
+      `;
+    }
+    async function toggleProgressDeliveryStatus(cardIndex, target) {
+      if (currentUserRole !== "admin") return;
+      const card = currentCards[cardIndex];
+      if (!card?.bl_number) return;
+      const field = target === "warehouse"
+        ? "docs_delivered_warehouse"
+        : "docs_delivered_samhyeon";
+      const label = target === "warehouse" ? "창고전달" : "삼현전달";
+      const next = card[field] !== true;
+      if (!confirm(`${card.bl_number} ${label} 상태를 ${next ? "O" : "X"}로 변경할까요?`)) return;
+      const response = await fetch("/api/cargo-quota", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "admin_status",
+          account_id: card.account_id,
+          bl_number: card.bl_number,
+          [field]: next,
+        }),
+      });
+      const result = await response.json();
+      if (!result.success) {
+        alert(result.message || "서류전달 상태 저장에 실패했습니다.");
+        return;
+      }
+      await loadData();
+      renderProgressStatus();
+    }
+    function handleProgressDeliveryAction(event) {
+      const button = event.target?.closest?.("[data-progress-delivery-target]");
+      const rows = document.getElementById("progressRows");
+      if (!button || !rows.contains(button)) return;
+      const cardIndex = Number.parseInt(button.dataset.cardIndex, 10);
+      if (!Number.isInteger(cardIndex)) return;
+      toggleProgressDeliveryStatus(cardIndex, button.dataset.progressDeliveryTarget);
     }
     function progressTransportDisabled() {
       return currentUserRole === "viewer" ? " disabled" : "";
@@ -1782,6 +1873,7 @@
       const board = document.getElementById("board");
       const adminRows = document.getElementById("adminRows");
       progressRows.addEventListener("click", handleProgressRequestAction);
+      progressRows.addEventListener("click", handleProgressDeliveryAction);
       progressRows.addEventListener("pointerover", handleProgressRequestTooltipShow);
       progressRows.addEventListener("pointerout", handleProgressRequestTooltipHide);
       progressRows.addEventListener("focusin", handleProgressRequestTooltipShow);
@@ -1840,6 +1932,7 @@
           </td>
           <td class="progress-short center">${esc(card.stage || "-")}</td>
           <td class="progress-long progress-state-cell"><span>${esc(progressStateText(card))}</span>${progressAdminRequestIndicators(card)}</td>
+          ${progressDeliveryStatus(card)}
           ${progressRequestToggle(card, "docs")}
           ${progressRequestToggle(card, "import")}
           <td class="progress-date progress-admin-only">${progressOblCarrierToggle(card)}</td>
@@ -1858,7 +1951,7 @@
           <td class="progress-short center">${docStatusLabel(!!card.doc_insurance_received, insuranceRequired(card))}</td>
           <td class="progress-short center">${docStatusLabel(!!card.doc_freight_invoice_received, freightRequired(card))}</td>
         </tr>
-      `).join("") : `<tr><td colspan="${currentUserRole === "admin" ? 27 : 24}" style="text-align:center;color:#8b95a1">표시할 BL이 없습니다.</td></tr>`;
+      `).join("") : `<tr><td colspan="${currentUserRole === "admin" ? 28 : 25}" style="text-align:center;color:#8b95a1">표시할 BL이 없습니다.</td></tr>`;
     }
     async function saveProgressOblCarrier(cardIndex) {
       if (currentUserRole !== "admin") return;
@@ -2771,9 +2864,10 @@
             text: `요청 ${label}`
           });
         }
-        if (card.actual_received_date) {
+        const receiptDate = effectiveOriginalReceiptDate(card);
+        if (receiptDate) {
           events.push({
-            date: shortDate(card.actual_received_date),
+            date: shortDate(receiptDate),
             type: "actual",
             text: `수령 ${label}`
           });
@@ -2851,9 +2945,7 @@
         const originalReceiptTypes = [];
         if (card.obl_received) originalReceiptTypes.push("OBL");
         if (card.hc_received) originalReceiptTypes.push("H/C");
-        const actualDate = calendarDate(card.actual_received_date);
-        const originalReceiptDate = actualDate
-          || (originalReceiptTypes.length ? koreaCalendarDate(card.original_docs_updated_at) : "");
+        const originalReceiptDate = effectiveOriginalReceiptDate(card);
         if (originalReceiptDate && originalReceiptTypes.length) {
           events.push({
             date: originalReceiptDate,
@@ -3169,6 +3261,7 @@
       rows.innerHTML = adminAccounts.map((account, accountIndex) => `
         <tr>
           <td>${account.role === "admin" ? "관리자" : account.role === "viewer" ? "전체조회" : "화주"}</td>
+          <td>${account.account_category === "destination" ? "납품처" : "화주"}</td>
           <td><b>${esc(account.login_id)}</b></td>
           <td>${esc(displayConsignee(account.display_name))}</td>
           <td>${esc(account.consignee_filter || "-")}</td>
@@ -3188,6 +3281,7 @@
       document.getElementById("adminFormTitle").textContent = "계정 추가";
       document.getElementById("adminAccountId").value = "";
       document.getElementById("adminRole").value = "shipper";
+      document.getElementById("adminAccountCategory").value = "shipper";
       document.getElementById("adminLoginId").value = "";
       document.getElementById("adminPassword").value = "";
       document.getElementById("adminDisplayName").value = "";
@@ -3202,6 +3296,7 @@
       document.getElementById("adminFormTitle").textContent = "계정 수정";
       document.getElementById("adminAccountId").value = account.id;
       document.getElementById("adminRole").value = account.role || "shipper";
+      document.getElementById("adminAccountCategory").value = account.account_category || "shipper";
       document.getElementById("adminLoginId").value = account.login_id || "";
       document.getElementById("adminPassword").value = "";
       document.getElementById("adminDisplayName").value = displayConsignee(account.display_name || "");
@@ -3216,6 +3311,7 @@
       const payload = {
         id: document.getElementById("adminAccountId").value || null,
         role: document.getElementById("adminRole").value,
+        account_category: document.getElementById("adminAccountCategory").value,
         login_id: document.getElementById("adminLoginId").value,
         password: document.getElementById("adminPassword").value,
         display_name: document.getElementById("adminDisplayName").value,

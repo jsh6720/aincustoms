@@ -7,6 +7,7 @@ const {
 const { mergeDuplicateCargoCards } = require("../lib/cargo-card-merge");
 const {
   latestLinkedRequest,
+  mergeLinkedDeliveryStatus,
   mergeLinkedOriginalDocs,
 } = require("../lib/cargo-linked-records");
 
@@ -134,16 +135,16 @@ function computeQuotaMessages(card) {
 async function fetchUserInputs(accountId) {
   try {
     const query = accountId
-      ? `/rest/v1/cargo_card_user_inputs?select=account_id,bl_number,is_quota,quota_permit_date,is_hidden,hidden_at,hidden_by,delivery_terms,eta_date,storage_yard,free_time_days,free_time_expiry_date,free_time_expiry_override,warehouse_expected_date,animal_quarantine_override,food_quarantine_override,import_declaration_override,distribution_history_override,distribution_history_number,sticker_requested,obl_carrier_submitted,obl_carrier_submitted_date,obl_carrier_submitted_by,obl_carrier_submitted_at,transport_updated_by_role,transport_updated_by_login,transport_updated_at,updated_at&account_id=eq.${accountId}`
-      : "/rest/v1/cargo_card_user_inputs?select=account_id,bl_number,is_quota,quota_permit_date,is_hidden,hidden_at,hidden_by,delivery_terms,eta_date,storage_yard,free_time_days,free_time_expiry_date,free_time_expiry_override,warehouse_expected_date,animal_quarantine_override,food_quarantine_override,import_declaration_override,distribution_history_override,distribution_history_number,sticker_requested,obl_carrier_submitted,obl_carrier_submitted_date,obl_carrier_submitted_by,obl_carrier_submitted_at,transport_updated_by_role,transport_updated_by_login,transport_updated_at,updated_at";
+      ? `/rest/v1/cargo_card_user_inputs?select=account_id,bl_number,is_quota,quota_permit_date,is_hidden,hidden_at,hidden_by,delivery_terms,eta_date,storage_yard,free_time_days,free_time_expiry_date,free_time_expiry_override,warehouse_expected_date,animal_quarantine_override,food_quarantine_override,import_declaration_override,distribution_history_override,distribution_history_number,sticker_requested,obl_carrier_submitted,obl_carrier_submitted_date,obl_carrier_submitted_by,obl_carrier_submitted_at,docs_delivered_samhyeon,docs_delivered_warehouse,transport_updated_by_role,transport_updated_by_login,transport_updated_at,updated_at&account_id=eq.${accountId}`
+      : "/rest/v1/cargo_card_user_inputs?select=account_id,bl_number,is_quota,quota_permit_date,is_hidden,hidden_at,hidden_by,delivery_terms,eta_date,storage_yard,free_time_days,free_time_expiry_date,free_time_expiry_override,warehouse_expected_date,animal_quarantine_override,food_quarantine_override,import_declaration_override,distribution_history_override,distribution_history_number,sticker_requested,obl_carrier_submitted,obl_carrier_submitted_date,obl_carrier_submitted_by,obl_carrier_submitted_at,docs_delivered_samhyeon,docs_delivered_warehouse,transport_updated_by_role,transport_updated_by_login,transport_updated_at,updated_at";
     return await supabaseFetch(
       query
     );
   } catch (error) {
-    if (["is_hidden", "delivery_terms", "eta_date", "storage_yard", "free_time_days", "free_time_expiry_date", "free_time_expiry_override", "warehouse_expected_date", "animal_quarantine_override", "food_quarantine_override", "import_declaration_override", "distribution_history_override", "distribution_history_number", "sticker_requested", "obl_carrier_submitted", "transport_updated_by_role", "transport_updated_by_login", "transport_updated_at"].some((name) => String(error.message || "").includes(name))) {
+    if (["is_hidden", "delivery_terms", "eta_date", "storage_yard", "free_time_days", "free_time_expiry_date", "free_time_expiry_override", "warehouse_expected_date", "animal_quarantine_override", "food_quarantine_override", "import_declaration_override", "distribution_history_override", "distribution_history_number", "sticker_requested", "obl_carrier_submitted", "docs_delivered_samhyeon", "docs_delivered_warehouse", "transport_updated_by_role", "transport_updated_by_login", "transport_updated_at"].some((name) => String(error.message || "").includes(name))) {
       const fallback = accountId
-        ? `/rest/v1/cargo_card_user_inputs?select=account_id,bl_number,is_quota,quota_permit_date,updated_at&account_id=eq.${accountId}`
-        : "/rest/v1/cargo_card_user_inputs?select=account_id,bl_number,is_quota,quota_permit_date,updated_at";
+        ? `/rest/v1/cargo_card_user_inputs?select=account_id,bl_number,is_quota,quota_permit_date,is_hidden,hidden_at,hidden_by,delivery_terms,eta_date,storage_yard,free_time_days,free_time_expiry_date,free_time_expiry_override,warehouse_expected_date,animal_quarantine_override,food_quarantine_override,import_declaration_override,distribution_history_override,distribution_history_number,sticker_requested,obl_carrier_submitted,obl_carrier_submitted_date,obl_carrier_submitted_by,obl_carrier_submitted_at,transport_updated_by_role,transport_updated_by_login,transport_updated_at,updated_at&account_id=eq.${accountId}`
+        : "/rest/v1/cargo_card_user_inputs?select=account_id,bl_number,is_quota,quota_permit_date,is_hidden,hidden_at,hidden_by,delivery_terms,eta_date,storage_yard,free_time_days,free_time_expiry_date,free_time_expiry_override,warehouse_expected_date,animal_quarantine_override,food_quarantine_override,import_declaration_override,distribution_history_override,distribution_history_number,sticker_requested,obl_carrier_submitted,obl_carrier_submitted_date,obl_carrier_submitted_by,obl_carrier_submitted_at,transport_updated_by_role,transport_updated_by_login,transport_updated_at,updated_at";
       return await supabaseFetch(fallback);
     }
     if (String(error.message || "").includes("cargo_card_user_inputs")) {
@@ -221,13 +222,15 @@ async function fetchLifecycle(accountId) {
   }
 }
 
-function applyUserInputs(cards, inputs) {
+function applyUserInputs(cards, inputs, cardRefs = cards) {
   const byBl = new Map((inputs || []).map((item) => [`${item.account_id || ""}|${item.bl_number}`, item]));
   return (cards || []).map((card) => {
     const input = byBl.get(`${card.account_id || ""}|${card.bl_number}`) || byBl.get(`|${card.bl_number}`);
-    if (!input) return { ...card, free_time_days: 3 };
+    const delivery = mergeLinkedDeliveryStatus(card, cardRefs, inputs);
+    if (!input) return { ...card, ...delivery, free_time_days: 3 };
     return computeQuotaMessages({
       ...card,
+      ...delivery,
       is_quota: !!input.is_quota,
       quota_permit_date: input.quota_permit_date || "",
       is_hidden: !!input.is_hidden,
@@ -306,7 +309,7 @@ function applyOriginalDocs(cards, docs, cardRefs = cards) {
       pending_actual_received_date_at: item?.pending_actual_received_date_at || null,
       approved_actual_received_date_by: item?.approved_actual_received_date_by || "",
       approved_actual_received_date_at: item?.approved_actual_received_date_at || null,
-      original_docs_updated_at: item?.updated_at || null,
+      original_docs_updated_at: item?.receipt_updated_at || item?.updated_at || null,
       original_docs_updated_by: item?.updated_by || "",
     };
   });
@@ -478,7 +481,7 @@ module.exports = async function handler(req, res) {
     const enrichedCards = applyLifecycle(
       applyOriginalDocs(
         applyOriginalDocRequests(
-          applyImportRequests(applyUserInputs(cardsWithDocStatus, userInputs), importRequests),
+          applyImportRequests(applyUserInputs(cardsWithDocStatus, userInputs, cardRefs), importRequests),
           originalDocRequests,
           cardRefs
         ),
@@ -505,6 +508,7 @@ module.exports = async function handler(req, res) {
         login_id: session.login_id,
         display_name: session.display_name,
         role: session.role || "shipper",
+        account_category: session.account_category || "shipper",
         calendar_preferences: currentCalendarPreferences,
       },
       stages: STAGE_ORDER,

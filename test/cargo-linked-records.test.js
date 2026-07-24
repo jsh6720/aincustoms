@@ -54,6 +54,31 @@ test("repairs existing receipt disagreement by preserving received status", () =
   assert.equal(merged.actual_received_date, "2026-07-06");
 });
 
+test("uses the originating receipt update instead of a later linked-account sync", () => {
+  const merged = mergeLinkedOriginalDocs(cards[0], cards, [
+    {
+      account_id: "hch",
+      bl_number: "MAEU721416461",
+      obl_received: true,
+      hc_received: true,
+      actual_received_date: "",
+      updated_by: "aincustoms",
+      updated_at: "2026-07-22T03:48:37.58407+00:00",
+    },
+    {
+      account_id: "ctf",
+      bl_number: "MAEU721416461",
+      obl_received: true,
+      hc_received: true,
+      actual_received_date: "",
+      updated_by: "linked-account-sync",
+      updated_at: "2026-07-24T08:02:26.826461+00:00",
+    },
+  ]);
+
+  assert.equal(merged.receipt_updated_at, "2026-07-22T03:48:37.58407+00:00");
+});
+
 test("uses the latest request across linked filter accounts", () => {
   const request = latestLinkedRequest(cards[0], cards, [
     {

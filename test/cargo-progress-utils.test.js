@@ -2,10 +2,35 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 
 const {
+  effectiveArrivalDate,
   freeTimeExpiry,
   normalizeInspectionStatus,
   sortProgressCards,
 } = require("../lib/cargo-progress-utils");
+
+test("actual Customs entry date overrides a stale manual ETA after arrival", () => {
+  assert.equal(
+    effectiveArrivalDate({
+      stage: "반입",
+      entry_date: "20260723",
+      eta_date: "2026-07-24",
+      first_arrival_date: "2026-07-24",
+    }),
+    "2026-07-23"
+  );
+});
+
+test("manual ETA remains the fallback before Customs has an entry date", () => {
+  assert.equal(
+    effectiveArrivalDate({
+      stage: "입항전",
+      entry_date: "",
+      eta_date: "2026-07-25",
+      first_arrival_date: "",
+    }),
+    "2026-07-25"
+  );
+});
 
 test("three free-time days include the arrival date", () => {
   assert.equal(
@@ -29,6 +54,17 @@ test("free-time expiry falls back to API arrival and three days", () => {
   assert.equal(
     freeTimeExpiry({ first_arrival_date: "2026-07-30" }),
     "2026-08-01"
+  );
+});
+
+test("free-time expiry follows the actual Customs entry date after arrival", () => {
+  assert.equal(
+    freeTimeExpiry({
+      entry_date: "20260723",
+      eta_date: "2026-07-24",
+      free_time_days: 3,
+    }),
+    "2026-07-25"
   );
 });
 

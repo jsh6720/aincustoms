@@ -23,9 +23,17 @@ module.exports = async function handler(req, res) {
     if (!session) return;
 
     if (req.method === "GET") {
-      const accounts = await supabaseFetch(
-        "/rest/v1/shipper_accounts?select=id,login_id,display_name,consignee_filter,release_request_to,role,is_active,updated_at&order=role.asc,login_id.asc"
-      );
+      let accounts;
+      try {
+        accounts = await supabaseFetch(
+          "/rest/v1/shipper_accounts?select=id,login_id,display_name,consignee_filter,release_request_to,role,account_category,is_active,updated_at&order=role.asc,login_id.asc"
+        );
+      } catch (error) {
+        if (!String(error.message || "").includes("account_category")) throw error;
+        accounts = await supabaseFetch(
+          "/rest/v1/shipper_accounts?select=id,login_id,display_name,consignee_filter,release_request_to,role,is_active,updated_at&order=role.asc,login_id.asc"
+        );
+      }
       return res.status(200).json({ success: true, accounts: accounts || [] });
     }
 
@@ -40,6 +48,9 @@ module.exports = async function handler(req, res) {
         p_release_request_to: cleanText(body.release_request_to, 1000),
         p_is_active: body.is_active !== false,
         p_role: body.role === "admin" || body.role === "viewer" ? body.role : "shipper",
+        p_account_category: body.account_category === "destination"
+          ? "destination"
+          : "shipper",
       };
 
       if (!payload.p_login_id) {
@@ -65,7 +76,7 @@ module.exports = async function handler(req, res) {
     if (String(error.message || "").includes("admin_upsert_shipper_account")) {
       return res.status(500).json({
         success: false,
-        message: "Supabase에서 add_admin_management.sql을 먼저 실행해 주세요.",
+        message: "Supabase에서 20260724_add_document_delivery_status.sql을 먼저 실행해 주세요.",
       });
     }
     return res.status(500).json({ success: false, message: error.message });
