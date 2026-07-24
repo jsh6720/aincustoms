@@ -1400,9 +1400,11 @@
       if (currentUserRole !== "admin") return docStatusLabel(isOn);
       if (isOn && card.distribution_history_number) {
         const descriptionId = `progress-distribution-number-${idx}`;
-        return `<span class="distribution-number-wrap" tabindex="0">
-          <button type="button" class="doc-toggle doc-o progress-tooltip-control" aria-describedby="${descriptionId}" onclick="toggleProgressManualStatus(${idx}, 'distribution')">O</button>
-          ${distributionNumberPopover(card.distribution_history_number, descriptionId)}
+        const distributionPopover = distributionNumberPopover(card.distribution_history_number, descriptionId);
+        const describedBy = distributionPopover ? ` aria-describedby="${descriptionId}"` : "";
+        return `<span class="distribution-number-wrap">
+          <button type="button" class="doc-toggle doc-o progress-tooltip-control"${describedBy} onclick="toggleProgressManualStatus(${idx}, 'distribution')">O</button>
+          ${distributionPopover}
         </span>`;
       }
       return `<button type="button" class="doc-toggle ${isOn ? "doc-o" : "doc-x"}" onclick="toggleProgressManualStatus(${idx}, 'distribution')">${isOn ? "O" : "X"}</button>`;

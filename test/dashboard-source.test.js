@@ -883,6 +883,7 @@ test("saved distribution history numbers render in a selectable popover", () => 
   assert.match(html, /OWN-123/);
   assert.match(html, /\uBCF8\uB808\uC2A4/);
   assert.match(html, /BONE-456/);
+  assert.doesNotMatch(html, /distribution-number-wrap" tabindex=/);
   assert.match(html, /aria-describedby="progress-distribution-number--1"/);
   assert.match(html, /id="progress-distribution-number--1"[^>]*role="tooltip"/);
   assert.match(html, /class="doc-toggle doc-o progress-tooltip-control"/);
@@ -893,4 +894,20 @@ test("saved distribution history numbers render in a selectable popover", () => 
   assert.match(dashboard, /\.distribution-number-wrap:hover \.distribution-number-popover,[\s\S]*\.distribution-number-wrap:focus-within \.distribution-number-popover/);
   assert.match(dashboard, /const gap = detail\.classList\?\.contains\?\.\("distribution-number-popover"\) \? 0 : 6/);
   assert.match(dashboard, /alert\("\\uC720\\uD1B5\\uC774\\uB825 \\uC2E0\\uACE0\\uBC88\\uD638\\uB97C \\uD558\\uB098 \\uC774\\uC0C1 \\uC785\\uB825\\uD574 \\uC8FC\\uC138\\uC694\./);
+});
+
+test("separator-only distribution values have no dangling tooltip relationship", () => {
+  const context = dashboardRuntimeContext("admin", []);
+  const html = vm.runInContext(
+    `progressManualStatusToggle({
+      bl_number: "BL-EMPTY",
+      distribution_history_override: "O",
+      distribution_history_number: " / "
+    }, "distribution")`,
+    context
+  );
+  assert.match(html, /class="doc-toggle doc-o progress-tooltip-control"/);
+  assert.doesNotMatch(html, /distribution-number-popover/);
+  assert.doesNotMatch(html, /aria-describedby=/);
+  assert.doesNotMatch(html, /distribution-number-wrap" tabindex=/);
 });
