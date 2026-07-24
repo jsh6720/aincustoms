@@ -1,5 +1,6 @@
 const { verifySession, canReadAllCargo, supabaseFetch } = require("../lib/cargo-auth");
 const { hasTransferDocument } = require("../lib/cargo-doc-status");
+const { normalizeCalendarPreferences } = require("../lib/cargo-calendar-preferences");
 
 const STAGE_ORDER = ["입항전", "입항", "반입", "수입신고", "반출"];
 const IMPORT_DECLARE_DAYS = 30;
@@ -378,6 +379,7 @@ module.exports = async function handler(req, res) {
         login_id: session.login_id,
         display_name: session.display_name,
         role: session.role || "shipper",
+        calendar_preferences: normalizeCalendarPreferences(session.calendar_preferences),
       },
       stages: STAGE_ORDER,
       counts,

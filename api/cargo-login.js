@@ -1,4 +1,5 @@
 const { createSession, supabaseFetch } = require("../lib/cargo-auth");
+const { normalizeCalendarPreferences } = require("../lib/cargo-calendar-preferences");
 
 module.exports = async function handler(req, res) {
   if (req.method !== "POST") {
@@ -31,6 +32,7 @@ module.exports = async function handler(req, res) {
       consignee_filter: account.consignee_filter,
       role: account.role || "shipper",
       release_request_to: account.release_request_to || "",
+      calendar_preferences: normalizeCalendarPreferences(account.calendar_preferences),
       exp: expiresAt,
     });
 
