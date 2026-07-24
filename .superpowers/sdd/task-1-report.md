@@ -62,3 +62,44 @@ Initial implementation commit: `5d20233` (`Remove transfer receipt from progress
 ## Concerns
 
 None.
+
+## Review Follow-Up
+
+### Changed File
+
+- `test/progress-request-workflow.test.js`
+  - Changed the stale transfer receipt source assertion from `assert.match` to `assert.doesNotMatch`.
+  - All other workflow assertions were preserved.
+
+### Verification
+
+Command:
+
+```powershell
+node --test test/dashboard-source.test.js test/progress-request-workflow.test.js
+```
+
+Exact output summary:
+
+```text
+tests 60
+pass 60
+fail 0
+cancelled 0
+skipped 0
+todo 0
+```
+
+### Commit
+
+`e815a3e` (`Fix stale transfer calendar assertion`)
+
+### Self-Review
+
+- `git diff --check` completed without whitespace errors.
+- The fix changes exactly one assertion in the reviewed file.
+- The assertion now verifies that `(양도증)` is absent from `progressCalendarEvents` source while OBL/H/C and import-request checks remain unchanged.
+
+### Concerns
+
+None.
