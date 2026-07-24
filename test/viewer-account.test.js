@@ -93,7 +93,7 @@ test("dashboard renders viewer as a read-only all-cargo board", () => {
   assert.match(source, /<option value="viewer">전체조회\(읽기 전용\)<\/option>/);
   assert.match(source, /document\.body\.classList\.toggle\("viewer-progress", currentUserRole === "viewer"\)/);
   assert.match(source, /let currentPrimaryView = "board"/);
-  assert.match(source, /currentUserRole === "viewer"\s*\?\s*"none"\s*:\s*""/);
+  assert.match(source, /document\.getElementById\("progressStatusBtn"\)\.style\.display = "";/);
   assert.match(source, /if \(currentUserRole === "admin" \|\| currentUserRole === "viewer"\) return "";/);
   assert.match(source, /body\.viewer-progress \.progress-edit-btn/);
   assert.match(source, /body\.viewer-progress \.progress-shipper-only/);

@@ -96,6 +96,38 @@ this.events = progressCalendarEvents;`,
   return context.events();
 }
 
+function calendarPreferenceHarness(overrides = {}) {
+  const start = dashboard.indexOf("let calendarPreferences");
+  const end = dashboard.indexOf("function showPrimaryView", start);
+  assert.ok(start >= 0 && end > start, "calendar preference source should exist");
+  const controls = [
+    { dataset: { calendarPreference: "import_request" }, checked: true },
+    { dataset: { calendarPreference: "warehouse_expected" }, checked: true },
+  ];
+  const context = {
+    document: { querySelectorAll: () => controls },
+    renderCount: 0,
+    errors: [],
+    renderProgressCalendar() {
+      context.renderCount += 1;
+    },
+    ...overrides,
+  };
+  context.alert = (message) => context.errors.push(message);
+  vm.createContext(context);
+  vm.runInContext(
+    `${dashboard.slice(start, end)}
+this.saveCalendarPreferenceForTest = saveCalendarPreference;
+this.calendarPreferencesForTest = () => ({ ...calendarPreferences });`,
+    context
+  );
+  return { context, controls };
+}
+
+function currentCalendarPreferences(context) {
+  return { ...context.calendarPreferencesForTest() };
+}
+
 test("progress transport editor renders role-specific save commands", () => {
   assert.match(dashboard, /id="progressWarehouseModalActions"/);
   const openStart = dashboard.indexOf("function openProgressWarehouseEditor");
@@ -314,6 +346,7 @@ test("dashboard defaults every role to the board and exposes progress navigation
   assert.match(dashboard, />BL 진행<\/button>/);
   assert.match(dashboard, />대시보드<\/button>/);
   assert.match(dashboard, /currentPrimaryView = "board";/);
+  assert.doesNotMatch(dashboard, /currentUserRole === "viewer"\s*\?\s*"none"\s*:\s*""/);
 });
 
 test("viewer board cards remain read-only", () => {
@@ -338,8 +371,108 @@ test("calendar legend initializes and saves optional visibility preferences", ()
   assert.match(dashboard, /result\.user\.calendar_preferences/);
   assert.match(dashboard, /async function saveCalendarPreference\(key, checked\)/);
   assert.match(dashboard, /fetch\("\/api\/cargo-calendar-preferences"/);
-  assert.match(dashboard, /calendarPreferences\[key\] = previousValue/);
+  assert.match(dashboard, /let calendarPreferenceSaveQueue = Promise\.resolve\(\)/);
+  assert.match(dashboard, /const preferencesToSave = \{ \.\.\.calendarPreferences \}/);
+  assert.match(dashboard, /calendarPreferenceSaveQueue = calendarPreferenceSaveQueue\.then/);
   assert.match(dashboard, /renderProgressCalendar\(\)/);
+});
+
+test("calendar preference saves serialize rapid toggles and keep the latest value", async () => {
+  const requests = [];
+  const { context } = calendarPreferenceHarness({
+    fetch: (...args) => new Promise((resolve) => requests.push({ args, resolve })),
+  });
+
+  const first = context.saveCalendarPreferenceForTest("import_request", false);
+  const second = context.saveCalendarPreferenceForTest("import_request", true);
+  await Promise.resolve();
+  assert.equal(requests.length, 1);
+  assert.equal(JSON.parse(requests[0].args[1].body).import_request, false);
+
+  requests[0].resolve({
+    ok: true,
+    json: async () => ({ success: true, calendar_preferences: { import_request: false, warehouse_expected: true } }),
+  });
+  await first;
+  await Promise.resolve();
+  assert.equal(requests.length, 2);
+  assert.equal(JSON.parse(requests[1].args[1].body).import_request, true);
+
+  requests[1].resolve({
+    ok: true,
+    json: async () => ({ success: true, calendar_preferences: { import_request: true, warehouse_expected: true } }),
+  });
+  await second;
+  assert.deepEqual(currentCalendarPreferences(context), {
+    import_request: true,
+    warehouse_expected: true,
+  });
+  assert.deepEqual(context.errors, []);
+});
+
+test("calendar preference failures do not roll back newer choices", async () => {
+  const requests = [];
+  const { context } = calendarPreferenceHarness({
+    fetch: (...args) => new Promise((resolve) => requests.push({ args, resolve })),
+  });
+
+  const first = context.saveCalendarPreferenceForTest("import_request", false);
+  const second = context.saveCalendarPreferenceForTest("warehouse_expected", false);
+  await Promise.resolve();
+  requests[0].resolve({
+    ok: false,
+    json: async () => ({ success: false, message: "first save failed" }),
+  });
+  await first;
+  await Promise.resolve();
+  assert.deepEqual(currentCalendarPreferences(context), {
+    import_request: false,
+    warehouse_expected: false,
+  });
+  assert.equal(requests.length, 2);
+  assert.deepEqual(JSON.parse(requests[1].args[1].body), {
+    import_request: false,
+    warehouse_expected: false,
+  });
+
+  requests[1].resolve({
+    ok: true,
+    json: async () => ({ success: true, calendar_preferences: { import_request: false, warehouse_expected: false } }),
+  });
+  await second;
+  assert.deepEqual(currentCalendarPreferences(context), {
+    import_request: false,
+    warehouse_expected: false,
+  });
+  assert.deepEqual(context.errors, []);
+});
+
+test("latest calendar preference failure restores the last saved value", async () => {
+  const requests = [];
+  const { context } = calendarPreferenceHarness({
+    fetch: (...args) => new Promise((resolve) => requests.push({ args, resolve })),
+  });
+
+  const first = context.saveCalendarPreferenceForTest("import_request", false);
+  const second = context.saveCalendarPreferenceForTest("warehouse_expected", false);
+  await Promise.resolve();
+  requests[0].resolve({
+    ok: true,
+    json: async () => ({ success: true, calendar_preferences: { import_request: false, warehouse_expected: true } }),
+  });
+  await first;
+  await Promise.resolve();
+  requests[1].resolve({
+    ok: false,
+    json: async () => ({ success: false, message: "latest save failed" }),
+  });
+  await second;
+
+  assert.deepEqual(currentCalendarPreferences(context), {
+    import_request: false,
+    warehouse_expected: true,
+  });
+  assert.deepEqual(context.errors, ["latest save failed"]);
 });
 
 test("progress table adds two complete shipper request columns to the 24 admin columns", () => {

@@ -590,6 +590,9 @@
     let currentCards = [];
     let currentPrimaryView = "board";
     let calendarPreferences = { import_request: true, warehouse_expected: true, };
+    let savedCalendarPreferences = { ...calendarPreferences };
+    let calendarPreferenceSaveQueue = Promise.resolve();
+    let calendarPreferenceRevision = 0;
     let requestSubmitting = false;
     let showHiddenCards = false;
     let manualEditOpen = {};
@@ -769,38 +772,56 @@
       if (normalized) input.value = normalized.slice(5);
       updateRequestWeekday();
     }
-    function setCalendarPreferences(preferences) {
+    function normalizedCalendarPreferences(preferences) {
       const source = preferences && typeof preferences === "object" ? preferences : {};
-      calendarPreferences = {
+      return {
         import_request: source.import_request !== false,
         warehouse_expected: source.warehouse_expected !== false,
       };
+    }
+    function setCalendarPreferences(preferences) {
+      calendarPreferences = normalizedCalendarPreferences(preferences);
       document.querySelectorAll("[data-calendar-preference]").forEach(input => {
         input.checked = calendarPreferences[input.dataset.calendarPreference] !== false;
       });
     }
-    async function saveCalendarPreference(key, checked) {
-      if (!(key in calendarPreferences)) return;
-      const previousValue = calendarPreferences[key];
-      calendarPreferences[key] = checked === true;
-      renderProgressCalendar();
+    function loadCalendarPreferences(preferences) {
+      savedCalendarPreferences = normalizedCalendarPreferences(preferences);
+      setCalendarPreferences(savedCalendarPreferences);
+    }
+    async function persistCalendarPreferences(preferencesToSave, revision) {
       try {
         const response = await fetch("/api/cargo-calendar-preferences", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(calendarPreferences),
+          body: JSON.stringify(preferencesToSave),
         });
         const result = await response.json();
         if (!response.ok || !result.success) {
           throw new Error(result.message || "캘린더 설정을 저장하지 못했습니다.");
         }
-        setCalendarPreferences(result.calendar_preferences);
+        savedCalendarPreferences = normalizedCalendarPreferences(result.calendar_preferences);
+        if (revision === calendarPreferenceRevision) {
+          setCalendarPreferences(savedCalendarPreferences);
+        }
       } catch (error) {
-        calendarPreferences[key] = previousValue;
-        setCalendarPreferences(calendarPreferences);
+        if (revision !== calendarPreferenceRevision) return;
+        setCalendarPreferences(savedCalendarPreferences);
         renderProgressCalendar();
         alert(error.message || "캘린더 설정을 저장하지 못했습니다.");
       }
+    }
+    async function saveCalendarPreference(key, checked) {
+      if (!(key in calendarPreferences)) return Promise.resolve();
+      calendarPreferences[key] = checked === true;
+      renderProgressCalendar();
+      const preferencesToSave = { ...calendarPreferences };
+      const revision = ++calendarPreferenceRevision;
+      calendarPreferenceSaveQueue = calendarPreferenceSaveQueue.then(
+        () => persistCalendarPreferences(preferencesToSave, revision),
+        () => persistCalendarPreferences(preferencesToSave, revision)
+      );
+      return calendarPreferenceSaveQueue;
     }
     function showPrimaryView(view) {
       currentPrimaryView = view === "board" ? "board" : "progress";
@@ -828,8 +849,7 @@
       document.getElementById("docsPanel").style.display = "none";
       document.getElementById("logoutBtn").style.display = "";
       document.getElementById("docsMobileBtn").style.display = currentUserRole === "admin" ? "" : "none";
-      document.getElementById("progressStatusBtn").style.display =
-        currentUserRole === "viewer" ? "none" : "";
+      document.getElementById("progressStatusBtn").style.display = "";
       document.getElementById("showHiddenBtn").style.display = currentUserRole === "admin" ? "" : "none";
       document.getElementById("showHiddenBtn").textContent = showHiddenCards ? "숨김 제외" : "숨김 포함";
       document.getElementById("adminSettingsBtn").style.display = currentUserRole === "admin" ? "" : "none";
@@ -881,7 +901,7 @@
         return;
       }
       currentPrimaryView = "board";
-      setCalendarPreferences(result.user.calendar_preferences);
+      loadCalendarPreferences(result.user.calendar_preferences);
       if (result.user.role === "admin") {
         await loadData();
       } else {
@@ -907,7 +927,7 @@
       }
       currentUserRole = result.user.role || "shipper";
       currentUserLogin = result.user.login_id || "";
-      setCalendarPreferences(result.user.calendar_preferences);
+      loadCalendarPreferences(result.user.calendar_preferences);
       document.body.classList.toggle("shipper-progress", currentUserRole === "shipper");
       document.body.classList.toggle("viewer-progress", currentUserRole === "viewer");
       currentCards = result.cards || [];
