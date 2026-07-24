@@ -55,3 +55,57 @@ test("keeps separate rows for different BL numbers", () => {
 
   assert.deepEqual(merged.map((card) => card.bl_number), ["BL001", "BL002"]);
 });
+
+test("uses the newest transport update across account-scoped duplicate rows", () => {
+  const merged = mergeDuplicateCargoCards([
+    {
+      account_id: "request-account",
+      bl_number: "ONEYBNEG04518700",
+      storage_yard: "기존 보세창고",
+      warehouse_expected_date: "",
+      transport_updated_at: "2026-07-24T04:00:00.000Z",
+      last_original_doc_request_id: "request-1",
+      synced_at: "2026-07-24T05:00:00.000Z",
+    },
+    {
+      account_id: "transport-account",
+      bl_number: "oneybneg04518700",
+      storage_yard: "강동냉장(주)보세창고",
+      warehouse_expected_date: "2026-07-30",
+      eta_date: "2026-07-24",
+      transport_updated_by_role: "admin",
+      transport_updated_by_login: "aincustoms",
+      transport_updated_at: "2026-07-24T05:04:17.137Z",
+      synced_at: "2026-07-24T05:00:00.000Z",
+    },
+  ]);
+
+  assert.equal(merged.length, 1);
+  assert.equal(merged[0].account_id, "request-account");
+  assert.equal(merged[0].storage_yard, "강동냉장(주)보세창고");
+  assert.equal(merged[0].warehouse_expected_date, "2026-07-30");
+  assert.equal(merged[0].eta_date, "2026-07-24");
+  assert.equal(merged[0].transport_updated_by_role, "admin");
+  assert.equal(merged[0].transport_updated_at, "2026-07-24T05:04:17.137Z");
+});
+
+test("keeps an intentional transport-field clear from the newest update", () => {
+  const merged = mergeDuplicateCargoCards([
+    {
+      account_id: "older-account",
+      bl_number: "BL-CLEAR-001",
+      warehouse_expected_date: "2026-07-30",
+      transport_updated_at: "2026-07-24T04:00:00.000Z",
+    },
+    {
+      account_id: "newer-account",
+      bl_number: "BL-CLEAR-001",
+      warehouse_expected_date: "",
+      transport_updated_at: "2026-07-24T05:00:00.000Z",
+    },
+  ]);
+
+  assert.equal(merged.length, 1);
+  assert.equal(merged[0].warehouse_expected_date, "");
+  assert.equal(merged[0].transport_updated_at, "2026-07-24T05:00:00.000Z");
+});
