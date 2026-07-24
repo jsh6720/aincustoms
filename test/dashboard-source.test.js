@@ -861,3 +861,22 @@ test("shipper warehouse save precedes mail and includes an optimistic rollback",
   assert.match(quotaApi, /updated_at=eq\.\$\{updated\}/);
   assert.match(quotaApi, /변경을 취소했습니다/);
 });
+test("saved distribution history numbers render in a selectable popover", () => {
+  const context = dashboardRuntimeContext("admin", []);
+  const html = vm.runInContext(
+    `progressManualStatusToggle({
+      bl_number: "BL001",
+      distribution_history_override: "O",
+      distribution_history_number: "\uBCF8\uC778:OWN-123 / \uBCF8\uB808\uC2A4:BONE-456"
+    }, "distribution")`,
+    context
+  );
+  assert.match(html, /distribution-number-wrap/);
+  assert.match(html, /distribution-number-popover/);
+  assert.match(html, /\uBCF8\uC778/);
+  assert.match(html, /OWN-123/);
+  assert.match(html, /\uBCF8\uB808\uC2A4/);
+  assert.match(html, /BONE-456/);
+  assert.match(dashboard, /user-select:\s*text/);
+  assert.match(dashboard, /alert\("\\uC720\\uD1B5\\uC774\\uB825 \\uC2E0\\uACE0\\uBC88\\uD638\\uB97C \\uD558\\uB098 \\uC774\\uC0C1 \\uC785\\uB825\\uD574 \\uC8FC\\uC138\\uC694\./);
+});

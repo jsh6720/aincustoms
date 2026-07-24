@@ -273,6 +273,27 @@
     .doc-na { color:#8b95a1; background:#f5f7f9; border:1px solid #e2e8ee; border-radius:999px; padding:1px 6px; }
     .doc-toggle { cursor:pointer; font:inherit; font-weight:900; }
     .doc-toggle:hover { filter:brightness(.96); }
+    .distribution-number-wrap { position:relative; display:inline-flex; align-items:center; }
+    .distribution-number-popover {
+      display:none;
+      position:absolute;
+      left:50%;
+      bottom:calc(100% + 6px);
+      transform:translateX(-50%);
+      z-index:90;
+      min-width:190px;
+      padding:8px 10px;
+      border:1px solid #b8c7bd;
+      border-radius:6px;
+      background:#fff;
+      color:#1f2933;
+      box-shadow:0 8px 20px rgba(15,23,42,.18);
+      text-align:left;
+      user-select:text;
+    }
+    .distribution-number-wrap:hover .distribution-number-popover,
+    .distribution-number-wrap:focus-within .distribution-number-popover { display:grid; gap:5px; }
+    .distribution-number-popover span { display:grid; grid-template-columns:52px minmax(0,1fr); gap:6px; white-space:nowrap; }
     @media (max-width:1700px){ .board { width:max-content; } }
     @media (max-width:900px){
       #boardWrap { overflow-y:visible; }
@@ -1347,6 +1368,17 @@
       const status = card.distribution_history_override || (card.distribution_history_number ? "O" : "X");
       return docStatusLabel(status === "O");
     }
+    function distributionNumberPopover(number) {
+      const text = String(number || "").trim();
+      if (!text) return "";
+      const rows = text.split(/\s*\/\s*/).filter(Boolean).map((item) => {
+        const separator = item.indexOf(":");
+        const label = separator >= 0 ? item.slice(0, separator).trim() : "유통이력 신고번호";
+        const value = separator >= 0 ? item.slice(separator + 1).trim() : item;
+        return `<span><b>${esc(label)}</b><span>${esc(value)}</span></span>`;
+      }).join("");
+      return `<span class="distribution-number-popover" role="tooltip">${rows}</span>`;
+    }
     function progressManualStatusToggle(card, type) {
       const idx = currentCards.indexOf(card);
       if (type === "animal") {
@@ -1364,6 +1396,12 @@
       if (!distributionHistoryTarget(card) && !card.distribution_history_override && !card.distribution_history_number) return `<span class="doc-na">-</span>`;
       const isOn = (card.distribution_history_override || (card.distribution_history_number ? "O" : "X")) === "O";
       if (currentUserRole !== "admin") return docStatusLabel(isOn);
+      if (isOn && card.distribution_history_number) {
+        return `<span class="distribution-number-wrap" tabindex="0">
+          <button type="button" class="doc-toggle doc-o" onclick="toggleProgressManualStatus(${idx}, 'distribution')">O</button>
+          ${distributionNumberPopover(card.distribution_history_number)}
+        </span>`;
+      }
       return `<button type="button" class="doc-toggle ${isOn ? "doc-o" : "doc-x"}" onclick="toggleProgressManualStatus(${idx}, 'distribution')">${isOn ? "O" : "X"}</button>`;
     }
     function progressDocToggle(card, docType) {
@@ -2064,6 +2102,10 @@
           const parts = [];
           if (ownCheck.checked && ownInput.value.trim()) parts.push(`\uBCF8\uC778:${ownInput.value.trim()}`);
           if (bonelessCheck.checked && bonelessInput.value.trim()) parts.push(`\uBCF8\uB808\uC2A4:${bonelessInput.value.trim()}`);
+          if (!parts.length) {
+            alert("\uC720\uD1B5\uC774\uB825 \uC2E0\uACE0\uBC88\uD638\uB97C \uD558\uB098 \uC774\uC0C1 \uC785\uB825\uD574 \uC8FC\uC138\uC694.");
+            return;
+          }
           bg.remove();
           resolve(parts.join(" / "));
         });
