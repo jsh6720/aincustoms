@@ -7,6 +7,12 @@ const root = path.resolve(__dirname, "..");
 const preferenceHandlerPath = path.join(root, "api", "cargo-calendar-preferences.js");
 const loginHandlerPath = path.join(root, "api", "cargo-login.js");
 const dataHandlerPath = path.join(root, "api", "cargo-data.js");
+const migrationPath = path.join(
+  root,
+  "supabase",
+  "migrations",
+  "20260724_add_calendar_preferences_and_ctf.sql"
+);
 
 function createResponse() {
   return {
@@ -273,4 +279,22 @@ test("cargo data returns normalized calendar preferences from the session", asyn
     import_request: true,
     warehouse_expected: false,
   });
+});
+
+test("calendar preference migration adds preferences and provisions the CTF account", () => {
+  const sql = require("node:fs").readFileSync(migrationPath, "utf8");
+
+  assert.match(sql, /calendar_preferences jsonb not null/i);
+  assert.match(
+    sql,
+    /default '\{"import_request": true, "warehouse_expected": true\}'::jsonb/i
+  );
+  assert.match(sql, /drop function if exists public\.verify_shipper_login\(text, text\)/i);
+  assert.match(sql, /create function public\.verify_shipper_login\(p_login_id text, p_password text\)/i);
+  assert.match(sql, /calendar_preferences jsonb/i);
+  assert.match(sql, /lower\(a\.login_id\) = lower\(trim\(p_login_id\)\)/i);
+  assert.match(sql, /'CTF'/);
+  assert.match(sql, /'캐틀팜'/);
+  assert.match(sql, /extensions\.crypt\('ctf1234', extensions\.gen_salt\('bf'\)\)/);
+  assert.match(sql, /on conflict \(login_id\) do update/i);
 });
