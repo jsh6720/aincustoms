@@ -477,7 +477,7 @@
                 <th class="progress-delivery">서류전달</th>
                 <th class="progress-short center progress-shipper-only">서류수령요청</th>
                 <th class="progress-short center progress-shipper-only">수입신고요청</th>
-                <th class="progress-date progress-admin-only">OBL 접수일</th>
+                <th class="progress-date">OBL 접수일</th>
                 <th class="progress-short center progress-admin-only">동물검역</th>
                 <th class="progress-short center progress-admin-only">식품검역</th>
                 <th class="progress-short center progress-admin-only">유통이력</th>
@@ -1935,7 +1935,7 @@
           ${progressDeliveryStatus(card)}
           ${progressRequestToggle(card, "docs")}
           ${progressRequestToggle(card, "import")}
-          <td class="progress-date progress-admin-only">${progressOblCarrierToggle(card)}</td>
+          <td class="progress-date">${progressOblCarrierToggle(card)}</td>
           <td class="progress-short center progress-admin-only">${progressManualStatusToggle(card, "animal")}</td>
           <td class="progress-short center progress-admin-only">${progressManualStatusToggle(card, "food")}</td>
           <td class="progress-short center progress-admin-only">${progressManualStatusToggle(card, "distribution")}</td>

@@ -968,3 +968,18 @@ test("dashboard exposes lifecycle exclusion and three-day free-time operations",
   assert.match(visibilityApi, /action === "permanent_exclude"/);
   assert.match(visibilityApi, /action === "restore_exclusion"/);
 });
+
+test("OBL carrier submission date remains visible to shipper and destination accounts", () => {
+  assert.match(
+    dashboard,
+    /<th class="progress-date">OBL 접수일<\/th>/
+  );
+  assert.match(
+    dashboard,
+    /<td class="progress-date">\$\{progressOblCarrierToggle\(card\)\}<\/td>/
+  );
+  assert.doesNotMatch(
+    dashboard,
+    /progress-date progress-admin-only">OBL 접수일/
+  );
+});
