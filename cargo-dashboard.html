@@ -791,7 +791,7 @@
     }
     async function persistCalendarPreferences(preferencesToSave, revision) {
       try {
-        const response = await fetch("/api/cargo-calendar-preferences", {
+        const response = await fetch("/api/cargo-data", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(preferencesToSave),

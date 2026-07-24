@@ -370,7 +370,7 @@ test("calendar legend initializes and saves optional visibility preferences", ()
   assert.match(dashboard, /let calendarPreferences = \{\s*import_request: true,\s*warehouse_expected: true,\s*\}/);
   assert.match(dashboard, /result\.user\.calendar_preferences/);
   assert.match(dashboard, /async function saveCalendarPreference\(key, checked\)/);
-  assert.match(dashboard, /fetch\("\/api\/cargo-calendar-preferences"/);
+  assert.match(dashboard, /fetch\("\/api\/cargo-data"/);
   assert.match(dashboard, /let calendarPreferenceSaveQueue = Promise\.resolve\(\)/);
   assert.match(dashboard, /const preferencesToSave = \{ \.\.\.calendarPreferences \}/);
   assert.match(dashboard, /calendarPreferenceSaveQueue = calendarPreferenceSaveQueue\.then/);

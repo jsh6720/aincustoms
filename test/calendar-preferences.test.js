@@ -1,10 +1,10 @@
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
 const Module = require("node:module");
 const path = require("node:path");
 const test = require("node:test");
 
 const root = path.resolve(__dirname, "..");
-const preferenceHandlerPath = path.join(root, "api", "cargo-calendar-preferences.js");
 const loginHandlerPath = path.join(root, "api", "cargo-login.js");
 const dataHandlerPath = path.join(root, "api", "cargo-data.js");
 const migrationPath = path.join(
@@ -80,9 +80,17 @@ test("rejects unsupported calendar preference keys and non-boolean values", () =
   );
 });
 
-test("viewer saves only their normalized calendar preferences", async () => {
+test("Vercel deployment stays within the twelve JavaScript function limit", () => {
+  const apiFiles = fs.readdirSync(path.join(root, "api"))
+    .filter((file) => file.endsWith(".js"));
+
+  assert.equal(apiFiles.length, 12);
+  assert.equal(apiFiles.includes("cargo-calendar-preferences.js"), false);
+});
+
+test("PATCH cargo-data lets a viewer save only their normalized calendar preferences", async () => {
   const calls = [];
-  const handler = loadHandler(preferenceHandlerPath, {
+  const handler = loadHandler(dataHandlerPath, {
     verifySession: () => ({ account_id: "viewer-account", role: "viewer" }),
     createSession: () => "refreshed-token",
     supabaseFetch: async (url, options) => {
@@ -122,7 +130,7 @@ test("viewer saves only their normalized calendar preferences", async () => {
   });
 });
 
-test("saving preferences refreshes the session used by a cargo-data reload", async () => {
+test("PATCH cargo-data refreshes the session used by a cargo-data reload", async () => {
   const originalSession = {
     account_id: "account-1",
     login_id: "shipper",
@@ -132,7 +140,7 @@ test("saving preferences refreshes the session used by a cargo-data reload", asy
     exp: Math.floor(Date.now() / 1000) + 60,
   };
   let refreshedSession;
-  const preferenceHandler = loadHandler(preferenceHandlerPath, {
+  const preferenceHandler = loadHandler(dataHandlerPath, {
     verifySession: () => originalSession,
     createSession: (session) => {
       refreshedSession = session;
@@ -178,9 +186,9 @@ test("saving preferences refreshes the session used by a cargo-data reload", asy
   });
 });
 
-test("calendar preference API rejects invalid preferences before writing", async () => {
+test("PATCH cargo-data rejects invalid preferences before writing", async () => {
   let writes = 0;
-  const handler = loadHandler(preferenceHandlerPath, {
+  const handler = loadHandler(dataHandlerPath, {
     verifySession: () => ({ account_id: "account-1", role: "shipper" }),
     supabaseFetch: async () => {
       writes += 1;
@@ -199,8 +207,8 @@ test("calendar preference API rejects invalid preferences before writing", async
   assert.equal(writes, 0);
 });
 
-test("calendar preference API rejects a missing session", async () => {
-  const handler = loadHandler(preferenceHandlerPath, {
+test("PATCH cargo-data rejects a missing session", async () => {
+  const handler = loadHandler(dataHandlerPath, {
     verifySession: () => null,
     supabaseFetch: async () => {
       throw new Error("should not write");
@@ -214,8 +222,8 @@ test("calendar preference API rejects a missing session", async () => {
   assert.equal(response.body.success, false);
 });
 
-test("calendar preference API names the required migration for a missing column", async () => {
-  const handler = loadHandler(preferenceHandlerPath, {
+test("PATCH cargo-data names the required migration for a missing column", async () => {
+  const handler = loadHandler(dataHandlerPath, {
     verifySession: () => ({ account_id: "account-1", role: "admin" }),
     supabaseFetch: async () => {
       throw new Error("column calendar_preferences does not exist");
