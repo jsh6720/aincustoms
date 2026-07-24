@@ -814,6 +814,12 @@ test("progress receipt calendar omits transfer receipt event construction", () =
   assert.doesNotMatch(body, /서류수령 \$\{label\} \(양도증\)/);
 });
 
+test("distribution number popover omits separator-only values", () => {
+  const context = dashboardRuntimeContext("admin", []);
+  const html = vm.runInContext("distributionNumberPopover(' / ')", context);
+  assert.equal(html, "");
+});
+
 test("progress original O path confirms removal without prompting for a date", () => {
   const start = dashboard.indexOf("async function saveProgressOriginalDoc");
   const end = dashboard.indexOf("async function approvePendingOriginalDoc", start);
@@ -877,6 +883,14 @@ test("saved distribution history numbers render in a selectable popover", () => 
   assert.match(html, /OWN-123/);
   assert.match(html, /\uBCF8\uB808\uC2A4/);
   assert.match(html, /BONE-456/);
+  assert.match(html, /aria-describedby="progress-distribution-number--1"/);
+  assert.match(html, /id="progress-distribution-number--1"[^>]*role="tooltip"/);
+  assert.match(html, /class="doc-toggle doc-o progress-tooltip-control"/);
   assert.match(dashboard, /user-select:\s*text/);
+  assert.match(dashboard, /\.progress-table-wrap\s*\{[^}]*overflow:auto/);
+  assert.match(dashboard, /\.progress-table th\s*\{[^}]*position:sticky/);
+  assert.match(dashboard, /\.distribution-number-popover\s*\{[\s\S]*position:fixed/);
+  assert.match(dashboard, /\.distribution-number-wrap:hover \.distribution-number-popover,[\s\S]*\.distribution-number-wrap:focus-within \.distribution-number-popover/);
+  assert.match(dashboard, /const gap = detail\.classList\?\.contains\?\.\("distribution-number-popover"\) \? 0 : 6/);
   assert.match(dashboard, /alert\("\\uC720\\uD1B5\\uC774\\uB825 \\uC2E0\\uACE0\\uBC88\\uD638\\uB97C \\uD558\\uB098 \\uC774\\uC0C1 \\uC785\\uB825\\uD574 \\uC8FC\\uC138\\uC694\./);
 });

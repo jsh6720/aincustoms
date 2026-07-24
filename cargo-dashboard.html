@@ -276,10 +276,10 @@
     .distribution-number-wrap { position:relative; display:inline-flex; align-items:center; }
     .distribution-number-popover {
       display:none;
-      position:absolute;
-      left:50%;
-      bottom:calc(100% + 6px);
-      transform:translateX(-50%);
+      position:fixed;
+      left:0;
+      top:0;
+      transform:none;
       z-index:90;
       min-width:190px;
       padding:8px 10px;
@@ -290,6 +290,7 @@
       box-shadow:0 8px 20px rgba(15,23,42,.18);
       text-align:left;
       user-select:text;
+      pointer-events:auto;
     }
     .distribution-number-wrap:hover .distribution-number-popover,
     .distribution-number-wrap:focus-within .distribution-number-popover { display:grid; gap:5px; }
@@ -1368,7 +1369,7 @@
       const status = card.distribution_history_override || (card.distribution_history_number ? "O" : "X");
       return docStatusLabel(status === "O");
     }
-    function distributionNumberPopover(number) {
+    function distributionNumberPopover(number, descriptionId) {
       const text = String(number || "").trim();
       if (!text) return "";
       const rows = text.split(/\s*\/\s*/).filter(Boolean).map((item) => {
@@ -1377,7 +1378,8 @@
         const value = separator >= 0 ? item.slice(separator + 1).trim() : item;
         return `<span><b>${esc(label)}</b><span>${esc(value)}</span></span>`;
       }).join("");
-      return `<span class="distribution-number-popover" role="tooltip">${rows}</span>`;
+      if (!rows) return "";
+      return `<span id="${esc(descriptionId)}" class="distribution-number-popover" role="tooltip">${rows}</span>`;
     }
     function progressManualStatusToggle(card, type) {
       const idx = currentCards.indexOf(card);
@@ -1397,9 +1399,10 @@
       const isOn = (card.distribution_history_override || (card.distribution_history_number ? "O" : "X")) === "O";
       if (currentUserRole !== "admin") return docStatusLabel(isOn);
       if (isOn && card.distribution_history_number) {
+        const descriptionId = `progress-distribution-number-${idx}`;
         return `<span class="distribution-number-wrap" tabindex="0">
-          <button type="button" class="doc-toggle doc-o" onclick="toggleProgressManualStatus(${idx}, 'distribution')">O</button>
-          ${distributionNumberPopover(card.distribution_history_number)}
+          <button type="button" class="doc-toggle doc-o progress-tooltip-control" aria-describedby="${descriptionId}" onclick="toggleProgressManualStatus(${idx}, 'distribution')">O</button>
+          ${distributionNumberPopover(card.distribution_history_number, descriptionId)}
         </span>`;
       }
       return `<button type="button" class="doc-toggle ${isOn ? "doc-o" : "doc-x"}" onclick="toggleProgressManualStatus(${idx}, 'distribution')">${isOn ? "O" : "X"}</button>`;
@@ -1543,7 +1546,7 @@
       const controlRect = button.getBoundingClientRect();
       const detailRect = detail.getBoundingClientRect();
       const edge = 8;
-      const gap = 6;
+      const gap = detail.classList?.contains?.("distribution-number-popover") ? 0 : 6;
       const maxLeft = Math.max(edge, window.innerWidth - detailRect.width - edge);
       const centeredLeft = controlRect.left + (controlRect.width / 2) - (detailRect.width / 2);
       const left = Math.min(Math.max(centeredLeft, edge), maxLeft);
