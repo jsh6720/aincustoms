@@ -4,6 +4,7 @@ const {
   normalizeCalendarPreferences,
   validateCalendarPreferences,
 } = require("../lib/cargo-calendar-preferences");
+const { mergeDuplicateCargoCards } = require("../lib/cargo-card-merge");
 
 const STAGE_ORDER = ["입항전", "입항", "반입", "수입신고", "반출"];
 const IMPORT_DECLARE_DAYS = 30;
@@ -432,12 +433,16 @@ module.exports = async function handler(req, res) {
       doc_transfer_received: hasTransferDocument(card.doc_files_status),
     }));
 
-    const sorted = applyOriginalDocs(
+    const enrichedCards = applyOriginalDocs(
       applyOriginalDocRequests(
         applyImportRequests(applyUserInputs(cardsWithDocStatus, userInputs), importRequests),
         originalDocRequests
       ),
       originalDocs
+    );
+    const sorted = (readsAllCargo
+      ? mergeDuplicateCargoCards(enrichedCards)
+      : enrichedCards
     ).sort(sortCards);
     const counts = {};
     STAGE_ORDER.forEach((stage) => {
