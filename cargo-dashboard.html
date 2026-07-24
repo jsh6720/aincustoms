@@ -2633,11 +2633,6 @@
             text: `서류수령 ${label} (${originalReceiptTypes.join(", ")})`
           });
         }
-        const transferReceiptDate = actualDate
-          || (card.doc_transfer_received ? koreaCalendarDate(card.original_docs_updated_at) : "");
-        if (transferReceiptDate && card.doc_transfer_received) {
-          events.push({ date: transferReceiptDate, type: "transfer", text: `서류수령 ${label} (양도증)` });
-        }
         const warehouseDate = calendarDate(card.warehouse_expected_date);
         if (calendarPreferences.warehouse_expected && warehouseDate) {
           events.push({ date: warehouseDate, type: "warehouse", text: `반입예정 ${label}` });

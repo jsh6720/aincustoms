@@ -238,7 +238,7 @@ test("admin request indicators stay inside the state cell and expose latest requ
   assert.doesNotMatch(html, /<td\b/i);
 });
 
-test("progress calendar separates import, original, and transfer receipt events", () => {
+test("progress calendar keeps import and original receipt events without transfer events", () => {
   const events = progressCalendarHarness([
     {
       bl_number: "ONEYBNEG04197300",
@@ -271,9 +271,10 @@ test("progress calendar separates import, original, and transfer receipt events"
     event.text === "수입신고요청 ONEYBNEG04197300"
   ));
   assert.ok(events.some((event) => event.text === "서류수령 ONEYBNEG04197300 (OBL)"));
-  assert.ok(events.some((event) => event.text === "서류수령 ONEYBNEG04197300 (양도증)"));
   assert.ok(events.some((event) => event.text === "서류수령 BL-HC (H/C)"));
   assert.ok(events.some((event) => event.text === "서류수령 BL-BOTH (OBL, H/C)"));
+  assert.ok(!events.some((event) => event.type === "transfer"));
+  assert.ok(!events.some((event) => event.text.includes("양도증")));
   assert.ok(events.some((event) => event.text === "입항 ONEYBNEG04197300"));
   assert.ok(events.some((event) => event.text === "서류요청 ONEYBNEG04197300"));
   assert.ok(events.some((event) => event.text === "반입예정 ONEYBNEG04197300"));
@@ -297,7 +298,7 @@ test("progress calendar keeps base events while filtering optional event groups"
   assert.ok(events.some((event) => event.type === "eta"));
   assert.ok(events.some((event) => event.type === "request"));
   assert.ok(events.some((event) => event.type === "actual"));
-  assert.ok(events.some((event) => event.type === "transfer"));
+  assert.ok(!events.some((event) => event.type === "transfer"));
   assert.ok(!events.some((event) => event.type === "import-request"));
   assert.ok(!events.some((event) => event.type === "warehouse"));
 });
@@ -804,16 +805,13 @@ test("board data-bearing controls use delegation instead of jsStr inline handler
   assert.match(dashboard, /adminRows\.addEventListener\("click", handleAdminAccountAction\)/);
 });
 
-test("progress receipt calendar keeps transfer receipt as an independent event", () => {
+test("progress receipt calendar omits transfer receipt event construction", () => {
   const start = dashboard.indexOf("function progressCalendarEvents()");
   const end = dashboard.indexOf("function renderProgressCalendar", start);
   const body = dashboard.slice(start, end);
-  const receiptStart = body.indexOf("const originalReceiptTypes");
-  const receiptEnd = body.indexOf("const warehouseDate", receiptStart);
-  const receiptEvent = body.slice(receiptStart, receiptEnd);
 
-  assert.match(receiptEvent, /originalReceiptTypes\.join\(", "\)/);
-  assert.match(receiptEvent, /text:\s*`서류수령 \$\{label\} \(양도증\)`/);
+  assert.doesNotMatch(body, /type:\s*"transfer"/);
+  assert.doesNotMatch(body, /서류수령 \$\{label\} \(양도증\)/);
 });
 
 test("progress original O path confirms removal without prompting for a date", () => {
