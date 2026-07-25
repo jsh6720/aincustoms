@@ -208,9 +208,10 @@ test("transport provenance shows the precise Korea-local input time", () => {
   assert.match(tooltip, /HCH/);
 });
 
-test("progress BL tooltip escapes every confirmation and has no mutation controls", () => {
+test("progress BL tooltip escapes confirmations and lets writable users add one", () => {
   assert.match(dashboard, /function progressRevisionTooltip\(card\)/);
   const card = {
+    account_id: "account-1",
     bl_number: "BL-REV",
     revisions: [
       { text: `<img src=x onerror="globalThis.pwned=true">`, done: false, created_by: "shipper" },
@@ -225,9 +226,37 @@ test("progress BL tooltip escapes every confirmation and has no mutation control
   assert.match(html, /아인/);
   assert.match(html, /화주/);
   assert.match(html, /progress-revision-done/);
-  assert.doesNotMatch(html, /수정|삭제|button/i);
+  assert.match(html, /data-progress-revision-action="draft"/);
+  assert.match(html, /data-progress-revision-action="add"/);
+  assert.match(html, /확인사항 추가/);
+  assert.doesNotMatch(html, /onclick=/i);
   assert.match(html, /tabindex="0"/);
   assert.match(html, /role="tooltip"/);
+});
+
+test("progress BL tooltip remains read-only for viewer accounts", () => {
+  const card = {
+    account_id: "account-1",
+    bl_number: "BL-READ-ONLY",
+    revisions: [{ text: "읽기 전용", done: false, created_by: "shipper" }],
+  };
+  const context = dashboardRuntimeContext("viewer", [card]);
+  const html = vm.runInContext("progressRevisionTooltip(__testCards[0])", context);
+
+  assert.match(html, /읽기 전용/);
+  assert.doesNotMatch(html, /data-progress-revision-action/);
+  assert.doesNotMatch(html, /확인사항 추가/);
+});
+
+test("progress confirmation entry uses delegated live-card controls", () => {
+  assert.match(dashboard, /function handleProgressRevisionClick\(event\)/);
+  assert.match(dashboard, /function handleProgressRevisionInput\(event\)/);
+  assert.match(dashboard, /function handleProgressRevisionKeydown\(event\)/);
+  assert.match(dashboard, /progressRows\.addEventListener\("click", handleProgressRevisionClick\)/);
+  assert.match(dashboard, /progressRows\.addEventListener\("input", handleProgressRevisionInput\)/);
+  assert.match(dashboard, /progressRows\.addEventListener\("keydown", handleProgressRevisionKeydown\)/);
+  assert.match(dashboard, /addRevision\(card\.bl_number, card\.account_id/);
+  assert.match(dashboard, /\.progress-revision-detail\s*\{[^}]*pointer-events:\s*auto/);
 });
 
 test("admin request indicators stay inside the state cell and expose latest request details", () => {
@@ -361,8 +390,8 @@ test("progress alignment classes define their required CSS semantics", () => {
   assert.match(dashboard, /\.progress-table\s+\.progress-date\s+\.progress-edit-btn\s*\{[^}]*width:\s*100%[^}]*text-align:\s*center/);
 });
 
-test("dashboard defaults every role to the board and exposes progress navigation", () => {
-  assert.match(dashboard, /let currentPrimaryView = "board"/);
+test("dashboard defaults every role to BL progress and exposes board navigation", () => {
+  assert.match(dashboard, /let currentPrimaryView = "progress"/);
   assert.match(dashboard, /function showPrimaryView\(view\)/);
   assert.match(dashboard, /currentPrimaryView = view === "board" \? "board" : "progress"/);
   assert.doesNotMatch(dashboard, /currentUserRole === "viewer"\) currentPrimaryView = "progress"/);
@@ -371,7 +400,7 @@ test("dashboard defaults every role to the board and exposes progress navigation
   assert.match(dashboard, /function togglePrimaryView\(\)/);
   assert.match(dashboard, />BL 진행<\/button>/);
   assert.match(dashboard, />대시보드<\/button>/);
-  assert.match(dashboard, /currentPrimaryView = "board";/);
+  assert.match(dashboard, /currentPrimaryView = "progress";/);
   assert.doesNotMatch(dashboard, /currentUserRole === "viewer"\s*\?\s*"none"\s*:\s*""/);
 });
 

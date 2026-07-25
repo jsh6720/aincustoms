@@ -88,11 +88,11 @@ test("administrator account API accepts viewer without a consignee filter", () =
   assert.match(source, /payload\.p_role === "shipper" && !payload\.p_consignee_filter/);
 });
 
-test("dashboard renders viewer as a read-only all-cargo board", () => {
+test("dashboard renders viewer as a read-only all-cargo progress view", () => {
   const source = read("cargo-dashboard.html");
   assert.match(source, /<option value="viewer">전체조회\(읽기 전용\)<\/option>/);
   assert.match(source, /document\.body\.classList\.toggle\("viewer-progress", currentUserRole === "viewer"\)/);
-  assert.match(source, /let currentPrimaryView = "board"/);
+  assert.match(source, /let currentPrimaryView = "progress"/);
   assert.match(source, /document\.getElementById\("progressStatusBtn"\)\.style\.display = "";/);
   assert.match(source, /if \(currentUserRole === "admin" \|\| currentUserRole === "viewer"\) return "";/);
   assert.match(source, /body\.viewer-progress \.progress-edit-btn/);

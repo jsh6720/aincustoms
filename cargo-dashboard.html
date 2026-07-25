@@ -263,7 +263,39 @@
     .progress-request-empty { color:#7b8794; text-align:center; }
     .progress-bl-wrap { justify-content:flex-start; max-width:100%; }
     .progress-bl-value { display:inline-block; max-width:100%; border-radius:3px; cursor:help; }
-    .progress-revision-detail { width:290px; }
+    .progress-revision-detail { width:290px; pointer-events:auto; }
+    .progress-revision-empty { color:#718096; padding:2px 0 6px; }
+    .progress-revision-form {
+      display:flex;
+      align-items:center;
+      gap:5px;
+      margin-top:6px;
+      padding-top:7px;
+      border-top:1px solid #d9e1e8;
+    }
+    .progress-revision-form input {
+      min-width:0;
+      flex:1 1 auto;
+      height:29px;
+      padding:4px 7px;
+      border:1px solid #c8d2dc;
+      border-radius:4px;
+      font:inherit;
+      letter-spacing:0;
+    }
+    .progress-revision-form button {
+      flex:0 0 auto;
+      height:29px;
+      padding:0 9px;
+      border:0;
+      border-radius:4px;
+      background:#2b6e54;
+      color:#fff;
+      font:inherit;
+      font-weight:700;
+      letter-spacing:0;
+      cursor:pointer;
+    }
     .progress-revision-row { display:grid; grid-template-columns:34px minmax(0, 1fr); gap:6px; padding:3px 0; border-bottom:1px solid #edf1f4; }
     .progress-revision-row:last-child { border-bottom:0; }
     .progress-revision-row.progress-revision-done span:last-child { color:#7b8794; text-decoration:line-through; }
@@ -633,7 +665,8 @@
     let currentUserRole = "shipper";
     let currentUserLogin = "";
     let currentCards = [];
-    let currentPrimaryView = "board";
+    let currentPrimaryView = "progress";
+    let progressRevisionDrafts = {};
     let calendarPreferences = { import_request: true, warehouse_expected: true, };
     let savedCalendarPreferences = { ...calendarPreferences };
     let calendarPreferenceSaveQueue = Promise.resolve();
@@ -945,7 +978,7 @@
         location.href = next;
         return;
       }
-      currentPrimaryView = "board";
+      currentPrimaryView = "progress";
       loadCalendarPreferences(result.user.calendar_preferences);
       if (result.user.role === "admin") {
         await loadData();
@@ -1613,9 +1646,10 @@
     function progressRevisionTooltip(card) {
       const bl = card?.bl_number || "-";
       const revisions = Array.isArray(card?.revisions) ? card.revisions : [];
-      if (!revisions.length) return `<b>${esc(bl)}</b>`;
-      const descriptionId = `progress-revisions-${currentCards.indexOf(card)}`;
-      const rows = revisions.map(item => {
+      const cardIndex = currentCards.indexOf(card);
+      const draftKey = cardStateKey(card);
+      const descriptionId = `progress-revisions-${cardIndex}`;
+      const rows = revisions.length ? revisions.map(item => {
         const revision = item && typeof item === "object" ? item : { text: item };
         return `
           <span class="progress-revision-row${revision.done === true ? " progress-revision-done" : ""}">
@@ -1623,12 +1657,27 @@
             <span>${esc(revision.text || "")}</span>
           </span>
         `;
-      }).join("");
+      }).join("") : '<span class="progress-revision-empty">등록된 확인사항이 없습니다.</span>';
+      const entry = currentUserRole === "viewer" ? "" : `
+        <span class="progress-revision-form">
+          <input type="text" value="${esc(progressRevisionDrafts[draftKey] || "")}"
+            placeholder="확인사항 추가..."
+            aria-label="${esc(bl)} 확인사항 추가"
+            data-progress-revision-action="draft"
+            data-card-index="${cardIndex}">
+          <button type="button"
+            data-progress-revision-action="add"
+            data-card-index="${cardIndex}">추가</button>
+        </span>
+      `;
       return `
         <span class="progress-request-wrap progress-bl-wrap">
           <span class="progress-bl-value progress-tooltip-control" tabindex="0"
             aria-describedby="${descriptionId}"><b>${esc(bl)}</b></span>
-          <span id="${descriptionId}" class="progress-request-detail progress-revision-detail" role="tooltip">${rows}</span>
+          <span id="${descriptionId}" class="progress-request-detail progress-revision-detail" role="tooltip">
+            ${rows}
+            ${entry}
+          </span>
         </span>
       `;
     }
@@ -1868,12 +1917,57 @@
       const account = Number.isInteger(accountIndex) ? adminAccounts[accountIndex] : null;
       if (account) editAdminAccount(account.id);
     }
+    function progressRevisionControlFromEvent(event) {
+      const control = event.target?.closest?.("[data-progress-revision-action]");
+      const progressRows = document.getElementById("progressRows");
+      if (!control || !progressRows.contains(control)) return null;
+      const cardIndex = Number.parseInt(control.dataset.cardIndex, 10);
+      const card = Number.isInteger(cardIndex) ? currentCards[cardIndex] : null;
+      return card ? { control, card } : null;
+    }
+    function progressRevisionInput(control) {
+      const form = control.closest(".progress-revision-form");
+      return form?.querySelector('[data-progress-revision-action="draft"]') || null;
+    }
+    function submitProgressRevision(control, card) {
+      const input = progressRevisionInput(control);
+      const draftKey = cardStateKey(card);
+      const text = (input?.value || progressRevisionDrafts[draftKey] || "").trim();
+      if (!text) {
+        input?.focus();
+        return;
+      }
+      addRevision(card.bl_number, card.account_id, text, draftKey);
+    }
+    function handleProgressRevisionClick(event) {
+      const context = progressRevisionControlFromEvent(event);
+      if (!context || context.control.dataset.progressRevisionAction !== "add") return;
+      event.preventDefault();
+      event.stopPropagation();
+      submitProgressRevision(context.control, context.card);
+    }
+    function handleProgressRevisionInput(event) {
+      const context = progressRevisionControlFromEvent(event);
+      if (!context || context.control.dataset.progressRevisionAction !== "draft") return;
+      progressRevisionDrafts[cardStateKey(context.card)] = context.control.value;
+    }
+    function handleProgressRevisionKeydown(event) {
+      if (event.key !== "Enter") return;
+      const context = progressRevisionControlFromEvent(event);
+      if (!context || context.control.dataset.progressRevisionAction !== "draft") return;
+      event.preventDefault();
+      event.stopPropagation();
+      submitProgressRevision(context.control, context.card);
+    }
     function bindProgressRequestControls() {
       const progressRows = document.getElementById("progressRows");
       const board = document.getElementById("board");
       const adminRows = document.getElementById("adminRows");
       progressRows.addEventListener("click", handleProgressRequestAction);
       progressRows.addEventListener("click", handleProgressDeliveryAction);
+      progressRows.addEventListener("click", handleProgressRevisionClick);
+      progressRows.addEventListener("input", handleProgressRevisionInput);
+      progressRows.addEventListener("keydown", handleProgressRevisionKeydown);
       progressRows.addEventListener("pointerover", handleProgressRequestTooltipShow);
       progressRows.addEventListener("pointerout", handleProgressRequestTooltipHide);
       progressRows.addEventListener("focusin", handleProgressRequestTooltipShow);
@@ -2478,9 +2572,13 @@
       await loadData();
     }
 
-    async function addRevision(blNumber, accountId) {
+    async function addRevision(blNumber, accountId, explicitText, progressDraftKey) {
       const input = document.getElementById(`rev${blNumber}`);
-      const text = (input ? input.value : revisionDrafts[blNumber] || "").trim();
+      const text = String(
+        explicitText !== undefined
+          ? explicitText
+          : (input ? input.value : revisionDrafts[blNumber] || "")
+      ).trim();
       if (!text) return;
       const response = await fetch("/api/cargo-revision", {
         method: "POST",
@@ -2493,6 +2591,7 @@
         return;
       }
       delete revisionDrafts[blNumber];
+      if (progressDraftKey) delete progressRevisionDrafts[progressDraftKey];
       await loadData();
     }
 
