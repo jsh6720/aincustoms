@@ -124,6 +124,9 @@ function createQuotaFixture({
       return sendMail(mail);
     },
     supabaseFetch: async (url, options) => {
+      if (url.includes("/rest/v1/cargo_mail_settings")) {
+        return [];
+      }
       if (url.startsWith("/rest/v1/cargo_cards")) {
         return [{
           account_id: "account-1",

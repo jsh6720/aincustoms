@@ -1,6 +1,7 @@
 const nodemailer = require("nodemailer");
 const { verifySession, supabaseFetch } = require("../lib/cargo-auth");
-const { mergeRecipients, parseRecipientList } = require("../lib/cargo-mail-utils");
+const { parseRecipientList } = require("../lib/cargo-mail-utils");
+const { fetchMailSetting, resolveMailRecipients } = require("../lib/cargo-mail-settings");
 
 const RECEIPT_TO = [
   "dmswk@hyundaicorp.com",
@@ -87,7 +88,7 @@ function buildOblCarrierMail(card, submittedDate, memo) {
   };
 }
 
-async function sendMail(mail, additionalRecipients) {
+async function sendMail(mail, additionalRecipients, action) {
   const host = env("SMTP_HOST");
   const user = env("SMTP_USER");
   const pass = env("SMTP_PASS");
@@ -103,11 +104,20 @@ async function sendMail(mail, additionalRecipients) {
     secure,
     auth: { user, pass },
   });
-  const recipients = mergeRecipients(RECEIPT_TO, additionalRecipients);
+  const settingKey = action === "obl_carrier_submission"
+    ? "obl_carrier_receipt"
+    : "original_doc_receipt";
+  const setting = await fetchMailSetting(supabaseFetch, settingKey);
+  const recipients = resolveMailRecipients({
+    setting,
+    fallbackTo: RECEIPT_TO,
+    fallbackCc: RECEIPT_CC,
+    extraTo: additionalRecipients,
+  });
   await transporter.sendMail({
     from: env("MAIL_FROM") || user,
-    to: recipients.join(","),
-    cc: RECEIPT_CC.join(","),
+    to: recipients.to.join(","),
+    cc: recipients.cc.length ? recipients.cc.join(",") : undefined,
     subject: mail.subject,
     text: mail.text,
   });
@@ -162,7 +172,7 @@ module.exports = async function handler(req, res) {
     const mail = action === "obl_carrier_submission"
       ? buildOblCarrierMail(cards[0], submittedDate, memo)
       : buildMail(cards[0], totalPages, memo);
-    await sendMail(mail, additionalRecipients);
+    await sendMail(mail, additionalRecipients, action);
     return res.status(200).json({ success: true, email_sent: true });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });

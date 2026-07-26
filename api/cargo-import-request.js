@@ -1,6 +1,7 @@
 const nodemailer = require("nodemailer");
 const { requireWritableSession, supabaseFetch } = require("../lib/cargo-auth");
 const { koreaDate, normalizeIsoDate } = require("../lib/cargo-request-utils");
+const { fetchMailSetting, resolveMailRecipients } = require("../lib/cargo-mail-settings");
 
 const ALLOWED_STAGES = ["입항", "반입"];
 
@@ -79,8 +80,14 @@ async function sendMail(card, request, session, account) {
   const host = env("SMTP_HOST");
   const user = env("SMTP_USER");
   const pass = env("SMTP_PASS");
-  const to = getRequestRecipient(session, account);
-  if (!host || !user || !pass || !to) {
+  const setting = await fetchMailSetting(supabaseFetch, "import_request");
+  const recipients = resolveMailRecipients({
+    accountOverride: account?.release_request_to || session.release_request_to,
+    setting,
+    fallbackTo: [env("RELEASE_REQUEST_TO"), env("NOTIFY_TO"), user],
+    extraCc: request.requester_email,
+  });
+  if (!host || !user || !pass || !recipients.to.length) {
     return { sent: false, skipped: true, message: "메일 환경변수가 설정되지 않았습니다." };
   }
 
@@ -95,8 +102,8 @@ async function sendMail(card, request, session, account) {
   const mail = buildMail(card, request, session);
   await transporter.sendMail({
     from: env("MAIL_FROM") || user,
-    to,
-    cc: request.requester_email || undefined,
+    to: recipients.to.join(","),
+    cc: recipients.cc.length ? recipients.cc.join(",") : undefined,
     subject: mail.subject,
     text: mail.text,
   });

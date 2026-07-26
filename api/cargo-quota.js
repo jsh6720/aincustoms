@@ -6,6 +6,7 @@ const {
   mergeManualFields,
   warehouseChanges,
 } = require("../lib/cargo-mail-utils");
+const { fetchMailSetting, resolveMailRecipients } = require("../lib/cargo-mail-settings");
 const { normalizeInspectionStatus } = require("../lib/cargo-progress-utils");
 
 const WAREHOUSE_CHANGE_TO = [
@@ -85,10 +86,19 @@ async function sendWarehouseChangeMail(card, session, previous, next) {
     secure: String(process.env.SMTP_SECURE || "true").toLowerCase() !== "false",
     auth: { user, pass },
   });
+  const setting = await fetchMailSetting(supabaseFetch, "warehouse_change");
+  const recipients = resolveMailRecipients({
+    setting,
+    fallbackTo: WAREHOUSE_CHANGE_TO,
+  });
+  if (!recipients.to.length) {
+    throw new Error("반입예정 정보 변경 메일 수신처가 설정되지 않았습니다.");
+  }
   const mail = buildWarehouseChangeMail(card, session, previous, next);
   await transporter.sendMail({
     from: process.env.MAIL_FROM || user,
-    to: WAREHOUSE_CHANGE_TO.join(","),
+    to: recipients.to.join(","),
+    cc: recipients.cc.length ? recipients.cc.join(",") : undefined,
     subject: mail.subject,
     text: mail.text,
   });

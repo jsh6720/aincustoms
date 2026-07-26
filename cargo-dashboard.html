@@ -186,6 +186,14 @@
     .admin-table th:nth-child(8), .admin-table td:nth-child(8) { width:62px; text-align:center; }
     .admin-table td { word-break:break-word; overflow-wrap:anywhere; }
     .admin-actions { display:flex; gap:6px; flex-wrap:wrap; }
+    .admin-mail-settings { margin-top:14px; background:#fff; border:1px solid #d9dee4; border-radius:8px; padding:16px; }
+    .admin-mail-settings h2 { font-size:16px; margin-bottom:4px; }
+    .admin-mail-settings .admin-mail-help { color:#697582; font-size:11px; margin-bottom:10px; }
+    .admin-mail-grid { display:grid; grid-template-columns:150px minmax(250px,1fr) minmax(250px,1fr); gap:7px 10px; align-items:center; }
+    .admin-mail-grid .admin-mail-head { color:#4b5663; font-size:11px; font-weight:800; }
+    .admin-mail-grid .admin-mail-label { font-size:12px; font-weight:800; color:#26313d; }
+    .admin-mail-grid input { height:32px; }
+    .admin-mail-settings .admin-actions { justify-content:flex-end; margin-top:12px; }
     .docs-panel { display:none; padding:12px 16px 18px; }
     .docs-inner { background:#fff; border:1px solid #d9dee4; border-radius:8px; overflow:hidden; }
     .docs-head { display:flex; justify-content:space-between; align-items:center; gap:10px; padding:12px 14px; border-bottom:1px solid #edf1f4; }
@@ -454,7 +462,7 @@
           <input id="adminDisplayName" placeholder="예: 현대코퍼레이션H">
           <label>필터텍스트</label>
           <input id="adminFilter" placeholder="예: 현대코">
-          <label>출고요청 메일 받는 사람</label>
+          <label>요청메일 우선 수신처</label>
           <textarea id="adminReleaseTo" placeholder="쉼표로 구분: a@aincustoms.com,b@aincustoms.com"></textarea>
           <label><input id="adminActive" type="checkbox" style="width:13px;height:13px;margin-right:5px" checked> 사용</label>
           <div class="admin-actions" style="margin-top:12px">
@@ -472,7 +480,7 @@
                 <th>아이디</th>
                 <th>표시명</th>
                 <th>필터텍스트</th>
-                <th>출고요청 메일</th>
+                <th>요청메일 우선 수신처</th>
                 <th>상태</th>
                 <th>관리</th>
               </tr>
@@ -480,6 +488,15 @@
             <tbody id="adminRows"></tbody>
           </table>
         </div>
+      </div>
+      <div class="admin-mail-settings">
+        <h2>기능별 메일 수신처</h2>
+        <div class="admin-mail-help">받는 사람과 참조를 쉼표로 구분해 입력합니다. 계정에 우선 수신처가 있으면 요청 메일은 계정 설정을 우선합니다.</div>
+        <div class="admin-mail-grid" id="adminMailSettings"></div>
+        <div class="admin-actions">
+          <button class="btn green" type="button" onclick="saveAdminMailSettings()">메일 설정 저장</button>
+        </div>
+        <div id="adminMailError" class="error"></div>
       </div>
     </section>
     <section id="progressPanel" class="docs-panel">
@@ -510,12 +527,12 @@
                 <th class="progress-short center progress-shipper-only">서류수령요청</th>
                 <th class="progress-short center progress-shipper-only">수입신고요청</th>
                 <th class="progress-date">OBL 접수일</th>
+                <th class="progress-short center">BL원본</th>
                 <th class="progress-short center progress-admin-only">동물검역</th>
                 <th class="progress-short center progress-admin-only">식품검역</th>
                 <th class="progress-short center progress-admin-only">유통이력</th>
                 <th class="progress-short center progress-admin-only">스티커요청</th>
                 <th class="progress-short center">BL파일</th>
-                <th class="progress-short center">BL원본</th>
                 <th class="progress-short center">IV</th>
                 <th class="progress-short center">PL</th>
                 <th class="progress-short center">H/C파일</th>
@@ -662,6 +679,15 @@
     let progressWarehouseCard = null;
     let progressWarehouseSaving = false;
     let adminAccounts = [];
+    let adminMailSettings = {};
+    const adminMailSettingLabels = {
+      original_doc_request: "원본서류 도착/수령 요청",
+      import_request: "수입신고 요청",
+      release_request: "출고 요청",
+      warehouse_change: "반입예정 정보 변경",
+      original_doc_receipt: "H/C 원본 수령 확인",
+      obl_carrier_receipt: "OBL 선사 접수 확인",
+    };
     let currentUserRole = "shipper";
     let currentUserLogin = "";
     let currentCards = [];
@@ -828,6 +854,36 @@
         return null;
       }
       return `${year}-${String(monthNumber).padStart(2, "0")}-${String(dayNumber).padStart(2, "0")}`;
+    }
+    function normalizeOblDateInput(value) {
+      const raw = String(value || "").trim();
+      if (!raw) return "";
+      const digits = raw.replace(/\D/g, "");
+      let year;
+      let month;
+      let day;
+      if (/^\d{8}$/.test(digits)) {
+        year = Number(digits.slice(0, 4));
+        month = Number(digits.slice(4, 6));
+        day = Number(digits.slice(6, 8));
+      } else if (/^\d{6}$/.test(digits)) {
+        year = 2000 + Number(digits.slice(0, 2));
+        month = Number(digits.slice(2, 4));
+        day = Number(digits.slice(4, 6));
+      } else if (/^\d{4}$/.test(digits)) {
+        year = new Date().getFullYear();
+        month = Number(digits.slice(0, 2));
+        day = Number(digits.slice(2, 4));
+      } else {
+        return "";
+      }
+      const parsed = new Date(year, month - 1, day);
+      if (
+        parsed.getFullYear() !== year ||
+        parsed.getMonth() !== month - 1 ||
+        parsed.getDate() !== day
+      ) return "";
+      return `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
     }
     function toRequestMonthDay(value) {
       const normalized = normalizeRequestDate(value);
@@ -2030,12 +2086,12 @@
           ${progressRequestToggle(card, "docs")}
           ${progressRequestToggle(card, "import")}
           <td class="progress-date">${progressOblCarrierToggle(card)}</td>
+          <td class="progress-short center">${progressDocToggle(card, "obl")}</td>
           <td class="progress-short center progress-admin-only">${progressManualStatusToggle(card, "animal")}</td>
           <td class="progress-short center progress-admin-only">${progressManualStatusToggle(card, "food")}</td>
           <td class="progress-short center progress-admin-only">${progressManualStatusToggle(card, "distribution")}</td>
           <td class="progress-short center progress-admin-only">${progressManualStatusToggle(card, "sticker")}</td>
           <td class="progress-short center">${docStatusLabel(!!card.doc_bl_received)}</td>
-          <td class="progress-short center">${progressDocToggle(card, "obl")}</td>
           <td class="progress-short center">${docStatusLabel(!!card.doc_iv_received)}</td>
           <td class="progress-short center">${docStatusLabel(!!card.doc_pl_received)}</td>
           <td class="progress-short center">${docStatusLabel(!!card.doc_hc_received)}</td>
@@ -2056,10 +2112,14 @@
       if (submitted) {
         if (!confirm(`${card.bl_number} OBL 선사 접수 상태를 취소할까요?`)) return;
       } else {
-        date = prompt("OBL 선사 접수일을 입력해 주세요. (YYYY-MM-DD)", koreaCalendarDate(new Date().toISOString())) || "";
-        if (!date) return;
-        if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-          alert("날짜는 YYYY-MM-DD 형식으로 입력해 주세요.");
+        const input = prompt(
+          "OBL 선사 접수일을 입력해 주세요. (0621, 260621, 2026-06-21)",
+          koreaCalendarDate(new Date().toISOString())
+        );
+        if (input === null || !String(input).trim()) return;
+        date = normalizeOblDateInput(input);
+        if (!date) {
+          alert("날짜를 0621, 260621 또는 2026-06-21 형식으로 입력해 주세요.");
           return;
         }
       }
@@ -3356,6 +3416,8 @@
       }
       showAdminUi();
       adminAccounts = result.accounts || [];
+      adminMailSettings = result.mail_settings || {};
+      renderAdminMailSettings();
       const rows = document.getElementById("adminRows");
       rows.innerHTML = adminAccounts.map((account, accountIndex) => `
         <tr>
@@ -3369,6 +3431,48 @@
           <td><button type="button" class="btn gray" data-admin-account-index="${accountIndex}">수정</button></td>
         </tr>
       `).join("");
+    }
+    function renderAdminMailSettings() {
+      const root = document.getElementById("adminMailSettings");
+      const entries = Object.entries(adminMailSettingLabels);
+      root.innerHTML = `
+        <div class="admin-mail-head">기능</div>
+        <div class="admin-mail-head">받는 사람(To)</div>
+        <div class="admin-mail-head">참조(CC)</div>
+        ${entries.map(([key, label]) => {
+          const setting = adminMailSettings[key] || { to: [], cc: [] };
+          return `
+            <div class="admin-mail-label">${esc(label)}</div>
+            <input id="adminMailTo_${key}" value="${esc((setting.to || []).join(","))}" placeholder="a@aincustoms.com,b@aincustoms.com">
+            <input id="adminMailCc_${key}" value="${esc((setting.cc || []).join(","))}" placeholder="참조 메일 주소">
+          `;
+        }).join("")}
+      `;
+      document.getElementById("adminMailError").textContent = "";
+    }
+    async function saveAdminMailSettings() {
+      const error = document.getElementById("adminMailError");
+      error.textContent = "";
+      const settings = {};
+      for (const key of Object.keys(adminMailSettingLabels)) {
+        settings[key] = {
+          to: document.getElementById(`adminMailTo_${key}`).value,
+          cc: document.getElementById(`adminMailCc_${key}`).value,
+        };
+      }
+      const response = await fetch("/api/cargo-admin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "mail_settings", settings }),
+      });
+      const result = await response.json();
+      if (!result.success) {
+        error.textContent = result.message || "메일 설정 저장에 실패했습니다.";
+        return;
+      }
+      adminMailSettings = result.mail_settings || {};
+      renderAdminMailSettings();
+      alert("기능별 메일 수신처를 저장했습니다.");
     }
     async function openAdminSettings() {
       await loadAdmin();

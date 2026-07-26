@@ -1,4 +1,9 @@
 const { verifySession, supabaseFetch } = require("../lib/cargo-auth");
+const {
+  MAIL_SETTING_KEYS,
+  normalizeMailSettings,
+} = require("../lib/cargo-mail-settings");
+const { parseRecipientList } = require("../lib/cargo-mail-utils");
 
 function requireAdmin(req, res) {
   const session = verifySession(req);
@@ -15,6 +20,10 @@ function requireAdmin(req, res) {
 
 function cleanText(value, max = 1000) {
   return String(value || "").trim().slice(0, max);
+}
+
+function normalizeRecipientText(value) {
+  return parseRecipientList(cleanText(value, 4000)).join(",");
 }
 
 module.exports = async function handler(req, res) {
@@ -34,11 +43,47 @@ module.exports = async function handler(req, res) {
           "/rest/v1/shipper_accounts?select=id,login_id,display_name,consignee_filter,release_request_to,role,is_active,updated_at&order=role.asc,login_id.asc"
         );
       }
-      return res.status(200).json({ success: true, accounts: accounts || [] });
+      let mailSettingRows = [];
+      try {
+        mailSettingRows = await supabaseFetch(
+          "/rest/v1/cargo_mail_settings?select=setting_key,to_recipients,cc_recipients,updated_at,updated_by&order=setting_key.asc"
+        );
+      } catch {
+        mailSettingRows = [];
+      }
+      return res.status(200).json({
+        success: true,
+        accounts: accounts || [],
+        mail_settings: normalizeMailSettings(mailSettingRows),
+      });
     }
 
     if (req.method === "POST") {
       const body = typeof req.body === "string" ? JSON.parse(req.body || "{}") : (req.body || {});
+      if (body.action === "mail_settings") {
+        const rawSettings = body.settings && typeof body.settings === "object" ? body.settings : {};
+        const now = new Date().toISOString();
+        const rows = MAIL_SETTING_KEYS.map((settingKey) => ({
+          setting_key: settingKey,
+          to_recipients: normalizeRecipientText(rawSettings[settingKey]?.to),
+          cc_recipients: normalizeRecipientText(rawSettings[settingKey]?.cc),
+          updated_at: now,
+          updated_by: session.login_id || "admin",
+        }));
+        const saved = await supabaseFetch(
+          "/rest/v1/cargo_mail_settings?on_conflict=setting_key",
+          {
+            method: "POST",
+            headers: { Prefer: "resolution=merge-duplicates,return=representation" },
+            body: JSON.stringify(rows),
+          }
+        );
+        return res.status(200).json({
+          success: true,
+          mail_settings: normalizeMailSettings(saved || rows),
+        });
+      }
+
       const payload = {
         p_id: body.id || null,
         p_login_id: cleanText(body.login_id, 80),
@@ -73,6 +118,12 @@ module.exports = async function handler(req, res) {
     res.setHeader("Allow", "GET, POST");
     return res.status(405).json({ success: false, message: "Method not allowed" });
   } catch (error) {
+    if (String(error.message || "").includes("cargo_mail_settings")) {
+      return res.status(500).json({
+        success: false,
+        message: "Supabase에서 20260726_add_cargo_mail_settings.sql을 먼저 실행해 주세요.",
+      });
+    }
     if (String(error.message || "").includes("admin_upsert_shipper_account")) {
       return res.status(500).json({
         success: false,

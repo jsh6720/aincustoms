@@ -95,7 +95,7 @@
       <div id="oblCarrierMailModalCard" class="modal-card"></div>
       <div class="modal-field">
         <label for="oblCarrierMailDate">OBL 선사 접수일</label>
-        <input id="oblCarrierMailDate" type="date">
+        <input id="oblCarrierMailDate" type="text" inputmode="numeric" placeholder="0621 또는 260621">
       </div>
       <div class="modal-field">
         <label for="oblCarrierMailMemo">확인사항</label>
@@ -134,6 +134,36 @@
     }
     function shortDate(value) {
       return value ? String(value).slice(0, 10) : "";
+    }
+    function normalizeOblDateInput(value) {
+      const raw = String(value || "").trim();
+      if (!raw) return "";
+      const digits = raw.replace(/\D/g, "");
+      let year;
+      let month;
+      let day;
+      if (/^\d{8}$/.test(digits)) {
+        year = Number(digits.slice(0, 4));
+        month = Number(digits.slice(4, 6));
+        day = Number(digits.slice(6, 8));
+      } else if (/^\d{6}$/.test(digits)) {
+        year = 2000 + Number(digits.slice(0, 2));
+        month = Number(digits.slice(2, 4));
+        day = Number(digits.slice(4, 6));
+      } else if (/^\d{4}$/.test(digits)) {
+        year = new Date().getFullYear();
+        month = Number(digits.slice(0, 2));
+        day = Number(digits.slice(2, 4));
+      } else {
+        return "";
+      }
+      const parsed = new Date(year, month - 1, day);
+      if (
+        parsed.getFullYear() !== year ||
+        parsed.getMonth() !== month - 1 ||
+        parsed.getDate() !== day
+      ) return "";
+      return `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
     }
     function numberValue(value) {
       if (value === null || value === undefined || value === "") return null;
@@ -216,7 +246,7 @@
             </div>
             <div class="carrier-box">
               <label>OBL 선사 접수일
-                <input id="oblCarrier${index}" type="date" value="${esc(shortDate(card.obl_carrier_submitted_date))}">
+                <input id="oblCarrier${index}" type="text" inputmode="numeric" placeholder="0621 또는 260621" value="${esc(shortDate(card.obl_carrier_submitted_date))}">
               </label>
               <div class="carrier-actions">
                 <button class="btn gray" onclick="saveOblCarrier(${index}, false)">접수 저장</button>
@@ -311,8 +341,15 @@
     async function saveOblCarrier(index, reload = true) {
       const card = visible[index];
       if (!card) return false;
-      const date = document.getElementById(`oblCarrier${index}`)?.value || "";
+      const rawDate = document.getElementById(`oblCarrier${index}`)?.value || "";
+      const date = normalizeOblDateInput(rawDate);
+      if (rawDate && !date) {
+        alert("날짜를 0621, 260621 또는 2026-06-21 형식으로 입력해 주세요.");
+        return false;
+      }
       if (!date && !confirm(`${card.bl_number} OBL 선사 접수 상태를 취소할까요?`)) return false;
+      const dateInput = document.getElementById(`oblCarrier${index}`);
+      if (dateInput) dateInput.value = date;
       const res = await fetch("/api/cargo-quota", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -357,11 +394,12 @@
 
     async function submitOblCarrierMail() {
       if (!oblCarrierMailCard) return;
-      const date = document.getElementById("oblCarrierMailDate").value;
+      const date = normalizeOblDateInput(document.getElementById("oblCarrierMailDate").value);
       if (!date) {
-        alert("OBL 선사 접수일을 입력해 주세요.");
+        alert("OBL 선사 접수일을 0621, 260621 또는 2026-06-21 형식으로 입력해 주세요.");
         return;
       }
+      document.getElementById("oblCarrierMailDate").value = date;
       const cardIndex = visible.indexOf(oblCarrierMailCard);
       const cardDateInput = document.getElementById(`oblCarrier${cardIndex}`);
       if (cardDateInput) cardDateInput.value = date;
