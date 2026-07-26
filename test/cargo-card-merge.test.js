@@ -109,3 +109,61 @@ test("keeps an intentional transport-field clear from the newest update", () => 
   assert.equal(merged[0].warehouse_expected_date, "");
   assert.equal(merged[0].transport_updated_at, "2026-07-24T05:00:00.000Z");
 });
+
+test("keeps the newest OBL carrier submission independently from transport updates", () => {
+  const merged = mergeDuplicateCargoCards([
+    {
+      account_id: "newer-transport-account",
+      bl_number: "ONEYBNEG04197300",
+      storage_yard: "강동1 보세창고",
+      transport_updated_at: "2026-07-24T06:00:00.000Z",
+      obl_carrier_submitted: false,
+      obl_carrier_submitted_date: "",
+      obl_carrier_submitted_at: null,
+    },
+    {
+      account_id: "obl-status-account",
+      bl_number: "oneybneg04197300",
+      storage_yard: "이전 보세창고",
+      transport_updated_at: "2026-07-24T05:00:00.000Z",
+      obl_carrier_submitted: true,
+      obl_carrier_submitted_date: "2026-07-22",
+      obl_carrier_submitted_by: "aincustoms",
+      obl_carrier_submitted_at: "2026-07-26T01:00:00.000Z",
+    },
+  ]);
+
+  assert.equal(merged.length, 1);
+  assert.equal(merged[0].storage_yard, "강동1 보세창고");
+  assert.equal(merged[0].obl_carrier_submitted, true);
+  assert.equal(merged[0].obl_carrier_submitted_date, "2026-07-22");
+  assert.equal(merged[0].obl_carrier_submitted_by, "aincustoms");
+  assert.equal(merged[0].obl_carrier_submitted_at, "2026-07-26T01:00:00.000Z");
+});
+
+test("keeps a newer explicit OBL carrier submission cancellation", () => {
+  const merged = mergeDuplicateCargoCards([
+    {
+      account_id: "submitted-account",
+      bl_number: "BL-OBL-CANCEL",
+      obl_carrier_submitted: true,
+      obl_carrier_submitted_date: "2026-07-20",
+      obl_carrier_submitted_by: "aincustoms",
+      obl_carrier_submitted_at: "2026-07-20T01:00:00.000Z",
+    },
+    {
+      account_id: "cancelled-account",
+      bl_number: "BL-OBL-CANCEL",
+      obl_carrier_submitted: false,
+      obl_carrier_submitted_date: null,
+      obl_carrier_submitted_by: "aincustoms",
+      obl_carrier_submitted_at: "2026-07-21T01:00:00.000Z",
+    },
+  ]);
+
+  assert.equal(merged.length, 1);
+  assert.equal(merged[0].obl_carrier_submitted, false);
+  assert.equal(merged[0].obl_carrier_submitted_date, null);
+  assert.equal(merged[0].obl_carrier_submitted_by, "aincustoms");
+  assert.equal(merged[0].obl_carrier_submitted_at, "2026-07-21T01:00:00.000Z");
+});

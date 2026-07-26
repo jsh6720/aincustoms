@@ -221,22 +221,28 @@ module.exports = async function handler(req, res) {
       if (submitted && !isValidDate(submittedDate)) {
         return res.status(400).json({ success: false, message: "OBL 접수일 형식이 올바르지 않습니다." });
       }
+      const statusUpdatedAt = new Date().toISOString();
+      const targets = await linkedDocumentDeliveryTargets(card);
+      const linkedPayloads = targets.map((target) => ({
+        ...target,
+        obl_carrier_submitted: submitted,
+        obl_carrier_submitted_date: submitted ? submittedDate : null,
+        obl_carrier_submitted_by: session.login_id || "admin",
+        obl_carrier_submitted_at: statusUpdatedAt,
+      }));
       const rows = await supabaseFetch(
         "/rest/v1/cargo_card_user_inputs?on_conflict=account_id,bl_number",
         {
           method: "POST",
           headers: { Prefer: "resolution=merge-duplicates,return=representation" },
-          body: JSON.stringify({
-            account_id: targetAccountId,
-            bl_number: blNumber,
-            obl_carrier_submitted: submitted,
-            obl_carrier_submitted_date: submitted ? submittedDate : null,
-            obl_carrier_submitted_by: submitted ? (session.login_id || "admin") : null,
-            obl_carrier_submitted_at: submitted ? new Date().toISOString() : null,
-          }),
+          body: JSON.stringify(linkedPayloads),
         }
       );
-      return res.status(200).json({ success: true, input: rows && rows[0] ? rows[0] : null });
+      return res.status(200).json({
+        success: true,
+        input: rows && rows[0] ? rows[0] : null,
+        inputs: rows || [],
+      });
     }
 
     if (action === "manual_fields") {
