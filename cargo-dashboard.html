@@ -311,6 +311,7 @@
     .progress-state-cell { min-width:132px; }
     .progress-admin-request-list { display:flex; gap:3px; margin-top:4px; flex-wrap:wrap; }
     .progress-admin-request-badge { border:1px solid #c8d8e8; border-radius:999px; background:#eef4fa; color:#315c82; padding:1px 5px; font:inherit; font-size:9px; font-weight:900; cursor:help; }
+    .progress-admin-request-badge.completed { border-color:#a9d7bc; background:#e7f5ed; color:#17653c; }
     body.shipper-progress .progress-admin-only { display:none; }
     body.viewer-progress .progress-shipper-only { display:none; }
     body.viewer-progress .progress-edit-btn { pointer-events:none; background:transparent; box-shadow:none; color:inherit; text-decoration:none; }
@@ -1760,10 +1761,16 @@
       if (!requests.length) return "";
       return `<span class="progress-admin-request-list">${requests.map(([type, label, latest]) => {
         const descriptionId = `progress-admin-request-${cardIndex}-${type}`;
+        const completed = type === "docs"
+          ? card.obl_received === true
+          : importStatusType(card) !== "before";
+        const statusLabel = completed
+          ? (type === "docs" ? "서류수령 요청/수령O" : "수입신고 요청/진행O")
+          : `${label} 화주요청`;
         return `
           <span class="progress-request-wrap">
-            <button type="button" class="progress-admin-request-badge progress-tooltip-control"
-              aria-describedby="${descriptionId}">${esc(label)} 화주요청</button>
+            <button type="button" class="progress-admin-request-badge${completed ? " completed" : ""} progress-tooltip-control"
+              aria-describedby="${descriptionId}">${esc(statusLabel)}</button>
             <span id="${descriptionId}" class="progress-request-detail" role="tooltip">${progressRequestDetailRows(latest, type)}</span>
           </span>
         `;

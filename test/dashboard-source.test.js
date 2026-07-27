@@ -270,6 +270,8 @@ test("admin request indicators stay inside the state cell and expose latest requ
   );
   const card = {
     stage: "반입",
+    obl_received: false,
+    prgs_stts: "수입신고전",
     last_original_doc_request: {
       requester_name: "화주 담당",
       requester_email: "shipper@example.com",
@@ -289,7 +291,36 @@ test("admin request indicators stay inside the state cell and expose latest requ
   assert.match(html, /서류수령/);
   assert.match(html, /수입신고/);
   assert.match(html, /shipper@example\.com/);
+  assert.doesNotMatch(html, /요청\/수령O/);
+  assert.doesNotMatch(html, /요청\/진행O/);
+  assert.doesNotMatch(html, /progress-admin-request-badge completed/);
   assert.doesNotMatch(html, /<td\b/i);
+});
+
+test("admin request indicators turn green when documents are received and import declaration is underway", () => {
+  const card = {
+    stage: "수입신고",
+    obl_received: true,
+    prgs_stts: "수입(사용소비) 심사진행",
+    last_original_doc_request: {
+      requester_name: "화주 담당",
+      requester_email: "shipper@example.com",
+      requested_receipt_date: "2026-07-24",
+      memo: "원본 요청",
+    },
+    last_import_request: {
+      requester_name: "화주 담당",
+      requester_email: "shipper@example.com",
+      requested_import_date: "2026-07-25",
+      memo: "신고 요청",
+    },
+  };
+  const context = dashboardRuntimeContext("admin", [card]);
+  const html = vm.runInContext("progressAdminRequestIndicators(__testCards[0])", context);
+
+  assert.match(html, /서류수령 요청\/수령O/);
+  assert.match(html, /수입신고 요청\/진행O/);
+  assert.equal((html.match(/progress-admin-request-badge completed/g) || []).length, 2);
 });
 
 test("progress calendar keeps import and original receipt events without transfer events", () => {
