@@ -39,7 +39,7 @@ async function findManualInput(accountId, blNumber) {
   return rows && rows[0] ? rows[0] : {};
 }
 
-async function linkedDocumentDeliveryTargets(card) {
+async function linkedCardTargets(card) {
   const accountId = String(card?.account_id || "").trim();
   const blNumber = String(card?.bl_number || "").trim();
   const folderName = String(card?.folder_name || "").trim();
@@ -170,7 +170,16 @@ module.exports = async function handler(req, res) {
         "docs_delivered_samhyeon",
         "docs_delivered_warehouse",
       ];
-      const hasDeliveryChange = deliveryFields.some((field) => (
+      const sharedAdminFields = [
+        "animal_quarantine_override",
+        "food_quarantine_override",
+        "import_declaration_override",
+        "distribution_history_override",
+        "distribution_history_number",
+        "sticker_requested",
+        ...deliveryFields,
+      ];
+      const hasSharedAdminChange = sharedAdminFields.some((field) => (
         Object.prototype.hasOwnProperty.call(body, field)
       ));
       for (const field of deliveryFields) {
@@ -184,17 +193,17 @@ module.exports = async function handler(req, res) {
         payload[field] = body[field];
       }
 
-      if (hasDeliveryChange) {
-        const deliveryPayload = {};
-        for (const field of deliveryFields) {
+      if (hasSharedAdminChange) {
+        const sharedPayload = {};
+        for (const field of sharedAdminFields) {
           if (Object.prototype.hasOwnProperty.call(payload, field)) {
-            deliveryPayload[field] = payload[field];
+            sharedPayload[field] = payload[field];
           }
         }
-        const targets = await linkedDocumentDeliveryTargets(card);
+        const targets = await linkedCardTargets(card);
         const linkedPayloads = targets.map((target) => ({
           ...target,
-          ...deliveryPayload,
+          ...sharedPayload,
         }));
         const rows = await supabaseFetch(
           "/rest/v1/cargo_card_user_inputs?on_conflict=account_id,bl_number",
@@ -232,7 +241,7 @@ module.exports = async function handler(req, res) {
         return res.status(400).json({ success: false, message: "OBL 접수일 형식이 올바르지 않습니다." });
       }
       const statusUpdatedAt = new Date().toISOString();
-      const targets = await linkedDocumentDeliveryTargets(card);
+      const targets = await linkedCardTargets(card);
       const linkedPayloads = targets.map((target) => ({
         ...target,
         obl_carrier_submitted: submitted,

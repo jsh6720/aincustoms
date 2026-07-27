@@ -72,7 +72,7 @@ test("cargo APIs expose delivery state and account category", () => {
   assert.match(cargoAdminApi, /p_account_category/);
   assert.match(cargoQuotaApi, /docs_delivered_samhyeon/);
   assert.match(cargoQuotaApi, /docs_delivered_warehouse/);
-  assert.match(cargoQuotaApi, /linkedDocumentDeliveryTargets/);
+  assert.match(cargoQuotaApi, /linkedCardTargets/);
   assert.match(cargoQuotaApi, /session\.account_category/);
   assert.match(
     cargoDataApi,

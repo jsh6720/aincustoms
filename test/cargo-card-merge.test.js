@@ -110,6 +110,28 @@ test("keeps an intentional transport-field clear from the newest update", () => 
   assert.equal(merged[0].transport_updated_at, "2026-07-24T05:00:00.000Z");
 });
 
+test("keeps a sticker request independently from transport update recency", () => {
+  const merged = mergeDuplicateCargoCards([
+    {
+      account_id: "older-sticker-account",
+      bl_number: "ONEYBNEG02916700",
+      sticker_requested: true,
+      transport_updated_at: "2026-07-24T04:00:00.000Z",
+    },
+    {
+      account_id: "newer-transport-account",
+      bl_number: "oneybneg02916700",
+      sticker_requested: false,
+      storage_yard: "강동냉장(주)보세창고",
+      transport_updated_at: "2026-07-24T05:00:00.000Z",
+    },
+  ]);
+
+  assert.equal(merged.length, 1);
+  assert.equal(merged[0].storage_yard, "강동냉장(주)보세창고");
+  assert.equal(merged[0].sticker_requested, true);
+});
+
 test("keeps the newest OBL carrier submission independently from transport updates", () => {
   const merged = mergeDuplicateCargoCards([
     {
