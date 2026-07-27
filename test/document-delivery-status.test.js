@@ -87,8 +87,10 @@ test("progress table places compact delivery controls immediately after state", 
   const header = dashboard.slice(headerStart, headerEnd);
   assert.match(
     header,
-    /진행상태<\/th>\s*<th[^>]*>서류전달<\/th>\s*<th[^>]*progress-shipper-only[^>]*>서류수령요청/
+    /진행상태<\/th>\s*<th[^>]*progress-admin-only[^>]*>서류전달<\/th>\s*<th[^>]*progress-shipper-only[^>]*>서류수령요청/
   );
+  assert.match(dashboard, /<td class="progress-delivery progress-admin-only">/);
+  assert.match(dashboard, /body\.viewer-progress \.progress-admin-only\s*\{\s*display:none;\s*\}/);
   assert.match(dashboard, /삼현전달/);
   assert.match(dashboard, /창고전달/);
   assert.match(dashboard, /function progressDeliveryStatus/);

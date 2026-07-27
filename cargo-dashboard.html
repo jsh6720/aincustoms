@@ -313,7 +313,8 @@
     .progress-admin-request-badge { border:1px solid #c8d8e8; border-radius:999px; background:#eef4fa; color:#315c82; padding:1px 5px; font:inherit; font-size:9px; font-weight:900; cursor:help; }
     .progress-admin-request-badge.completed { border-color:#a9d7bc; background:#e7f5ed; color:#17653c; }
     body.shipper-progress .progress-admin-only { display:none; }
-    body.viewer-progress .progress-shipper-only { display:none; }
+    body.viewer-progress .progress-shipper-only,
+    body.viewer-progress .progress-admin-only { display:none; }
     body.viewer-progress .progress-edit-btn { pointer-events:none; background:transparent; box-shadow:none; color:inherit; text-decoration:none; }
     body:not(.shipper-progress) .progress-shipper-only { display:none; }
     body:not(.shipper-progress) .progress-table { min-width:1860px; }
@@ -524,7 +525,7 @@
                 <th class="progress-date">반입예정일</th>
                 <th class="progress-short center">마일스톤</th>
                 <th class="progress-long">진행상태</th>
-                <th class="progress-delivery">서류전달</th>
+                <th class="progress-delivery progress-admin-only">서류전달</th>
                 <th class="progress-short center progress-shipper-only">서류수령요청</th>
                 <th class="progress-short center progress-shipper-only">수입신고요청</th>
                 <th class="progress-date">OBL 접수일</th>
@@ -1645,7 +1646,7 @@
         ["창고", "warehouse", card.docs_delivered_warehouse === true],
       ];
       return `
-        <td class="progress-delivery">
+        <td class="progress-delivery progress-admin-only">
           <div class="delivery-status">
             ${items.map(([label, target, enabled]) => `
               <span class="delivery-status-item">
