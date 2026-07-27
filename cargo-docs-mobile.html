@@ -229,8 +229,16 @@
     }
 
     function mobileOriginalRequestRank(card) {
-      if (!hasMobileOriginalRequest(card)) return 2;
-      return card.obl_received === true ? 1 : 0;
+      if (hasMobileOriginalRequest(card)) {
+        return card.obl_received === true ? 3 : 0;
+      }
+      if (
+        ["입항", "반입"].includes(card?.stage) &&
+        (card.obl_received !== true || card.hc_received !== true)
+      ) {
+        return 1;
+      }
+      return 2;
     }
 
     function mobileOriginalRequestTime(card) {
@@ -243,9 +251,11 @@
     }
 
     function mobileOriginalRequestSort(left, right) {
-      const rankDifference = mobileOriginalRequestRank(left) - mobileOriginalRequestRank(right);
+      const leftRank = mobileOriginalRequestRank(left);
+      const rightRank = mobileOriginalRequestRank(right);
+      const rankDifference = leftRank - rightRank;
       if (rankDifference) return rankDifference;
-      if (mobileOriginalRequestRank(left) < 2) {
+      if (leftRank === 0 || leftRank === 3) {
         const timeDifference = mobileOriginalRequestTime(right) - mobileOriginalRequestTime(left);
         if (timeDifference) return timeDifference;
       }

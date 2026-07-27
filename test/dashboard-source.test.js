@@ -943,25 +943,54 @@ test("mobile original document manager supports transfer override", () => {
   assert.match(mobile, /result\.warning/);
 });
 
-test("mobile original document manager prioritizes unresolved shipper requests", () => {
+test("mobile original document manager prioritizes requests, arrived missing docs, and completed requests", () => {
   const context = mobileOriginalRequestHarness();
   const cards = [
-    { bl_number: "BL-NORMAL" },
+    {
+      bl_number: "BL-NORMAL",
+      stage: "입항전",
+      obl_received: false,
+      hc_received: false,
+    },
     {
       bl_number: "BL-COMPLETE",
+      stage: "반입",
       obl_received: true,
+      hc_received: false,
       last_original_doc_request_id: "request-complete",
       last_original_doc_request_created_at: "2026-07-26T01:00:00Z",
     },
     {
-      bl_number: "BL-PENDING-OLD",
+      bl_number: "BL-ARRIVED-MISSING-HC",
+      stage: "입항",
+      obl_received: true,
+      hc_received: false,
+    },
+    {
+      bl_number: "BL-INBOUND-MISSING-OBL",
+      stage: "반입",
       obl_received: false,
+      hc_received: true,
+    },
+    {
+      bl_number: "BL-INBOUND-COMPLETE-DOCS",
+      stage: "반입",
+      obl_received: true,
+      hc_received: true,
+    },
+    {
+      bl_number: "BL-PENDING-OLD",
+      stage: "입항",
+      obl_received: false,
+      hc_received: false,
       last_original_doc_request_id: "request-pending-old",
       last_original_doc_request_created_at: "2026-07-25T01:00:00Z",
     },
     {
       bl_number: "BL-PENDING-NEW",
+      stage: "반입",
       obl_received: false,
+      hc_received: false,
       last_original_doc_request: { id: "request-pending-new" },
       last_original_doc_request_created_at: "2026-07-27T01:00:00Z",
     },
@@ -970,11 +999,20 @@ test("mobile original document manager prioritizes unresolved shipper requests",
   const sorted = cards.sort(context.requestSort);
   assert.deepEqual(
     Array.from(sorted, (card) => card.bl_number),
-    ["BL-PENDING-NEW", "BL-PENDING-OLD", "BL-COMPLETE", "BL-NORMAL"]
+    [
+      "BL-PENDING-NEW",
+      "BL-PENDING-OLD",
+      "BL-ARRIVED-MISSING-HC",
+      "BL-INBOUND-MISSING-OBL",
+      "BL-INBOUND-COMPLETE-DOCS",
+      "BL-NORMAL",
+      "BL-COMPLETE",
+    ]
   );
   assert.equal(context.requestRank(sorted[0]), 0);
   assert.equal(context.requestRank(sorted[2]), 1);
-  assert.equal(context.requestRank(sorted[3]), 2);
+  assert.equal(context.requestRank(sorted[4]), 2);
+  assert.equal(context.requestRank(sorted[6]), 3);
 });
 
 test("mobile original document cards label pending and completed shipper requests", () => {
