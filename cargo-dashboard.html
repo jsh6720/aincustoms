@@ -3085,9 +3085,10 @@
       const events = [];
       visibleCards().forEach(card => {
         const label = card.bl_number || "-";
+        const oblStatus = card.obl_received ? "O" : "X";
         const eta = calendarDate(etaText(card));
         if (eta) {
-          events.push({ date: eta, type: "eta", text: `입항 ${label}` });
+          events.push({ date: eta, type: "eta", text: `입항 ${label} (OBL ${oblStatus})` });
         }
         const requestDate = calendarDate(card.last_original_doc_requested_receipt_date);
         if (requestDate) {

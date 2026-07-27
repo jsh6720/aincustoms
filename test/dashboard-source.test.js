@@ -308,6 +308,7 @@ test("progress calendar keeps import and original receipt events without transfe
     {
       bl_number: "BL-HC",
       actual_received_date: "2026-07-26",
+      eta_date: "2026-07-22",
       obl_received: false,
       hc_received: true,
     },
@@ -329,7 +330,8 @@ test("progress calendar keeps import and original receipt events without transfe
   assert.ok(events.some((event) => event.text === "서류수령 BL-BOTH (OBL, H/C)"));
   assert.ok(!events.some((event) => event.type === "transfer"));
   assert.ok(!events.some((event) => event.text.includes("양도증")));
-  assert.ok(events.some((event) => event.text === "입항 ONEYBNEG04197300"));
+  assert.ok(events.some((event) => event.text === "입항 ONEYBNEG04197300 (OBL O)"));
+  assert.ok(events.some((event) => event.text === "입항 BL-HC (OBL X)"));
   assert.ok(events.some((event) => event.text === "서류요청 ONEYBNEG04197300"));
   assert.ok(events.some((event) => event.text === "반입예정 ONEYBNEG04197300"));
 });
