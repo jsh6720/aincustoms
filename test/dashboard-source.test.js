@@ -100,6 +100,25 @@ this.events = progressCalendarEvents;`,
   return context.events();
 }
 
+function mobileOriginalRequestHarness() {
+  const start = mobile.indexOf("function hasMobileOriginalRequest");
+  const end = mobile.indexOf("function render()", start);
+  assert.ok(start >= 0 && end > start, "mobile request priority helpers should exist");
+  const context = {
+    shortDate: (value) => value ? String(value).slice(0, 10) : "",
+    esc: (value) => String(value ?? ""),
+  };
+  vm.createContext(context);
+  vm.runInContext(
+    `${mobile.slice(start, end)}
+this.requestRank = mobileOriginalRequestRank;
+this.requestSort = mobileOriginalRequestSort;
+this.requestBadge = mobileOriginalRequestBadge;`,
+    context
+  );
+  return context;
+}
+
 test("dashboard arrival text prefers Customs entry date over a stale manual ETA", () => {
   const context = dashboardRuntimeContext("admin", [{
     stage: "반입",
@@ -922,6 +941,60 @@ test("mobile original document manager supports transfer override", () => {
   assert.match(mobile, /transfer_received_override/);
   assert.match(mobile, /automatic/);
   assert.match(mobile, /result\.warning/);
+});
+
+test("mobile original document manager prioritizes unresolved shipper requests", () => {
+  const context = mobileOriginalRequestHarness();
+  const cards = [
+    { bl_number: "BL-NORMAL" },
+    {
+      bl_number: "BL-COMPLETE",
+      obl_received: true,
+      last_original_doc_request_id: "request-complete",
+      last_original_doc_request_created_at: "2026-07-26T01:00:00Z",
+    },
+    {
+      bl_number: "BL-PENDING-OLD",
+      obl_received: false,
+      last_original_doc_request_id: "request-pending-old",
+      last_original_doc_request_created_at: "2026-07-25T01:00:00Z",
+    },
+    {
+      bl_number: "BL-PENDING-NEW",
+      obl_received: false,
+      last_original_doc_request: { id: "request-pending-new" },
+      last_original_doc_request_created_at: "2026-07-27T01:00:00Z",
+    },
+  ];
+
+  const sorted = cards.sort(context.requestSort);
+  assert.deepEqual(
+    Array.from(sorted, (card) => card.bl_number),
+    ["BL-PENDING-NEW", "BL-PENDING-OLD", "BL-COMPLETE", "BL-NORMAL"]
+  );
+  assert.equal(context.requestRank(sorted[0]), 0);
+  assert.equal(context.requestRank(sorted[2]), 1);
+  assert.equal(context.requestRank(sorted[3]), 2);
+});
+
+test("mobile original document cards label pending and completed shipper requests", () => {
+  const context = mobileOriginalRequestHarness();
+  const pending = context.requestBadge({
+    obl_received: false,
+    last_original_doc_request_id: "request-1",
+    last_original_doc_requested_receipt_date: "2026-07-30",
+  });
+  const complete = context.requestBadge({
+    obl_received: true,
+    last_original_doc_request_id: "request-2",
+    last_original_doc_requested_receipt_date: "2026-07-29",
+  });
+
+  assert.match(pending, /화주 수령요청/);
+  assert.match(pending, /희망 2026-07-30/);
+  assert.match(pending, /request-pending/);
+  assert.match(complete, /요청\/수령O/);
+  assert.match(complete, /request-complete/);
 });
 
 test("legacy original receipt fallback uses Korea-local update date", () => {
