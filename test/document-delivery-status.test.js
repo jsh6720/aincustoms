@@ -99,6 +99,21 @@ test("progress table places compact delivery controls immediately after state", 
   assert.match(dashboard, /confirm\(/);
 });
 
+test("admin progress table keeps enough width for every administrative column", () => {
+  assert.match(
+    dashboard,
+    /\.progress-table\s*\{[^}]*min-width:\s*2280px/
+  );
+  assert.match(
+    dashboard,
+    /body\.shipper-progress \.progress-table\s*\{[^}]*min-width:\s*1980px/
+  );
+  assert.doesNotMatch(
+    dashboard,
+    /body:not\(\.shipper-progress\) \.progress-table\s*\{[^}]*min-width:\s*1860px/
+  );
+});
+
 test("transport provenance distinguishes admin, shipper, and destination", () => {
   assert.match(dashboard, /function transportProvenanceLabel/);
   assert.match(dashboard, /관리자\(AIN\)/);
