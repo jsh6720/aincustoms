@@ -138,6 +138,9 @@
     function displayConsignee(value) {
       return String(value || "-").replace(/현대코퍼레이션H|현대코퍼레이션|현대코퍼|현대코/g, "현대코퍼레이션H");
     }
+    function mobileDestinationName(value) {
+      return String(value || "").split(/[_*]/)[0].trim() || "-";
+    }
     function shortDate(value) {
       return value ? String(value).slice(0, 10) : "";
     }
@@ -311,7 +314,7 @@
               </div>
             </div>
             <div class="info">
-              <div class="k">반출처</div><div class="v">${esc(card.destination || "-")}</div>
+              <div class="k">반출처</div><div class="v">${esc(mobileDestinationName(card.destination))}</div>
               <div class="k">품명</div><div class="v">${esc(card.product_name || "-")}</div>
             </div>
             <div class="carrier-box">
@@ -452,7 +455,7 @@
       document.getElementById("oblCarrierMailModalCard").innerHTML = `
         <div class="modal-row"><b>화주명</b><span>${esc(displayConsignee(oblCarrierMailCard.consignee))}</span></div>
         <div class="modal-row"><b>B/L</b><span>${esc(oblCarrierMailCard.bl_number || "-")}</span></div>
-        <div class="modal-row"><b>반출처</b><span>${esc(oblCarrierMailCard.destination || "-")}</span></div>
+        <div class="modal-row"><b>반출처</b><span>${esc(mobileDestinationName(oblCarrierMailCard.destination))}</span></div>
       `;
       document.getElementById("oblCarrierMailModalBg").style.display = "flex";
     }
@@ -509,7 +512,7 @@
       document.getElementById("receiptMailModalCard").innerHTML = `
         <div class="modal-row"><b>화주명</b><span>${esc(displayConsignee(receiptMailCard.consignee))}</span></div>
         <div class="modal-row"><b>B/L</b><span>${esc(receiptMailCard.bl_number || "-")}</span></div>
-        <div class="modal-row"><b>반출처</b><span>${esc(receiptMailCard.destination || "-")}</span></div>
+        <div class="modal-row"><b>반출처</b><span>${esc(mobileDestinationName(receiptMailCard.destination))}</span></div>
         <div class="modal-row"><b>품명</b><span>${esc(receiptMailCard.product_name || "-")}</span></div>
         <div class="modal-row"><b>수령일</b><span>${esc(shortDate(receiptMailCard.actual_received_date) || "-")}</span></div>
       `;

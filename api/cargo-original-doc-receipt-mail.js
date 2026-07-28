@@ -1,6 +1,6 @@
 const nodemailer = require("nodemailer");
 const { verifySession, supabaseFetch } = require("../lib/cargo-auth");
-const { parseRecipientList } = require("../lib/cargo-mail-utils");
+const { destinationName, parseRecipientList } = require("../lib/cargo-mail-utils");
 const { fetchMailSetting, resolveMailRecipients } = require("../lib/cargo-mail-settings");
 const {
   koreaDate,
@@ -44,7 +44,7 @@ function buildMail(card, totalPages, memo) {
     "[화물 정보]",
     `화주명: ${consignee}`,
     `B/L: ${blNumber}`,
-    `반출처: ${card.destination || "-"}`,
+    `반출처: ${destinationName(card.destination)}`,
     `품명: ${card.product_name || "-"}`,
     `적출국: ${card.load_country_name || "-"}${card.load_country ? ` (${card.load_country})` : ""}`,
     `총중량: ${formatWeight(card.total_weight, card.weight_unit)}`,
@@ -78,7 +78,7 @@ function buildOblCarrierMail(card, submittedDate, memo) {
       "[화물 정보]",
       `화주명: ${consignee}`,
       `B/L: ${blNumber}`,
-      `반출처: ${card.destination || "-"}`,
+      `반출처: ${destinationName(card.destination)}`,
       `품명: ${card.product_name || "-"}`,
       `마일스톤: ${card.stage || "-"}`,
       `진행상태: ${card.prgs_stts || "-"}`,

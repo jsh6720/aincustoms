@@ -4,11 +4,19 @@ const assert = require("node:assert/strict");
 const {
   buildTransportRollbackPayload,
   buildWarehouseChangeMail,
+  destinationName,
   mergeManualFields,
   mergeRecipients,
   parseRecipientList,
   warehouseChanges,
 } = require("../lib/cargo-mail-utils");
+
+test("keeps only the destination name before cargo descriptors", () => {
+  assert.equal(destinationName("캐틀팜*우육*호주"), "캐틀팜");
+  assert.equal(destinationName("다우린_계육_브라질"), "다우린");
+  assert.equal(destinationName("삼현"), "삼현");
+  assert.equal(destinationName(""), "-");
+});
 
 test("parses, validates, and de-duplicates recipient lists", () => {
   assert.deepEqual(

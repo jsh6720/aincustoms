@@ -135,14 +135,19 @@ test("receipt mail status propagates OBL and H/C receipt to every linked account
 test("successful H/C receipt mail marks linked OBL and H/C received on the mail date", { concurrency: false }, async () => {
   const writes = [];
   let mailCount = 0;
+  let sentMail = null;
   const card = {
     account_id: "admin-account",
     bl_number: "ONEYBNEG04197300",
     folder_name: "현대코퍼레이션H_ONEYBNEG04197300_CIF_캐틀팜_우육_호주",
     consignee: "현대코퍼레이션H",
+    destination: "캐틀팜*우육*호주",
   };
   const handler = loadReceiptHandler({
-    sendMail: async () => { mailCount += 1; },
+    sendMail: async (mail) => {
+      mailCount += 1;
+      sentMail = mail;
+    },
     supabaseFetch: async (url, options = {}) => {
       if (url.includes("cargo_cards?select=*&")) return [card];
       if (url.includes("cargo_cards?select=account_id,bl_number,folder_name")) {
@@ -174,6 +179,8 @@ test("successful H/C receipt mail marks linked OBL and H/C received on the mail 
   assert.equal(response.body.receipt_saved, true);
   assert.match(response.body.received_date, /^\d{4}-\d{2}-\d{2}$/);
   assert.equal(mailCount, 1);
+  assert.match(sentMail.text, /반출처: 캐틀팜(?:\r?\n|$)/);
+  assert.doesNotMatch(sentMail.text, /캐틀팜\*우육\*호주/);
   assert.equal(writes.length, 2);
   writes.forEach((payload) => {
     assert.equal(payload.obl_received, true);

@@ -1113,6 +1113,14 @@ test("receipt mail modals accept optional additional recipients", () => {
   assert.match(mobile, /additional_recipients/);
 });
 
+test("mobile original document view shows only the destination name", () => {
+  assert.match(mobile, /function mobileDestinationName\(value\)/);
+  assert.match(mobile, /split\(\/\[_\*\]\/\)/);
+  assert.match(mobile, /mobileDestinationName\(card\.destination\)/);
+  assert.match(mobile, /mobileDestinationName\(receiptMailCard\.destination\)/);
+  assert.match(mobile, /mobileDestinationName\(oblCarrierMailCard\.destination\)/);
+});
+
 test("receipt mail success refreshes dashboard and mobile original document state", () => {
   const dashboardStart = dashboard.indexOf("async function submitReceiptMail");
   const dashboardEnd = dashboard.indexOf("async function loadAdmin", dashboardStart);
