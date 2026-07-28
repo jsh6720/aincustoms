@@ -16,6 +16,12 @@ const WAREHOUSE_CHANGE_TO = [
   "ain@aincustoms.com",
 ];
 
+const CONFIRMABLE_FIELDS = {
+  eta_date: "eta_date_confirmed",
+  storage_yard: "storage_yard_confirmed",
+  warehouse_expected_date: "warehouse_expected_date_confirmed",
+};
+
 function isValidDate(value) {
   if (!value) return true;
   return /^\d{4}-\d{2}-\d{2}$/.test(value);
@@ -267,6 +273,23 @@ module.exports = async function handler(req, res) {
     if (action === "manual_fields") {
       const previousInput = await findManualInput(targetAccountId, blNumber);
       const sendNotification = body.send_notification === true;
+      const confirmField = String(body.confirm_field || "").trim();
+      const confirmationAction = String(body.confirmation_action || "").trim();
+      const hasConfirmationRequest = !!(confirmField || confirmationAction);
+      if (hasConfirmationRequest) {
+        if (!isAdmin) {
+          return res.status(403).json({
+            success: false,
+            message: "관리자만 운송정보를 확정할 수 있습니다.",
+          });
+        }
+        if (!CONFIRMABLE_FIELDS[confirmField] || !["confirm", "unconfirm"].includes(confirmationAction)) {
+          return res.status(400).json({
+            success: false,
+            message: "확정할 운송정보 항목이 올바르지 않습니다.",
+          });
+        }
+      }
       const merged = mergeManualFields(previousInput, body);
       const deliveryTerms = String(merged.delivery_terms || "").trim();
       const etaDate = String(merged.eta_date || "").trim();
@@ -302,7 +325,21 @@ module.exports = async function handler(req, res) {
       for (const [field, value] of Object.entries(normalizedFields)) {
         if (Object.prototype.hasOwnProperty.call(body, field)) {
           nextPayload[field] = value;
+          if (CONFIRMABLE_FIELDS[field]) {
+            nextPayload[CONFIRMABLE_FIELDS[field]] = false;
+          }
         }
+      }
+      if (hasConfirmationRequest) {
+        const confirmedValue = normalizedFields[confirmField];
+        if (confirmationAction === "confirm" && (confirmedValue === null || confirmedValue === "")) {
+          return res.status(400).json({
+            success: false,
+            message: "확정할 값을 입력해 주세요.",
+          });
+        }
+        nextPayload[confirmField] = confirmedValue;
+        nextPayload[CONFIRMABLE_FIELDS[confirmField]] = confirmationAction === "confirm";
       }
       if (Object.keys(nextPayload).length === 2) {
         return res.status(400).json({ success: false, message: "저장할 운송정보가 없습니다." });
@@ -315,6 +352,30 @@ module.exports = async function handler(req, res) {
         : (session.account_category === "destination" ? "destination" : "shipper");
       nextPayload.transport_updated_by_login = session.login_id || "";
       nextPayload.transport_updated_at = new Date().toISOString();
+      if (isAdmin) {
+        const targets = await linkedCardTargets(card);
+        const linkedPayloads = targets.map((target) => ({
+          ...nextPayload,
+          ...target,
+        }));
+        const saveBody = linkedPayloads.length === 1 ? linkedPayloads[0] : linkedPayloads;
+        const rows = await supabaseFetch(
+          "/rest/v1/cargo_card_user_inputs?on_conflict=account_id,bl_number",
+          {
+            method: "POST",
+            headers: { Prefer: "resolution=merge-duplicates,return=representation" },
+            body: JSON.stringify(saveBody),
+          }
+        );
+        return res.status(200).json({
+          success: true,
+          input: rows && rows[0] ? rows[0] : null,
+          inputs: rows || [],
+          changed_fields: [],
+          email_sent: false,
+          email_message: "",
+        });
+      }
       const accountFilter = encodeURIComponent(targetAccountId);
       const blFilter = encodeURIComponent(blNumber);
       const inputExists = !!previousInput?.account_id;
@@ -439,6 +500,12 @@ module.exports = async function handler(req, res) {
       return res.status(500).json({
         success: false,
         message: "Supabase에서 add_progress_request_metadata.sql을 먼저 실행해 주세요.",
+      });
+    }
+    if (["eta_date_confirmed", "storage_yard_confirmed", "warehouse_expected_date_confirmed"].some((name) => String(error.message || "").includes(name))) {
+      return res.status(500).json({
+        success: false,
+        message: "Supabase에서 20260728_add_transport_confirmation_flags.sql을 먼저 실행해 주세요.",
       });
     }
     if (["delivery_terms", "eta_date", "storage_yard", "free_time_days", "free_time_expiry_date", "free_time_expiry_override", "warehouse_expected_date", "animal_quarantine_override", "food_quarantine_override", "import_declaration_override", "distribution_history_override", "distribution_history_number", "sticker_requested", "obl_carrier_submitted"].some((name) => String(error.message || "").includes(name))) {

@@ -120,6 +120,7 @@ function createResponse() {
 }
 
 function createQuotaFixture({
+  cardRows = null,
   currentInput = null,
   omitSavedUpdatedAt = false,
   session,
@@ -155,13 +156,16 @@ function createQuotaFixture({
         return [];
       }
       if (url.startsWith("/rest/v1/cargo_cards")) {
-        return [{
+        const defaults = [{
           account_id: "account-1",
           bl_number: "BL-1",
           consignee: "Test shipper",
+          folder_name: "Test shipper_BL-1_CIF_Destination",
           storage_yard: "Card yard",
           warehouse_expected_date: "2026-07-20",
         }];
+        const rows = cardRows || defaults;
+        return url.includes("&limit=1") ? rows.slice(0, 1) : rows;
       }
       if (url.includes("cargo_card_user_inputs?select=*")) {
         calls.inputReads += 1;
@@ -374,6 +378,123 @@ test("admin transport save never sends mail", { concurrency: false }, async () =
   assert.equal(calls.savedPayload.transport_updated_by_login, "ADMIN-1");
 });
 
+test("administrator can confirm ETA and propagates the atomic value and flag to linked accounts", { concurrency: false }, async () => {
+  const { calls, handler } = createQuotaFixture({
+    cardRows: [
+      {
+        account_id: "account-1",
+        bl_number: "BL-1",
+        folder_name: "Shared_BL-1_CIF_Destination",
+      },
+      {
+        account_id: "destination-1",
+        bl_number: "BL-1",
+        folder_name: "Shared_BL-1_CIF_Destination",
+      },
+      {
+        account_id: "unrelated-1",
+        bl_number: "BL-1",
+        folder_name: "Different_BL-1_CIF_Destination",
+      },
+    ],
+    session: {
+      account_id: "admin-account",
+      role: "admin",
+      login_id: "ADMIN-1",
+    },
+    previousInput: {
+      account_id: "account-1",
+      bl_number: "BL-1",
+      eta_date: "2026-07-30",
+    },
+  });
+  const response = createResponse();
+
+  await handler({
+    method: "POST",
+    body: {
+      action: "manual_fields",
+      account_id: "account-1",
+      bl_number: "BL-1",
+      eta_date: "2026-07-31",
+      confirm_field: "eta_date",
+      confirmation_action: "confirm",
+    },
+  }, response);
+
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(calls.savedPayload.map((row) => row.account_id), [
+    "account-1",
+    "destination-1",
+  ]);
+  assert.equal(calls.savedPayload[0].eta_date, "2026-07-31");
+  assert.equal(calls.savedPayload[0].eta_date_confirmed, true);
+  assert.equal(calls.savedPayload[1].eta_date, "2026-07-31");
+  assert.equal(calls.savedPayload[1].eta_date_confirmed, true);
+});
+
+test("non-admin accounts cannot change a transport confirmation flag", { concurrency: false }, async () => {
+  const { calls, handler } = createQuotaFixture({
+    session: {
+      account_id: "account-1",
+      role: "shipper",
+      login_id: "SHIPPER-1",
+    },
+    previousInput: {
+      account_id: "account-1",
+      bl_number: "BL-1",
+      eta_date: "2026-07-30",
+    },
+  });
+  const response = createResponse();
+
+  await handler({
+    method: "POST",
+    body: {
+      action: "manual_fields",
+      bl_number: "BL-1",
+      eta_date: "2026-07-31",
+      confirm_field: "eta_date",
+      confirmation_action: "confirm",
+    },
+  }, response);
+
+  assert.equal(response.statusCode, 403);
+  assert.equal(response.body.success, false);
+  assert.equal(calls.savedPayload, null);
+});
+
+test("ordinary transport changes clear the matching confirmation flag", { concurrency: false }, async () => {
+  const { calls, handler } = createQuotaFixture({
+    session: {
+      account_id: "account-1",
+      role: "shipper",
+      login_id: "SHIPPER-1",
+    },
+    previousInput: {
+      account_id: "account-1",
+      bl_number: "BL-1",
+      storage_yard: "Previous yard",
+      storage_yard_confirmed: true,
+    },
+  });
+  const response = createResponse();
+
+  await handler({
+    method: "POST",
+    body: {
+      action: "manual_fields",
+      bl_number: "BL-1",
+      storage_yard: "Next yard",
+      send_notification: false,
+    },
+  }, response);
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(calls.savedPayload.storage_yard, "Next yard");
+  assert.equal(calls.savedPayload.storage_yard_confirmed, false);
+});
+
 test("shipper notification requires an effective warehouse change", { concurrency: false }, async () => {
   const { calls, handler } = createQuotaFixture({
     session: {
@@ -499,6 +620,8 @@ test("mail failure rolls back transport fields and previous provenance", { concu
     delivery_terms: "CIF",
     storage_yard: "Previous yard",
     warehouse_expected_date: "2026-07-24",
+    storage_yard_confirmed: false,
+    warehouse_expected_date_confirmed: false,
     transport_updated_by_role: "admin",
     transport_updated_by_login: "AIN",
     transport_updated_at: "2026-07-22T01:02:03.000Z",

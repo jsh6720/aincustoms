@@ -64,6 +64,9 @@ test("uses the newest transport update across account-scoped duplicate rows", ()
       storage_yard: "기존 보세창고",
       warehouse_expected_date: "",
       transport_updated_at: "2026-07-24T04:00:00.000Z",
+      eta_date_confirmed: false,
+      storage_yard_confirmed: false,
+      warehouse_expected_date_confirmed: false,
       last_original_doc_request_id: "request-1",
       synced_at: "2026-07-24T05:00:00.000Z",
     },
@@ -76,6 +79,9 @@ test("uses the newest transport update across account-scoped duplicate rows", ()
       transport_updated_by_role: "admin",
       transport_updated_by_login: "aincustoms",
       transport_updated_at: "2026-07-24T05:04:17.137Z",
+      eta_date_confirmed: true,
+      storage_yard_confirmed: true,
+      warehouse_expected_date_confirmed: true,
       synced_at: "2026-07-24T05:00:00.000Z",
     },
   ]);
@@ -87,6 +93,9 @@ test("uses the newest transport update across account-scoped duplicate rows", ()
   assert.equal(merged[0].eta_date, "2026-07-24");
   assert.equal(merged[0].transport_updated_by_role, "admin");
   assert.equal(merged[0].transport_updated_at, "2026-07-24T05:04:17.137Z");
+  assert.equal(merged[0].eta_date_confirmed, true);
+  assert.equal(merged[0].storage_yard_confirmed, true);
+  assert.equal(merged[0].warehouse_expected_date_confirmed, true);
 });
 
 test("keeps an intentional transport-field clear from the newest update", () => {
