@@ -995,7 +995,7 @@ test("mobile original document manager supports transfer override", () => {
   assert.match(mobile, /result\.warning/);
 });
 
-test("mobile original document manager prioritizes requests, arrived missing docs, and completed requests", () => {
+test("mobile original document manager prioritizes requests then received OBL awaiting carrier submission", () => {
   const context = mobileOriginalRequestHarness();
   const cards = [
     {
@@ -1008,7 +1008,9 @@ test("mobile original document manager prioritizes requests, arrived missing doc
       bl_number: "BL-COMPLETE",
       stage: "반입",
       obl_received: true,
-      hc_received: false,
+      hc_received: true,
+      obl_carrier_submitted: true,
+      obl_carrier_submitted_date: "2026-07-28",
       last_original_doc_request_id: "request-complete",
       last_original_doc_request_created_at: "2026-07-26T01:00:00Z",
     },
@@ -1027,6 +1029,12 @@ test("mobile original document manager prioritizes requests, arrived missing doc
     {
       bl_number: "BL-INBOUND-COMPLETE-DOCS",
       stage: "반입",
+      obl_received: true,
+      hc_received: true,
+    },
+    {
+      bl_number: "BL-RECEIVED-NOT-SUBMITTED",
+      stage: "수입신고",
       obl_received: true,
       hc_received: true,
     },
@@ -1055,16 +1063,18 @@ test("mobile original document manager prioritizes requests, arrived missing doc
       "BL-PENDING-NEW",
       "BL-PENDING-OLD",
       "BL-ARRIVED-MISSING-HC",
-      "BL-INBOUND-MISSING-OBL",
       "BL-INBOUND-COMPLETE-DOCS",
+      "BL-RECEIVED-NOT-SUBMITTED",
+      "BL-INBOUND-MISSING-OBL",
       "BL-NORMAL",
       "BL-COMPLETE",
     ]
   );
   assert.equal(context.requestRank(sorted[0]), 0);
   assert.equal(context.requestRank(sorted[2]), 1);
-  assert.equal(context.requestRank(sorted[4]), 2);
+  assert.equal(context.requestRank(sorted[5]), 2);
   assert.equal(context.requestRank(sorted[6]), 3);
+  assert.equal(context.requestRank(sorted[7]), 4);
 });
 
 test("mobile original document cards label pending and completed shipper requests", () => {
