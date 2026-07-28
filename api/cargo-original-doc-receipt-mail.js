@@ -2,6 +2,10 @@ const nodemailer = require("nodemailer");
 const { verifySession, supabaseFetch } = require("../lib/cargo-auth");
 const { parseRecipientList } = require("../lib/cargo-mail-utils");
 const { fetchMailSetting, resolveMailRecipients } = require("../lib/cargo-mail-settings");
+const {
+  koreaDate,
+  markLinkedOriginalDocsReceived,
+} = require("../lib/cargo-original-doc-receipt");
 
 const RECEIPT_TO = [
   "dmswk@hyundaicorp.com",
@@ -169,10 +173,36 @@ module.exports = async function handler(req, res) {
       return res.status(404).json({ success: false, message: "카드 정보를 찾지 못했습니다." });
     }
 
+    const card = cards[0];
     const mail = action === "obl_carrier_submission"
-      ? buildOblCarrierMail(cards[0], submittedDate, memo)
-      : buildMail(cards[0], totalPages, memo);
+      ? buildOblCarrierMail(card, submittedDate, memo)
+      : buildMail(card, totalPages, memo);
     await sendMail(mail, additionalRecipients, action);
+    if (action === "hc_receipt") {
+      const receivedDate = koreaDate();
+      try {
+        await markLinkedOriginalDocsReceived({
+          supabaseFetch,
+          card,
+          receivedDate,
+          updatedBy: session.login_id || "admin",
+        });
+      } catch (error) {
+        return res.status(500).json({
+          success: false,
+          email_sent: true,
+          receipt_saved: false,
+          message: "수령메일은 발송됐지만 OBL/H/C 수취상태 저장에 실패했습니다. 메일을 다시 보내지 말고 관리자에게 상태 저장을 요청해 주세요.",
+          detail: error.message,
+        });
+      }
+      return res.status(200).json({
+        success: true,
+        email_sent: true,
+        receipt_saved: true,
+        received_date: receivedDate,
+      });
+    }
     return res.status(200).json({ success: true, email_sent: true });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
