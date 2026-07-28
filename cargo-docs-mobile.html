@@ -538,11 +538,16 @@
       });
       const result = await res.json();
       if (!result.success) {
+        if (result.email_sent === true) {
+          alert(result.message || "메일은 발송됐지만 OBL/H/C 수취상태 저장에 실패했습니다. 메일을 다시 보내지 마세요.");
+          return;
+        }
         alert(result.message || "H/C 원본서류 수령 메일 발송에 실패했습니다.");
         return;
       }
       closeReceiptMailModal();
-      alert("H/C 원본서류 수령 메일이 발송되었습니다.");
+      alert(`H/C 원본서류 수령 메일이 발송되었고 OBL/H/C가 수령 O로 저장되었습니다.${result.received_date ? ` (수령일 ${result.received_date})` : ""}`);
+      await load();
     }
 
     load();

@@ -1103,6 +1103,22 @@ test("receipt mail modals accept optional additional recipients", () => {
   assert.match(mobile, /additional_recipients/);
 });
 
+test("receipt mail success refreshes dashboard and mobile original document state", () => {
+  const dashboardStart = dashboard.indexOf("async function submitReceiptMail");
+  const dashboardEnd = dashboard.indexOf("async function loadAdmin", dashboardStart);
+  const dashboardHandler = dashboard.slice(dashboardStart, dashboardEnd);
+  const mobileStart = mobile.indexOf("async function submitReceiptMail");
+  const mobileEnd = mobile.indexOf("\n    load();", mobileStart);
+  const mobileHandler = mobile.slice(mobileStart, mobileEnd);
+
+  assert.match(dashboardHandler, /result\.received_date/);
+  assert.match(dashboardHandler, /await loadData\(\)/);
+  assert.match(mobileHandler, /result\.received_date/);
+  assert.match(mobileHandler, /await load\(\)/);
+  assert.match(dashboardHandler, /메일은 발송됐지만/);
+  assert.match(mobileHandler, /메일은 발송됐지만/);
+});
+
 test("legacy original document status toolbar button is removed", () => {
   assert.doesNotMatch(dashboard, /id="docsStatusBtn"/);
 });
