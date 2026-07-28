@@ -1450,7 +1450,7 @@
     }
     function originalDocRequestButton(card, cardIndex) {
       if (currentUserRole === "admin") return "";
-      if (card.stage !== "입항전" && card.stage !== "입항") return "";
+      if (!canRequestOriginalDocuments(card)) return "";
       return `
         <div class="card-actions">
           <button type="button" class="request-btn" data-cargo-request-type="docs" data-card-index="${cardIndex}">원본서류 도착/수령 요청</button>
@@ -1778,14 +1778,21 @@
         `;
       }).join("")}</span>`;
     }
+    function canRequestOriginalDocuments(card) {
+      return card?.obl_received !== true || card?.hc_received !== true;
+    }
     function progressRequestToggle(card, type) {
       if (currentUserRole === "admin" || currentUserRole === "viewer") return "";
       const isDocs = type === "docs";
       const latest = isDocs ? card.last_original_doc_request : card.last_import_request;
       const allowedStages = progressRequestAllowedStages(type);
-      const allowed = allowedStages.includes(card.stage);
+      const allowed = isDocs
+        ? canRequestOriginalDocuments(card)
+        : allowedStages.includes(card.stage);
       const status = latest ? "요청 O" : "요청 X";
-      const disabledReason = `${allowedStages.join("/")} 단계에서만 ${isDocs ? "서류수령" : "수입신고"} 요청할 수 있습니다.`;
+      const disabledReason = isDocs
+        ? "OBL과 H/C 원본이 모두 수령되어 요청할 수 없습니다."
+        : `${allowedStages.join("/")} 단계에서만 수입신고 요청할 수 있습니다.`;
       const cardIndex = currentCards.indexOf(card);
       const descriptionId = `progress-request-detail-${cardIndex}-${type}`;
       const detailRows = latest ? [
@@ -1860,7 +1867,11 @@
       const cardIndex = Number.parseInt(button.dataset.cardIndex, 10);
       const type = button.dataset.progressRequestType;
       const card = Number.isInteger(cardIndex) ? currentCards[cardIndex] : null;
-      const allowed = card && progressRequestAllowedStages(type).includes(card.stage);
+      const allowed = card && (
+        type === "docs"
+          ? canRequestOriginalDocuments(card)
+          : progressRequestAllowedStages(type).includes(card.stage)
+      );
       if (!allowed || button.getAttribute("aria-disabled") === "true") {
         scheduleProgressRequestTooltip(button);
         return;
@@ -1895,7 +1906,7 @@
       if (!card) return;
       if (type === "release" && card.stage === "수입신고") openReleaseModal(card.bl_number);
       else if (type === "import" && card.stage === "반입") openImportModal(card.bl_number);
-      else if (type === "docs" && ["입항전", "입항"].includes(card.stage)) openOriginalDocModal(card.bl_number);
+      else if (type === "docs" && canRequestOriginalDocuments(card)) openOriginalDocModal(card.bl_number);
     }
     function boardControlContext(event) {
       const control = event.target?.closest?.("[data-card-action]");
@@ -3238,13 +3249,18 @@
       document.getElementById("releaseAddress").closest(".modal-field").style.display = "none";
       document.querySelector("label[for='releaseDate']").innerHTML = '수령요청일자<span class="field-hint">올해 연도로 자동 저장됩니다.</span>';
       document.getElementById("releaseWeight").value = "";
-      document.getElementById("releaseRequester").value = releaseRequestCard.last_import_requester_name || "";
-      document.getElementById("requesterEmail").value = releaseRequestCard.last_import_requester_email || "";
+      const latestRequest = releaseRequestCard.last_original_doc_request || {};
+      document.getElementById("releaseRequester").value =
+        releaseRequestCard.last_original_doc_requester_name || latestRequest.requester_name || "";
+      document.getElementById("requesterEmail").value =
+        releaseRequestCard.last_original_doc_requester_email || latestRequest.requester_email || "";
       document.getElementById("releaseAddress").value = "";
-      document.getElementById("releaseDate").value = "";
+      document.getElementById("releaseDate").value = toRequestMonthDay(
+        releaseRequestCard.last_original_doc_requested_receipt_date || latestRequest.requested_receipt_date
+      );
       document.getElementById("releaseDate").placeholder = "MM-DD";
       updateRequestWeekday();
-      document.getElementById("releaseMemo").value = "";
+      document.getElementById("releaseMemo").value = releaseRequestCard.last_original_doc_request?.memo || "";
       document.getElementById("releaseModalCard").innerHTML = `
         <div class="modal-row"><b>화주명</b><span>${esc(displayConsignee(releaseRequestCard.consignee))}</span></div>
         <div class="modal-row"><b>B/L</b><span>${esc(releaseRequestCard.bl_number || "-")}</span></div>

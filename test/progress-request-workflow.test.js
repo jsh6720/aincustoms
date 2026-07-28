@@ -20,6 +20,7 @@ const importRequestApi = fs.readFileSync(
   "utf8"
 );
 const importRequestHandlerPath = path.join(root, "api/cargo-import-request.js");
+const originalRequestHandlerPath = path.join(root, "api/cargo-original-doc-request.js");
 const quotaApi = fs.readFileSync(path.join(root, "api/cargo-quota.js"), "utf8");
 const quotaHandlerPath = path.join(root, "api/cargo-quota.js");
 const { koreaDate, normalizeIsoDate } = require("../lib/cargo-request-utils");
@@ -47,6 +48,32 @@ function loadImportRequestHandler({ verifySession, supabaseFetch, sendMail }) {
   } finally {
     Module._load = originalLoad;
     delete require.cache[importRequestHandlerPath];
+  }
+}
+
+function loadOriginalRequestHandler({ verifySession, supabaseFetch, sendMail }) {
+  const originalLoad = Module._load;
+  delete require.cache[originalRequestHandlerPath];
+  Module._load = function mockedLoad(request, parent, isMain) {
+    if (parent?.filename === originalRequestHandlerPath && request === "../lib/cargo-auth") {
+      return {
+        verifySession,
+        requireWritableSession: (req, res) => verifySession(req, res),
+        supabaseFetch,
+      };
+    }
+    if (parent?.filename === originalRequestHandlerPath && request === "nodemailer") {
+      return {
+        createTransport: () => ({ sendMail }),
+      };
+    }
+    return originalLoad.call(this, request, parent, isMain);
+  };
+  try {
+    return require(originalRequestHandlerPath);
+  } finally {
+    Module._load = originalLoad;
+    delete require.cache[originalRequestHandlerPath];
   }
 }
 
@@ -672,10 +699,87 @@ test("normalizes ISO request dates and rejects invalid values", () => {
   assert.equal(normalizeIsoDate("07/23/2026", "2026-07-22"), null);
 });
 
-test("request APIs contain the approved stage sets", () => {
-  assert.match(originalRequestApi, /\["입항전",\s*"입항",\s*"반입"\]/);
+test("request APIs contain the approved eligibility rules", () => {
+  assert.match(originalRequestApi, /obl_received !== true/);
+  assert.match(originalRequestApi, /hc_received !== true/);
   assert.match(importRequestApi, /\["입항",\s*"반입"\]/);
   assert.match(importRequestApi, /requested_import_date/);
+});
+
+test("original document request accepts later milestones while either original is missing", { concurrency: false }, async () => {
+  let persistedRequest;
+  const handler = loadOriginalRequestHandler({
+    verifySession: () => ({ account_id: "account-1", display_name: "Test shipper" }),
+    supabaseFetch: async (url, options) => {
+      if (url.startsWith("/rest/v1/shipper_accounts")) return [{ release_request_to: "" }];
+      if (url.startsWith("/rest/v1/cargo_cards")) {
+        return [{
+          account_id: "account-1",
+          bl_number: "BL-LATE",
+          stage: "수입신고",
+          obl_received: false,
+          hc_received: true,
+        }];
+      }
+      if (url === "/rest/v1/cargo_original_doc_requests" && options?.method === "POST") {
+        persistedRequest = JSON.parse(options.body);
+        return [{ id: "request-1", ...persistedRequest }];
+      }
+      return [];
+    },
+    sendMail: async () => {},
+  });
+  const response = createResponse();
+
+  await handler({
+    method: "POST",
+    body: {
+      bl_number: "BL-LATE",
+      requester_name: "Requester",
+      requester_email: "",
+      requested_receipt_date: "2026-07-30",
+      memo: "Updated request",
+    },
+  }, response);
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(persistedRequest.requested_receipt_date, "2026-07-30");
+});
+
+test("original document request rejects cards after both originals are received", { concurrency: false }, async () => {
+  let wroteRequest = false;
+  const handler = loadOriginalRequestHandler({
+    verifySession: () => ({ account_id: "account-1", display_name: "Test shipper" }),
+    supabaseFetch: async (url, options) => {
+      if (url.startsWith("/rest/v1/shipper_accounts")) return [{ release_request_to: "" }];
+      if (url.startsWith("/rest/v1/cargo_cards")) {
+        return [{
+          account_id: "account-1",
+          bl_number: "BL-COMPLETE",
+          stage: "반입",
+          obl_received: true,
+          hc_received: true,
+        }];
+      }
+      if (options?.method === "POST") wroteRequest = true;
+      return [];
+    },
+    sendMail: async () => {},
+  });
+  const response = createResponse();
+
+  await handler({
+    method: "POST",
+    body: {
+      bl_number: "BL-COMPLETE",
+      requester_name: "Requester",
+      requested_receipt_date: "2026-07-30",
+    },
+  }, response);
+
+  assert.equal(response.statusCode, 400);
+  assert.equal(wroteRequest, false);
+  assert.match(response.body.message, /OBL.*H\/C/);
 });
 
 test("dashboard import request mode defaults and submits the requested import date", () => {

@@ -11,7 +11,7 @@ const quotaApi = fs.readFileSync(path.join(__dirname, "..", "api", "cargo-quota.
 const visibilityApi = fs.readFileSync(path.join(__dirname, "..", "api", "cargo-card-visibility.js"), "utf8");
 
 function requestControlContext(role, cards, overrides = {}) {
-  const start = dashboard.indexOf("function progressRequestToggle");
+  const start = dashboard.indexOf("function canRequestOriginalDocuments");
   const end = dashboard.indexOf("function renderProgressStatus", start);
   assert.ok(start >= 0 && end > start, "progress request helper source should exist");
   const context = {
@@ -31,7 +31,8 @@ function requestControlContext(role, cards, overrides = {}) {
   vm.runInContext(
     `${dashboard.slice(start, end)}
 this.renderRequestControl = progressRequestToggle;
-this.handleRequestAction = handleProgressRequestAction;`,
+this.handleRequestAction = handleProgressRequestAction;
+this.canRequestOriginalDocuments = canRequestOriginalDocuments;`,
     context
   );
   return context;
@@ -649,7 +650,7 @@ test("progress table binds long and centered short classes to intended columns",
 });
 
 test("shipper progress request controls use exact stages and latest request details", () => {
-  const start = dashboard.indexOf("function progressRequestToggle");
+  const start = dashboard.indexOf("function canRequestOriginalDocuments");
   const end = dashboard.indexOf("function renderProgressStatus", start);
   const helper = dashboard.slice(start, end);
 
@@ -658,7 +659,7 @@ test("shipper progress request controls use exact stages and latest request deta
   assert.match(helper, /요청 O/);
   assert.match(helper, /요청 X/);
   assert.match(helper, /progress-shipper-only/);
-  assert.match(helper, /\["입항전", "입항", "반입"\]/);
+  assert.match(helper, /canRequestOriginalDocuments/);
   assert.match(helper, /\["입항", "반입"\]/);
   assert.match(helper, /last_original_doc_request/);
   assert.match(helper, /last_import_request/);
@@ -692,7 +693,12 @@ test("progress request helper never interpolates a hostile BL into event attribu
 });
 
 test("restricted request controls stay focusable and describe their restriction", () => {
-  const card = { bl_number: "BL-2", stage: "수입신고" };
+  const card = {
+    bl_number: "BL-2",
+    stage: "반입",
+    obl_received: true,
+    hc_received: true,
+  };
   const html = requestControlHarness("shipper", [card])(card, "docs");
   const descriptionId = html.match(/aria-describedby="([^"]+)"/)?.[1];
 
@@ -700,7 +706,48 @@ test("restricted request controls stay focusable and describe their restriction"
   assert.doesNotMatch(html, /\sdisabled(?:\s|>|=)/);
   assert.ok(descriptionId);
   assert.match(html, new RegExp(`id="${descriptionId}"`));
-  assert.match(html, /입항전\/입항\/반입 단계에서만 서류수령 요청할 수 있습니다/);
+  assert.match(html, /OBL.*H\/C/);
+});
+
+test("missing OBL or H/C keeps original document requests enabled after inbound", () => {
+  const afterInbound = {
+    bl_number: "BL-AFTER-INBOUND",
+    stage: "수입신고",
+    obl_received: false,
+    hc_received: true,
+  };
+  const afterRelease = {
+    bl_number: "BL-AFTER-RELEASE",
+    stage: "반출",
+    obl_received: true,
+    hc_received: false,
+  };
+  const complete = {
+    bl_number: "BL-COMPLETE",
+    stage: "반입",
+    obl_received: true,
+    hc_received: true,
+  };
+  const context = requestControlContext("shipper", [afterInbound, afterRelease, complete]);
+
+  assert.equal(context.canRequestOriginalDocuments(afterInbound), true);
+  assert.equal(context.canRequestOriginalDocuments(afterRelease), true);
+  assert.equal(context.canRequestOriginalDocuments(complete), false);
+  assert.match(context.renderRequestControl(afterInbound, "docs"), /aria-disabled="false"/);
+  assert.match(context.renderRequestControl(afterRelease, "docs"), /aria-disabled="false"/);
+  assert.match(context.renderRequestControl(complete, "docs"), /aria-disabled="true"/);
+});
+
+test("existing original document request preloads editable request values", () => {
+  const start = dashboard.indexOf("async function openOriginalDocModal");
+  const end = dashboard.indexOf("function closeReleaseModal", start);
+  const body = dashboard.slice(start, end);
+
+  assert.match(body, /last_original_doc_requester_name/);
+  assert.match(body, /last_original_doc_requester_email/);
+  assert.match(body, /last_original_doc_requested_receipt_date/);
+  assert.match(body, /last_original_doc_request\?\.memo/);
+  assert.match(body, /toRequestMonthDay/);
 });
 
 test("latest request details are associated with the focusable control", () => {
@@ -772,7 +819,12 @@ test("delegated request action resolves the live card and guards restricted stag
   const hostileBl = `BL'"><svg onload="globalThis.pwned=true">`;
   const cards = [
     { bl_number: hostileBl, stage: "입항" },
-    { bl_number: "BL-LOCKED", stage: "수입신고" },
+    {
+      bl_number: "BL-LOCKED",
+      stage: "반입",
+      obl_received: true,
+      hc_received: true,
+    },
   ];
   const calls = [];
   const rows = { contains: () => true };
