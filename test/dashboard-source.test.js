@@ -299,6 +299,39 @@ test("progress BL tooltip escapes confirmations and lets writable users add one"
   assert.match(html, /role="tooltip"/);
 });
 
+test("progress BL tooltip keeps interactive focus and edits existing confirmations", () => {
+  const card = {
+    account_id: "account-1",
+    bl_number: "BL-EDIT-1",
+    revisions: [{
+      id: "revision-1",
+      text: "기존 확인사항",
+      created_by_role: "admin",
+    }],
+  };
+  const context = dashboardRuntimeContext("admin", [card]);
+  const readHtml = vm.runInContext("progressRevisionTooltip(__testCards[0])", context);
+  assert.match(readHtml, /data-progress-revision-action="edit"/);
+  assert.match(readHtml, /data-revision-index="0"/);
+
+  vm.runInContext(
+    `revisionEditModes["revision-1"] = true;
+revisionEditDrafts["revision-1"] = "수정 중인 확인사항";`,
+    context
+  );
+  const editHtml = vm.runInContext("progressRevisionTooltip(__testCards[0])", context);
+  assert.match(editHtml, /data-progress-revision-action="edit-draft"/);
+  assert.match(editHtml, /data-progress-revision-action="save"/);
+  assert.match(editHtml, /data-progress-revision-action="cancel"/);
+  assert.match(editHtml, /수정 중인 확인사항/);
+
+  assert.match(dashboard, /\.progress-request-wrap\.progress-tooltip-open \.progress-request-detail/);
+  assert.match(dashboard, /function closeProgressRequestTooltip/);
+  assert.match(dashboard, /setTimeout\([^]*progressTooltipCloseDelay/);
+  assert.match(dashboard, /document\.addEventListener\("pointerdown", handleProgressTooltipOutsidePointer\)/);
+  assert.match(dashboard, /event\.key === "Escape"/);
+});
+
 test("progress BL tooltip remains read-only for viewer accounts", () => {
   const card = {
     account_id: "account-1",
