@@ -128,19 +128,22 @@ test("progress sorting remains destination, arrival date, milestone, then BL", (
   );
 });
 
-test("dashboard places BL original immediately after OBL receipt date", () => {
+test("dashboard groups OBL receipt, BL original, H/C original, and transfer columns", () => {
   const tableStart = dashboard.indexOf('<table class="progress-table">');
   const headerStart = dashboard.indexOf("<thead>", tableStart);
   const headerEnd = dashboard.indexOf("</thead>", headerStart);
   const header = dashboard.slice(headerStart, headerEnd);
-  assert.match(header, /OBL 접수일<\/th>\s*<th[^>]*>BL원본<\/th>/);
+  assert.match(
+    header,
+    /OBL 접수일<\/th>\s*<th[^>]*>BL원본<\/th>\s*<th[^>]*>H\/C원본<\/th>\s*<th[^>]*>양도증<\/th>/
+  );
 
   const rowStart = dashboard.indexOf('document.getElementById("progressRows").innerHTML');
   const rowEnd = dashboard.indexOf("`).join(\"\")", rowStart);
   const row = dashboard.slice(rowStart, rowEnd);
   assert.match(
     row,
-    /progressOblCarrierToggle\(card\)\}<\/td>\s*<td[^>]*>\$\{progressDocToggle\(card, "obl"\)\}/
+    /progressOblCarrierToggle\(card\)\}<\/td>\s*<td[^>]*>\$\{progressDocToggle\(card, "obl"\)\}<\/td>\s*<td[^>]*>\$\{progressDocToggle\(card, "hc"\)\}<\/td>\s*<td[^>]*>\$\{docStatusLabel\(!!card\.doc_transfer_received\)\}/
   );
 });
 

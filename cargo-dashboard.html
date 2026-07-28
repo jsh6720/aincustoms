@@ -531,6 +531,8 @@
                 <th class="progress-short center progress-shipper-only">수입신고요청</th>
                 <th class="progress-date">OBL 접수일</th>
                 <th class="progress-short center">BL원본</th>
+                <th class="progress-short center">H/C원본</th>
+                <th class="progress-short center">양도증</th>
                 <th class="progress-short center progress-admin-only">동물검역</th>
                 <th class="progress-short center progress-admin-only">식품검역</th>
                 <th class="progress-short center progress-admin-only">유통이력</th>
@@ -539,9 +541,7 @@
                 <th class="progress-short center">IV</th>
                 <th class="progress-short center">PL</th>
                 <th class="progress-short center">H/C파일</th>
-                <th class="progress-short center">H/C원본</th>
                 <th class="progress-short center">C/O</th>
-                <th class="progress-short center">양도증</th>
                 <th class="progress-short center">보험</th>
                 <th class="progress-short center">운임</th>
               </tr>
@@ -2107,6 +2107,8 @@
           ${progressRequestToggle(card, "import")}
           <td class="progress-date">${progressOblCarrierToggle(card)}</td>
           <td class="progress-short center">${progressDocToggle(card, "obl")}</td>
+          <td class="progress-short center">${progressDocToggle(card, "hc")}</td>
+          <td class="progress-short center">${docStatusLabel(!!card.doc_transfer_received)}</td>
           <td class="progress-short center progress-admin-only">${progressManualStatusToggle(card, "animal")}</td>
           <td class="progress-short center progress-admin-only">${progressManualStatusToggle(card, "food")}</td>
           <td class="progress-short center progress-admin-only">${progressManualStatusToggle(card, "distribution")}</td>
@@ -2115,9 +2117,7 @@
           <td class="progress-short center">${docStatusLabel(!!card.doc_iv_received)}</td>
           <td class="progress-short center">${docStatusLabel(!!card.doc_pl_received)}</td>
           <td class="progress-short center">${docStatusLabel(!!card.doc_hc_received)}</td>
-          <td class="progress-short center">${progressDocToggle(card, "hc")}</td>
           <td class="progress-short center">${docStatusLabel(!!card.doc_co_received)}</td>
-          <td class="progress-short center">${docStatusLabel(!!card.doc_transfer_received)}</td>
           <td class="progress-short center">${docStatusLabel(!!card.doc_insurance_received, insuranceRequired(card))}</td>
           <td class="progress-short center">${docStatusLabel(!!card.doc_freight_invoice_received, freightRequired(card))}</td>
         </tr>
