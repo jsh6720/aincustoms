@@ -183,6 +183,9 @@ test("progress transport editor renders role-specific save commands", () => {
   assert.match(openBody, /저장만/);
   assert.match(openBody, /saveProgressWarehouseEditor\(true\)/);
   assert.match(openBody, /저장\+메일/);
+  assert.match(openBody, /confirmation_action/);
+  assert.match(openBody, /확정취소/);
+  assert.match(openBody, /확정/);
 
   const saveStart = dashboard.indexOf("async function saveProgressWarehouseEditor");
   const saveEnd = dashboard.indexOf("function openProgressStatus", saveStart);
@@ -193,6 +196,48 @@ test("progress transport editor renders role-specific save commands", () => {
   assert.match(saveBody, /메일 발송에 실패/);
   assert.match(saveBody, /저장되었습니다/);
   assert.match(saveBody, /메일로 발송되었습니다/);
+  assert.match(saveBody, /confirm_field/);
+  assert.match(saveBody, /confirmation_action/);
+});
+
+test("progress transport cells render administrator confirmation controls and persistent styling", () => {
+  assert.match(dashboard, /function progressConfirmedClass\(card, field\)/);
+  assert.match(dashboard, /\.progress-field-confirmed\s*\{[^}]*border:\s*1px solid #dc2626/);
+  assert.match(dashboard, /\.progress-field-confirmed\s*\{[^}]*background:\s*#fff1f2/);
+  assert.match(dashboard, /eta_date_confirmed/);
+  assert.match(dashboard, /storage_yard_confirmed/);
+  assert.match(dashboard, /warehouse_expected_date_confirmed/);
+
+  const rowStart = dashboard.indexOf("document.getElementById(\"progressRows\").innerHTML");
+  const rowEnd = dashboard.indexOf("`).join(\"\")", rowStart);
+  const row = dashboard.slice(rowStart, rowEnd);
+  assert.equal((row.match(/progressConfirmedClass\(card,\s*"(?:eta_date|storage_yard|warehouse_expected_date)"\)/g) || []).length, 3);
+  assert.equal((row.match(/progressConfirmAttribute\(card,\s*"(?:eta_date|storage_yard|warehouse_expected_date)"\)/g) || []).length, 3);
+
+  const adminContext = dashboardRuntimeContext("admin", [{
+    eta_date_confirmed: true,
+    storage_yard_confirmed: false,
+  }]);
+  assert.equal(
+    vm.runInContext("progressConfirmedClass(__testCards[0], 'eta_date')", adminContext),
+    " progress-field-confirmed"
+  );
+  assert.match(
+    vm.runInContext("progressConfirmAttribute(__testCards[0], 'eta_date')", adminContext),
+    /data-progress-confirm-field="eta_date"/
+  );
+
+  const shipperContext = dashboardRuntimeContext("shipper", [{
+    eta_date_confirmed: true,
+  }]);
+  assert.equal(
+    vm.runInContext("progressConfirmedClass(__testCards[0], 'eta_date')", shipperContext),
+    " progress-field-confirmed"
+  );
+  assert.equal(
+    vm.runInContext("progressConfirmAttribute(__testCards[0], 'eta_date')", shipperContext),
+    ""
+  );
 });
 
 test("shipper transport provenance is subtle and exposes identity only by tooltip", () => {
@@ -418,7 +463,8 @@ test("progress page includes editable warehouse schedule and calendar event", ()
   const start = dashboard.indexOf("async function saveProgressWarehouseEditor");
   const end = dashboard.indexOf("function openProgressStatus", start);
   const body = dashboard.slice(start, end);
-  assert.match(body, /payload\.eta_date = etaDate/);
+  assert.match(body, /eta_date:\s*document\.getElementById\("progressWarehouseEta"\)\.value/);
+  assert.match(body, /if \(value !== previousValues\[field\]\) payload\[field\] = value/);
   assert.doesNotMatch(body, /free_time_days:/);
 });
 

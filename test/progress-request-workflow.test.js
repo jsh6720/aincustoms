@@ -943,7 +943,7 @@ test("progress transport save sends an exact notification boolean and handles st
   assert.match(body, /send_notification:\s*sendNotification === true/);
   assert.match(body, /response\.status === 409/);
   assert.match(body, /await loadData\(\)/);
-  assert.match(body, /saveProgressWarehouseEditor\(sendNotification\)/);
+  assert.match(body, /saveProgressWarehouseEditor\(sendNotification,\s*confirmationAction = ""\)/);
 });
 
 test("import request handler defaults, persists, returns, and emails the Korea request date", { concurrency: false }, async () => {
