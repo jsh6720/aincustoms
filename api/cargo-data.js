@@ -5,6 +5,7 @@ const {
   validateCalendarPreferences,
 } = require("../lib/cargo-calendar-preferences");
 const { mergeDuplicateCargoCards } = require("../lib/cargo-card-merge");
+const { cargoUserInputsQuery } = require("../lib/cargo-user-input-query");
 const {
   latestLinkedRequest,
   mergeLinkedDeliveryStatus,
@@ -134,18 +135,12 @@ function computeQuotaMessages(card) {
 
 async function fetchUserInputs(accountId) {
   try {
-    const query = accountId
-      ? `/rest/v1/cargo_card_user_inputs?select=account_id,bl_number,is_quota,quota_permit_date,is_hidden,hidden_at,hidden_by,delivery_terms,eta_date,storage_yard,free_time_days,free_time_expiry_date,free_time_expiry_override,warehouse_expected_date,eta_date_confirmed,storage_yard_confirmed,warehouse_expected_date_confirmed,animal_quarantine_override,food_quarantine_override,import_declaration_override,distribution_history_override,distribution_history_number,sticker_requested,obl_carrier_submitted,obl_carrier_submitted_date,obl_carrier_submitted_by,obl_carrier_submitted_at,docs_delivered_samhyeon,docs_delivered_warehouse,transport_updated_by_role,transport_updated_by_login,transport_updated_at,updated_at&account_id=eq.${accountId}`
-      : "/rest/v1/cargo_card_user_inputs?select=account_id,bl_number,is_quota,quota_permit_date,is_hidden,hidden_at,hidden_by,delivery_terms,eta_date,storage_yard,free_time_days,free_time_expiry_date,free_time_expiry_override,warehouse_expected_date,eta_date_confirmed,storage_yard_confirmed,warehouse_expected_date_confirmed,animal_quarantine_override,food_quarantine_override,import_declaration_override,distribution_history_override,distribution_history_number,sticker_requested,obl_carrier_submitted,obl_carrier_submitted_date,obl_carrier_submitted_by,obl_carrier_submitted_at,docs_delivered_samhyeon,docs_delivered_warehouse,transport_updated_by_role,transport_updated_by_login,transport_updated_at,updated_at";
-    return await supabaseFetch(
-      query
-    );
+    return await supabaseFetch(cargoUserInputsQuery(accountId));
   } catch (error) {
     if (["is_hidden", "delivery_terms", "eta_date", "storage_yard", "free_time_days", "free_time_expiry_date", "free_time_expiry_override", "warehouse_expected_date", "eta_date_confirmed", "storage_yard_confirmed", "warehouse_expected_date_confirmed", "animal_quarantine_override", "food_quarantine_override", "import_declaration_override", "distribution_history_override", "distribution_history_number", "sticker_requested", "obl_carrier_submitted", "docs_delivered_samhyeon", "docs_delivered_warehouse", "transport_updated_by_role", "transport_updated_by_login", "transport_updated_at"].some((name) => String(error.message || "").includes(name))) {
-      const fallback = accountId
-        ? `/rest/v1/cargo_card_user_inputs?select=account_id,bl_number,is_quota,quota_permit_date,is_hidden,hidden_at,hidden_by,delivery_terms,eta_date,storage_yard,free_time_days,free_time_expiry_date,free_time_expiry_override,warehouse_expected_date,animal_quarantine_override,food_quarantine_override,import_declaration_override,distribution_history_override,distribution_history_number,sticker_requested,obl_carrier_submitted,obl_carrier_submitted_date,obl_carrier_submitted_by,obl_carrier_submitted_at,transport_updated_by_role,transport_updated_by_login,transport_updated_at,updated_at&account_id=eq.${accountId}`
-        : "/rest/v1/cargo_card_user_inputs?select=account_id,bl_number,is_quota,quota_permit_date,is_hidden,hidden_at,hidden_by,delivery_terms,eta_date,storage_yard,free_time_days,free_time_expiry_date,free_time_expiry_override,warehouse_expected_date,animal_quarantine_override,food_quarantine_override,import_declaration_override,distribution_history_override,distribution_history_number,sticker_requested,obl_carrier_submitted,obl_carrier_submitted_date,obl_carrier_submitted_by,obl_carrier_submitted_at,transport_updated_by_role,transport_updated_by_login,transport_updated_at,updated_at";
-      return await supabaseFetch(fallback);
+      return await supabaseFetch(cargoUserInputsQuery(accountId, {
+        omitTransportConfirmation: true,
+      }));
     }
     if (String(error.message || "").includes("cargo_card_user_inputs")) {
       return [];

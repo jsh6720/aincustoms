@@ -63,6 +63,40 @@ test("linked accounts share the newest document delivery status", () => {
   assert.equal(merged.docs_delivered_warehouse, false);
 });
 
+test("unrelated newer input rows never erase an existing delivered status", () => {
+  const cards = [
+    {
+      account_id: "hch",
+      bl_number: "BL-1",
+      folder_name: "HCH_BL-1_CIF_CTF",
+    },
+    {
+      account_id: "ctf",
+      bl_number: "BL-1",
+      folder_name: "HCH_BL-1_CIF_CTF",
+    },
+  ];
+  const merged = linkedRecords.mergeLinkedDeliveryStatus(cards[0], cards, [
+    {
+      account_id: "hch",
+      bl_number: "BL-1",
+      docs_delivered_samhyeon: true,
+      docs_delivered_warehouse: true,
+      updated_at: "2026-07-24T01:00:00Z",
+    },
+    {
+      account_id: "ctf",
+      bl_number: "BL-1",
+      docs_delivered_samhyeon: false,
+      docs_delivered_warehouse: false,
+      updated_at: "2026-07-28T02:00:00Z",
+    },
+  ]);
+
+  assert.equal(merged.docs_delivered_samhyeon, true);
+  assert.equal(merged.docs_delivered_warehouse, true);
+});
+
 test("cargo APIs expose delivery state and account category", () => {
   assert.match(cargoDataApi, /docs_delivered_samhyeon/);
   assert.match(cargoDataApi, /docs_delivered_warehouse/);
@@ -76,7 +110,7 @@ test("cargo APIs expose delivery state and account category", () => {
   assert.match(cargoQuotaApi, /session\.account_category/);
   assert.match(
     cargoDataApi,
-    /obl_carrier_submitted_at,transport_updated_by_role,transport_updated_by_login,transport_updated_at,updated_at/
+    /cargoUserInputsQuery/
   );
   assert.match(cargoAdminApi, /if \(!String\(error\.message \|\| ""\)\.includes\("account_category"\)\) throw error/);
 });
