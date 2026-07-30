@@ -130,6 +130,26 @@ test("dashboard arrival text prefers Customs entry date over a stale manual ETA"
   assert.equal(vm.runInContext("etaText(__testCards[0])", context), "2026-07-23");
 });
 
+test("dashboard arrival text prefers a saved user ETA without overwriting Customs entry date", () => {
+  const context = dashboardRuntimeContext("admin", [{
+    stage: "arrival",
+    entry_date: "20260801",
+    eta_date: "2026-07-31",
+    eta_date_user_entered: true,
+  }]);
+  assert.equal(vm.runInContext("etaText(__testCards[0])", context), "2026-07-31");
+  assert.equal(
+    vm.runInContext(`
+      applyManualFieldsToCard(__testCards[0], { eta_date: "2026-07-30" }, {
+        eta_date: "2026-07-30"
+      });
+      etaText(__testCards[0]);
+    `, context),
+    "2026-07-30"
+  );
+  assert.equal(context.__testCards[0].entry_date, "20260801");
+});
+
 function calendarPreferenceHarness(overrides = {}) {
   const start = dashboard.indexOf("let calendarPreferences");
   const end = dashboard.indexOf("function showPrimaryView", start);

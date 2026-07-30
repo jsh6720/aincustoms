@@ -1473,8 +1473,10 @@
       return card.product_name || "-";
     }
     function etaText(card) {
+      const enteredEta = calendarDate(card.eta_date);
+      if (card.eta_date_user_entered === true && enteredEta) return enteredEta;
       return calendarDate(card.entry_date)
-        || calendarDate(card.eta_date)
+        || enteredEta
         || calendarDate(card.first_arrival_date)
         || "-";
     }
@@ -2656,6 +2658,15 @@
           ? (saved[field] ?? "")
           : (payload[field] ?? "");
       });
+      if (
+        Object.prototype.hasOwnProperty.call(saved, "eta_date")
+        || Object.prototype.hasOwnProperty.call(payload, "eta_date")
+      ) {
+        const etaDate = Object.prototype.hasOwnProperty.call(saved, "eta_date")
+          ? saved.eta_date
+          : payload.eta_date;
+        card.eta_date_user_entered = !!etaDate;
+      }
     }
 
     function renderCardInPlace(card) {

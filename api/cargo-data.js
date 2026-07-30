@@ -222,7 +222,14 @@ function applyUserInputs(cards, inputs, cardRefs = cards) {
   return (cards || []).map((card) => {
     const input = byBl.get(`${card.account_id || ""}|${card.bl_number}`) || byBl.get(`|${card.bl_number}`);
     const delivery = mergeLinkedDeliveryStatus(card, cardRefs, inputs);
-    if (!input) return { ...card, ...delivery, free_time_days: 3 };
+    if (!input) {
+      return {
+        ...card,
+        ...delivery,
+        free_time_days: 3,
+        eta_date_user_entered: false,
+      };
+    }
     return computeQuotaMessages({
       ...card,
       ...delivery,
@@ -233,6 +240,7 @@ function applyUserInputs(cards, inputs, cardRefs = cards) {
       hidden_by: input.hidden_by || "",
       delivery_terms: input.delivery_terms || card.delivery_terms || "",
       eta_date: input.eta_date || card.eta_date || "",
+      eta_date_user_entered: !!input.eta_date,
       storage_yard: input.storage_yard || card.storage_yard || "",
       free_time_days: Number(input.free_time_days || 3),
       free_time_expiry_date: input.free_time_expiry_date || card.free_time_expiry_date || "",
