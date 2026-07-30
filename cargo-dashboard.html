@@ -1473,12 +1473,22 @@
       return card.product_name || "-";
     }
     function etaText(card) {
-      const enteredEta = calendarDate(card.eta_date);
-      if (card.eta_date_user_entered === true && enteredEta) return enteredEta;
       return calendarDate(card.entry_date)
-        || enteredEta
+        || calendarDate(card.eta_date)
         || calendarDate(card.first_arrival_date)
         || "-";
+    }
+    function etaDisplayText(card) {
+      const value = etaText(card);
+      return calendarDate(card.entry_date)
+        ? `${displayDate(value)} (관세청)`
+        : displayDate(value);
+    }
+    function editableEtaText(card) {
+      return calendarDate(card.eta_date)
+        || calendarDate(card.first_arrival_date)
+        || calendarDate(card.entry_date)
+        || "";
     }
     function yardText(card) {
       return card.storage_yard || card.shed_name || "-";
@@ -1503,7 +1513,7 @@
           <span class="compact-main" title="${esc(card.bl_number || "-")}">${esc(card.bl_number || "-")}</span>
           <span class="compact-cell compact-dest" title="${esc(destinationWithTerm(card))}"><span class="compact-label">납품처_인도조건</span><span class="compact-value">${esc(destinationWithTerm(card))}</span></span>
           <span class="compact-cell compact-meat"><span class="compact-label">육종</span><span class="compact-value">${esc(meatType(card))}</span></span>
-          <span class="compact-cell compact-eta"><span class="compact-label">입항예정</span><span class="compact-value">${esc(displayDate(etaText(card)))}</span></span>
+          <span class="compact-cell compact-eta"><span class="compact-label">입항예정</span><span class="compact-value">${esc(etaDisplayText(card))}</span></span>
           <span class="compact-cell compact-yard" title="${esc(yardText(card))}"><span class="compact-label">반입장소</span><span class="compact-value">${esc(yardText(card))}</span></span>
           <span class="compact-cell compact-status" title="${esc(progressStateText(card))}"><span class="compact-label">진행상태</span><span class="compact-status-value">${esc(progressStateText(card))}</span></span>
           <span class="compact-arrow">›</span>
@@ -1712,8 +1722,12 @@
     function progressTransportDisabled() {
       return currentUserRole === "viewer" ? " disabled" : "";
     }
+    function progressFieldConfirmed(card, field) {
+      if (field === "eta_date" && calendarDate(card?.entry_date)) return true;
+      return card?.[`${field}_confirmed`] === true;
+    }
     function progressConfirmedClass(card, field) {
-      return card?.[`${field}_confirmed`] === true ? " progress-field-confirmed" : "";
+      return progressFieldConfirmed(card, field) ? " progress-field-confirmed" : "";
     }
     function progressConfirmAttribute(card, field) {
       if (currentUserRole !== "admin") return "";
@@ -2231,7 +2245,7 @@
                 title="${esc(transportProvenanceTitle(card))}"${progressTransportAria(card, currentCards.indexOf(card), "eta")}
                 ${progressConfirmAttribute(card, "eta_date")}
                 ${progressTransportDisabled()}
-                onclick="openProgressWarehouseEditor(${currentCards.indexOf(card)}, 'eta_date')">${esc(displayDate(etaText(card)))}</button>
+                onclick="openProgressWarehouseEditor(${currentCards.indexOf(card)}, 'eta_date')">${esc(etaDisplayText(card))}</button>
               ${progressTransportTooltip(card, currentCards.indexOf(card), "eta")}
             </span>
           </td>
@@ -2359,12 +2373,12 @@
         <div class="modal-row"><b>화주명</b><span>${esc(displayConsignee(progressWarehouseCard.consignee || "-"))}</span></div>
         <div class="modal-row"><b>B/L</b><span>${esc(progressWarehouseCard.bl_number || "-")}</span></div>
       `;
-      document.getElementById("progressWarehouseEta").value = calendarDate(etaText(progressWarehouseCard));
+      document.getElementById("progressWarehouseEta").value = editableEtaText(progressWarehouseCard);
       document.getElementById("progressFreeTimeExpiry").value = calendarDate(freeTimeExpiryText(progressWarehouseCard));
       document.getElementById("progressWarehouseYard").value = progressWarehouseCard.storage_yard || progressWarehouseCard.shed_name || "";
       document.getElementById("progressWarehouseDate").value = calendarDate(progressWarehouseCard.warehouse_expected_date);
       const confirmation_action = progressWarehouseFocusField
-        ? (progressWarehouseCard[`${progressWarehouseFocusField}_confirmed`] === true ? "unconfirm" : "confirm")
+        ? (progressFieldConfirmed(progressWarehouseCard, progressWarehouseFocusField) ? "unconfirm" : "confirm")
         : "";
       const confirmationButtons = currentUserRole === "admin" && progressWarehouseFocusField
         ? `
@@ -2417,7 +2431,7 @@
         warehouse_expected_date: document.getElementById("progressWarehouseDate").value || "",
       };
       const previousValues = {
-        eta_date: calendarDate(etaText(card)),
+        eta_date: editableEtaText(card),
         storage_yard: String(card.storage_yard || card.shed_name || "").trim(),
         warehouse_expected_date: calendarDate(card.warehouse_expected_date),
       };
