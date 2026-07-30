@@ -95,7 +95,9 @@ module.exports = async function handler(req, res) {
         p_role: body.role === "admin" || body.role === "viewer" ? body.role : "shipper",
         p_account_category: body.account_category === "destination"
           ? "destination"
-          : "shipper",
+          : body.account_category === "samhyeon"
+            ? "samhyeon"
+            : "shipper",
       };
 
       if (!payload.p_login_id) {

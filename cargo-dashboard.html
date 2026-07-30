@@ -174,17 +174,19 @@
     .admin-card { background:#fff; border:1px solid #d9dee4; border-radius:8px; padding:16px; }
     .admin-card h2 { font-size:16px; margin-bottom:10px; }
     .admin-table-wrap { overflow-x:auto; background:#fff; border:1px solid #d9dee4; border-radius:8px; }
-    .admin-table { width:100%; min-width:880px; table-layout:fixed; border-collapse:collapse; font-size:12px; background:#fff; }
+    .admin-table { width:100%; min-width:980px; table-layout:fixed; border-collapse:collapse; font-size:12px; background:#fff; }
     .admin-table th, .admin-table td { border-bottom:1px solid #edf1f4; text-align:left; padding:8px; vertical-align:top; }
     .admin-table th { background:#f7f9fb; color:#4b5663; font-weight:700; }
     .admin-table th:nth-child(1), .admin-table td:nth-child(1) { width:58px; }
     .admin-table th:nth-child(2), .admin-table td:nth-child(2) { width:70px; }
     .admin-table th:nth-child(3), .admin-table td:nth-child(3) { width:110px; }
-    .admin-table th:nth-child(4), .admin-table td:nth-child(4) { width:150px; }
-    .admin-table th:nth-child(5), .admin-table td:nth-child(5) { width:120px; }
-    .admin-table th:nth-child(7), .admin-table td:nth-child(7) { width:56px; text-align:center; }
-    .admin-table th:nth-child(8), .admin-table td:nth-child(8) { width:62px; text-align:center; }
+    .admin-table th:nth-child(4), .admin-table td:nth-child(4) { width:105px; }
+    .admin-table th:nth-child(5), .admin-table td:nth-child(5) { width:150px; }
+    .admin-table th:nth-child(6), .admin-table td:nth-child(6) { width:120px; }
+    .admin-table th:nth-child(8), .admin-table td:nth-child(8) { width:56px; text-align:center; }
+    .admin-table th:nth-child(9), .admin-table td:nth-child(9) { width:62px; text-align:center; }
     .admin-table td { word-break:break-word; overflow-wrap:anywhere; }
+    .admin-password-state { white-space:nowrap; color:#687482; font-size:10px; }
     .admin-actions { display:flex; gap:6px; flex-wrap:wrap; }
     .admin-mail-settings { margin-top:14px; background:#fff; border:1px solid #d9dee4; border-radius:8px; padding:16px; }
     .admin-mail-settings h2 { font-size:16px; margin-bottom:4px; }
@@ -320,11 +322,15 @@
     .progress-admin-request-badge { border:1px solid #c8d8e8; border-radius:999px; background:#eef4fa; color:#315c82; padding:1px 5px; font:inherit; font-size:9px; font-weight:900; cursor:help; }
     .progress-admin-request-badge.completed { border-color:#a9d7bc; background:#e7f5ed; color:#17653c; }
     body.shipper-progress .progress-admin-only { display:none; }
+    body.shipper-progress.samhyeon-progress .progress-samhyeon-visible { display:table-cell; }
+    body.samhyeon-progress .progress-shipper-only,
+    body.samhyeon-progress .progress-after-transfer { display:none; }
     body.viewer-progress .progress-shipper-only,
     body.viewer-progress .progress-admin-only { display:none; }
     body.viewer-progress .progress-edit-btn { pointer-events:none; background:transparent; box-shadow:none; color:inherit; text-decoration:none; }
     body:not(.shipper-progress) .progress-shipper-only { display:none; }
     body.shipper-progress .progress-table { min-width:1980px; }
+    body.shipper-progress.samhyeon-progress .progress-table { min-width:1520px; }
     body.viewer-progress .progress-table { min-width:1760px; }
     .doc-o { color:#1b6b3a; background:#edf8f1; border:1px solid #b7dfc4; border-radius:999px; padding:1px 6px; }
     .doc-triangle { color:#9a6700; background:#fff8db; border:1px solid #ead58b; border-radius:999px; padding:1px 6px; }
@@ -463,6 +469,7 @@
           <select id="adminAccountCategory">
             <option value="shipper">화주</option>
             <option value="destination">납품처</option>
+            <option value="samhyeon">삼현</option>
           </select>
           <label>아이디</label>
           <input id="adminLoginId">
@@ -488,6 +495,7 @@
                 <th>권한</th>
                 <th>입력구분</th>
                 <th>아이디</th>
+                <th>비밀번호</th>
                 <th>표시명</th>
                 <th>필터텍스트</th>
                 <th>요청메일 우선 수신처</th>
@@ -530,27 +538,27 @@
                 <th class="progress-date">입항예정</th>
                 <th class="progress-date">만기(프리타임)</th>
                 <th class="progress-long">반입(예정)구역</th>
-                <th class="progress-date">반입예정일</th>
+                <th class="progress-date">입고(예정)일</th>
                 <th class="progress-short center">마일스톤</th>
                 <th class="progress-long">진행상태</th>
-                <th class="progress-delivery progress-admin-only">서류전달</th>
+                <th class="progress-delivery progress-admin-only progress-samhyeon-visible">서류전달</th>
                 <th class="progress-short center progress-shipper-only">서류수령요청</th>
                 <th class="progress-short center progress-shipper-only">수입신고요청</th>
                 <th class="progress-date">OBL 접수일</th>
                 <th class="progress-short center">BL원본</th>
                 <th class="progress-short center">H/C원본</th>
                 <th class="progress-short center">양도증</th>
-                <th class="progress-short center progress-admin-only">동물검역</th>
-                <th class="progress-short center progress-admin-only">식품검역</th>
-                <th class="progress-short center progress-admin-only">유통이력</th>
-                <th class="progress-short center progress-admin-only">스티커요청</th>
-                <th class="progress-short center">BL파일</th>
-                <th class="progress-short center">IV</th>
-                <th class="progress-short center">PL</th>
-                <th class="progress-short center">H/C파일</th>
-                <th class="progress-short center">C/O</th>
-                <th class="progress-short center">보험</th>
-                <th class="progress-short center">운임</th>
+                <th class="progress-short center progress-admin-only progress-after-transfer">동물검역</th>
+                <th class="progress-short center progress-admin-only progress-after-transfer">식품검역</th>
+                <th class="progress-short center progress-admin-only progress-after-transfer">유통이력</th>
+                <th class="progress-short center progress-admin-only progress-after-transfer">스티커요청</th>
+                <th class="progress-short center progress-after-transfer">BL파일</th>
+                <th class="progress-short center progress-after-transfer">IV</th>
+                <th class="progress-short center progress-after-transfer">PL</th>
+                <th class="progress-short center progress-after-transfer">H/C파일</th>
+                <th class="progress-short center progress-after-transfer">C/O</th>
+                <th class="progress-short center progress-after-transfer">보험</th>
+                <th class="progress-short center progress-after-transfer">운임</th>
               </tr>
             </thead>
             <tbody id="progressRows"></tbody>
@@ -668,7 +676,7 @@
         <input id="progressWarehouseYard" placeholder="예: 강동냉장 보세창고">
       </div>
       <div id="progressWarehouseDateGroup" class="modal-field">
-        <label for="progressWarehouseDate">반입예정일</label>
+        <label for="progressWarehouseDate">입고(예정)일</label>
         <input id="progressWarehouseDate" type="date">
       </div>
       <div id="progressWarehouseModalActions" class="modal-actions"></div>
@@ -695,12 +703,13 @@
       original_doc_request: "원본서류 도착/수령 요청",
       import_request: "수입신고 요청",
       release_request: "출고 요청",
-      warehouse_change: "반입예정 정보 변경",
+      warehouse_change: "입고예정 정보 변경",
       original_doc_receipt: "H/C 원본 수령 확인",
       obl_carrier_receipt: "OBL 선사 접수 확인",
     };
     let currentUserRole = "shipper";
     let currentUserLogin = "";
+    let currentUserAccountCategory = "shipper";
     let currentCards = [];
     let currentPrimaryView = "progress";
     let progressRevisionDrafts = {};
@@ -1072,9 +1081,11 @@
       }
       currentUserRole = result.user.role || "shipper";
       currentUserLogin = result.user.login_id || "";
+      currentUserAccountCategory = result.user.account_category || "shipper";
       loadCalendarPreferences(result.user.calendar_preferences);
       document.body.classList.toggle("shipper-progress", currentUserRole === "shipper");
       document.body.classList.toggle("viewer-progress", currentUserRole === "viewer");
+      document.body.classList.toggle("samhyeon-progress", currentUserAccountCategory === "samhyeon");
       currentCards = result.cards || [];
       const activeCards = visibleCards();
       showCargoUi();
@@ -1303,7 +1314,7 @@
         values.eta_date ? `<span class="manual-pill">입항예정 ${esc(values.eta_date)}</span>` : "",
         values.storage_yard ? `<span class="manual-pill">장치장 ${esc(values.storage_yard)}</span>` : "",
         freeTimeText ? `<span class="manual-pill">프리타임 ${esc(freeTimeText)}</span>` : "",
-        values.warehouse_expected_date ? `<span class="manual-pill">창고입고예정 ${esc(values.warehouse_expected_date)}</span>` : "",
+        values.warehouse_expected_date ? `<span class="manual-pill">입고(예정)일 ${esc(values.warehouse_expected_date)}</span>` : "",
       ].filter(Boolean).join("");
       return `
         <div class="manual-box">
@@ -1317,7 +1328,7 @@
             <label>입항예정일<input id="manualEta-${esc(bl)}" type="date" value="${esc(values.eta_date)}"></label>
             <label>장치장<input id="manualYard-${esc(bl)}" value="${esc(values.storage_yard)}" placeholder="예: 부산신항"></label>
              <label>프리타임 일수<input id="manualFree-${esc(bl)}" type="number" min="1" step="1" value="${esc(values.free_time_days)}" placeholder="기본 3"></label>
-            <label>보세창고 입고 예정일<input id="manualWh-${esc(bl)}" type="date" value="${esc(values.warehouse_expected_date)}"></label>
+            <label>입고(예정)일<input id="manualWh-${esc(bl)}" type="date" value="${esc(values.warehouse_expected_date)}"></label>
             <div class="manual-actions">
               <button type="button" class="btn gray" data-card-action="manual-clear" data-card-index="${cardIndex}" style="height:22px;padding:2px 7px;font-size:9.5px">초기화</button>
               <button type="button" class="btn green" data-card-action="manual-save" data-card-index="${cardIndex}" style="height:22px;padding:2px 7px;font-size:9.5px">저장</button>
@@ -1631,11 +1642,13 @@
     function transportProvenanceLabel(role) {
       if (role === "admin") return "관리자(AIN)";
       if (role === "destination") return "납품처";
+      if (role === "samhyeon") return "삼현";
       if (role === "shipper") return "화주";
       return "";
     }
     function transportProvenanceClass(card) {
       if (card?.transport_updated_by_role === "destination") return " progress-destination-input";
+      if (card?.transport_updated_by_role === "samhyeon") return " progress-shipper-input";
       if (card?.transport_updated_by_role === "shipper") return " progress-shipper-input";
       if (card?.transport_updated_by_role === "admin") return " progress-admin-input";
       return "";
@@ -1672,7 +1685,7 @@
         ["창고", "warehouse", card.docs_delivered_warehouse === true, card.docs_delivered_warehouse_date],
       ];
       return `
-        <td class="progress-delivery progress-admin-only">
+        <td class="progress-delivery progress-admin-only progress-samhyeon-visible">
           <div class="delivery-status">
             ${items.map(([label, target, enabled, date]) => `
               <span class="delivery-status-item">
@@ -1744,7 +1757,7 @@
       return {
         eta_date: "입항예정일",
         storage_yard: "반입예정구역",
-        warehouse_expected_date: "반입예정일",
+        warehouse_expected_date: "입고(예정)일",
       }[field] || "운송정보";
     }
     function progressRevisionTooltip(card) {
@@ -2289,17 +2302,17 @@
           <td class="progress-short center">${progressDocToggle(card, "obl")}</td>
           <td class="progress-short center">${progressDocToggle(card, "hc")}</td>
           <td class="progress-short center">${docStatusLabel(!!card.doc_transfer_received)}</td>
-          <td class="progress-short center progress-admin-only">${progressManualStatusToggle(card, "animal")}</td>
-          <td class="progress-short center progress-admin-only">${progressManualStatusToggle(card, "food")}</td>
-          <td class="progress-short center progress-admin-only">${progressManualStatusToggle(card, "distribution")}</td>
-          <td class="progress-short center progress-admin-only">${progressManualStatusToggle(card, "sticker")}</td>
-          <td class="progress-short center">${docStatusLabel(!!card.doc_bl_received)}</td>
-          <td class="progress-short center">${docStatusLabel(!!card.doc_iv_received)}</td>
-          <td class="progress-short center">${docStatusLabel(!!card.doc_pl_received)}</td>
-          <td class="progress-short center">${docStatusLabel(!!card.doc_hc_received)}</td>
-          <td class="progress-short center">${docStatusLabel(!!card.doc_co_received)}</td>
-          <td class="progress-short center">${docStatusLabel(!!card.doc_insurance_received, insuranceRequired(card))}</td>
-          <td class="progress-short center">${docStatusLabel(!!card.doc_freight_invoice_received, freightRequired(card))}</td>
+          <td class="progress-short center progress-admin-only progress-after-transfer">${progressManualStatusToggle(card, "animal")}</td>
+          <td class="progress-short center progress-admin-only progress-after-transfer">${progressManualStatusToggle(card, "food")}</td>
+          <td class="progress-short center progress-admin-only progress-after-transfer">${progressManualStatusToggle(card, "distribution")}</td>
+          <td class="progress-short center progress-admin-only progress-after-transfer">${progressManualStatusToggle(card, "sticker")}</td>
+          <td class="progress-short center progress-after-transfer">${docStatusLabel(!!card.doc_bl_received)}</td>
+          <td class="progress-short center progress-after-transfer">${docStatusLabel(!!card.doc_iv_received)}</td>
+          <td class="progress-short center progress-after-transfer">${docStatusLabel(!!card.doc_pl_received)}</td>
+          <td class="progress-short center progress-after-transfer">${docStatusLabel(!!card.doc_hc_received)}</td>
+          <td class="progress-short center progress-after-transfer">${docStatusLabel(!!card.doc_co_received)}</td>
+          <td class="progress-short center progress-after-transfer">${docStatusLabel(!!card.doc_insurance_received, insuranceRequired(card))}</td>
+          <td class="progress-short center progress-after-transfer">${docStatusLabel(!!card.doc_freight_invoice_received, freightRequired(card))}</td>
         </tr>
       `).join("") : `<tr><td colspan="${currentUserRole === "admin" ? 28 : 25}" style="text-align:center;color:#8b95a1">표시할 BL이 없습니다.</td></tr>`;
       if (progressRevisionReopenKey) {
@@ -2389,7 +2402,7 @@
       const titles = {
         eta_date: "입항예정일 입력",
         storage_yard: "반입(예정)구역 입력",
-        warehouse_expected_date: "반입예정일 입력",
+        warehouse_expected_date: "입고(예정)일 입력",
       };
       document.getElementById("progressWarehouseModalTitle").textContent =
         titles[focusField] || "운송/반입예정정보";
@@ -3741,8 +3754,9 @@
       rows.innerHTML = adminAccounts.map((account, accountIndex) => `
         <tr>
           <td>${account.role === "admin" ? "관리자" : account.role === "viewer" ? "전체조회" : "화주"}</td>
-          <td>${account.account_category === "destination" ? "납품처" : "화주"}</td>
+          <td>${account.account_category === "destination" ? "납품처" : account.account_category === "samhyeon" ? "삼현" : "화주"}</td>
           <td><b>${esc(account.login_id)}</b></td>
+          <td><span class="admin-password-state" title="보안을 위해 기존 비밀번호는 복호화하거나 표시하지 않습니다. 수정 화면에서 새 비밀번호를 입력해 재설정할 수 있습니다.">수정에서 재설정</span></td>
           <td>${esc(displayConsignee(account.display_name))}</td>
           <td>${esc(account.consignee_filter || "-")}</td>
           <td>${esc(account.release_request_to || "-")}</td>

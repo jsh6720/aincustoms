@@ -26,7 +26,9 @@ module.exports = async function handler(req, res) {
     const account = accounts[0];
     const accountCategory = account.account_category === "destination"
       ? "destination"
-      : "shipper";
+      : account.account_category === "samhyeon"
+        ? "samhyeon"
+        : "shipper";
     const calendarPreferences = normalizeCalendarPreferences(account.calendar_preferences);
     const expiresAt = Math.floor(Date.now() / 1000) + 8 * 60 * 60;
     const token = createSession({

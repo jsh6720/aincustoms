@@ -191,13 +191,13 @@ test("delivery O exposes its saved input date on hover", () => {
 
 test("progress table places compact delivery controls immediately after state", () => {
   const headerStart = dashboard.indexOf('<th class="progress-long">진행상태</th>');
-  const headerEnd = dashboard.indexOf('<th class="progress-short center progress-admin-only">동물검역</th>');
+  const headerEnd = dashboard.indexOf('<th class="progress-short center progress-admin-only progress-after-transfer">동물검역</th>');
   const header = dashboard.slice(headerStart, headerEnd);
   assert.match(
     header,
     /진행상태<\/th>\s*<th[^>]*progress-admin-only[^>]*>서류전달<\/th>\s*<th[^>]*progress-shipper-only[^>]*>서류수령요청/
   );
-  assert.match(dashboard, /<td class="progress-delivery progress-admin-only">/);
+  assert.match(dashboard, /<td class="progress-delivery progress-admin-only progress-samhyeon-visible">/);
   assert.match(dashboard, /body\.viewer-progress \.progress-admin-only\s*\{\s*display:none;\s*\}/);
   assert.match(dashboard, /삼현전달/);
   assert.match(dashboard, /창고전달/);

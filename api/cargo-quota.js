@@ -357,7 +357,11 @@ module.exports = async function handler(req, res) {
       const changedFields = !isAdmin ? warehouseChanges(previousWarehouse, nextWarehouse) : [];
       nextPayload.transport_updated_by_role = isAdmin
         ? "admin"
-        : (session.account_category === "destination" ? "destination" : "shipper");
+        : session.account_category === "destination"
+          ? "destination"
+          : session.account_category === "samhyeon"
+            ? "samhyeon"
+            : "shipper";
       nextPayload.transport_updated_by_login = session.login_id || "";
       nextPayload.transport_updated_at = new Date().toISOString();
       if (isAdmin) {

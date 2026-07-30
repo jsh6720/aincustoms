@@ -570,7 +570,7 @@ test("warehouse expected date opens a focused editor without unrelated transport
   const openStart = dashboard.indexOf("function openProgressWarehouseEditor");
   const openEnd = dashboard.indexOf("function closeProgressWarehouseEditor", openStart);
   const openBody = dashboard.slice(openStart, openEnd);
-  assert.match(dashboard, /warehouse_expected_date:\s*"반입예정일 입력"/);
+  assert.match(dashboard, /warehouse_expected_date:\s*"입고\(예정\)일 입력"/);
   assert.match(openBody, /toggleProgressWarehouseGroups\(progressWarehouseFocusField\)/);
 
   const saveStart = dashboard.indexOf("async function saveProgressWarehouseEditor");
@@ -776,7 +776,7 @@ test("progress table binds date classes to ETA and warehouse date columns", () =
   assert.equal(headerClasses.filter((classes) => classes.includes("progress-date")).length, 4);
   assert.equal(rowClasses.filter((classes) => classes.includes("progress-date")).length, 4);
   assert.match(header, /<th class="[^"]*\bprogress-date\b[^"]*">\uC785\uD56D\uC608\uC815<\/th>/);
-  assert.match(header, /<th class="[^"]*\bprogress-date\b[^"]*">\uBC18\uC785\uC608\uC815\uC77C<\/th>/);
+  assert.match(header, /<th class="[^"]*\bprogress-date\b[^"]*">입고\(예정\)일<\/th>/);
   assert.match(row, /<td class="[^"]*\bprogress-date\b[^"]*">[\s\S]*?<button[^>]*>[\s\S]*?etaDisplayText\(card\)/);
   assert.match(row, /title="\$\{esc\(etaDisplayTitle\(card\)\)\}"/);
   assert.match(row, /<td class="[^"]*\bprogress-date\b[^"]*">[\s\S]*?<button[^>]*>[\s\S]*?displayDate\(card\.warehouse_expected_date/);
