@@ -5,6 +5,7 @@ const {
   validateCalendarPreferences,
 } = require("../lib/cargo-calendar-preferences");
 const { mergeDuplicateCargoCards } = require("../lib/cargo-card-merge");
+const { customsArrivalConfirmed } = require("../lib/cargo-progress-utils");
 const { cargoUserInputsQuery } = require("../lib/cargo-user-input-query");
 const {
   latestLinkedRequest,
@@ -246,7 +247,7 @@ function applyUserInputs(cards, inputs, cardRefs = cards) {
       free_time_expiry_date: input.free_time_expiry_date || card.free_time_expiry_date || "",
       free_time_expiry_override: input.free_time_expiry_override || "",
       warehouse_expected_date: input.warehouse_expected_date || card.warehouse_expected_date || "",
-      eta_date_confirmed: input.eta_date_confirmed === true,
+      eta_date_confirmed: customsArrivalConfirmed(card) || input.eta_date_confirmed === true,
       storage_yard_confirmed: input.storage_yard_confirmed === true,
       warehouse_expected_date_confirmed: input.warehouse_expected_date_confirmed === true,
       animal_quarantine_override: input.animal_quarantine_override || "",

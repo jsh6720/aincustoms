@@ -2,11 +2,21 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 
 const {
+  customsArrivalConfirmed,
   effectiveArrivalDate,
   freeTimeExpiry,
   normalizeInspectionStatus,
   sortProgressCards,
 } = require("../lib/cargo-progress-utils");
+
+test("Customs entry date automatically confirms the arrival date", () => {
+  assert.equal(customsArrivalConfirmed({ entry_date: "20260801" }), true);
+  assert.equal(customsArrivalConfirmed({ entry_date: "2026-08-01" }), true);
+  assert.equal(
+    customsArrivalConfirmed({ entry_date: "", eta_date: "2026-07-31" }),
+    false
+  );
+});
 
 test("actual Customs entry date overrides a stale manual ETA after arrival", () => {
   assert.equal(
