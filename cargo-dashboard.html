@@ -1479,10 +1479,12 @@
         || "-";
     }
     function etaDisplayText(card) {
-      const value = etaText(card);
+      return displayDate(etaText(card));
+    }
+    function etaDisplayTitle(card) {
       return calendarDate(card.entry_date)
-        ? `${displayDate(value)} (관세청)`
-        : displayDate(value);
+        ? "관세청 실제입항일 · 자동 확정"
+        : transportProvenanceTitle(card);
     }
     function editableEtaText(card) {
       return calendarDate(card.eta_date)
@@ -2242,7 +2244,7 @@
           <td class="progress-date">
             <span class="progress-request-wrap progress-transport-wrap">
               <button type="button" class="progress-edit-btn${transportProvenanceClass(card)}${progressConfirmedClass(card, "eta_date")} progress-tooltip-control"
-                title="${esc(transportProvenanceTitle(card))}"${progressTransportAria(card, currentCards.indexOf(card), "eta")}
+                title="${esc(etaDisplayTitle(card))}"${progressTransportAria(card, currentCards.indexOf(card), "eta")}
                 ${progressConfirmAttribute(card, "eta_date")}
                 ${progressTransportDisabled()}
                 onclick="openProgressWarehouseEditor(${currentCards.indexOf(card)}, 'eta_date')">${esc(etaDisplayText(card))}</button>

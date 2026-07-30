@@ -130,7 +130,7 @@ test("dashboard arrival text prefers Customs entry date over a stale manual ETA"
   assert.equal(vm.runInContext("etaText(__testCards[0])", context), "2026-07-23");
 });
 
-test("Customs arrival is displayed with its source while manual ETA remains editable", () => {
+test("Customs arrival uses compact text and a source tooltip while manual ETA remains editable", () => {
   const context = dashboardRuntimeContext("admin", [{
     stage: "arrival",
     entry_date: "20260801",
@@ -142,7 +142,11 @@ test("Customs arrival is displayed with its source while manual ETA remains edit
   assert.equal(vm.runInContext("etaText(__testCards[0])", context), "2026-08-01");
   assert.equal(
     vm.runInContext("etaDisplayText(__testCards[0])", context),
-    "2026-08-01 (관세청)"
+    "2026-08-01"
+  );
+  assert.equal(
+    vm.runInContext("etaDisplayTitle(__testCards[0])", context),
+    "\uAD00\uC138\uCCAD \uC2E4\uC81C\uC785\uD56D\uC77C \u00B7 \uC790\uB3D9 \uD655\uC815"
   );
   assert.equal(
     vm.runInContext("editableEtaText(__testCards[0])", context),
@@ -176,6 +180,10 @@ test("manual ETA is displayed without a Customs label before actual arrival", ()
   assert.equal(
     vm.runInContext("etaDisplayText(__testCards[0])", context),
     "2026-07-31"
+  );
+  assert.equal(
+    vm.runInContext("etaDisplayTitle(__testCards[0])", context),
+    ""
   );
   assert.equal(
     vm.runInContext("progressFieldConfirmed(__testCards[0], 'eta_date')", context),
@@ -752,6 +760,7 @@ test("progress table binds date classes to ETA and warehouse date columns", () =
   assert.match(header, /<th class="[^"]*\bprogress-date\b[^"]*">\uC785\uD56D\uC608\uC815<\/th>/);
   assert.match(header, /<th class="[^"]*\bprogress-date\b[^"]*">\uBC18\uC785\uC608\uC815\uC77C<\/th>/);
   assert.match(row, /<td class="[^"]*\bprogress-date\b[^"]*">[\s\S]*?<button[^>]*>[\s\S]*?etaDisplayText\(card\)/);
+  assert.match(row, /title="\$\{esc\(etaDisplayTitle\(card\)\)\}"/);
   assert.match(row, /<td class="[^"]*\bprogress-date\b[^"]*">[\s\S]*?<button[^>]*>[\s\S]*?displayDate\(card\.warehouse_expected_date/);
 });
 
