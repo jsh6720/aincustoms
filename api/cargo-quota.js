@@ -8,6 +8,7 @@ const {
 } = require("../lib/cargo-mail-utils");
 const { fetchMailSetting, resolveMailRecipients } = require("../lib/cargo-mail-settings");
 const { normalizeInspectionStatus } = require("../lib/cargo-progress-utils");
+const { koreaDate } = require("../lib/cargo-request-utils");
 
 const WAREHOUSE_CHANGE_TO = [
   "jsh@aincustoms.com",
@@ -176,6 +177,10 @@ module.exports = async function handler(req, res) {
         "docs_delivered_samhyeon",
         "docs_delivered_warehouse",
       ];
+      const deliveryDateFields = {
+        docs_delivered_samhyeon: "docs_delivered_samhyeon_date",
+        docs_delivered_warehouse: "docs_delivered_warehouse_date",
+      };
       const sharedAdminFields = [
         "animal_quarantine_override",
         "food_quarantine_override",
@@ -184,6 +189,7 @@ module.exports = async function handler(req, res) {
         "distribution_history_number",
         "sticker_requested",
         ...deliveryFields,
+        ...Object.values(deliveryDateFields),
       ];
       const hasSharedAdminChange = sharedAdminFields.some((field) => (
         Object.prototype.hasOwnProperty.call(body, field)
@@ -197,6 +203,8 @@ module.exports = async function handler(req, res) {
           });
         }
         payload[field] = body[field];
+        const dateField = deliveryDateFields[field];
+        payload[dateField] = body[field] ? koreaDate() : null;
       }
 
       if (hasSharedAdminChange) {
@@ -490,6 +498,12 @@ module.exports = async function handler(req, res) {
 
     return res.status(200).json({ success: true, input: rows && rows[0] ? rows[0] : null });
   } catch (error) {
+    if (["docs_delivered_samhyeon_date", "docs_delivered_warehouse_date"].some((name) => String(error.message || "").includes(name))) {
+      return res.status(500).json({
+        success: false,
+        message: "Supabase에서 20260730_add_document_delivery_dates.sql을 먼저 실행해 주세요.",
+      });
+    }
     if (["docs_delivered_samhyeon", "docs_delivered_warehouse", "account_category"].some((name) => String(error.message || "").includes(name))) {
       return res.status(500).json({
         success: false,

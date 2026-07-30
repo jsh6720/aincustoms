@@ -168,6 +168,16 @@ test("cargo APIs expose delivery state and account category", () => {
   assert.match(cargoAdminApi, /if \(!String\(error\.message \|\| ""\)\.includes\("account_category"\)\) throw error/);
 });
 
+test("delivery toggle stores or clears the matching delivery date", () => {
+  assert.match(cargoQuotaApi, /docs_delivered_samhyeon_date/);
+  assert.match(cargoQuotaApi, /docs_delivered_warehouse_date/);
+  assert.match(cargoQuotaApi, /const\s+deliveryDateFields\s*=\s*\{/);
+  assert.match(
+    cargoQuotaApi,
+    /payload\[dateField\]\s*=\s*body\[field\]\s*\?\s*koreaDate\(\)\s*:\s*null/
+  );
+});
+
 test("progress table places compact delivery controls immediately after state", () => {
   const headerStart = dashboard.indexOf('<th class="progress-long">진행상태</th>');
   const headerEnd = dashboard.indexOf('<th class="progress-short center progress-admin-only">동물검역</th>');
