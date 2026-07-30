@@ -138,6 +138,11 @@ async function fetchUserInputs(accountId) {
   try {
     return await supabaseFetch(cargoUserInputsQuery(accountId));
   } catch (error) {
+    if (["docs_delivered_samhyeon_date", "docs_delivered_warehouse_date"].some((name) => String(error.message || "").includes(name))) {
+      return await supabaseFetch(cargoUserInputsQuery(accountId, {
+        omitDocumentDeliveryDates: true,
+      }));
+    }
     if (["is_hidden", "delivery_terms", "eta_date", "storage_yard", "free_time_days", "free_time_expiry_date", "free_time_expiry_override", "warehouse_expected_date", "eta_date_confirmed", "storage_yard_confirmed", "warehouse_expected_date_confirmed", "animal_quarantine_override", "food_quarantine_override", "import_declaration_override", "distribution_history_override", "distribution_history_number", "sticker_requested", "obl_carrier_submitted", "docs_delivered_samhyeon", "docs_delivered_warehouse", "transport_updated_by_role", "transport_updated_by_login", "transport_updated_at"].some((name) => String(error.message || "").includes(name))) {
       return await supabaseFetch(cargoUserInputsQuery(accountId, {
         omitTransportConfirmation: true,

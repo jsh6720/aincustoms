@@ -3,6 +3,7 @@ const test = require("node:test");
 
 const {
   CARGO_USER_INPUT_COLUMNS,
+  DOCUMENT_DELIVERY_DATE_COLUMNS,
   TRANSPORT_CONFIRMATION_COLUMNS,
   cargoUserInputsQuery,
 } = require("../lib/cargo-user-input-query");
@@ -56,4 +57,17 @@ test("account filter is encoded without changing the selected fields", () => {
   const query = cargoUserInputsQuery("account id/1");
   assert.match(query, /&account_id=eq\.account%20id%2F1$/);
   assert.deepEqual(selectedColumns(query), CARGO_USER_INPUT_COLUMNS);
+});
+
+test("legacy input query can omit only unavailable document delivery date columns", () => {
+  const selected = selectedColumns(cargoUserInputsQuery("account-1", {
+    omitDocumentDeliveryDates: true,
+  }));
+
+  assert.deepEqual(
+    CARGO_USER_INPUT_COLUMNS.filter((column) => !selected.includes(column)),
+    DOCUMENT_DELIVERY_DATE_COLUMNS
+  );
+  assert.ok(selected.includes("docs_delivered_samhyeon"));
+  assert.ok(selected.includes("docs_delivered_warehouse"));
 });
