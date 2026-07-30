@@ -562,6 +562,24 @@ test("progress page includes editable warehouse schedule and calendar event", ()
   assert.doesNotMatch(body, /free_time_days:/);
 });
 
+test("warehouse expected date opens a focused editor without unrelated transport fields", () => {
+  assert.match(dashboard, /id="progressWarehouseModalTitle"/);
+  assert.match(dashboard, /id="progressWarehouseDateGroup"/);
+  assert.match(dashboard, /function toggleProgressWarehouseGroups/);
+
+  const openStart = dashboard.indexOf("function openProgressWarehouseEditor");
+  const openEnd = dashboard.indexOf("function closeProgressWarehouseEditor", openStart);
+  const openBody = dashboard.slice(openStart, openEnd);
+  assert.match(dashboard, /warehouse_expected_date:\s*"반입예정일 입력"/);
+  assert.match(openBody, /toggleProgressWarehouseGroups\(progressWarehouseFocusField\)/);
+
+  const saveStart = dashboard.indexOf("async function saveProgressWarehouseEditor");
+  const saveEnd = dashboard.indexOf("function openProgressStatus", saveStart);
+  const saveBody = dashboard.slice(saveStart, saveEnd);
+  assert.match(saveBody, /if \(progressWarehouseFocusField\)/);
+  assert.match(saveBody, /payload\[progressWarehouseFocusField\]\s*=\s*values\[progressWarehouseFocusField\]/);
+});
+
 test("compact cards and progress rows use concise one-line display values", () => {
   assert.match(dashboard, /grid-template-columns:minmax\(88px,max-content\)/);
   assert.match(dashboard, /function progressConsignee\(value\)/);

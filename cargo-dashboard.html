@@ -653,21 +653,21 @@
   </div>
   <div id="progressWarehouseModalBg" class="modal-bg">
     <div class="modal">
-      <h2>운송/반입예정정보</h2>
+      <h2 id="progressWarehouseModalTitle">운송/반입예정정보</h2>
       <div id="progressWarehouseModalCard" class="modal-card"></div>
-      <div class="modal-field">
+      <div id="progressWarehouseEtaGroup" class="modal-field">
         <label for="progressWarehouseEta">입항예정일</label>
         <input id="progressWarehouseEta" type="date">
       </div>
-      <div class="modal-field">
+      <div id="progressFreeTimeExpiryGroup" class="modal-field">
         <label for="progressFreeTimeExpiry">만기(프리타임)<span class="field-hint">기본 3일 · 입항일 포함</span></label>
         <input id="progressFreeTimeExpiry" type="date">
       </div>
-      <div class="modal-field">
+      <div id="progressWarehouseYardGroup" class="modal-field">
         <label for="progressWarehouseYard">반입(예정)구역</label>
         <input id="progressWarehouseYard" placeholder="예: 강동냉장 보세창고">
       </div>
-      <div class="modal-field">
+      <div id="progressWarehouseDateGroup" class="modal-field">
         <label for="progressWarehouseDate">반입예정일</label>
         <input id="progressWarehouseDate" type="date">
       </div>
@@ -2370,6 +2370,30 @@
       await loadData();
       renderProgressStatus();
     }
+    function toggleProgressWarehouseGroups(focusField) {
+      const groups = {
+        eta_date: "progressWarehouseEtaGroup",
+        storage_yard: "progressWarehouseYardGroup",
+        warehouse_expected_date: "progressWarehouseDateGroup",
+      };
+      const focusedGroup = groups[focusField] || "";
+      [
+        "progressWarehouseEtaGroup",
+        "progressFreeTimeExpiryGroup",
+        "progressWarehouseYardGroup",
+        "progressWarehouseDateGroup",
+      ].forEach((id) => {
+        const group = document.getElementById(id);
+        if (group) group.style.display = !focusedGroup || id === focusedGroup ? "" : "none";
+      });
+      const titles = {
+        eta_date: "입항예정일 입력",
+        storage_yard: "반입(예정)구역 입력",
+        warehouse_expected_date: "반입예정일 입력",
+      };
+      document.getElementById("progressWarehouseModalTitle").textContent =
+        titles[focusField] || "운송/반입예정정보";
+    }
     function openProgressWarehouseEditor(cardIndex, focusField = "") {
       if (currentUserRole === "viewer") return;
       progressWarehouseCard = currentCards[cardIndex];
@@ -2384,6 +2408,7 @@
       document.getElementById("progressFreeTimeExpiry").value = calendarDate(freeTimeExpiryText(progressWarehouseCard));
       document.getElementById("progressWarehouseYard").value = progressWarehouseCard.storage_yard || progressWarehouseCard.shed_name || "";
       document.getElementById("progressWarehouseDate").value = calendarDate(progressWarehouseCard.warehouse_expected_date);
+      toggleProgressWarehouseGroups(progressWarehouseFocusField);
       const confirmation_action = progressWarehouseFocusField
         ? (progressFieldConfirmed(progressWarehouseCard, progressWarehouseFocusField) ? "unconfirm" : "confirm")
         : "";
@@ -2442,9 +2467,15 @@
         storage_yard: String(card.storage_yard || card.shed_name || "").trim(),
         warehouse_expected_date: calendarDate(card.warehouse_expected_date),
       };
-      Object.entries(values).forEach(([field, value]) => {
-        if (value !== previousValues[field]) payload[field] = value;
-      });
+      if (progressWarehouseFocusField) {
+        if (values[progressWarehouseFocusField] !== previousValues[progressWarehouseFocusField]) {
+          payload[progressWarehouseFocusField] = values[progressWarehouseFocusField];
+        }
+      } else {
+        Object.entries(values).forEach(([field, value]) => {
+          if (value !== previousValues[field]) payload[field] = value;
+        });
+      }
       if (confirmationAction) {
         payload.confirm_field = progressWarehouseFocusField;
         payload.confirmation_action = confirmationAction;
@@ -2456,12 +2487,14 @@
           return;
         }
       }
-      const expiryDate = document.getElementById("progressFreeTimeExpiry").value || "";
-      if (expiryDate !== calendarDate(freeTimeExpiryText(card))) {
-        payload.free_time_expiry_override = expiryDate;
-      }
-      if (!card.free_time_days || Number(card.free_time_days) !== 3) {
-        payload.free_time_days = 3;
+      if (!progressWarehouseFocusField) {
+        const expiryDate = document.getElementById("progressFreeTimeExpiry").value || "";
+        if (expiryDate !== calendarDate(freeTimeExpiryText(card))) {
+          payload.free_time_expiry_override = expiryDate;
+        }
+        if (!card.free_time_days || Number(card.free_time_days) !== 3) {
+          payload.free_time_days = 3;
+        }
       }
       const changedFields = Object.keys(payload).filter(field => ![
         "action", "account_id", "bl_number", "send_notification"
@@ -2485,7 +2518,7 @@
           progressWarehouseCard = null;
           await loadData();
           const latestIndex = currentCards.findIndex(item => item.bl_number === blNumber);
-          if (latestIndex >= 0) openProgressWarehouseEditor(latestIndex);
+          if (latestIndex >= 0) openProgressWarehouseEditor(latestIndex, progressWarehouseFocusField);
           return;
         }
         if (!result.success) {
