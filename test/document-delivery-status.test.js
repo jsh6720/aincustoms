@@ -11,6 +11,13 @@ const migrationPath = path.join(
 const migration = fs.existsSync(migrationPath)
   ? fs.readFileSync(migrationPath, "utf8")
   : "";
+const deliveryDatesMigrationPath = path.join(
+  root,
+  "supabase/migrations/20260730_add_document_delivery_dates.sql"
+);
+const deliveryDatesMigration = fs.existsSync(deliveryDatesMigrationPath)
+  ? fs.readFileSync(deliveryDatesMigrationPath, "utf8")
+  : "";
 const dashboard = fs.readFileSync(path.join(root, "cargo-dashboard.html"), "utf8");
 const cargoDataApi = fs.readFileSync(path.join(root, "api/cargo-data.js"), "utf8");
 const cargoLoginApi = fs.readFileSync(path.join(root, "api/cargo-login.js"), "utf8");
@@ -95,6 +102,52 @@ test("unrelated newer input rows never erase an existing delivered status", () =
 
   assert.equal(merged.docs_delivered_samhyeon, true);
   assert.equal(merged.docs_delivered_warehouse, true);
+});
+
+test("linked delivery status keeps the date from the row that set O", () => {
+  const cards = [
+    {
+      account_id: "hch",
+      bl_number: "BL-1",
+      folder_name: "HCH_BL-1_CIF_CTF",
+    },
+    {
+      account_id: "ctf",
+      bl_number: "BL-1",
+      folder_name: "HCH_BL-1_CIF_CTF",
+    },
+  ];
+  const merged = linkedRecords.mergeLinkedDeliveryStatus(cards[0], cards, [
+    {
+      account_id: "hch",
+      bl_number: "BL-1",
+      docs_delivered_samhyeon: true,
+      docs_delivered_samhyeon_date: "2026-07-22",
+      docs_delivered_warehouse: true,
+      docs_delivered_warehouse_date: "2026-07-23",
+      updated_at: "2026-07-23T01:00:00Z",
+    },
+    {
+      account_id: "ctf",
+      bl_number: "BL-1",
+      docs_delivered_samhyeon: false,
+      docs_delivered_samhyeon_date: null,
+      docs_delivered_warehouse: false,
+      docs_delivered_warehouse_date: null,
+      updated_at: "2026-07-30T01:00:00Z",
+    },
+  ]);
+
+  assert.equal(merged.docs_delivered_samhyeon, true);
+  assert.equal(merged.docs_delivered_samhyeon_date, "2026-07-22");
+  assert.equal(merged.docs_delivered_warehouse, true);
+  assert.equal(merged.docs_delivered_warehouse_date, "2026-07-23");
+});
+
+test("delivery date migration adds separate dates without backfilling old O rows", () => {
+  assert.match(deliveryDatesMigration, /docs_delivered_samhyeon_date\s+date/i);
+  assert.match(deliveryDatesMigration, /docs_delivered_warehouse_date\s+date/i);
+  assert.doesNotMatch(deliveryDatesMigration, /update\s+public\.cargo_card_user_inputs/i);
 });
 
 test("cargo APIs expose delivery state and account category", () => {
