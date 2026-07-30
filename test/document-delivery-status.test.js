@@ -178,6 +178,17 @@ test("delivery toggle stores or clears the matching delivery date", () => {
   );
 });
 
+test("delivery O exposes its saved input date on hover", () => {
+  assert.match(dashboard, /function progressDeliveryDateTitle/);
+  assert.match(dashboard, /`입력일 \$\{displayDate\(date\)\}`/);
+  assert.match(
+    dashboard,
+    /title="\$\{esc\(progressDeliveryDateTitle\(enabled,\s*date\)\)\}"/
+  );
+  assert.match(dashboard, /card\.docs_delivered_samhyeon_date/);
+  assert.match(dashboard, /card\.docs_delivered_warehouse_date/);
+});
+
 test("progress table places compact delivery controls immediately after state", () => {
   const headerStart = dashboard.indexOf('<th class="progress-long">진행상태</th>');
   const headerEnd = dashboard.indexOf('<th class="progress-short center progress-admin-only">동물검역</th>');

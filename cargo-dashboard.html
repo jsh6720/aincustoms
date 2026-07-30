@@ -1662,23 +1662,28 @@
         ? ` aria-describedby="progress-transport-detail-${cardIndex}-${field}"`
         : "";
     }
+    function progressDeliveryDateTitle(enabled, date) {
+      return enabled && calendarDate(date) ? `입력일 ${displayDate(date)}` : "";
+    }
     function progressDeliveryStatus(card) {
       const idx = currentCards.indexOf(card);
       const items = [
-        ["삼현", "samhyeon", card.docs_delivered_samhyeon === true],
-        ["창고", "warehouse", card.docs_delivered_warehouse === true],
+        ["삼현", "samhyeon", card.docs_delivered_samhyeon === true, card.docs_delivered_samhyeon_date],
+        ["창고", "warehouse", card.docs_delivered_warehouse === true, card.docs_delivered_warehouse_date],
       ];
       return `
         <td class="progress-delivery progress-admin-only">
           <div class="delivery-status">
-            ${items.map(([label, target, enabled]) => `
+            ${items.map(([label, target, enabled, date]) => `
               <span class="delivery-status-item">
                 <span class="delivery-status-label">${label}</span>
                 ${currentUserRole === "admin"
                   ? `<button type="button" class="doc-toggle ${enabled ? "doc-o" : "doc-x"}"
                       data-progress-delivery-target="${target}"
-                      data-card-index="${idx}">${enabled ? "O" : "X"}</button>`
-                  : `<span class="${enabled ? "doc-o" : "doc-x"}">${enabled ? "O" : "X"}</span>`}
+                      data-card-index="${idx}"
+                      title="${esc(progressDeliveryDateTitle(enabled, date))}">${enabled ? "O" : "X"}</button>`
+                  : `<span class="${enabled ? "doc-o" : "doc-x"}"
+                      title="${esc(progressDeliveryDateTitle(enabled, date))}">${enabled ? "O" : "X"}</span>`}
               </span>
             `).join("")}
           </div>
