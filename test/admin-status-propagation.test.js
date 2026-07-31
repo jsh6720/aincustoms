@@ -109,3 +109,57 @@ test("sticker status propagates only to linked account rows", { concurrency: fal
     assert.equal(item.sticker_requested, true);
   });
 });
+
+test("document delivery retries without date columns when the migration is missing", { concurrency: false }, async () => {
+  const savedPayloads = [];
+  const handler = loadHandler(async (url, options = {}) => {
+    if (url.includes("cargo_cards?select=*&")) {
+      return [{
+        account_id: "hch-account",
+        bl_number: "ONEYBNEG04197300",
+        folder_name: "HCH_ONEYBNEG04197300_CIF_CTF",
+      }];
+    }
+    if (url.includes("cargo_cards?select=account_id,bl_number,folder_name")) {
+      return [{
+        account_id: "hch-account",
+        bl_number: "ONEYBNEG04197300",
+        folder_name: "HCH_ONEYBNEG04197300_CIF_CTF",
+      }];
+    }
+    if (url.includes("cargo_card_user_inputs?on_conflict=")) {
+      const payload = JSON.parse(options.body);
+      savedPayloads.push(payload);
+      if (savedPayloads.length === 1) {
+        throw new Error(
+          'Could not find the "docs_delivered_samhyeon_date" column of "cargo_card_user_inputs"'
+        );
+      }
+      return payload;
+    }
+    throw new Error(`Unexpected Supabase call: ${url}`);
+  });
+  const response = responseFixture();
+
+  await handler({
+    method: "POST",
+    body: {
+      action: "admin_status",
+      account_id: "hch-account",
+      bl_number: "ONEYBNEG04197300",
+      docs_delivered_samhyeon: true,
+    },
+  }, response);
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.body.success, true);
+  assert.equal(response.body.delivery_dates_saved, false);
+  assert.equal(savedPayloads.length, 2);
+  assert.equal(savedPayloads[0][0].docs_delivered_samhyeon, true);
+  assert.match(savedPayloads[0][0].docs_delivered_samhyeon_date, /^\d{4}-\d{2}-\d{2}$/);
+  assert.equal(savedPayloads[1][0].docs_delivered_samhyeon, true);
+  assert.equal(
+    Object.prototype.hasOwnProperty.call(savedPayloads[1][0], "docs_delivered_samhyeon_date"),
+    false
+  );
+});

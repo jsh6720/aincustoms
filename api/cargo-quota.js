@@ -28,6 +28,14 @@ function isValidDate(value) {
   return /^\d{4}-\d{2}-\d{2}$/.test(value);
 }
 
+function isMissingDeliveryDateColumn(error) {
+  const message = String(error?.message || "");
+  return [
+    "docs_delivered_samhyeon_date",
+    "docs_delivered_warehouse_date",
+  ].some((name) => message.includes(name));
+}
+
 async function findOwnedCard(accountId, blNumber) {
   const account = encodeURIComponent(accountId);
   const bl = encodeURIComponent(blNumber);
@@ -219,18 +227,40 @@ module.exports = async function handler(req, res) {
           ...target,
           ...sharedPayload,
         }));
-        const rows = await supabaseFetch(
-          "/rest/v1/cargo_card_user_inputs?on_conflict=account_id,bl_number",
-          {
-            method: "POST",
-            headers: { Prefer: "resolution=merge-duplicates,return=representation" },
-            body: JSON.stringify(linkedPayloads),
-          }
-        );
+        let rows;
+        let deliveryDatesSaved = true;
+        try {
+          rows = await supabaseFetch(
+            "/rest/v1/cargo_card_user_inputs?on_conflict=account_id,bl_number",
+            {
+              method: "POST",
+              headers: { Prefer: "resolution=merge-duplicates,return=representation" },
+              body: JSON.stringify(linkedPayloads),
+            }
+          );
+        } catch (error) {
+          if (!isMissingDeliveryDateColumn(error)) throw error;
+          deliveryDatesSaved = false;
+          const compatiblePayloads = linkedPayloads.map((item) => {
+            const compatible = { ...item };
+            delete compatible.docs_delivered_samhyeon_date;
+            delete compatible.docs_delivered_warehouse_date;
+            return compatible;
+          });
+          rows = await supabaseFetch(
+            "/rest/v1/cargo_card_user_inputs?on_conflict=account_id,bl_number",
+            {
+              method: "POST",
+              headers: { Prefer: "resolution=merge-duplicates,return=representation" },
+              body: JSON.stringify(compatiblePayloads),
+            }
+          );
+        }
         return res.status(200).json({
           success: true,
           input: rows && rows[0] ? rows[0] : null,
           inputs: rows || [],
+          delivery_dates_saved: deliveryDatesSaved,
         });
       }
       const rows = await supabaseFetch(
