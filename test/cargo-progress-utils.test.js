@@ -108,7 +108,7 @@ test("Customs quarantine pass recognizes only the matching approved inspection t
   assert.equal(customsQuarantinePassed("", "food"), false);
 });
 
-test("Customs quarantine flags come from cargo progress text, not generic pass fields", () => {
+test("Customs quarantine flags retain both approvals from cumulative Customs fields", () => {
   assert.deepEqual(
     customsQuarantineFlags({
       prgs_stts: "검사/검역 식품의약품(합격)",
@@ -117,7 +117,7 @@ test("Customs quarantine flags come from cargo progress text, not generic pass f
     }),
     {
       progressText: "검사/검역 식품의약품(합격)",
-      animalPassed: false,
+      animalPassed: true,
       foodPassed: true,
     }
   );
