@@ -328,6 +328,8 @@ function applyOriginalDocs(cards, docs, cardRefs = cards) {
       obl_received: !!item?.obl_received,
       hc_received: !!item?.hc_received,
       transfer_received_override: item?.transfer_received_override ?? null,
+      transfer_received_updated_at: item?.transfer_received_updated_at || null,
+      transfer_received_updated_by: item?.transfer_received_updated_by || "",
       doc_transfer_received: item?.transfer_received_override === true
         ? true
         : (item?.transfer_received_override === false ? false : !!card.doc_transfer_received),

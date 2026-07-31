@@ -79,6 +79,28 @@ test("uses the originating receipt update instead of a later linked-account sync
   assert.equal(merged.receipt_updated_at, "2026-07-22T03:48:37.58407+00:00");
 });
 
+test("keeps the manual transfer override update time for dashboard hover text", () => {
+  const merged = mergeLinkedOriginalDocs(cards[0], cards, [
+    {
+      account_id: "hch",
+      bl_number: "MAEU721416461",
+      transfer_received_override: true,
+      updated_by: "aincustoms",
+      updated_at: "2026-07-31T02:15:00Z",
+    },
+    {
+      account_id: "ctf",
+      bl_number: "MAEU721416461",
+      transfer_received_override: null,
+      updated_by: "linked-account-sync",
+      updated_at: "2026-07-31T02:16:00Z",
+    },
+  ]);
+
+  assert.equal(merged.transfer_received_override, true);
+  assert.equal(merged.transfer_received_updated_at, "2026-07-31T02:15:00Z");
+});
+
 test("uses the latest request across linked filter accounts", () => {
   const request = latestLinkedRequest(cards[0], cards, [
     {

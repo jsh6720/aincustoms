@@ -1622,6 +1622,19 @@
       if (currentUserRole !== "admin") return docStatusLabel(received);
       return `<button type="button" class="doc-toggle ${received ? "doc-o" : "doc-x"}" title="${esc(date)}" data-doc-type="${esc(docType)}" onclick="saveProgressOriginalDoc(${currentCards.indexOf(card)}, this.dataset.docType)">${label}</button>`;
     }
+    function progressTransferDocToggle(card) {
+      const received = !!card.doc_transfer_received;
+      const hasManualOverride = card.transfer_received_override === true
+        || card.transfer_received_override === false;
+      const changedDate = hasManualOverride
+        ? koreaCalendarDate(card.transfer_received_updated_at)
+        : "";
+      const title = hasManualOverride
+        ? `수기 변경일 ${displayDate(changedDate)}`
+        : (received ? "폴더 서류 자동 인식" : "양도증 미수취");
+      if (currentUserRole !== "admin") return docStatusLabel(received);
+      return `<button type="button" class="doc-toggle ${received ? "doc-o" : "doc-x"}" title="${esc(title)}" onclick="saveProgressTransferDoc(${currentCards.indexOf(card)})">${received ? "O" : "X"}</button>`;
+    }
     function progressOblCarrierToggle(card) {
       const submitted = card.obl_carrier_submitted === true;
       const date = calendarDate(card.obl_carrier_submitted_date);
@@ -2308,7 +2321,7 @@
           <td class="progress-date">${progressOblCarrierToggle(card)}</td>
           <td class="progress-short center">${progressDocToggle(card, "obl")}</td>
           <td class="progress-short center">${progressDocToggle(card, "hc")}</td>
-          <td class="progress-short center">${docStatusLabel(!!card.doc_transfer_received)}</td>
+          <td class="progress-short center">${progressTransferDocToggle(card)}</td>
           <td class="progress-short center progress-admin-only progress-after-transfer">${progressManualStatusToggle(card, "animal")}</td>
           <td class="progress-short center progress-admin-only progress-after-transfer">${progressManualStatusToggle(card, "food")}</td>
           <td class="progress-short center progress-admin-only progress-after-transfer">${progressManualStatusToggle(card, "distribution")}</td>
@@ -3743,6 +3756,31 @@
       }
       closeReceiptMailModal();
       alert(`H/C 원본서류 수령 메일이 발송되었고 OBL/H/C가 수령 O로 저장되었습니다.${result.received_date ? ` (수령일 ${result.received_date})` : ""}`);
+      await loadData();
+    }
+    async function saveProgressTransferDoc(cardIndex) {
+      if (currentUserRole !== "admin") return;
+      const card = currentCards[cardIndex];
+      if (!card) return;
+      const received = !!card.doc_transfer_received;
+      if (received && !confirm(`${card.bl_number} 양도증 수취 상태를 X로 변경할까요?`)) return;
+      const response = await fetch("/api/cargo-original-docs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          account_id: card.account_id,
+          bl_number: card.bl_number,
+          obl_received: !!card.obl_received,
+          hc_received: !!card.hc_received,
+          actual_received_date: card.actual_received_date || "",
+          transfer_received_override: !received
+        })
+      });
+      const result = await response.json();
+      if (!result.success || result.transfer_override_saved === false) {
+        alert(result.warning || result.message || "양도증 수취 상태 저장에 실패했습니다.");
+        return;
+      }
       await loadData();
     }
 

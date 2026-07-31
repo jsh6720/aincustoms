@@ -261,6 +261,17 @@ test("progress transport editor renders role-specific save commands", () => {
   assert.match(saveBody, /confirmation_action/);
 });
 
+test("admin progress table can toggle transfer receipt and show its manual update date", () => {
+  assert.match(dashboard, /function progressTransferDocToggle\(card\)/);
+  assert.match(dashboard, /transfer_received_updated_at/);
+  assert.match(dashboard, /saveProgressTransferDoc\(/);
+  assert.match(dashboard, /transfer_received_override:\s*!received/);
+  assert.match(
+    dashboard,
+    /progressTransferDocToggle\(card\)/
+  );
+});
+
 test("progress transport cells render administrator confirmation controls and persistent styling", () => {
   assert.match(dashboard, /function progressConfirmedClass\(card, field\)/);
   assert.match(dashboard, /\.progress-field-confirmed\s*\{[^}]*border:\s*1px solid #dc2626/);

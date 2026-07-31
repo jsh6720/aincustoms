@@ -143,7 +143,7 @@ test("dashboard groups OBL receipt, BL original, H/C original, and transfer colu
   const row = dashboard.slice(rowStart, rowEnd);
   assert.match(
     row,
-    /progressOblCarrierToggle\(card\)\}<\/td>\s*<td[^>]*>\$\{progressDocToggle\(card, "obl"\)\}<\/td>\s*<td[^>]*>\$\{progressDocToggle\(card, "hc"\)\}<\/td>\s*<td[^>]*>\$\{docStatusLabel\(!!card\.doc_transfer_received\)\}/
+    /progressOblCarrierToggle\(card\)\}<\/td>\s*<td[^>]*>\$\{progressDocToggle\(card, "obl"\)\}<\/td>\s*<td[^>]*>\$\{progressDocToggle\(card, "hc"\)\}<\/td>\s*<td[^>]*>\$\{progressTransferDocToggle\(card\)\}/
   );
 });
 
