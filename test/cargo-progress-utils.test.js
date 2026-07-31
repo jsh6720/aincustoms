@@ -3,6 +3,7 @@ const assert = require("node:assert/strict");
 
 const {
   customsArrivalConfirmed,
+  customsQuarantineFlags,
   customsQuarantinePassed,
   effectiveArrivalDate,
   freeTimeExpiry,
@@ -105,6 +106,32 @@ test("Customs quarantine pass recognizes only the matching approved inspection t
     false
   );
   assert.equal(customsQuarantinePassed("", "food"), false);
+});
+
+test("Customs quarantine flags come from cargo progress text, not generic pass fields", () => {
+  assert.deepEqual(
+    customsQuarantineFlags({
+      prgs_stts: "검사/검역 식품의약품(합격)",
+      animal_quarantine: "합격",
+      food_quarantine: "합격",
+    }),
+    {
+      progressText: "검사/검역 식품의약품(합격)",
+      animalPassed: false,
+      foodPassed: true,
+    }
+  );
+  assert.deepEqual(
+    customsQuarantineFlags({
+      prgs_stts: "검사/검역 동물검역(합격)",
+      cscl_prgs_stts: "수입신고전",
+    }),
+    {
+      progressText: "검사/검역 동물검역(합격) 수입신고전",
+      animalPassed: true,
+      foodPassed: false,
+    }
+  );
 });
 
 test("progress cards sort by destination, ETA, milestone, and BL", () => {

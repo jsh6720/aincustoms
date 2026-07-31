@@ -78,6 +78,12 @@ test("manual inspection state remains editable when Customs has not approved it"
 });
 
 test("cargo data keeps raw Customs quarantine text and exposes approval flags", () => {
+  assert.match(cargoDataApi, /const customsQuarantine = customsQuarantineFlags\(card\)/);
+  assert.ok(
+    cargoDataApi.indexOf("const customsQuarantine = customsQuarantineFlags(card)") <
+      cargoDataApi.indexOf("if (!input)"),
+    "every cargo card should receive Customs quarantine flags before the no-input branch"
+  );
   assert.match(cargoDataApi, /animal_quarantine_customs_text/);
   assert.match(cargoDataApi, /food_quarantine_customs_text/);
   assert.match(cargoDataApi, /animal_quarantine_customs_passed/);

@@ -7,7 +7,7 @@ const {
 const { mergeDuplicateCargoCards } = require("../lib/cargo-card-merge");
 const {
   customsArrivalConfirmed,
-  customsQuarantinePassed,
+  customsQuarantineFlags,
 } = require("../lib/cargo-progress-utils");
 const { cargoUserInputsQuery } = require("../lib/cargo-user-input-query");
 const {
@@ -231,10 +231,22 @@ function applyUserInputs(cards, inputs, cardRefs = cards) {
   return (cards || []).map((card) => {
     const input = byBl.get(`${card.account_id || ""}|${card.bl_number}`) || byBl.get(`|${card.bl_number}`);
     const delivery = mergeLinkedDeliveryStatus(card, cardRefs, inputs);
+    const customsQuarantine = customsQuarantineFlags(card);
+    const customsQuarantineFields = {
+      animal_quarantine_customs_text: customsQuarantine.animalPassed
+        ? customsQuarantine.progressText
+        : "",
+      food_quarantine_customs_text: customsQuarantine.foodPassed
+        ? customsQuarantine.progressText
+        : "",
+      animal_quarantine_customs_passed: customsQuarantine.animalPassed,
+      food_quarantine_customs_passed: customsQuarantine.foodPassed,
+    };
     if (!input) {
       return {
         ...card,
         ...delivery,
+        ...customsQuarantineFields,
         free_time_days: 3,
         eta_date_user_entered: false,
       };
@@ -260,10 +272,7 @@ function applyUserInputs(cards, inputs, cardRefs = cards) {
       warehouse_expected_date_confirmed: input.warehouse_expected_date_confirmed === true,
       animal_quarantine_override: input.animal_quarantine_override || "",
       food_quarantine_override: input.food_quarantine_override || "",
-      animal_quarantine_customs_text: card.animal_quarantine || "",
-      food_quarantine_customs_text: card.food_quarantine || "",
-      animal_quarantine_customs_passed: customsQuarantinePassed(card.animal_quarantine, "animal"),
-      food_quarantine_customs_passed: customsQuarantinePassed(card.food_quarantine, "food"),
+      ...customsQuarantineFields,
       import_declaration_override: input.import_declaration_override || "",
       distribution_history_override: input.distribution_history_override || "",
       distribution_history_number: input.distribution_history_number || "",
