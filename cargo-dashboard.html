@@ -1544,10 +1544,11 @@
       if (!required) return `<span class="doc-na">-</span>`;
       return received ? `<span class="doc-o">O</span>` : `<span class="doc-x">X</span>`;
     }
-    function inspectionStatusLabel(status) {
-      if (status === "O") return `<span class="doc-o">O</span>`;
-      if (status === "△") return `<span class="doc-triangle">△</span>`;
-      return `<span class="doc-x">X</span>`;
+    function inspectionStatusLabel(status, sourceTitle = "") {
+      const title = sourceTitle ? ` title="${esc(sourceTitle)}"` : "";
+      if (status === "O") return `<span class="doc-o"${title}>O</span>`;
+      if (status === "△") return `<span class="doc-triangle"${title}>△</span>`;
+      return `<span class="doc-x"${title}>X</span>`;
     }
     function inspectionPassed(value) {
       const text = String(value || "").trim();
@@ -1575,6 +1576,9 @@
     function progressManualStatusToggle(card, type) {
       const idx = currentCards.indexOf(card);
       if (type === "animal") {
+        if (card.animal_quarantine_customs_passed === true) {
+          return inspectionStatusLabel("O", "관세청 확인");
+        }
         const lockedByApi = !card.animal_quarantine_override && inspectionPassed(card.animal_quarantine);
         const status = card.animal_quarantine_override || (inspectionPassed(card.animal_quarantine) ? "O" : "X");
         if (currentUserRole !== "admin" || lockedByApi) return inspectionStatusLabel(status);
@@ -1582,6 +1586,9 @@
         return `<button type="button" class="doc-toggle ${statusClass}" onclick="toggleProgressManualStatus(${idx}, 'animal')">${status}</button>`;
       }
       if (type === "food") {
+        if (card.food_quarantine_customs_passed === true) {
+          return inspectionStatusLabel("O", "관세청 확인");
+        }
         const lockedByApi = !card.food_quarantine_override && inspectionPassed(card.food_quarantine);
         const status = card.food_quarantine_override || (inspectionPassed(card.food_quarantine) ? "O" : "X");
         if (currentUserRole !== "admin" || lockedByApi) return inspectionStatusLabel(status);

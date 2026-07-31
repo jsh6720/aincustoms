@@ -3,6 +3,7 @@ const assert = require("node:assert/strict");
 
 const {
   customsArrivalConfirmed,
+  customsQuarantinePassed,
   effectiveArrivalDate,
   freeTimeExpiry,
   normalizeInspectionStatus,
@@ -84,6 +85,26 @@ test("inspection status accepts automatic, O, triangle, and X only", () => {
   assert.equal(normalizeInspectionStatus("△"), "△");
   assert.equal(normalizeInspectionStatus("x"), "X");
   assert.throws(() => normalizeInspectionStatus("pending"), /invalid inspection status/i);
+});
+
+test("Customs quarantine pass recognizes only the matching approved inspection text", () => {
+  assert.equal(
+    customsQuarantinePassed("검사/검역 동물검역(합격)", "animal"),
+    true
+  );
+  assert.equal(
+    customsQuarantinePassed("검사/검역\n 식품의약품 ( 합격 )", "food"),
+    true
+  );
+  assert.equal(
+    customsQuarantinePassed("검사/검역 동물검역(불합격)", "animal"),
+    false
+  );
+  assert.equal(
+    customsQuarantinePassed("검사/검역 식품의약품(합격)", "animal"),
+    false
+  );
+  assert.equal(customsQuarantinePassed("", "food"), false);
 });
 
 test("progress cards sort by destination, ETA, milestone, and BL", () => {

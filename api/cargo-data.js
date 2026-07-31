@@ -5,7 +5,10 @@ const {
   validateCalendarPreferences,
 } = require("../lib/cargo-calendar-preferences");
 const { mergeDuplicateCargoCards } = require("../lib/cargo-card-merge");
-const { customsArrivalConfirmed } = require("../lib/cargo-progress-utils");
+const {
+  customsArrivalConfirmed,
+  customsQuarantinePassed,
+} = require("../lib/cargo-progress-utils");
 const { cargoUserInputsQuery } = require("../lib/cargo-user-input-query");
 const {
   latestLinkedRequest,
@@ -257,6 +260,10 @@ function applyUserInputs(cards, inputs, cardRefs = cards) {
       warehouse_expected_date_confirmed: input.warehouse_expected_date_confirmed === true,
       animal_quarantine_override: input.animal_quarantine_override || "",
       food_quarantine_override: input.food_quarantine_override || "",
+      animal_quarantine_customs_text: card.animal_quarantine || "",
+      food_quarantine_customs_text: card.food_quarantine || "",
+      animal_quarantine_customs_passed: customsQuarantinePassed(card.animal_quarantine, "animal"),
+      food_quarantine_customs_passed: customsQuarantinePassed(card.food_quarantine, "food"),
       import_declaration_override: input.import_declaration_override || "",
       distribution_history_override: input.distribution_history_override || "",
       distribution_history_number: input.distribution_history_number || "",
