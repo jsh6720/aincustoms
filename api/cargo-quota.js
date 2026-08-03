@@ -36,6 +36,14 @@ function isMissingDeliveryDateColumn(error) {
   ].some((name) => message.includes(name));
 }
 
+function isMissingDeliveryTimestampColumn(error) {
+  const message = String(error?.message || "");
+  return [
+    "docs_delivered_samhyeon_at",
+    "docs_delivered_warehouse_at",
+  ].some((name) => message.includes(name));
+}
+
 async function findOwnedCard(accountId, blNumber) {
   const account = encodeURIComponent(accountId);
   const bl = encodeURIComponent(blNumber);
@@ -189,6 +197,10 @@ module.exports = async function handler(req, res) {
         docs_delivered_samhyeon: "docs_delivered_samhyeon_date",
         docs_delivered_warehouse: "docs_delivered_warehouse_date",
       };
+      const deliveryTimestampFields = {
+        docs_delivered_samhyeon: "docs_delivered_samhyeon_at",
+        docs_delivered_warehouse: "docs_delivered_warehouse_at",
+      };
       const sharedAdminFields = [
         "animal_quarantine_override",
         "food_quarantine_override",
@@ -198,6 +210,7 @@ module.exports = async function handler(req, res) {
         "sticker_requested",
         ...deliveryFields,
         ...Object.values(deliveryDateFields),
+        ...Object.values(deliveryTimestampFields),
       ];
       const hasSharedAdminChange = sharedAdminFields.some((field) => (
         Object.prototype.hasOwnProperty.call(body, field)
@@ -211,56 +224,93 @@ module.exports = async function handler(req, res) {
           });
         }
         payload[field] = body[field];
-        const dateField = deliveryDateFields[field];
-        payload[dateField] = body[field] ? koreaDate() : null;
       }
 
       if (hasSharedAdminChange) {
+        const targets = await linkedCardTargets(card);
+        const hasDeliveryChange = deliveryFields.some((field) => (
+          Object.prototype.hasOwnProperty.call(body, field)
+        ));
+        const existingInputs = hasDeliveryChange
+          ? await Promise.all(targets.map((target) => (
+              findManualInput(target.account_id, target.bl_number)
+            )))
+          : [];
+        const deliveryChangedAt = new Date().toISOString();
+        for (const field of deliveryFields) {
+          if (!Object.prototype.hasOwnProperty.call(body, field)) continue;
+          const dateField = deliveryDateFields[field];
+          const timestampField = deliveryTimestampFields[field];
+          const existingEnabled = existingInputs.find((item) => item?.[field] === true) || {};
+          if (body[field] === true) {
+            payload[dateField] = String(existingEnabled[dateField] || "").trim() || koreaDate();
+            payload[timestampField] =
+              String(existingEnabled[timestampField] || "").trim() || deliveryChangedAt;
+          } else {
+            payload[dateField] = null;
+            payload[timestampField] = null;
+          }
+        }
         const sharedPayload = {};
         for (const field of sharedAdminFields) {
           if (Object.prototype.hasOwnProperty.call(payload, field)) {
             sharedPayload[field] = payload[field];
           }
         }
-        const targets = await linkedCardTargets(card);
         const linkedPayloads = targets.map((target) => ({
           ...target,
           ...sharedPayload,
         }));
         let rows;
         let deliveryDatesSaved = true;
+        let deliveryTimestampsSaved = true;
+        const saveLinkedPayloads = (items) => supabaseFetch(
+          "/rest/v1/cargo_card_user_inputs?on_conflict=account_id,bl_number",
+          {
+            method: "POST",
+            headers: { Prefer: "resolution=merge-duplicates,return=representation" },
+            body: JSON.stringify(items),
+          }
+        );
+        const omitDeliveryTimestamps = (items) => items.map((item) => {
+          const compatible = { ...item };
+          delete compatible.docs_delivered_samhyeon_at;
+          delete compatible.docs_delivered_warehouse_at;
+          return compatible;
+        });
+        const omitDeliveryDates = (items) => omitDeliveryTimestamps(items).map((item) => {
+          const compatible = { ...item };
+          delete compatible.docs_delivered_samhyeon_date;
+          delete compatible.docs_delivered_warehouse_date;
+          return compatible;
+        });
         try {
-          rows = await supabaseFetch(
-            "/rest/v1/cargo_card_user_inputs?on_conflict=account_id,bl_number",
-            {
-              method: "POST",
-              headers: { Prefer: "resolution=merge-duplicates,return=representation" },
-              body: JSON.stringify(linkedPayloads),
-            }
-          );
+          rows = await saveLinkedPayloads(linkedPayloads);
         } catch (error) {
-          if (!isMissingDeliveryDateColumn(error)) throw error;
-          deliveryDatesSaved = false;
-          const compatiblePayloads = linkedPayloads.map((item) => {
-            const compatible = { ...item };
-            delete compatible.docs_delivered_samhyeon_date;
-            delete compatible.docs_delivered_warehouse_date;
-            return compatible;
-          });
-          rows = await supabaseFetch(
-            "/rest/v1/cargo_card_user_inputs?on_conflict=account_id,bl_number",
-            {
-              method: "POST",
-              headers: { Prefer: "resolution=merge-duplicates,return=representation" },
-              body: JSON.stringify(compatiblePayloads),
+          if (isMissingDeliveryTimestampColumn(error)) {
+            deliveryTimestampsSaved = false;
+            const compatiblePayloads = omitDeliveryTimestamps(linkedPayloads);
+            try {
+              rows = await saveLinkedPayloads(compatiblePayloads);
+            } catch (dateError) {
+              if (!isMissingDeliveryDateColumn(dateError)) throw dateError;
+              deliveryDatesSaved = false;
+              rows = await saveLinkedPayloads(omitDeliveryDates(linkedPayloads));
             }
-          );
+          } else if (isMissingDeliveryDateColumn(error)) {
+            deliveryDatesSaved = false;
+            deliveryTimestampsSaved = false;
+            rows = await saveLinkedPayloads(omitDeliveryDates(linkedPayloads));
+          } else {
+            throw error;
+          }
         }
         return res.status(200).json({
           success: true,
           input: rows && rows[0] ? rows[0] : null,
           inputs: rows || [],
           delivery_dates_saved: deliveryDatesSaved,
+          delivery_timestamps_saved: deliveryTimestampsSaved,
         });
       }
       const rows = await supabaseFetch(

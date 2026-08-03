@@ -18,6 +18,13 @@ const deliveryDatesMigrationPath = path.join(
 const deliveryDatesMigration = fs.existsSync(deliveryDatesMigrationPath)
   ? fs.readFileSync(deliveryDatesMigrationPath, "utf8")
   : "";
+const deliveryTimestampsMigrationPath = path.join(
+  root,
+  "supabase/migrations/20260803_add_document_delivery_timestamps.sql"
+);
+const deliveryTimestampsMigration = fs.existsSync(deliveryTimestampsMigrationPath)
+  ? fs.readFileSync(deliveryTimestampsMigrationPath, "utf8")
+  : "";
 const dashboard = fs.readFileSync(path.join(root, "cargo-dashboard.html"), "utf8");
 const cargoDataApi = fs.readFileSync(path.join(root, "api/cargo-data.js"), "utf8");
 const cargoLoginApi = fs.readFileSync(path.join(root, "api/cargo-login.js"), "utf8");
@@ -144,10 +151,49 @@ test("linked delivery status keeps the date from the row that set O", () => {
   assert.equal(merged.docs_delivered_warehouse_date, "2026-07-23");
 });
 
+test("linked delivery status keeps the timestamp from the row that first set O", () => {
+  const cards = [
+    { account_id: "hch", bl_number: "BL-1", folder_name: "HCH_BL-1_CIF_CTF" },
+    { account_id: "ctf", bl_number: "BL-1", folder_name: "HCH_BL-1_CIF_CTF" },
+  ];
+  const merged = linkedRecords.mergeLinkedDeliveryStatus(cards[0], cards, [
+    {
+      account_id: "hch",
+      bl_number: "BL-1",
+      docs_delivered_samhyeon: true,
+      docs_delivered_samhyeon_date: "2026-08-03",
+      docs_delivered_samhyeon_at: "2026-08-03T05:25:30.000Z",
+      docs_delivered_warehouse: true,
+      docs_delivered_warehouse_date: "2026-08-03",
+      docs_delivered_warehouse_at: "2026-08-03T06:10:00.000Z",
+      updated_at: "2026-08-03T06:10:00.000Z",
+    },
+    {
+      account_id: "ctf",
+      bl_number: "BL-1",
+      docs_delivered_samhyeon: false,
+      docs_delivered_warehouse: false,
+      updated_at: "2026-08-03T07:00:00.000Z",
+    },
+  ]);
+
+  assert.equal(merged.docs_delivered_samhyeon_at, "2026-08-03T05:25:30.000Z");
+  assert.equal(merged.docs_delivered_warehouse_at, "2026-08-03T06:10:00.000Z");
+});
+
 test("delivery date migration adds separate dates without backfilling old O rows", () => {
   assert.match(deliveryDatesMigration, /docs_delivered_samhyeon_date\s+date/i);
   assert.match(deliveryDatesMigration, /docs_delivered_warehouse_date\s+date/i);
   assert.doesNotMatch(deliveryDatesMigration, /update\s+public\.cargo_card_user_inputs/i);
+});
+
+test("delivery timestamp migration adds separate instants without backfilling old O rows", () => {
+  assert.match(deliveryTimestampsMigration, /docs_delivered_samhyeon_at\s+timestamptz/i);
+  assert.match(deliveryTimestampsMigration, /docs_delivered_warehouse_at\s+timestamptz/i);
+  assert.doesNotMatch(
+    deliveryTimestampsMigration,
+    /update\s+public\.cargo_card_user_inputs/i
+  );
 });
 
 test("cargo APIs expose delivery state and account category", () => {
@@ -168,25 +214,33 @@ test("cargo APIs expose delivery state and account category", () => {
   assert.match(cargoAdminApi, /if \(!String\(error\.message \|\| ""\)\.includes\("account_category"\)\) throw error/);
 });
 
-test("delivery toggle stores or clears the matching delivery date", () => {
+test("delivery toggle preserves first O date and timestamp or clears both with X", () => {
   assert.match(cargoQuotaApi, /docs_delivered_samhyeon_date/);
   assert.match(cargoQuotaApi, /docs_delivered_warehouse_date/);
+  assert.match(cargoQuotaApi, /docs_delivered_samhyeon_at/);
+  assert.match(cargoQuotaApi, /docs_delivered_warehouse_at/);
   assert.match(cargoQuotaApi, /const\s+deliveryDateFields\s*=\s*\{/);
   assert.match(
     cargoQuotaApi,
-    /payload\[dateField\]\s*=\s*body\[field\]\s*\?\s*koreaDate\(\)\s*:\s*null/
+    /payload\[dateField\]\s*=\s*String\(existingEnabled\[dateField\]/
   );
+  assert.match(cargoQuotaApi, /payload\[timestampField\]\s*=/);
+  assert.match(cargoQuotaApi, /payload\[dateField\]\s*=\s*null/);
+  assert.match(cargoQuotaApi, /payload\[timestampField\]\s*=\s*null/);
 });
 
-test("delivery O exposes its saved input date on hover", () => {
+test("delivery O exposes its saved Korean input timestamp on hover", () => {
   assert.match(dashboard, /function progressDeliveryDateTitle/);
+  assert.match(dashboard, /`입력일시 \$\{displayDateTime\(timestamp\)\}`/);
   assert.match(dashboard, /`입력일 \$\{displayDate\(date\)\}`/);
   assert.match(
     dashboard,
-    /title="\$\{esc\(progressDeliveryDateTitle\(enabled,\s*date\)\)\}"/
+    /title="\$\{esc\(progressDeliveryDateTitle\(enabled,\s*timestamp,\s*date\)\)\}"/
   );
   assert.match(dashboard, /card\.docs_delivered_samhyeon_date/);
+  assert.match(dashboard, /card\.docs_delivered_samhyeon_at/);
   assert.match(dashboard, /card\.docs_delivered_warehouse_date/);
+  assert.match(dashboard, /card\.docs_delivered_warehouse_at/);
 });
 
 test("progress table places compact delivery controls immediately after state", () => {

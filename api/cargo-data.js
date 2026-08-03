@@ -141,6 +141,20 @@ async function fetchUserInputs(accountId) {
   try {
     return await supabaseFetch(cargoUserInputsQuery(accountId));
   } catch (error) {
+    if (["docs_delivered_samhyeon_at", "docs_delivered_warehouse_at"].some((name) => String(error.message || "").includes(name))) {
+      try {
+        return await supabaseFetch(cargoUserInputsQuery(accountId, {
+          omitDocumentDeliveryTimestamps: true,
+        }));
+      } catch (dateError) {
+        if (!["docs_delivered_samhyeon_date", "docs_delivered_warehouse_date"].some((name) => String(dateError.message || "").includes(name))) {
+          throw dateError;
+        }
+        return await supabaseFetch(cargoUserInputsQuery(accountId, {
+          omitDocumentDeliveryDates: true,
+        }));
+      }
+    }
     if (["docs_delivered_samhyeon_date", "docs_delivered_warehouse_date"].some((name) => String(error.message || "").includes(name))) {
       return await supabaseFetch(cargoUserInputsQuery(accountId, {
         omitDocumentDeliveryDates: true,
