@@ -1700,7 +1700,9 @@
       if (String(timestamp || "").trim()) {
         return `입력일시 ${displayDateTime(timestamp)}`;
       }
-      return calendarDate(date) ? `입력일 ${displayDate(date)}` : "";
+      return calendarDate(date)
+        ? `입력일 ${displayDate(date)}`
+        : "기존 O · 입력시각 미기록";
     }
     function progressDeliveryStatus(card) {
       const idx = currentCards.indexOf(card);

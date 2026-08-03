@@ -233,6 +233,7 @@ test("delivery O exposes its saved Korean input timestamp on hover", () => {
   assert.match(dashboard, /function progressDeliveryDateTitle/);
   assert.match(dashboard, /`입력일시 \$\{displayDateTime\(timestamp\)\}`/);
   assert.match(dashboard, /`입력일 \$\{displayDate\(date\)\}`/);
+  assert.match(dashboard, /기존 O · 입력시각 미기록/);
   assert.match(
     dashboard,
     /title="\$\{esc\(progressDeliveryDateTitle\(enabled,\s*timestamp,\s*date\)\)\}"/
