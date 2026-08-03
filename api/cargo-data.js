@@ -226,11 +226,11 @@ async function fetchLifecycle(accountId) {
   }
 }
 
-function applyUserInputs(cards, inputs, cardRefs = cards) {
+function applyUserInputs(cards, inputs, cardRefs = cards, deliveryInputs = inputs) {
   const byBl = new Map((inputs || []).map((item) => [`${item.account_id || ""}|${item.bl_number}`, item]));
   return (cards || []).map((card) => {
     const input = byBl.get(`${card.account_id || ""}|${card.bl_number}`) || byBl.get(`|${card.bl_number}`);
-    const delivery = mergeLinkedDeliveryStatus(card, cardRefs, inputs);
+    const delivery = mergeLinkedDeliveryStatus(card, cardRefs, deliveryInputs);
     const customsQuarantine = customsQuarantineFlags(card);
     const customsQuarantineFields = {
       animal_quarantine_customs_text: customsQuarantine.animalPassed
@@ -498,7 +498,12 @@ module.exports = async function handler(req, res) {
       : await supabaseFetch(
           "/rest/v1/cargo_cards?select=account_id,bl_number,folder_name"
         );
-    const userInputs = await fetchUserInputs(readsAllCargo ? null : accountId);
+    const allUserInputs = await fetchUserInputs(null);
+    const userInputs = readsAllCargo
+      ? allUserInputs
+      : (allUserInputs || []).filter(
+          (item) => String(item.account_id || "") === String(session.account_id || "")
+        );
     const lifecycleRows = await fetchLifecycle(readsAllCargo ? null : accountId);
     const importRequests = await fetchImportRequests(readsAllCargo ? null : accountId);
     const originalDocs = await fetchOriginalDocs(null);
@@ -511,7 +516,10 @@ module.exports = async function handler(req, res) {
     const enrichedCards = applyLifecycle(
       applyOriginalDocs(
         applyOriginalDocRequests(
-          applyImportRequests(applyUserInputs(cardsWithDocStatus, userInputs, cardRefs), importRequests),
+          applyImportRequests(
+            applyUserInputs(cardsWithDocStatus, userInputs, cardRefs, allUserInputs),
+            importRequests
+          ),
           originalDocRequests,
           cardRefs
         ),
