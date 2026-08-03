@@ -2,6 +2,10 @@ const nodemailer = require("nodemailer");
 const { requireWritableSession, supabaseFetch } = require("../lib/cargo-auth");
 const { koreaDate, normalizeIsoDate } = require("../lib/cargo-request-utils");
 const { fetchMailSetting, resolveMailRecipients } = require("../lib/cargo-mail-settings");
+const {
+  isImportProgressStatus,
+  verifySyncSignature,
+} = require("../lib/cargo-import-progress-notification");
 
 const ALLOWED_STAGES = ["입항", "반입"];
 
@@ -76,6 +80,136 @@ function buildMail(card, request, session) {
   };
 }
 
+function buildAutomaticProgressMail(card) {
+  const lines = [
+    "수입신고 진행이 확인되어 안내드립니다.",
+    "",
+    "[화물 정보]",
+    `화주명: ${card.consignee || "현대코퍼레이션H"}`,
+    `B/L: ${card.bl_number || "-"}`,
+    `납품처: ${card.destination || "-"}`,
+    `품명: ${card.product_name || "-"}`,
+    `진행상태: ${card.prgs_stts || "-"}`,
+    `확인시각: ${new Date().toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })}`,
+  ];
+  return {
+    subject: `[수입신고 진행 안내] ${card.consignee || "현대코퍼레이션H"} / ${card.bl_number || ""}`,
+    text: lines.join("\n"),
+  };
+}
+
+async function updateNotification(eventId, payload) {
+  return supabaseFetch(
+    `/rest/v1/cargo_status_notifications?id=eq.${encodeURIComponent(eventId)}`,
+    {
+      method: "PATCH",
+      headers: { Prefer: "return=representation" },
+      body: JSON.stringify(payload),
+    }
+  );
+}
+
+async function sendAutomaticProgressMail(card) {
+  const host = env("SMTP_HOST");
+  const user = env("SMTP_USER");
+  const pass = env("SMTP_PASS");
+  if (!host || !user || !pass) {
+    throw new Error("메일 환경변수가 설정되지 않았습니다.");
+  }
+
+  const setting = await fetchMailSetting(supabaseFetch, "original_doc_receipt");
+  const recipients = resolveMailRecipients({
+    setting,
+    fallbackTo: ["dmswk@hyundaicorp.com", "ye25@hyundaicorp.com"],
+    fallbackCc: ["jsh@aincustoms.com", "jhcho@aincustoms.com", "bill@aincustoms.com"],
+  });
+  if (!recipients.to.length) {
+    throw new Error("수입신고 진행 안내 수신처가 설정되지 않았습니다.");
+  }
+
+  const transporter = nodemailer.createTransport({
+    host,
+    port: Number(env("SMTP_PORT") || 465),
+    secure: String(env("SMTP_SECURE") || "true").toLowerCase() !== "false",
+    auth: { user, pass },
+  });
+  const mail = buildAutomaticProgressMail(card);
+  await transporter.sendMail({
+    from: env("MAIL_FROM") || user,
+    to: recipients.to.join(","),
+    cc: recipients.cc.length ? recipients.cc.join(",") : undefined,
+    subject: mail.subject,
+    text: mail.text,
+  });
+}
+
+async function handleAutomaticProgressNotice(req, res, body) {
+  const eventId = String(body.event_id || "").trim();
+  const timestamp = String(req.headers?.["x-cargo-sync-timestamp"] || "").trim();
+  const signature = String(req.headers?.["x-cargo-sync-signature"] || "").trim();
+  if (!verifySyncSignature({
+    secret: env("SUPABASE_SERVICE_ROLE_KEY"),
+    timestamp,
+    eventId,
+    signature,
+  })) {
+    return res.status(401).json({ success: false, message: "Invalid sync signature" });
+  }
+
+  const events = await supabaseFetch(
+    `/rest/v1/cargo_status_notifications?select=*&id=eq.${encodeURIComponent(eventId)}&event_type=eq.import_progress_started&limit=1`
+  );
+  const event = events && events[0];
+  if (!event) {
+    return res.status(404).json({ success: false, message: "알림 이벤트를 찾을 수 없습니다." });
+  }
+  if (event.status === "sent") {
+    return res.status(200).json({ success: true, email_sent: false, deduplicated: true });
+  }
+
+  const accounts = await supabaseFetch(
+    `/rest/v1/shipper_accounts?select=id,login_id,display_name&id=eq.${encodeURIComponent(event.account_id)}&limit=1`
+  );
+  const account = accounts && accounts[0];
+  if (!account || String(account.login_id || "").trim().toUpperCase() !== "HCH") {
+    return res.status(403).json({ success: false, message: "HCH 알림 이벤트가 아닙니다." });
+  }
+
+  const cards = await supabaseFetch(
+    `/rest/v1/cargo_cards?select=*&account_id=eq.${encodeURIComponent(event.account_id)}&bl_number=eq.${encodeURIComponent(event.bl_number)}&limit=1`
+  );
+  const card = cards && cards[0];
+  if (!card || !isImportProgressStatus(card.prgs_stts)) {
+    return res.status(409).json({ success: false, message: "현재 수입신고 진행 상태를 확인할 수 없습니다." });
+  }
+
+  const attemptedAt = new Date().toISOString();
+  const attemptCount = Number(event.attempt_count || 0) + 1;
+  try {
+    await sendAutomaticProgressMail(card);
+    await updateNotification(event.id, {
+      status: "sent",
+      attempt_count: attemptCount,
+      last_attempt_at: attemptedAt,
+      sent_at: attemptedAt,
+      error_message: null,
+    });
+    return res.status(200).json({ success: true, email_sent: true, deduplicated: false });
+  } catch (error) {
+    try {
+      await updateNotification(event.id, {
+        status: "failed",
+        attempt_count: attemptCount,
+        last_attempt_at: attemptedAt,
+        error_message: String(error.message || error).slice(0, 2000),
+      });
+    } catch {
+      // The caller will retry the pending event even if failure bookkeeping is unavailable.
+    }
+    return res.status(502).json({ success: false, email_sent: false, message: error.message });
+  }
+}
+
 async function sendMail(card, request, session, account) {
   const host = env("SMTP_HOST");
   const user = env("SMTP_USER");
@@ -117,10 +251,14 @@ module.exports = async function handler(req, res) {
   }
 
   try {
+    const body = typeof req.body === "string" ? JSON.parse(req.body || "{}") : (req.body || {});
+    if (body.action === "auto_import_progress_notice") {
+      return await handleAutomaticProgressNotice(req, res, body);
+    }
+
     const session = requireWritableSession(req, res);
     if (!session) return;
 
-    const body = typeof req.body === "string" ? JSON.parse(req.body || "{}") : (req.body || {});
     const blNumber = String(body.bl_number || "").trim();
     const memo = String(body.memo || "").trim().slice(0, 1000);
     const requesterName = String(body.requester_name || "").trim().slice(0, 120);

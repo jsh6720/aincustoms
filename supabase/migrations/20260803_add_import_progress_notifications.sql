@@ -44,3 +44,32 @@ alter table public.cargo_status_notifications enable row level security;
 revoke all on table public.cargo_status_notifications from anon, authenticated;
 grant all on table public.cargo_status_notifications to service_role;
 
+-- Baseline cards already in progress at rollout so historical mail is not sent.
+-- New HCH cards first observed in progress after this migration remain eligible.
+insert into public.cargo_status_notifications (
+  event_key,
+  event_type,
+  account_id,
+  bl_number,
+  detected_status,
+  status,
+  card_snapshot,
+  sent_at,
+  error_message
+)
+select
+  'hch:import_progress_started:' || upper(regexp_replace(c.bl_number, '\s+', '', 'g')),
+  'import_progress_started',
+  c.account_id,
+  upper(regexp_replace(c.bl_number, '\s+', '', 'g')),
+  c.prgs_stts,
+  'sent',
+  jsonb_build_object('rollout_baseline', true),
+  now(),
+  'rollout baseline: historical mail suppressed'
+from public.cargo_cards c
+join public.shipper_accounts a on a.id = c.account_id
+where upper(trim(a.login_id)) = 'HCH'
+  and c.prgs_stts in ('수입신고', '수입(사용소비) 심사진행')
+  and nullif(trim(c.bl_number), '') is not null
+on conflict (event_key) do nothing;
