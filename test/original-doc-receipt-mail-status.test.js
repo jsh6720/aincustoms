@@ -32,6 +32,16 @@ function loadReceiptHandler({ supabaseFetch, sendMail }) {
     }
     if (parent?.filename === receiptHandlerPath && request === "../lib/cargo-mail-settings") {
       return {
+        defaultMailSettings: () => ({
+          original_doc_receipt: {
+            to: ["to@example.com"],
+            cc: ["cc@example.com"],
+          },
+          obl_carrier_receipt: {
+            to: ["to@example.com"],
+            cc: ["cc@example.com"],
+          },
+        }),
         fetchMailSetting: async () => null,
         resolveMailRecipients: () => ({
           to: ["to@example.com"],

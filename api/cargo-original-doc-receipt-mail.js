@@ -1,22 +1,15 @@
 const nodemailer = require("nodemailer");
 const { verifySession, supabaseFetch } = require("../lib/cargo-auth");
 const { destinationName, parseRecipientList } = require("../lib/cargo-mail-utils");
-const { fetchMailSetting, resolveMailRecipients } = require("../lib/cargo-mail-settings");
+const {
+  defaultMailSettings,
+  fetchMailSetting,
+  resolveMailRecipients,
+} = require("../lib/cargo-mail-settings");
 const {
   koreaDate,
   markLinkedOriginalDocsReceived,
 } = require("../lib/cargo-original-doc-receipt");
-
-const RECEIPT_TO = [
-  "dmswk@hyundaicorp.com",
-  "ye25@hyundaicorp.com",
-];
-
-const RECEIPT_CC = [
-  "jsh@aincustoms.com",
-  "jhcho@aincustoms.com",
-  "bill@aincustoms.com",
-];
 
 function env(name) {
   return process.env[name] || "";
@@ -127,10 +120,11 @@ async function sendMail(mail, additionalRecipients, action) {
     ? "obl_carrier_receipt"
     : "original_doc_receipt";
   const setting = await fetchMailSetting(supabaseFetch, settingKey);
+  const fallback = defaultMailSettings(process.env)[settingKey];
   const recipients = resolveMailRecipients({
     setting,
-    fallbackTo: RECEIPT_TO,
-    fallbackCc: RECEIPT_CC,
+    fallbackTo: fallback.to,
+    fallbackCc: fallback.cc,
     extraTo: additionalRecipients,
   });
   await transporter.sendMail({

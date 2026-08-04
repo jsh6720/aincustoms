@@ -5,6 +5,7 @@ const path = require("node:path");
 
 const {
   MAIL_SETTING_KEYS,
+  effectiveMailSettings,
   normalizeMailSettings,
   resolveMailRecipients,
 } = require("../lib/cargo-mail-settings");
@@ -67,6 +68,60 @@ test("mail settings normalize known keys and recipient fields", () => {
       release_request: {
         to: ["ops@example.com"],
         cc: ["audit@example.com"],
+      },
+    }
+  );
+});
+
+test("effective mail settings show saved recipients and current delivery fallbacks", () => {
+  assert.deepEqual(
+    effectiveMailSettings(
+      [
+        {
+          setting_key: "release_request",
+          to_recipients: "saved@example.com",
+          cc_recipients: "",
+        },
+        {
+          setting_key: "original_doc_receipt",
+          to_recipients: "",
+          cc_recipients: "saved-audit@example.com",
+        },
+      ],
+      {
+        RELEASE_REQUEST_TO: "ops1@example.com,ops2@example.com",
+        NOTIFY_TO: "notify@example.com",
+        SMTP_USER: "sender@example.com",
+      }
+    ),
+    {
+      original_doc_request: {
+        to: ["ops1@example.com", "ops2@example.com", "notify@example.com", "sender@example.com"],
+        cc: [],
+      },
+      import_request: {
+        to: ["ops1@example.com", "ops2@example.com", "notify@example.com", "sender@example.com"],
+        cc: [],
+      },
+      release_request: {
+        to: ["saved@example.com"],
+        cc: [],
+      },
+      warehouse_change: {
+        to: ["jsh@aincustoms.com", "jhcho@aincustoms.com", "bill@aincustoms.com", "ain@aincustoms.com"],
+        cc: [],
+      },
+      arrival_schedule_change: {
+        to: [],
+        cc: [],
+      },
+      original_doc_receipt: {
+        to: ["dmswk@hyundaicorp.com", "ye25@hyundaicorp.com"],
+        cc: ["saved-audit@example.com"],
+      },
+      obl_carrier_receipt: {
+        to: ["dmswk@hyundaicorp.com", "ye25@hyundaicorp.com"],
+        cc: ["jsh@aincustoms.com", "jhcho@aincustoms.com", "bill@aincustoms.com"],
       },
     }
   );
@@ -157,8 +212,10 @@ test("dashboard and mobile normalize compact OBL date inputs", () => {
 
 test("admin API and screen manage function-specific mail settings", () => {
   assert.match(adminApi, /cargo_mail_settings/);
+  assert.match(adminApi, /effectiveMailSettings/);
   assert.match(adminApi, /action\s*===\s*"mail_settings"/);
   assert.match(dashboard, /기능별 메일 수신처/);
+  assert.match(dashboard, /현재 실제 발송에 적용되는 주소/);
   assert.match(dashboard, /saveAdminMailSettings/);
   assert.match(dashboard, /입항일 변경 안내 \(To=화주, CC=납품처\)/);
 });
@@ -167,5 +224,6 @@ test("every configured mail function is wired to its delivery API", () => {
   for (const [settingKey, source] of Object.entries(mailApiSources)) {
     assert.match(source, new RegExp(`["']${settingKey}["']`));
     assert.match(source, /resolveMailRecipients/);
+    assert.match(source, /defaultMailSettings/);
   }
 });

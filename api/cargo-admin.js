@@ -1,7 +1,7 @@
 const { verifySession, supabaseFetch } = require("../lib/cargo-auth");
 const {
   MAIL_SETTING_KEYS,
-  normalizeMailSettings,
+  effectiveMailSettings,
 } = require("../lib/cargo-mail-settings");
 const { parseRecipientList } = require("../lib/cargo-mail-utils");
 
@@ -54,7 +54,7 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({
         success: true,
         accounts: accounts || [],
-        mail_settings: normalizeMailSettings(mailSettingRows),
+        mail_settings: effectiveMailSettings(mailSettingRows, process.env),
       });
     }
 
@@ -80,7 +80,7 @@ module.exports = async function handler(req, res) {
         );
         return res.status(200).json({
           success: true,
-          mail_settings: normalizeMailSettings(saved || rows),
+          mail_settings: effectiveMailSettings(saved || rows, process.env),
         });
       }
 

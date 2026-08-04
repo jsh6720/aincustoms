@@ -1,6 +1,10 @@
 const nodemailer = require("nodemailer");
 const { requireWritableSession, supabaseFetch } = require("../lib/cargo-auth");
-const { fetchMailSetting, resolveMailRecipients } = require("../lib/cargo-mail-settings");
+const {
+  defaultMailSettings,
+  fetchMailSetting,
+  resolveMailRecipients,
+} = require("../lib/cargo-mail-settings");
 
 function env(name) {
   return process.env[name] || "";
@@ -73,10 +77,12 @@ async function sendMail(card, request, session, account) {
   const user = env("SMTP_USER");
   const pass = env("SMTP_PASS");
   const setting = await fetchMailSetting(supabaseFetch, "release_request");
+  const fallback = defaultMailSettings(process.env).release_request;
   const recipients = resolveMailRecipients({
     accountOverride: account?.release_request_to || session.release_request_to,
     setting,
-    fallbackTo: [env("RELEASE_REQUEST_TO"), env("NOTIFY_TO"), user],
+    fallbackTo: fallback.to,
+    fallbackCc: fallback.cc,
     extraCc: request.requester_email,
   });
   if (!host || !user || !pass || !recipients.to.length) {

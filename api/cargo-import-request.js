@@ -1,7 +1,11 @@
 const nodemailer = require("nodemailer");
 const { requireWritableSession, supabaseFetch } = require("../lib/cargo-auth");
 const { koreaDate, normalizeIsoDate } = require("../lib/cargo-request-utils");
-const { fetchMailSetting, resolveMailRecipients } = require("../lib/cargo-mail-settings");
+const {
+  defaultMailSettings,
+  fetchMailSetting,
+  resolveMailRecipients,
+} = require("../lib/cargo-mail-settings");
 const {
   isImportProgressStatus,
   verifySyncSignature,
@@ -118,10 +122,11 @@ async function sendAutomaticProgressMail(card) {
   }
 
   const setting = await fetchMailSetting(supabaseFetch, "original_doc_receipt");
+  const fallback = defaultMailSettings(process.env).original_doc_receipt;
   const recipients = resolveMailRecipients({
     setting,
-    fallbackTo: ["dmswk@hyundaicorp.com", "ye25@hyundaicorp.com"],
-    fallbackCc: ["jsh@aincustoms.com", "jhcho@aincustoms.com", "bill@aincustoms.com"],
+    fallbackTo: fallback.to,
+    fallbackCc: fallback.cc,
   });
   if (!recipients.to.length) {
     throw new Error("수입신고 진행 안내 수신처가 설정되지 않았습니다.");
@@ -215,10 +220,12 @@ async function sendMail(card, request, session, account) {
   const user = env("SMTP_USER");
   const pass = env("SMTP_PASS");
   const setting = await fetchMailSetting(supabaseFetch, "import_request");
+  const fallback = defaultMailSettings(process.env).import_request;
   const recipients = resolveMailRecipients({
     accountOverride: account?.release_request_to || session.release_request_to,
     setting,
-    fallbackTo: [env("RELEASE_REQUEST_TO"), env("NOTIFY_TO"), user],
+    fallbackTo: fallback.to,
+    fallbackCc: fallback.cc,
     extraCc: request.requester_email,
   });
   if (!host || !user || !pass || !recipients.to.length) {

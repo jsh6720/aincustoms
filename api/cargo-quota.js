@@ -7,17 +7,14 @@ const {
   mergeManualFields,
   warehouseChanges,
 } = require("../lib/cargo-mail-utils");
-const { fetchMailSetting, resolveMailRecipients } = require("../lib/cargo-mail-settings");
+const {
+  defaultMailSettings,
+  fetchMailSetting,
+  resolveMailRecipients,
+} = require("../lib/cargo-mail-settings");
 const { normalizeInspectionStatus } = require("../lib/cargo-progress-utils");
 const { koreaDate } = require("../lib/cargo-request-utils");
 const { effectiveStorageYard } = require("../lib/cargo-warehouse-utils");
-
-const WAREHOUSE_CHANGE_TO = [
-  "jsh@aincustoms.com",
-  "jhcho@aincustoms.com",
-  "bill@aincustoms.com",
-  "ain@aincustoms.com",
-];
 
 const CONFIRMABLE_FIELDS = {
   eta_date: "eta_date_confirmed",
@@ -115,9 +112,11 @@ async function sendWarehouseChangeMail(card, session, previous, next) {
     auth: { user, pass },
   });
   const setting = await fetchMailSetting(supabaseFetch, "warehouse_change");
+  const fallback = defaultMailSettings(process.env).warehouse_change;
   const recipients = resolveMailRecipients({
     setting,
-    fallbackTo: WAREHOUSE_CHANGE_TO,
+    fallbackTo: fallback.to,
+    fallbackCc: fallback.cc,
   });
   if (!recipients.to.length) {
     throw new Error("반입예정 정보 변경 메일 수신처가 설정되지 않았습니다.");
