@@ -32,14 +32,29 @@ function formatWeight(value, unit) {
   return `${parsed.toLocaleString("ko-KR", { maximumFractionDigits: 1 })}${unit || "KG"}`;
 }
 
-function buildMail(card, totalPages, memo) {
+const RECEIPT_DOCUMENTS = {
+  obl: { subject: "OBL", body: "OBL" },
+  hc: { subject: "H/C", body: "H/C(위생증, 검역증)" },
+  transfer: { subject: "양도증", body: "양도증" },
+};
+
+function normalizeReceivedDocuments(value) {
+  const requested = Array.isArray(value) ? value.map((item) => cleanText(item, 20)) : [];
+  const selected = Object.keys(RECEIPT_DOCUMENTS).filter((key) => requested.includes(key));
+  return selected.length ? selected : ["hc"];
+}
+
+function buildMail(card, totalPages, memo, receivedDocuments) {
   const consignee = card.consignee || "-";
   const blNumber = card.bl_number || "-";
+  const documents = normalizeReceivedDocuments(receivedDocuments);
+  const subjectDocuments = documents.map((key) => RECEIPT_DOCUMENTS[key].subject).join("·");
+  const bodyDocuments = documents.map((key) => RECEIPT_DOCUMENTS[key].body).join(", ");
   const lines = [
     "안녕하세요.",
     "",
-    "아래 건의 H/C(위생증, 검역증) 원본 서류를 수령하였습니다.",
-    `수령한 H/C 원본 서류 전체 페이지: ${totalPages} page`,
+    `아래 건의 ${bodyDocuments} 원본 서류를 수령하였습니다.`,
+    `수령한 원본 서류 전체 페이지: ${totalPages} page`,
     "",
     "[화물 정보]",
     `화주명: ${consignee}`,
@@ -59,7 +74,7 @@ function buildMail(card, totalPages, memo) {
   ];
 
   return {
-    subject: `[H/C 원본서류 수령 확인] ${consignee} / ${blNumber}`,
+    subject: `[${subjectDocuments} 원본서류 수령 확인] ${consignee} / ${blNumber}`,
     text: lines.join("\n"),
   };
 }
@@ -150,6 +165,7 @@ module.exports = async function handler(req, res) {
     const action = cleanText(body.action, 80) || "hc_receipt";
     const submittedDate = cleanText(body.obl_carrier_submitted_date, 20);
     const additionalRecipients = parseRecipientList(cleanText(body.additional_recipients, 1500));
+    const receivedDocuments = normalizeReceivedDocuments(body.received_documents);
 
     if (!accountId || !blNumber) {
       return res.status(400).json({ success: false, message: "카드 정보가 올바르지 않습니다." });
@@ -176,7 +192,7 @@ module.exports = async function handler(req, res) {
     const card = cards[0];
     const mail = action === "obl_carrier_submission"
       ? buildOblCarrierMail(card, submittedDate, memo)
-      : buildMail(card, totalPages, memo);
+      : buildMail(card, totalPages, memo, receivedDocuments);
     await sendMail(mail, additionalRecipients, action);
     if (action === "hc_receipt") {
       const receivedDate = koreaDate();

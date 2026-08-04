@@ -635,7 +635,7 @@
   </div>
   <div id="receiptMailModalBg" class="modal-bg">
     <div class="modal">
-      <h2>H/C 원본서류 수령 메일</h2>
+      <h2 id="receiptMailModalTitle">원본서류 수령 확인 메일</h2>
       <div id="receiptMailModalCard" class="modal-card"></div>
       <div class="modal-field">
         <label for="receiptMailPages">수령한 전체 페이지</label>
@@ -3720,6 +3720,7 @@
       document.getElementById("receiptMailPages").value = "";
       document.getElementById("receiptMailMemo").value = "";
       document.getElementById("receiptMailAdditionalRecipients").value = "";
+      document.getElementById("receiptMailModalTitle").textContent = `${receiptMailDocumentLabels(receiptMailCard).join("·")} 원본서류 수령 확인 메일`;
       document.getElementById("receiptMailModalCard").innerHTML = `
         <div class="modal-row"><b>화주명</b><span>${esc(displayConsignee(receiptMailCard.consignee))}</span></div>
         <div class="modal-row"><b>B/L</b><span>${esc(receiptMailCard.bl_number || "-")}</span></div>
@@ -3732,6 +3733,17 @@
     function closeReceiptMailModal() {
       document.getElementById("receiptMailModalBg").style.display = "none";
       receiptMailCard = null;
+    }
+    function receiptMailDocumentTypes(card) {
+      const documents = [];
+      if (card?.obl_received === true) documents.push("obl");
+      if (card?.hc_received === true) documents.push("hc");
+      if (card?.doc_transfer_received === true) documents.push("transfer");
+      return documents.length ? documents : ["hc"];
+    }
+    function receiptMailDocumentLabels(card) {
+      const labels = { obl: "OBL", hc: "H/C", transfer: "양도증" };
+      return receiptMailDocumentTypes(card).map((key) => labels[key]);
     }
     async function submitReceiptMail() {
       if (!receiptMailCard) return;
@@ -3747,6 +3759,7 @@
           account_id: receiptMailCard.account_id,
           bl_number: receiptMailCard.bl_number,
           total_pages: totalPages,
+          received_documents: receiptMailDocumentTypes(receiptMailCard),
           memo: document.getElementById("receiptMailMemo").value,
           additional_recipients: document.getElementById("receiptMailAdditionalRecipients").value
         })
@@ -3757,11 +3770,11 @@
           alert(result.message || "메일은 발송됐지만 OBL/H/C 수취상태 저장에 실패했습니다. 메일을 다시 보내지 마세요.");
           return;
         }
-        alert(result.message || "H/C 원본서류 수령 메일 발송에 실패했습니다.");
+        alert(result.message || "원본서류 수령 확인 메일 발송에 실패했습니다.");
         return;
       }
       closeReceiptMailModal();
-      alert(`H/C 원본서류 수령 메일이 발송되었고 OBL/H/C가 수령 O로 저장되었습니다.${result.received_date ? ` (수령일 ${result.received_date})` : ""}`);
+      alert(`원본서류 수령 확인 메일이 발송되었고 OBL/H/C가 수령 O로 저장되었습니다.${result.received_date ? ` (수령일 ${result.received_date})` : ""}`);
       await loadData();
     }
     async function saveProgressTransferDoc(cardIndex) {

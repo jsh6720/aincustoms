@@ -1283,6 +1283,14 @@ test("receipt mail modals accept optional additional recipients", () => {
   assert.match(mobile, /additional_recipients/);
 });
 
+test("receipt mail payload includes every original document currently marked received", () => {
+  for (const source of [dashboard, mobile]) {
+    assert.match(source, /function receiptMailDocumentTypes/);
+    assert.match(source, /received_documents:\s*receiptMailDocumentTypes\(receiptMailCard/);
+    assert.match(source, /doc_transfer_received/);
+  }
+});
+
 test("mobile original document view shows only the destination name", () => {
   assert.match(mobile, /function mobileDestinationName\(value\)/);
   assert.match(mobile, /split\(\/\[_\*\]\/\)/);

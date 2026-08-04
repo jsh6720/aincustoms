@@ -189,6 +189,45 @@ test("successful H/C receipt mail marks linked OBL and H/C received on the mail 
   });
 });
 
+test("receipt mail names every selected original document", { concurrency: false }, async () => {
+  let sentMail = null;
+  const card = {
+    account_id: "admin-account",
+    bl_number: "MEDUUL962799",
+    folder_name: "현대코퍼레이션H_MEDUUL962799_CIF_캐틀팜_우육_호주",
+    consignee: "현대코퍼레이션H",
+    destination: "캐틀팜*우육*호주",
+  };
+  const handler = loadReceiptHandler({
+    sendMail: async (mail) => { sentMail = mail; },
+    supabaseFetch: async (url, options = {}) => {
+      if (url.includes("cargo_cards?select=*&")) return [card];
+      if (url.includes("cargo_cards?select=account_id,bl_number,folder_name")) return [card];
+      if (url.includes("cargo_original_docs?on_conflict=")) {
+        return [JSON.parse(options.body)];
+      }
+      throw new Error(`Unexpected Supabase call: ${url}`);
+    },
+  });
+  const response = responseFixture();
+
+  await withMailEnvironment(() => handler({
+    method: "POST",
+    body: {
+      action: "hc_receipt",
+      account_id: "admin-account",
+      bl_number: "MEDUUL962799",
+      total_pages: "11",
+      received_documents: ["obl", "hc", "transfer"],
+    },
+  }, response));
+
+  assert.equal(response.statusCode, 200);
+  assert.match(sentMail.subject, /OBL·H\/C·양도증 원본서류 수령 확인/);
+  assert.match(sentMail.text, /OBL, H\/C\(위생증, 검역증\), 양도증 원본 서류를 수령하였습니다/);
+  assert.match(sentMail.text, /수령한 원본 서류 전체 페이지: 11 page/);
+});
+
 test("failed H/C receipt mail never changes original document status", { concurrency: false }, async () => {
   let statusWriteCount = 0;
   const handler = loadReceiptHandler({
