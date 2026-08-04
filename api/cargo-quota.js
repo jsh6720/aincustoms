@@ -1,6 +1,7 @@
 const nodemailer = require("nodemailer");
 const { requireWritableSession, supabaseFetch } = require("../lib/cargo-auth");
 const {
+  buildArrivalScheduleChangeMail,
   buildTransportRollbackPayload,
   buildWarehouseChangeMail,
   mergeManualFields,
@@ -118,6 +119,34 @@ async function sendWarehouseChangeMail(card, session, previous, next) {
     throw new Error("반입예정 정보 변경 메일 수신처가 설정되지 않았습니다.");
   }
   const mail = buildWarehouseChangeMail(card, session, previous, next);
+  await transporter.sendMail({
+    from: process.env.MAIL_FROM || user,
+    to: recipients.to.join(","),
+    cc: recipients.cc.length ? recipients.cc.join(",") : undefined,
+    subject: mail.subject,
+    text: mail.text,
+  });
+}
+
+async function sendArrivalScheduleChangeMail(card, next) {
+  const host = process.env.SMTP_HOST || "";
+  const user = process.env.SMTP_USER || "";
+  const pass = process.env.SMTP_PASS || "";
+  if (!host || !user || !pass) {
+    throw new Error("메일 환경변수 SMTP_HOST, SMTP_USER, SMTP_PASS를 확인해 주세요.");
+  }
+  const setting = await fetchMailSetting(supabaseFetch, "arrival_schedule_change");
+  const recipients = resolveMailRecipients({ setting });
+  if (!recipients.to.length) {
+    throw new Error("입항일 변경 안내의 화주 메일 주소가 설정되지 않았습니다.");
+  }
+  const transporter = nodemailer.createTransport({
+    host,
+    port: Number(process.env.SMTP_PORT || 465),
+    secure: String(process.env.SMTP_SECURE || "true").toLowerCase() !== "false",
+    auth: { user, pass },
+  });
+  const mail = buildArrivalScheduleChangeMail(card, next);
   await transporter.sendMail({
     from: process.env.MAIL_FROM || user,
     to: recipients.to.join(","),
@@ -398,6 +427,13 @@ module.exports = async function handler(req, res) {
       }
 
       const previousWarehouse = effectiveWarehouseValues(previousInput, card);
+      const previousEta = String(
+        previousInput?.eta_date
+        || card?.eta_date
+        || card?.first_arrival_date
+        || card?.entry_date
+        || ""
+      ).trim();
       const nextPayload = {
         account_id: targetAccountId,
         bl_number: blNumber,
@@ -434,7 +470,22 @@ module.exports = async function handler(req, res) {
       }
       const nextInput = { ...previousInput, ...nextPayload };
       const nextWarehouse = effectiveWarehouseValues(nextInput, card);
-      const changedFields = !isAdmin ? warehouseChanges(previousWarehouse, nextWarehouse) : [];
+      const nextEta = String(
+        nextInput?.eta_date
+        || card?.eta_date
+        || card?.first_arrival_date
+        || card?.entry_date
+        || ""
+      ).trim();
+      const etaChanged = Object.prototype.hasOwnProperty.call(body, "eta_date")
+        && previousEta !== nextEta;
+      const warehouseChangedFields = warehouseChanges(previousWarehouse, nextWarehouse);
+      const changedFields = isAdmin
+        ? (etaChanged ? ["eta_date"] : [])
+        : [
+            ...(etaChanged ? ["eta_date"] : []),
+            ...warehouseChangedFields,
+          ];
       nextPayload.transport_updated_by_role = isAdmin
         ? "admin"
         : session.account_category === "destination"
@@ -459,13 +510,23 @@ module.exports = async function handler(req, res) {
             body: JSON.stringify(saveBody),
           }
         );
+        let emailSent = false;
+        let emailMessage = "";
+        if (sendNotification && etaChanged) {
+          try {
+            await sendArrivalScheduleChangeMail(card, nextInput);
+            emailSent = true;
+          } catch (mailError) {
+            emailMessage = mailError.message;
+          }
+        }
         return res.status(200).json({
           success: true,
           input: rows && rows[0] ? rows[0] : null,
           inputs: rows || [],
-          changed_fields: [],
-          email_sent: false,
-          email_message: "",
+          changed_fields: changedFields,
+          email_sent: emailSent,
+          email_message: emailMessage,
         });
       }
       const accountFilter = encodeURIComponent(targetAccountId);
@@ -502,7 +563,11 @@ module.exports = async function handler(req, res) {
       let emailMessage = "";
       if (!isAdmin && sendNotification && changedFields.length) {
         try {
-          await sendWarehouseChangeMail(card, session, previousWarehouse, nextWarehouse);
+          if (etaChanged) {
+            await sendArrivalScheduleChangeMail(card, nextInput);
+          } else if (warehouseChangedFields.length) {
+            await sendWarehouseChangeMail(card, session, previousWarehouse, nextWarehouse);
+          }
           emailSent = true;
         } catch (mailError) {
           emailMessage = mailError.message;

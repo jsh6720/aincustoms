@@ -24,6 +24,7 @@ const mailApiSources = {
   import_request: fs.readFileSync(path.join(root, "api/cargo-import-request.js"), "utf8"),
   release_request: fs.readFileSync(path.join(root, "api/cargo-release-request.js"), "utf8"),
   warehouse_change: fs.readFileSync(path.join(root, "api/cargo-quota.js"), "utf8"),
+  arrival_schedule_change: fs.readFileSync(path.join(root, "api/cargo-quota.js"), "utf8"),
   original_doc_receipt: fs.readFileSync(path.join(root, "api/cargo-original-doc-receipt-mail.js"), "utf8"),
   obl_carrier_receipt: fs.readFileSync(path.join(root, "api/cargo-original-doc-receipt-mail.js"), "utf8"),
 };
@@ -42,6 +43,7 @@ test("mail settings expose every current email function", () => {
     "import_request",
     "release_request",
     "warehouse_change",
+    "arrival_schedule_change",
     "original_doc_receipt",
     "obl_carrier_receipt",
   ]);
@@ -158,6 +160,7 @@ test("admin API and screen manage function-specific mail settings", () => {
   assert.match(adminApi, /action\s*===\s*"mail_settings"/);
   assert.match(dashboard, /기능별 메일 수신처/);
   assert.match(dashboard, /saveAdminMailSettings/);
+  assert.match(dashboard, /입항일 변경 안내 \(To=화주, CC=납품처\)/);
 });
 
 test("every configured mail function is wired to its delivery API", () => {

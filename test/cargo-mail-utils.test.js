@@ -2,6 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 
 const {
+  buildArrivalScheduleChangeMail,
   buildTransportRollbackPayload,
   buildWarehouseChangeMail,
   destinationName,
@@ -10,6 +11,26 @@ const {
   parseRecipientList,
   warehouseChanges,
 } = require("../lib/cargo-mail-utils");
+
+test("builds an arrival schedule change email for the shipper and destination", () => {
+  const mail = buildArrivalScheduleChangeMail(
+    {
+      bl_number: "MAEU721353607",
+      consignee: "현대코퍼레이션H",
+      destination: "캐틀팜*우육*호주",
+    },
+    {
+      eta_date: "2026-04-22",
+      free_time_days: 3,
+    }
+  );
+
+  assert.match(mail.subject, /입항 스케줄 변경/);
+  assert.match(mail.subject, /MAEU721353607/);
+  assert.match(mail.text, /현대코퍼\(캐틀팜\) 귀/);
+  assert.match(mail.text, /입항: 4\/22/);
+  assert.match(mail.text, /만기\(프리타임\): 4\/24/);
+});
 
 test("keeps only the destination name before cargo descriptors", () => {
   assert.equal(destinationName("캐틀팜*우육*호주"), "캐틀팜");

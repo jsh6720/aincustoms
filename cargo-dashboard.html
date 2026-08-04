@@ -704,6 +704,7 @@
       import_request: "수입신고 요청",
       release_request: "출고 요청",
       warehouse_change: "입고예정 정보 변경",
+      arrival_schedule_change: "입항일 변경 안내 (To=화주, CC=납품처)",
       original_doc_receipt: "H/C 원본 수령 확인",
       obl_carrier_receipt: "OBL 선사 접수 확인",
     };
@@ -2459,10 +2460,15 @@
           <button class="btn danger" onclick="saveProgressWarehouseEditor(false, 'confirm')">확정</button>
         `
         : "";
+      const arrivalMailButton = currentUserRole === "admin"
+        && progressWarehouseFocusField === "eta_date"
+        ? `<button class="btn" onclick="saveProgressWarehouseEditor(true)">저장+메일</button>`
+        : "";
       document.getElementById("progressWarehouseModalActions").innerHTML = currentUserRole === "admin"
         ? `
           <button class="btn gray" onclick="closeProgressWarehouseEditor()">취소</button>
           <button class="btn" onclick="saveProgressWarehouseEditor(false)">저장</button>
+          ${arrivalMailButton}
           ${confirmationButtons}
         `
         : `
@@ -2545,6 +2551,7 @@
         return;
       }
       const blNumber = card.bl_number;
+      const saveLabel = progressWarehouseFocusField === "eta_date" ? "입항일" : "반입예정정보";
       try {
         const response = await fetch("/api/cargo-quota", {
           method: "POST",
@@ -2573,11 +2580,11 @@
         renderProgressStatus();
         renderProgressCalendar();
         if (sendNotification === true && result.email_sent) {
-          alert("반입예정정보가 저장되고 메일로 발송되었습니다.");
+          alert(`${saveLabel}이 저장되고 메일로 발송되었습니다.`);
         } else if (sendNotification === true) {
-          alert(`반입예정정보는 저장되었지만 메일 발송에 실패했습니다.\n${result.email_message || "메일 환경설정을 확인해 주세요."}`);
+          alert(`${saveLabel}은 저장되었지만 메일 발송에 실패했습니다.\n${result.email_message || "메일 환경설정을 확인해 주세요."}`);
         } else {
-          alert("반입예정정보가 저장되었습니다.");
+          alert(`${saveLabel}이 저장되었습니다.`);
         }
       } catch (error) {
         alert(`반입예정정보 처리 중 오류가 발생했습니다.\n${error.message || error}`);

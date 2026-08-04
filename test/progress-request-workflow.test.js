@@ -129,6 +129,7 @@ function createQuotaFixture({
   rollbackError = null,
   saveConflict = false,
   sendMail = async () => {},
+  mailSettings = {},
   saveError = null,
 }) {
   const storedPreviousInput = previousInput?.account_id
@@ -153,7 +154,9 @@ function createQuotaFixture({
     },
     supabaseFetch: async (url, options) => {
       if (url.includes("/rest/v1/cargo_mail_settings")) {
-        return [];
+        const settingKey = decodeURIComponent((url.match(/setting_key=eq\.([^&]+)/) || [])[1] || "");
+        const setting = mailSettings[settingKey];
+        return setting ? [{ setting_key: settingKey, ...setting }] : [];
       }
       if (url.startsWith("/rest/v1/cargo_cards")) {
         const defaults = [{
@@ -376,6 +379,94 @@ test("admin transport save never sends mail", { concurrency: false }, async () =
   assert.equal(calls.mail.length, 0);
   assert.equal(calls.savedPayload.transport_updated_by_role, "admin");
   assert.equal(calls.savedPayload.transport_updated_by_login, "ADMIN-1");
+});
+
+test("admin can explicitly email one arrival schedule change to configured shipper and destination", { concurrency: false }, async () => {
+  const { calls, handler } = createQuotaFixture({
+    session: {
+      account_id: "admin-account",
+      role: "admin",
+      login_id: "ADMIN-1",
+    },
+    previousInput: {
+      account_id: "account-1",
+      bl_number: "BL-1",
+      eta_date: "2026-04-21",
+      free_time_days: 3,
+    },
+    cardRows: [{
+      account_id: "account-1",
+      bl_number: "BL-1",
+      consignee: "현대코퍼레이션H",
+      destination: "캐틀팜*우육*호주",
+    }],
+    mailSettings: {
+      arrival_schedule_change: {
+        to_recipients: "shipper@example.com",
+        cc_recipients: "destination@example.com",
+      },
+    },
+  });
+  const response = createResponse();
+
+  await withEnvironment(
+    {
+      SMTP_HOST: "smtp.example.com",
+      SMTP_USER: "mailer@example.com",
+      SMTP_PASS: "secret",
+    },
+    () => handler({
+      method: "POST",
+      body: {
+        action: "manual_fields",
+        account_id: "account-1",
+        bl_number: "BL-1",
+        eta_date: "2026-04-22",
+        send_notification: true,
+      },
+    }, response)
+  );
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.body.email_sent, true);
+  assert.equal(calls.mail.length, 1);
+  assert.equal(calls.mail[0].to, "shipper@example.com");
+  assert.equal(calls.mail[0].cc, "destination@example.com");
+  assert.match(calls.mail[0].subject, /입항 스케줄 변경/);
+  assert.match(calls.mail[0].text, /입항: 4\/22/);
+  assert.match(calls.mail[0].text, /만기\(프리타임\): 4\/24/);
+});
+
+test("arrival schedule mail is skipped when the effective ETA did not change", { concurrency: false }, async () => {
+  const { calls, handler } = createQuotaFixture({
+    session: {
+      account_id: "admin-account",
+      role: "admin",
+      login_id: "ADMIN-1",
+    },
+    previousInput: {
+      account_id: "account-1",
+      bl_number: "BL-1",
+      eta_date: "2026-04-22",
+    },
+  });
+  const response = createResponse();
+
+  await handler({
+    method: "POST",
+    body: {
+      action: "manual_fields",
+      account_id: "account-1",
+      bl_number: "BL-1",
+      eta_date: "2026-04-22",
+      storage_yard: "변경창고",
+      send_notification: true,
+    },
+  }, response);
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.body.email_sent, false);
+  assert.equal(calls.mail.length, 0);
 });
 
 test("administrator can confirm ETA and propagates the atomic value and flag to linked accounts", { concurrency: false }, async () => {

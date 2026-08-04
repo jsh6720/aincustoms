@@ -244,6 +244,7 @@ test("progress transport editor renders role-specific save commands", () => {
   assert.match(openBody, /저장만/);
   assert.match(openBody, /saveProgressWarehouseEditor\(true\)/);
   assert.match(openBody, /저장\+메일/);
+  assert.match(openBody, /progressWarehouseFocusField === "eta_date"/);
   assert.match(openBody, /confirmation_action/);
   assert.match(openBody, /확정취소/);
   assert.match(openBody, /확정/);
