@@ -1436,3 +1436,15 @@ test("OBL carrier submission date remains visible to shipper and destination acc
     /progress-date progress-admin-only">OBL 접수일/
   );
 });
+
+test("arrival schedule mail lets an administrator review To and CC recipients", () => {
+  assert.match(dashboard, /id="progressArrivalMailRecipientsGroup"/);
+  assert.match(dashboard, /id="progressArrivalMailTo"/);
+  assert.match(dashboard, /id="progressArrivalMailCc"/);
+  assert.match(dashboard, /notification_to:/);
+  assert.match(dashboard, /notification_cc:/);
+  assert.match(dashboard, /이번 발송에만 적용/);
+  assert.match(dashboard, /function updateProgressArrivalExpiryPreview/);
+  assert.match(dashboard, /payload\.free_time_expiry_date = ""/);
+  assert.match(dashboard, /payload\.free_time_expiry_override = ""/);
+});

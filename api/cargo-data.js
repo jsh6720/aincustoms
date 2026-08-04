@@ -10,6 +10,7 @@ const {
   customsQuarantineFlags,
 } = require("../lib/cargo-progress-utils");
 const { cargoUserInputsQuery } = require("../lib/cargo-user-input-query");
+const { effectiveStorageYard } = require("../lib/cargo-warehouse-utils");
 const {
   latestLinkedRequest,
   mergeLinkedDeliveryStatus,
@@ -259,6 +260,7 @@ function applyUserInputs(cards, inputs, cardRefs = cards, deliveryInputs = input
     if (!input) {
       return {
         ...card,
+        storage_yard: effectiveStorageYard(card.storage_yard, card.shed_name),
         ...delivery,
         ...customsQuarantineFields,
         free_time_days: 3,
@@ -276,7 +278,10 @@ function applyUserInputs(cards, inputs, cardRefs = cards, deliveryInputs = input
       delivery_terms: input.delivery_terms || card.delivery_terms || "",
       eta_date: input.eta_date || card.eta_date || "",
       eta_date_user_entered: !!input.eta_date,
-      storage_yard: input.storage_yard || card.storage_yard || "",
+      storage_yard: effectiveStorageYard(
+        input.storage_yard || card.storage_yard,
+        card.shed_name
+      ),
       free_time_days: Number(input.free_time_days || 3),
       free_time_expiry_date: input.free_time_expiry_date || card.free_time_expiry_date || "",
       free_time_expiry_override: input.free_time_expiry_override || "",

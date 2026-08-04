@@ -10,6 +10,7 @@ const {
 const { fetchMailSetting, resolveMailRecipients } = require("../lib/cargo-mail-settings");
 const { normalizeInspectionStatus } = require("../lib/cargo-progress-utils");
 const { koreaDate } = require("../lib/cargo-request-utils");
+const { effectiveStorageYard } = require("../lib/cargo-warehouse-utils");
 
 const WAREHOUSE_CHANGE_TO = [
   "jsh@aincustoms.com",
@@ -92,7 +93,10 @@ async function linkedCardTargets(card) {
 
 function effectiveWarehouseValues(input, card) {
   return {
-    storage_yard: String(input?.storage_yard || card?.storage_yard || card?.shed_name || "").trim(),
+    storage_yard: effectiveStorageYard(
+      input?.storage_yard || card?.storage_yard,
+      card?.shed_name
+    ),
     warehouse_expected_date: String(input?.warehouse_expected_date || card?.warehouse_expected_date || "").trim(),
   };
 }
@@ -128,7 +132,7 @@ async function sendWarehouseChangeMail(card, session, previous, next) {
   });
 }
 
-async function sendArrivalScheduleChangeMail(card, next) {
+async function sendArrivalScheduleChangeMail(card, next, recipientOverride = null) {
   const host = process.env.SMTP_HOST || "";
   const user = process.env.SMTP_USER || "";
   const pass = process.env.SMTP_PASS || "";
@@ -136,7 +140,9 @@ async function sendArrivalScheduleChangeMail(card, next) {
     throw new Error("메일 환경변수 SMTP_HOST, SMTP_USER, SMTP_PASS를 확인해 주세요.");
   }
   const setting = await fetchMailSetting(supabaseFetch, "arrival_schedule_change");
-  const recipients = resolveMailRecipients({ setting });
+  const recipients = resolveMailRecipients({
+    setting: recipientOverride || setting,
+  });
   if (!recipients.to.length) {
     throw new Error("입항일 변경 안내의 화주 메일 주소가 설정되지 않았습니다.");
   }
@@ -443,6 +449,7 @@ module.exports = async function handler(req, res) {
         eta_date: etaDate || null,
         storage_yard: storageYard || null,
         free_time_days: Number(freeTimeDays),
+        free_time_expiry_date: String(merged.free_time_expiry_date || "").trim() || null,
         free_time_expiry_override: freeTimeExpiryDate || null,
         warehouse_expected_date: warehouseExpectedDate || null,
       };
@@ -514,7 +521,14 @@ module.exports = async function handler(req, res) {
         let emailMessage = "";
         if (sendNotification && etaChanged) {
           try {
-            await sendArrivalScheduleChangeMail(card, nextInput);
+            const recipientOverride = (
+              Object.prototype.hasOwnProperty.call(body, "notification_to")
+              || Object.prototype.hasOwnProperty.call(body, "notification_cc")
+            ) ? {
+              to_recipients: String(body.notification_to || "").trim(),
+              cc_recipients: String(body.notification_cc || "").trim(),
+            } : null;
+            await sendArrivalScheduleChangeMail(card, nextInput, recipientOverride);
             emailSent = true;
           } catch (mailError) {
             emailMessage = mailError.message;

@@ -679,6 +679,16 @@
         <label for="progressWarehouseDate">입고(예정)일</label>
         <input id="progressWarehouseDate" type="date">
       </div>
+      <div id="progressArrivalMailRecipientsGroup" style="display:none">
+        <div class="modal-field">
+          <label for="progressArrivalMailTo">받는 사람(To)<span class="field-hint">이번 발송에만 적용</span></label>
+          <textarea id="progressArrivalMailTo" rows="2" placeholder="shipper@example.com"></textarea>
+        </div>
+        <div class="modal-field">
+          <label for="progressArrivalMailCc">참조(CC)<span class="field-hint">이번 발송에만 적용 · 선택 입력</span></label>
+          <textarea id="progressArrivalMailCc" rows="2" placeholder="destination@example.com"></textarea>
+        </div>
+      </div>
       <div id="progressWarehouseModalActions" class="modal-actions"></div>
     </div>
   </div>
@@ -699,6 +709,7 @@
     let progressWarehouseSaving = false;
     let adminAccounts = [];
     let adminMailSettings = {};
+    let adminMailSettingsLoaded = false;
     const adminMailSettingLabels = {
       original_doc_request: "원본서류 도착/수령 요청",
       import_request: "수입신고 요청",
@@ -2424,7 +2435,10 @@
         "progressWarehouseDateGroup",
       ].forEach((id) => {
         const group = document.getElementById(id);
-        if (group) group.style.display = !focusedGroup || id === focusedGroup ? "" : "none";
+        if (group) {
+          const etaExpiry = focusField === "eta_date" && id === "progressFreeTimeExpiryGroup";
+          group.style.display = !focusedGroup || id === focusedGroup || etaExpiry ? "" : "none";
+        }
       });
       const titles = {
         eta_date: "입항예정일 입력",
@@ -2433,6 +2447,28 @@
       };
       document.getElementById("progressWarehouseModalTitle").textContent =
         titles[focusField] || "운송/반입예정정보";
+    }
+    function updateProgressArrivalExpiryPreview() {
+      const eta = document.getElementById("progressWarehouseEta").value || "";
+      const days = Math.max(1, parseInt(progressWarehouseCard?.free_time_days, 10) || 3);
+      document.getElementById("progressFreeTimeExpiry").value = addDaysInclusive(eta, days);
+    }
+    function populateProgressArrivalMailRecipients() {
+      const setting = adminMailSettings.arrival_schedule_change || { to: [], cc: [] };
+      document.getElementById("progressArrivalMailTo").value = (setting.to || []).join(",");
+      document.getElementById("progressArrivalMailCc").value = (setting.cc || []).join(",");
+    }
+    async function ensureAdminMailSettingsForReview() {
+      if (adminMailSettingsLoaded) return true;
+      const response = await fetch("/api/cargo-admin");
+      const result = await response.json();
+      if (!result.success) {
+        alert(result.message || "메일 수신처 설정을 불러오지 못했습니다.");
+        return false;
+      }
+      adminMailSettings = result.mail_settings || {};
+      adminMailSettingsLoaded = true;
+      return true;
     }
     function openProgressWarehouseEditor(cardIndex, focusField = "") {
       if (currentUserRole === "viewer") return;
@@ -2446,9 +2482,21 @@
       `;
       document.getElementById("progressWarehouseEta").value = editableEtaText(progressWarehouseCard);
       document.getElementById("progressFreeTimeExpiry").value = calendarDate(freeTimeExpiryText(progressWarehouseCard));
+      document.getElementById("progressFreeTimeExpiry").readOnly = progressWarehouseFocusField === "eta_date";
+      document.getElementById("progressWarehouseEta").oninput = progressWarehouseFocusField === "eta_date"
+        ? updateProgressArrivalExpiryPreview
+        : null;
       document.getElementById("progressWarehouseYard").value = progressWarehouseCard.storage_yard || progressWarehouseCard.shed_name || "";
       document.getElementById("progressWarehouseDate").value = calendarDate(progressWarehouseCard.warehouse_expected_date);
       toggleProgressWarehouseGroups(progressWarehouseFocusField);
+      const recipientGroup = document.getElementById("progressArrivalMailRecipientsGroup");
+      const reviewArrivalRecipients = currentUserRole === "admin" && progressWarehouseFocusField === "eta_date";
+      recipientGroup.style.display = reviewArrivalRecipients ? "" : "none";
+      if (reviewArrivalRecipients) {
+        ensureAdminMailSettingsForReview().then((loaded) => {
+          if (loaded && progressWarehouseFocusField === "eta_date") populateProgressArrivalMailRecipients();
+        });
+      }
       const confirmation_action = progressWarehouseFocusField
         ? (progressFieldConfirmed(progressWarehouseCard, progressWarehouseFocusField) ? "unconfirm" : "confirm")
         : "";
@@ -2515,6 +2563,11 @@
       if (progressWarehouseFocusField) {
         if (values[progressWarehouseFocusField] !== previousValues[progressWarehouseFocusField]) {
           payload[progressWarehouseFocusField] = values[progressWarehouseFocusField];
+          if (progressWarehouseFocusField === "eta_date") {
+            payload.free_time_days = Math.max(1, parseInt(card.free_time_days, 10) || 3);
+            payload.free_time_expiry_date = "";
+            payload.free_time_expiry_override = "";
+          }
         }
       } else {
         Object.entries(values).forEach(([field, value]) => {
@@ -2541,8 +2594,26 @@
           payload.free_time_days = 3;
         }
       }
+      if (sendNotification === true && currentUserRole === "admin" && progressWarehouseFocusField === "eta_date") {
+        const settingsLoaded = await ensureAdminMailSettingsForReview();
+        if (!settingsLoaded) {
+          progressWarehouseSaving = false;
+          actions.querySelectorAll("button").forEach(button => { button.disabled = false; });
+          return;
+        }
+        Object.assign(payload, {
+          notification_to: document.getElementById("progressArrivalMailTo").value.trim(),
+          notification_cc: document.getElementById("progressArrivalMailCc").value.trim(),
+        });
+        if (!payload.notification_to) {
+          alert("받는 사람(To) 메일 주소를 확인해 주세요.");
+          progressWarehouseSaving = false;
+          actions.querySelectorAll("button").forEach(button => { button.disabled = false; });
+          return;
+        }
+      }
       const changedFields = Object.keys(payload).filter(field => ![
-        "action", "account_id", "bl_number", "send_notification"
+        "action", "account_id", "bl_number", "send_notification", "notification_to", "notification_cc"
       ].includes(field));
       if (!changedFields.length && sendNotification !== true) {
         alert("변경된 운송정보가 없습니다.");
@@ -3820,6 +3891,7 @@
       showAdminUi();
       adminAccounts = result.accounts || [];
       adminMailSettings = result.mail_settings || {};
+      adminMailSettingsLoaded = true;
       renderAdminMailSettings();
       const rows = document.getElementById("adminRows");
       rows.innerHTML = adminAccounts.map((account, accountIndex) => `
@@ -3875,6 +3947,7 @@
         return;
       }
       adminMailSettings = result.mail_settings || {};
+      adminMailSettingsLoaded = true;
       renderAdminMailSettings();
       alert("기능별 메일 수신처를 저장했습니다.");
     }

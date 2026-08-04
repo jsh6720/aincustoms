@@ -437,6 +437,62 @@ test("admin can explicitly email one arrival schedule change to configured shipp
   assert.match(calls.mail[0].text, /만기\(프리타임\): 4\/24/);
 });
 
+test("admin can review and override arrival schedule recipients for one send", { concurrency: false }, async () => {
+  const { calls, handler } = createQuotaFixture({
+    session: {
+      account_id: "admin-account",
+      role: "admin",
+      login_id: "ADMIN-1",
+    },
+    previousInput: {
+      account_id: "account-1",
+      bl_number: "BL-1",
+      eta_date: "2026-04-21",
+      free_time_days: 3,
+    },
+    cardRows: [{
+      account_id: "account-1",
+      bl_number: "BL-1",
+      consignee: "현대코퍼레이션H",
+      destination: "캐틀팜*우육*호주",
+    }],
+    mailSettings: {
+      arrival_schedule_change: {
+        to_recipients: "configured@example.com",
+        cc_recipients: "configured-cc@example.com",
+      },
+    },
+  });
+  const response = createResponse();
+
+  await withEnvironment(
+    {
+      SMTP_HOST: "smtp.example.com",
+      SMTP_USER: "mailer@example.com",
+      SMTP_PASS: "secret",
+    },
+    () => handler({
+      method: "POST",
+      body: {
+        action: "manual_fields",
+        account_id: "account-1",
+        bl_number: "BL-1",
+        eta_date: "2026-04-22",
+        send_notification: true,
+        notification_to: "reviewed@example.com",
+        notification_cc: "reviewed-cc@example.com",
+      },
+    }, response)
+  );
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.body.email_sent, true);
+  assert.equal(calls.mail[0].to, "reviewed@example.com");
+  assert.equal(calls.mail[0].cc, "reviewed-cc@example.com");
+  assert.match(calls.mail[0].text, /입항: 4\/22/);
+  assert.match(calls.mail[0].text, /만기\(프리타임\): 4\/24/);
+});
+
 test("arrival schedule mail is skipped when the effective ETA did not change", { concurrency: false }, async () => {
   const { calls, handler } = createQuotaFixture({
     session: {
