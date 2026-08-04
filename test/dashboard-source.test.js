@@ -1165,6 +1165,21 @@ test("mobile original document manager supports transfer override", () => {
   assert.match(mobile, /result\.warning/);
 });
 
+test("mobile original document O changes save only the changed row immediately", () => {
+  assert.match(mobile, /onchange="autoSaveOriginalDocStatus\(\$\{index\}, 'obl', this\)"/);
+  assert.match(mobile, /onchange="autoSaveOriginalDocStatus\(\$\{index\}, 'hc', this\)"/);
+  assert.match(mobile, /onchange="autoSaveOriginalDocStatus\(\$\{index\}, 'transfer', this\)"/);
+
+  const start = mobile.indexOf("async function autoSaveOriginalDocStatus");
+  const end = mobile.indexOf("async function saveAll", start);
+  const body = mobile.slice(start, end);
+  assert.ok(start >= 0 && end > start);
+  assert.match(body, /if \(control\.value !== "true"\) return;/);
+  assert.match(body, /JSON\.stringify\(\{ items: \[item\] \}\)/);
+  assert.match(body, /control\.value = previousValue/);
+  assert.doesNotMatch(body, /visible\.map/);
+});
+
 test("mobile original document manager prioritizes requests then received OBL awaiting carrier submission", () => {
   const context = mobileOriginalRequestHarness();
   const cards = [

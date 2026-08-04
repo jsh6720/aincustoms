@@ -40,6 +40,9 @@
     .carrier-box .btn { height:32px; }
     .mail-btn { background:#3b5b92; }
     .pending { margin-top:7px; color:#b45309; font-size:11px; font-weight:900; }
+    .save-status { min-height:14px; margin-top:6px; color:#17643d; font-size:10px; font-weight:800; text-align:right; }
+    .save-status.saving { color:#526170; }
+    .save-status.error { margin:6px 0 0; color:#c92a2a; text-align:right; }
     .empty, .error { margin:30px 12px; text-align:center; color:#7b8794; font-size:13px; line-height:1.5; }
     .error { color:#c92a2a; font-weight:800; }
     .error .btn { margin-top:12px; min-width:120px; }
@@ -328,19 +331,19 @@
             </div>
             <div class="controls">
               <label>OBL
-                <select id="obl${index}">
+                <select id="obl${index}" data-saved-value="${obl ? "true" : "false"}" onchange="autoSaveOriginalDocStatus(${index}, 'obl', this)">
                   <option value="false" ${obl ? "" : "selected"}>X</option>
                   <option value="true" ${obl ? "selected" : ""}>O</option>
                 </select>
               </label>
               <label>H/C
-                <select id="hc${index}">
+                <select id="hc${index}" data-saved-value="${hc ? "true" : "false"}" onchange="autoSaveOriginalDocStatus(${index}, 'hc', this)">
                   <option value="false" ${hc ? "" : "selected"}>X</option>
                   <option value="true" ${hc ? "selected" : ""}>O</option>
                 </select>
               </label>
               <label>양도증
-                <select id="transfer${index}">
+                <select id="transfer${index}" data-saved-value="${transferOverride === null || transferOverride === undefined ? "automatic" : String(transferOverride)}" onchange="autoSaveOriginalDocStatus(${index}, 'transfer', this)">
                   <option value="automatic" ${transferOverride === null || transferOverride === undefined ? "selected" : ""}>자동 (${card.doc_transfer_received ? "O" : "X"})</option>
                   <option value="true" ${transferOverride === true ? "selected" : ""}>O</option>
                   <option value="false" ${transferOverride === false ? "selected" : ""}>X</option>
@@ -353,6 +356,7 @@
                 <input id="actual${index}" type="date" value="${esc(shortDate(card.actual_received_date))}">
               </label>
             </div>
+            <div id="saveStatus${index}" class="save-status" aria-live="polite"></div>
             ${card.pending_actual_received_date ? `<div class="pending">승인대기 ${esc(shortDate(card.pending_actual_received_date))}</div>` : ""}
             <div class="card-actions">
               ${card.pending_actual_received_date ? `<button class="btn" onclick="approvePendingOriginalDoc(${index})">수령일 승인</button>` : ""}
@@ -363,9 +367,10 @@
       }).join("");
     }
 
-    async function saveAll() {
-      if (!visible.length) return;
-      const items = visible.map((card, index) => ({
+    function originalDocItem(index) {
+      const card = visible[index];
+      if (!card) return null;
+      return {
         account_id: card.account_id,
         bl_number: card.bl_number,
         obl_received: document.getElementById(`obl${index}`).value === "true",
@@ -373,7 +378,77 @@
         transfer_received_override: document.getElementById(`transfer${index}`).value,
         requested_receipt_date: document.getElementById(`request${index}`).value || "",
         actual_received_date: document.getElementById(`actual${index}`).value || ""
-      }));
+      };
+    }
+
+    async function autoSaveOriginalDocStatus(index, documentType, control) {
+      if (control.value !== "true") return;
+      const card = visible[index];
+      if (!card || control.dataset.saving === "true") return;
+
+      const previousValue = control.dataset.savedValue || "false";
+      const status = document.getElementById(`saveStatus${index}`);
+      const item = originalDocItem(index);
+      if (!item) return;
+
+      item.obl_received = documentType === "obl" ? true : !!card.obl_received;
+      item.hc_received = documentType === "hc" ? true : !!card.hc_received;
+      item.transfer_received_override = documentType === "transfer"
+        ? "true"
+        : (card.transfer_received_override === null || card.transfer_received_override === undefined
+          ? "automatic"
+          : String(card.transfer_received_override));
+
+      control.dataset.saving = "true";
+      control.disabled = true;
+      if (status) {
+        status.className = "save-status saving";
+        status.textContent = "저장 중...";
+      }
+
+      try {
+        const res = await fetch("/api/cargo-original-docs", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ items: [item] })
+        });
+        const result = await res.json();
+        if (!res.ok || !result.success) {
+          throw new Error(result.message || "저장에 실패했습니다.");
+        }
+
+        const saved = result.item || (Array.isArray(result.items) ? result.items[0] : null) || item;
+        card.obl_received = !!saved.obl_received;
+        card.hc_received = !!saved.hc_received;
+        if (documentType === "transfer") {
+          card.transfer_received_override = true;
+          card.doc_transfer_received = true;
+        }
+        if (saved.actual_received_date) {
+          card.actual_received_date = shortDate(saved.actual_received_date);
+          document.getElementById(`actual${index}`).value = card.actual_received_date;
+        }
+        control.dataset.savedValue = control.value;
+        if (status) {
+          status.className = "save-status";
+          status.textContent = "자동 저장됨";
+        }
+      } catch (error) {
+        control.value = previousValue;
+        if (status) {
+          status.className = "save-status error";
+          status.textContent = "저장 실패";
+        }
+        alert(error.message || "저장에 실패했습니다.");
+      } finally {
+        control.disabled = false;
+        control.dataset.saving = "false";
+      }
+    }
+
+    async function saveAll() {
+      if (!visible.length) return;
+      const items = visible.map((card, index) => originalDocItem(index));
       const res = await fetch("/api/cargo-original-docs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
