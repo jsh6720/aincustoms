@@ -123,7 +123,7 @@ module.exports = async function handler(req, res) {
     if (String(error.message || "").includes("cargo_mail_settings")) {
       return res.status(500).json({
         success: false,
-        message: "Supabase에서 20260726_add_cargo_mail_settings.sql을 먼저 실행해 주세요.",
+        message: "Supabase SQL Editor에서 add_cargo_mail_settings.sql 전체를 다시 실행해 주세요. 기존 메일 설정은 유지됩니다.",
       });
     }
     if (String(error.message || "").includes("admin_upsert_shipper_account")) {

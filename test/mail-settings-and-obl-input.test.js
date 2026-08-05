@@ -36,6 +36,12 @@ test("mail setting migration creates one keyed settings table", () => {
   assert.match(migration, /to_recipients\s+text/i);
   assert.match(migration, /cc_recipients\s+text/i);
   assert.match(migration, /updated_by\s+text/i);
+  assert.match(
+    migration,
+    /drop constraint if exists cargo_mail_settings_key_check/i,
+    "legacy key constraints must be replaced without dropping saved mail settings"
+  );
+  assert.match(migration, /'arrival_schedule_change'/i);
 });
 
 test("mail settings expose every current email function", () => {
@@ -218,6 +224,7 @@ test("admin API and screen manage function-specific mail settings", () => {
   assert.match(dashboard, /현재 실제 발송에 적용되는 주소/);
   assert.match(dashboard, /saveAdminMailSettings/);
   assert.match(dashboard, /입항일 변경 안내 \(To=화주, CC=납품처\)/);
+  assert.match(adminApi, /add_cargo_mail_settings\.sql/);
 });
 
 test("every configured mail function is wired to its delivery API", () => {
