@@ -692,6 +692,24 @@
       <div id="progressWarehouseModalActions" class="modal-actions"></div>
     </div>
   </div>
+  <div id="mailPreviewModalBg" class="modal-bg">
+    <div class="modal">
+      <h2>메일 발송 전 확인</h2>
+      <div class="modal-card">
+        <div class="modal-row"><b>받는 사람</b><span id="mailPreviewTo"></span></div>
+        <div class="modal-row"><b>참조</b><span id="mailPreviewCc"></span></div>
+        <div class="modal-row"><b>제목</b><span id="mailPreviewSubject"></span></div>
+      </div>
+      <div class="modal-field">
+        <label for="mailPreviewBody">메일 내용</label>
+        <textarea id="mailPreviewBody" rows="14" readonly></textarea>
+      </div>
+      <div class="modal-actions">
+        <button class="btn gray" type="button" onclick="closeMailPreview(false)">취소</button>
+        <button class="btn" type="button" onclick="closeMailPreview(true)">확인 후 발송</button>
+      </div>
+    </div>
+  </div>
 
   <script>
     const stageClasses = {
@@ -710,12 +728,16 @@
     let adminAccounts = [];
     let adminMailSettings = {};
     let adminMailSettingsLoaded = false;
+    let mailPreviewResolve = null;
     const adminMailSettingLabels = {
+      ain_default: "기본 메일 - 관리자(AIN)",
+      shipper_default: "기본 메일 - 화주",
+      destination_default: "기본 메일 - 납품처",
       original_doc_request: "원본서류 도착/수령 요청",
       import_request: "수입신고 요청",
       release_request: "출고 요청",
       warehouse_change: "입고예정 정보 변경",
-      arrival_schedule_change: "입항일 변경 안내 (To=화주, CC=납품처)",
+      arrival_schedule_change: "입항일 변경 안내",
       original_doc_receipt: "H/C 원본 수령 확인",
       obl_carrier_receipt: "OBL 선사 접수 확인",
     };
@@ -2454,9 +2476,44 @@
       document.getElementById("progressFreeTimeExpiry").value = addDaysInclusive(eta, days);
     }
     function populateProgressArrivalMailRecipients() {
-      const setting = adminMailSettings.arrival_schedule_change || { to: [], cc: [] };
-      document.getElementById("progressArrivalMailTo").value = (setting.to || []).join(",");
-      document.getElementById("progressArrivalMailCc").value = (setting.cc || []).join(",");
+      const combine = (...groups) => [...new Set(groups.flat().filter(Boolean))];
+      const shipper = adminMailSettings.shipper_default || { to: [], cc: [] };
+      const destination = adminMailSettings.destination_default || { to: [], cc: [] };
+      const ain = adminMailSettings.ain_default || { to: [], cc: [] };
+      document.getElementById("progressArrivalMailTo").value = combine(
+        shipper.to || [], shipper.cc || [], destination.to || [], destination.cc || []
+      ).join(",");
+      document.getElementById("progressArrivalMailCc").value = combine(
+        ain.to || [], ain.cc || []
+      ).join(",");
+    }
+    function openMailPreview(preview) {
+      document.getElementById("mailPreviewTo").textContent = (preview.to || []).join(", ") || "-";
+      document.getElementById("mailPreviewCc").textContent = (preview.cc || []).join(", ") || "-";
+      document.getElementById("mailPreviewSubject").textContent = preview.subject || "-";
+      document.getElementById("mailPreviewBody").value = preview.text || "";
+      document.getElementById("mailPreviewModalBg").style.display = "flex";
+      return new Promise((resolve) => { mailPreviewResolve = resolve; });
+    }
+    function closeMailPreview(confirmed) {
+      document.getElementById("mailPreviewModalBg").style.display = "none";
+      const resolve = mailPreviewResolve;
+      mailPreviewResolve = null;
+      if (resolve) resolve(confirmed === true);
+    }
+    async function previewProgressTransportMail(payload) {
+      const response = await fetch("/api/cargo-quota", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...payload,
+          action: "preview_transport_mail",
+          mail_type: progressWarehouseFocusField === "eta_date" ? "arrival" : "warehouse",
+        }),
+      });
+      const result = await response.json();
+      if (!result.success) throw new Error(result.message || "메일 미리보기를 만들지 못했습니다.");
+      return result.preview;
     }
     async function ensureAdminMailSettingsForReview() {
       if (adminMailSettingsLoaded) return true;
@@ -2624,6 +2681,11 @@
       const blNumber = card.bl_number;
       const saveLabel = progressWarehouseFocusField === "eta_date" ? "입항일" : "반입예정정보";
       try {
+        if (sendNotification === true) {
+          const preview = await previewProgressTransportMail(payload);
+          const confirmed = await openMailPreview(preview);
+          if (!confirmed) return;
+        }
         const response = await fetch("/api/cargo-quota", {
           method: "POST",
           headers: { "Content-Type": "application/json" },

@@ -8,9 +8,9 @@ const {
   warehouseChanges,
 } = require("../lib/cargo-mail-utils");
 const {
-  defaultMailSettings,
-  fetchMailSetting,
+  fetchEffectiveRoleMailSettings,
   resolveMailRecipients,
+  resolveRoleMailRecipients,
 } = require("../lib/cargo-mail-settings");
 const { normalizeInspectionStatus } = require("../lib/cargo-progress-utils");
 const { koreaDate } = require("../lib/cargo-request-utils");
@@ -98,7 +98,29 @@ function effectiveWarehouseValues(input, card) {
   };
 }
 
-async function sendWarehouseChangeMail(card, session, previous, next) {
+async function resolveTransportRecipients(featureKey, recipientOverride = null) {
+  if (recipientOverride) {
+    return resolveMailRecipients({ setting: recipientOverride });
+  }
+  const settings = await fetchEffectiveRoleMailSettings(
+    supabaseFetch,
+    featureKey,
+    "notice",
+    process.env
+  );
+  return resolveRoleMailRecipients({ settings, direction: "notice" });
+}
+
+async function prepareWarehouseChangeMail(card, session, previous, next, recipientOverride = null) {
+  const recipients = await resolveTransportRecipients("warehouse_change", recipientOverride);
+  if (!recipients.to.length) {
+    throw new Error("반입예정 정보 변경 메일의 화주·납품처 수신처가 설정되지 않았습니다.");
+  }
+  const mail = buildWarehouseChangeMail(card, session, previous, next);
+  return { recipients, mail };
+}
+
+async function sendWarehouseChangeMail(card, session, previous, next, recipientOverride = null) {
   const host = process.env.SMTP_HOST || "";
   const user = process.env.SMTP_USER || "";
   const pass = process.env.SMTP_PASS || "";
@@ -111,17 +133,13 @@ async function sendWarehouseChangeMail(card, session, previous, next) {
     secure: String(process.env.SMTP_SECURE || "true").toLowerCase() !== "false",
     auth: { user, pass },
   });
-  const setting = await fetchMailSetting(supabaseFetch, "warehouse_change");
-  const fallback = defaultMailSettings(process.env).warehouse_change;
-  const recipients = resolveMailRecipients({
-    setting,
-    fallbackTo: fallback.to,
-    fallbackCc: fallback.cc,
-  });
-  if (!recipients.to.length) {
-    throw new Error("반입예정 정보 변경 메일 수신처가 설정되지 않았습니다.");
-  }
-  const mail = buildWarehouseChangeMail(card, session, previous, next);
+  const { recipients, mail } = await prepareWarehouseChangeMail(
+    card,
+    session,
+    previous,
+    next,
+    recipientOverride
+  );
   await transporter.sendMail({
     from: process.env.MAIL_FROM || user,
     to: recipients.to.join(","),
@@ -131,6 +149,15 @@ async function sendWarehouseChangeMail(card, session, previous, next) {
   });
 }
 
+async function prepareArrivalScheduleChangeMail(card, next, recipientOverride = null) {
+  const recipients = await resolveTransportRecipients("arrival_schedule_change", recipientOverride);
+  if (!recipients.to.length) {
+    throw new Error("입항일 변경 안내의 화주·납품처 메일 주소가 설정되지 않았습니다.");
+  }
+  const mail = buildArrivalScheduleChangeMail(card, next);
+  return { recipients, mail };
+}
+
 async function sendArrivalScheduleChangeMail(card, next, recipientOverride = null) {
   const host = process.env.SMTP_HOST || "";
   const user = process.env.SMTP_USER || "";
@@ -138,20 +165,17 @@ async function sendArrivalScheduleChangeMail(card, next, recipientOverride = nul
   if (!host || !user || !pass) {
     throw new Error("메일 환경변수 SMTP_HOST, SMTP_USER, SMTP_PASS를 확인해 주세요.");
   }
-  const setting = await fetchMailSetting(supabaseFetch, "arrival_schedule_change");
-  const recipients = resolveMailRecipients({
-    setting: recipientOverride || setting,
-  });
-  if (!recipients.to.length) {
-    throw new Error("입항일 변경 안내의 화주 메일 주소가 설정되지 않았습니다.");
-  }
+  const { recipients, mail } = await prepareArrivalScheduleChangeMail(
+    card,
+    next,
+    recipientOverride
+  );
   const transporter = nodemailer.createTransport({
     host,
     port: Number(process.env.SMTP_PORT || 465),
     secure: String(process.env.SMTP_SECURE || "true").toLowerCase() !== "false",
     auth: { user, pass },
   });
-  const mail = buildArrivalScheduleChangeMail(card, next);
   await transporter.sendMail({
     from: process.env.MAIL_FROM || user,
     to: recipients.to.join(","),
@@ -389,6 +413,38 @@ module.exports = async function handler(req, res) {
         success: true,
         input: rows && rows[0] ? rows[0] : null,
         inputs: rows || [],
+      });
+    }
+
+    if (action === "preview_transport_mail") {
+      const previousInput = await findManualInput(targetAccountId, blNumber);
+      const merged = mergeManualFields(previousInput, body);
+      const nextInput = { ...previousInput, ...merged };
+      const recipientOverride = (
+        Object.prototype.hasOwnProperty.call(body, "notification_to")
+        || Object.prototype.hasOwnProperty.call(body, "notification_cc")
+      ) ? {
+        to_recipients: String(body.notification_to || "").trim(),
+        cc_recipients: String(body.notification_cc || "").trim(),
+      } : null;
+      const mailType = String(body.mail_type || "").trim();
+      const prepared = mailType === "arrival"
+        ? await prepareArrivalScheduleChangeMail(card, nextInput, recipientOverride)
+        : await prepareWarehouseChangeMail(
+            card,
+            session,
+            effectiveWarehouseValues(previousInput, card),
+            effectiveWarehouseValues(nextInput, card),
+            recipientOverride
+          );
+      return res.status(200).json({
+        success: true,
+        preview: {
+          to: prepared.recipients.to,
+          cc: prepared.recipients.cc,
+          subject: prepared.mail.subject,
+          text: prepared.mail.text,
+        },
       });
     }
 

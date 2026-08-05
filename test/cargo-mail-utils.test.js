@@ -12,12 +12,12 @@ const {
   warehouseChanges,
 } = require("../lib/cargo-mail-utils");
 
-test("builds an arrival schedule change email for the shipper and destination", () => {
+test("builds the approved arrival schedule change email without the stray honorific", () => {
   const mail = buildArrivalScheduleChangeMail(
     {
-      bl_number: "MAEU721353607",
+      bl_number: "MEDUWE188588",
       consignee: "현대코퍼레이션H",
-      destination: "캐틀팜*우육*호주",
+      destination: "다우린_계육_브라질",
     },
     {
       eta_date: "2026-04-22",
@@ -25,11 +25,23 @@ test("builds an arrival schedule change email for the shipper and destination", 
     }
   );
 
-  assert.match(mail.subject, /입항 스케줄 변경/);
-  assert.match(mail.subject, /MAEU721353607/);
-  assert.match(mail.text, /현대코퍼\(캐틀팜\) 귀/);
-  assert.match(mail.text, /입항: 4\/22/);
-  assert.match(mail.text, /만기\(프리타임\): 4\/24/);
+  assert.equal(mail.subject, "[입항 스케줄 변경] 현대_MEDUWE188588 / 다우린");
+  assert.equal(mail.text, [
+    "안녕하세요. 아인합동관세사입니다.",
+    "",
+    "해당 건 입항 스케줄이 변경되어, 아래와 같이 변경된 스케줄을 안내드립니다.",
+    "",
+    "화주: 현대코퍼레이션H",
+    "납품처: 다우린",
+    "",
+    "B/L: MEDUWE188588",
+    "입항: 4/22",
+    "만기(프리타임): 4/24",
+    "",
+    "감사합니다.",
+    "아인합동관세사무소",
+  ].join("\n"));
+  assert.doesNotMatch(mail.text, / 귀/);
 });
 
 test("keeps only the destination name before cargo descriptors", () => {

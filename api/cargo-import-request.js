@@ -3,8 +3,10 @@ const { requireWritableSession, supabaseFetch } = require("../lib/cargo-auth");
 const { koreaDate, normalizeIsoDate } = require("../lib/cargo-request-utils");
 const {
   defaultMailSettings,
+  fetchEffectiveRoleMailSettings,
   fetchMailSetting,
   resolveMailRecipients,
+  resolveRoleMailRecipients,
 } = require("../lib/cargo-mail-settings");
 const {
   isImportProgressStatus,
@@ -219,13 +221,15 @@ async function sendMail(card, request, session, account) {
   const host = env("SMTP_HOST");
   const user = env("SMTP_USER");
   const pass = env("SMTP_PASS");
-  const setting = await fetchMailSetting(supabaseFetch, "import_request");
-  const fallback = defaultMailSettings(process.env).import_request;
-  const recipients = resolveMailRecipients({
-    accountOverride: account?.release_request_to || session.release_request_to,
-    setting,
-    fallbackTo: fallback.to,
-    fallbackCc: fallback.cc,
+  const settings = await fetchEffectiveRoleMailSettings(
+    supabaseFetch,
+    "import_request",
+    "request",
+    process.env
+  );
+  const recipients = resolveRoleMailRecipients({
+    settings,
+    direction: "request",
     extraCc: request.requester_email,
   });
   if (!host || !user || !pass || !recipients.to.length) {

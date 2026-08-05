@@ -6,6 +6,9 @@ create table if not exists public.cargo_mail_settings (
   updated_by text,
   constraint cargo_mail_settings_key_check check (
     setting_key in (
+      'ain_default',
+      'shipper_default',
+      'destination_default',
       'original_doc_request',
       'import_request',
       'release_request',
@@ -26,6 +29,9 @@ alter table public.cargo_mail_settings
 alter table public.cargo_mail_settings
   add constraint cargo_mail_settings_key_check check (
     setting_key in (
+      'ain_default',
+      'shipper_default',
+      'destination_default',
       'original_doc_request',
       'import_request',
       'release_request',
@@ -41,13 +47,16 @@ alter table public.cargo_mail_settings enable row level security;
 revoke all on table public.cargo_mail_settings from anon, authenticated;
 grant all on table public.cargo_mail_settings to service_role;
 
-insert into public.cargo_mail_settings (setting_key)
+insert into public.cargo_mail_settings (setting_key, to_recipients, cc_recipients)
 values
-  ('original_doc_request'),
-  ('import_request'),
-  ('release_request'),
-  ('warehouse_change'),
-  ('arrival_schedule_change'),
-  ('original_doc_receipt'),
-  ('obl_carrier_receipt')
+  ('ain_default', 'jsh@aincustoms.com,jhcho@aincustoms.com,bill@aincustoms.com,ain@aincustoms.com', ''),
+  ('shipper_default', 'dmswk@hyundaicorp.com,ye25@hyundaicorp.com', ''),
+  ('destination_default', '', ''),
+  ('original_doc_request', '', ''),
+  ('import_request', '', ''),
+  ('release_request', '', ''),
+  ('warehouse_change', '', ''),
+  ('arrival_schedule_change', '', ''),
+  ('original_doc_receipt', '', ''),
+  ('obl_carrier_receipt', '', '')
 on conflict (setting_key) do nothing;

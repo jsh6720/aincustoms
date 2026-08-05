@@ -7,6 +7,7 @@ const {
   MAIL_SETTING_KEYS,
   effectiveMailSettings,
   normalizeMailSettings,
+  resolveRoleMailRecipients,
   resolveMailRecipients,
 } = require("../lib/cargo-mail-settings");
 const { normalizeOblDateInput } = require("../lib/cargo-date-input");
@@ -42,10 +43,16 @@ test("mail setting migration creates one keyed settings table", () => {
     "legacy key constraints must be replaced without dropping saved mail settings"
   );
   assert.match(migration, /'arrival_schedule_change'/i);
+  assert.match(migration, /'ain_default'/i);
+  assert.match(migration, /'shipper_default'/i);
+  assert.match(migration, /'destination_default'/i);
 });
 
 test("mail settings expose every current email function", () => {
   assert.deepEqual(MAIL_SETTING_KEYS, [
+    "ain_default",
+    "shipper_default",
+    "destination_default",
     "original_doc_request",
     "import_request",
     "release_request",
@@ -101,6 +108,18 @@ test("effective mail settings show saved recipients and current delivery fallbac
       }
     ),
     {
+      ain_default: {
+        to: ["jsh@aincustoms.com", "jhcho@aincustoms.com", "bill@aincustoms.com", "ain@aincustoms.com"],
+        cc: [],
+      },
+      shipper_default: {
+        to: ["dmswk@hyundaicorp.com", "ye25@hyundaicorp.com"],
+        cc: [],
+      },
+      destination_default: {
+        to: [],
+        cc: [],
+      },
       original_doc_request: {
         to: ["ops1@example.com", "ops2@example.com", "notify@example.com", "sender@example.com"],
         cc: [],
@@ -129,6 +148,33 @@ test("effective mail settings show saved recipients and current delivery fallbac
         to: ["dmswk@hyundaicorp.com", "ye25@hyundaicorp.com"],
         cc: ["jsh@aincustoms.com", "jhcho@aincustoms.com", "bill@aincustoms.com"],
       },
+    }
+  );
+});
+
+test("role mail routing sends requests to AIN and notices to shipper plus destination", () => {
+  const settings = {
+    ain_default: { to: ["ops@example.com"], cc: ["audit@example.com"] },
+    shipper_default: { to: ["shipper@example.com"], cc: [] },
+    destination_default: { to: ["destination@example.com"], cc: [] },
+  };
+
+  assert.deepEqual(
+    resolveRoleMailRecipients({
+      settings,
+      direction: "request",
+      extraCc: "requester@example.com",
+    }),
+    {
+      to: ["ops@example.com", "audit@example.com"],
+      cc: ["shipper@example.com", "destination@example.com", "requester@example.com"],
+    }
+  );
+  assert.deepEqual(
+    resolveRoleMailRecipients({ settings, direction: "notice" }),
+    {
+      to: ["shipper@example.com", "destination@example.com"],
+      cc: ["ops@example.com", "audit@example.com"],
     }
   );
 });
@@ -221,16 +267,26 @@ test("admin API and screen manage function-specific mail settings", () => {
   assert.match(adminApi, /effectiveMailSettings/);
   assert.match(adminApi, /action\s*===\s*"mail_settings"/);
   assert.match(dashboard, /기능별 메일 수신처/);
+  assert.match(dashboard, /기본 메일 - 관리자\(AIN\)/);
+  assert.match(dashboard, /기본 메일 - 화주/);
+  assert.match(dashboard, /기본 메일 - 납품처/);
   assert.match(dashboard, /현재 실제 발송에 적용되는 주소/);
   assert.match(dashboard, /saveAdminMailSettings/);
-  assert.match(dashboard, /입항일 변경 안내 \(To=화주, CC=납품처\)/);
+  assert.match(dashboard, /입항일 변경 안내/);
+  assert.match(dashboard, /previewProgressTransportMail/);
+  assert.match(dashboard, /메일 발송 전 확인/);
   assert.match(adminApi, /add_cargo_mail_settings\.sql/);
 });
 
 test("every configured mail function is wired to its delivery API", () => {
   for (const [settingKey, source] of Object.entries(mailApiSources)) {
     assert.match(source, new RegExp(`["']${settingKey}["']`));
-    assert.match(source, /resolveMailRecipients/);
-    assert.match(source, /defaultMailSettings/);
+    if (["original_doc_receipt", "obl_carrier_receipt"].includes(settingKey)) {
+      assert.match(source, /resolveMailRecipients/);
+      assert.match(source, /defaultMailSettings/);
+    } else {
+      assert.match(source, /resolveRoleMailRecipients/);
+      assert.match(source, /fetchEffectiveRoleMailSettings/);
+    }
   }
 });

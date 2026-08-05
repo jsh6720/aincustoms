@@ -437,6 +437,72 @@ test("admin can explicitly email one arrival schedule change to configured shipp
   assert.match(calls.mail[0].text, /만기\(프리타임\): 4\/24/);
 });
 
+test("arrival schedule preview uses role recipients and has no save or mail side effects", { concurrency: false }, async () => {
+  const { calls, handler } = createQuotaFixture({
+    session: {
+      account_id: "admin-account",
+      role: "admin",
+      login_id: "ADMIN-1",
+    },
+    previousInput: {
+      account_id: "account-1",
+      bl_number: "MEDUWE188588",
+      eta_date: "2026-08-10",
+      free_time_days: 3,
+    },
+    cardRows: [{
+      account_id: "account-1",
+      bl_number: "MEDUWE188588",
+      consignee: "현대코퍼레이션H",
+      destination: "다우린_계육_브라질",
+    }],
+    mailSettings: {
+      ain_default: {
+        to_recipients: "ain@example.com",
+        cc_recipients: "",
+      },
+      shipper_default: {
+        to_recipients: "shipper@example.com",
+        cc_recipients: "",
+      },
+      destination_default: {
+        to_recipients: "destination@example.com",
+        cc_recipients: "",
+      },
+    },
+  });
+  const response = createResponse();
+
+  await handler({
+    method: "POST",
+    body: {
+      action: "preview_transport_mail",
+      mail_type: "arrival",
+      account_id: "account-1",
+      bl_number: "MEDUWE188588",
+      eta_date: "2026-08-11",
+      free_time_days: 3,
+    },
+  }, response);
+
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(response.body.preview.to, [
+    "shipper@example.com",
+    "destination@example.com",
+  ]);
+  assert.deepEqual(response.body.preview.cc, ["ain@example.com"]);
+  assert.equal(
+    response.body.preview.subject,
+    "[입항 스케줄 변경] 현대_MEDUWE188588 / 다우린"
+  );
+  assert.match(response.body.preview.text, /화주: 현대코퍼레이션H/);
+  assert.match(response.body.preview.text, /납품처: 다우린/);
+  assert.match(response.body.preview.text, /입항: 8\/11/);
+  assert.match(response.body.preview.text, /만기\(프리타임\): 8\/13/);
+  assert.equal(calls.savedPayload, null);
+  assert.equal(calls.mail.length, 0);
+});
+
 test("admin can review and override arrival schedule recipients for one send", { concurrency: false }, async () => {
   const { calls, handler } = createQuotaFixture({
     session: {
@@ -1099,6 +1165,15 @@ test("import request handler defaults, persists, returns, and emails the Korea r
   const handler = loadImportRequestHandler({
     verifySession: () => ({ account_id: "account-1", display_name: "테스트 화주" }),
     supabaseFetch: async (url, options) => {
+      if (url.includes("/rest/v1/cargo_mail_settings")) {
+        const key = decodeURIComponent((url.match(/setting_key=eq\.([^&]+)/) || [])[1] || "");
+        const settings = {
+          ain_default: { to_recipients: "ops@example.com", cc_recipients: "" },
+          shipper_default: { to_recipients: "shipper@example.com", cc_recipients: "" },
+          destination_default: { to_recipients: "destination@example.com", cc_recipients: "" },
+        };
+        return settings[key] ? [{ setting_key: key, ...settings[key] }] : [];
+      }
       if (url.startsWith("/rest/v1/shipper_accounts")) {
         return [{ release_request_to: "ops@example.com" }];
       }
@@ -1135,7 +1210,10 @@ test("import request handler defaults, persists, returns, and emails the Korea r
   assert.equal(response.body.request.requested_import_date, "2026-07-23");
   assert.equal(response.body.email_sent, true);
   assert.equal(sentMail.to, "ops@example.com");
-  assert.equal(sentMail.cc, "requester@example.com");
+  assert.equal(
+    sentMail.cc,
+    "shipper@example.com,destination@example.com,requester@example.com"
+  );
   assert.match(sentMail.text, /수입신고 요청일자: 2026-07-23/);
 });
 
