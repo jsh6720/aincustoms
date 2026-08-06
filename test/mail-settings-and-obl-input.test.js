@@ -214,6 +214,67 @@ test("notice recipients match shipper and destination account display names", ()
   );
 });
 
+test("notice recipients include a legacy destination account even when its category is shipper", () => {
+  const accounts = [
+    {
+      login_id: "HCH",
+      display_name: "현대코퍼레이션H",
+      consignee_filter: "현대코",
+      release_request_to: "dmswk@hyundaicorp.com,ye25@hyundaicorp.com",
+      account_category: "shipper",
+      role: "shipper",
+      is_active: true,
+    },
+    {
+      login_id: "CTF",
+      display_name: "캐틀팜",
+      consignee_filter: "캐틀팜",
+      release_request_to: "cattlefarm9292@gmail.com",
+      account_category: "shipper",
+      role: "shipper",
+      is_active: true,
+    },
+    {
+      login_id: "aincustoms",
+      display_name: "캐틀팜 관리자",
+      consignee_filter: "캐틀팜",
+      release_request_to: "admin@example.com",
+      account_category: "shipper",
+      role: "admin",
+      is_active: true,
+    },
+  ];
+
+  assert.deepEqual(
+    resolveAccountDirectoryNoticeRecipients({
+      accounts,
+      card: {
+        consignee: "현대코퍼레이션H",
+        destination: "캐틀팜_우육_호주",
+      },
+      ainRecipients: [
+        "jsh@aincustoms.com",
+        "jhcho@aincustoms.com",
+        "bill@aincustoms.com",
+        "ain@aincustoms.com",
+      ],
+    }),
+    {
+      to: [
+        "dmswk@hyundaicorp.com",
+        "ye25@hyundaicorp.com",
+        "cattlefarm9292@gmail.com",
+      ],
+      cc: [
+        "jsh@aincustoms.com",
+        "jhcho@aincustoms.com",
+        "bill@aincustoms.com",
+        "ain@aincustoms.com",
+      ],
+    }
+  );
+});
+
 test("missing destination account is omitted and a future matching account is automatic", () => {
   const shipper = {
     display_name: "현대코퍼레이션H",
