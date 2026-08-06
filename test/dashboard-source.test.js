@@ -820,6 +820,17 @@ test("progress table binds long and centered short classes to intended columns",
   assert.match(row, /<td class="progress-long progress-state-cell"><span>\$\{esc\(progressStateText\(card\)\)\}<\/span>\$\{progressAdminRequestIndicators\(card\)\}<\/td>/);
 });
 
+test("inbound completion status uses the actual Customs location, not the planned yard", () => {
+  const start = dashboard.indexOf("function actualInboundLocationName");
+  const end = dashboard.indexOf("function destinationWithTerm", start);
+  const helper = dashboard.slice(start, end);
+
+  assert.match(helper, /state\.startsWith\("반입완료"\)/);
+  assert.match(helper, /actualInboundLocationName\(card\.shed_name\)/);
+  assert.doesNotMatch(helper, /actualInboundLocationName\(card\.storage_yard\)/);
+  assert.match(helper, /`반입완료\(\$\{actualLocation\}\)`/);
+});
+
 test("shipper progress request controls use exact stages and latest request details", () => {
   const start = dashboard.indexOf("function canRequestOriginalDocuments");
   const end = dashboard.indexOf("function renderProgressStatus", start);

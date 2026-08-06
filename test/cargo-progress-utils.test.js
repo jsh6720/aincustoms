@@ -7,6 +7,7 @@ const {
   customsQuarantinePassed,
   effectiveArrivalDate,
   freeTimeExpiry,
+  progressStateText,
   normalizeInspectionStatus,
   sortProgressCards,
 } = require("../lib/cargo-progress-utils");
@@ -131,6 +132,47 @@ test("Customs quarantine flags retain both approvals from cumulative Customs fie
       animalPassed: true,
       foodPassed: false,
     }
+  );
+});
+
+test("inbound completion shows the actual Customs warehouse without its area code", () => {
+  assert.equal(
+    progressStateText({
+      prgs_stts: "반입완료",
+      shed_name: "강동냉장(주)보세창고 (02111182/A30101)",
+    }),
+    "반입완료(강동냉장(주)보세창고)"
+  );
+});
+
+test("inbound completion also shows an actual terminal or CFS location", () => {
+  assert.equal(
+    progressStateText({
+      prgs_stts: "반입완료",
+      shed_name: "부산신항국제터미널 (03077013)",
+    }),
+    "반입완료(부산신항국제터미널)"
+  );
+});
+
+test("planned yard never substitutes for the actual location in progress state", () => {
+  assert.equal(
+    progressStateText({
+      prgs_stts: "반입완료",
+      storage_yard: "강동냉장(주)보세창고",
+      shed_name: "",
+    }),
+    "반입완료"
+  );
+});
+
+test("non-completion progress keeps the Customs status unchanged", () => {
+  assert.equal(
+    progressStateText({
+      prgs_stts: "검사/검역 동물검역(합격)",
+      shed_name: "강동냉장(주)보세창고 (02111182/A30101)",
+    }),
+    "검사/검역 동물검역(합격)"
   );
 });
 

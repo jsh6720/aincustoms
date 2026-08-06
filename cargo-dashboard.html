@@ -1540,8 +1540,19 @@
     function yardText(card) {
       return card.storage_yard || card.shed_name || "-";
     }
+    function actualInboundLocationName(value) {
+      return String(value || "")
+        .trim()
+        .replace(/\s*\([0-9A-Za-z/-]+\)\s*$/, "")
+        .trim();
+    }
     function progressStateText(card) {
-      return card.prgs_stts || card.cscl_prgs_stts || (card.stage === "입항전" ? "조회 전" : "-");
+      const state = String(
+        card.prgs_stts || card.cscl_prgs_stts || (card.stage === "입항전" ? "조회 전" : "-")
+      ).trim();
+      if (!state.startsWith("반입완료")) return state;
+      const actualLocation = actualInboundLocationName(card.shed_name);
+      return actualLocation ? `반입완료(${actualLocation})` : state;
     }
     function destinationWithTerm(card) {
       const destination = card.destination || "-";
