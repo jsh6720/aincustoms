@@ -2547,11 +2547,15 @@
       document.getElementById("progressWarehouseDate").value = calendarDate(progressWarehouseCard.warehouse_expected_date);
       toggleProgressWarehouseGroups(progressWarehouseFocusField);
       const recipientGroup = document.getElementById("progressArrivalMailRecipientsGroup");
-      const reviewArrivalRecipients = currentUserRole === "admin" && progressWarehouseFocusField === "eta_date";
-      recipientGroup.style.display = reviewArrivalRecipients ? "" : "none";
-      if (reviewArrivalRecipients) {
+      const mailSupportedFields = ["eta_date", "storage_yard", "warehouse_expected_date"];
+      const reviewTransportRecipients = currentUserRole === "admin"
+        && mailSupportedFields.includes(progressWarehouseFocusField);
+      recipientGroup.style.display = reviewTransportRecipients ? "" : "none";
+      if (reviewTransportRecipients) {
         ensureAdminMailSettingsForReview().then((loaded) => {
-          if (loaded && progressWarehouseFocusField === "eta_date") populateProgressArrivalMailRecipients();
+          if (loaded && mailSupportedFields.includes(progressWarehouseFocusField)) {
+            populateProgressArrivalMailRecipients();
+          }
         });
       }
       const confirmation_action = progressWarehouseFocusField
@@ -2565,15 +2569,15 @@
           <button class="btn danger" onclick="saveProgressWarehouseEditor(false, 'confirm')">확정</button>
         `
         : "";
-      const arrivalMailButton = currentUserRole === "admin"
-        && progressWarehouseFocusField === "eta_date"
+      const transportMailButton = currentUserRole === "admin"
+        && mailSupportedFields.includes(progressWarehouseFocusField)
         ? `<button class="btn" onclick="saveProgressWarehouseEditor(true)">저장+메일</button>`
         : "";
       document.getElementById("progressWarehouseModalActions").innerHTML = currentUserRole === "admin"
         ? `
           <button class="btn gray" onclick="closeProgressWarehouseEditor()">취소</button>
           <button class="btn" onclick="saveProgressWarehouseEditor(false)">저장</button>
-          ${arrivalMailButton}
+          ${transportMailButton}
           ${confirmationButtons}
         `
         : `
@@ -2651,7 +2655,8 @@
           payload.free_time_days = 3;
         }
       }
-      if (sendNotification === true && currentUserRole === "admin" && progressWarehouseFocusField === "eta_date") {
+      if (sendNotification === true && currentUserRole === "admin"
+          && ["eta_date", "storage_yard", "warehouse_expected_date"].includes(progressWarehouseFocusField)) {
         const settingsLoaded = await ensureAdminMailSettingsForReview();
         if (!settingsLoaded) {
           progressWarehouseSaving = false;

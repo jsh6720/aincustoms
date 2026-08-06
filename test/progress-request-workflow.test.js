@@ -344,7 +344,7 @@ test("shipper save-only persists provenance without SMTP", { concurrency: false 
   assert.equal(calls.savedPayload.transport_updated_at, "2026-07-23T04:05:06.000Z");
 });
 
-test("admin transport save never sends mail", { concurrency: false }, async () => {
+test("admin save-only persists warehouse changes without mail", { concurrency: false }, async () => {
   const { calls, handler } = createQuotaFixture({
     session: {
       account_id: "admin-account",
@@ -368,17 +368,74 @@ test("admin transport save never sends mail", { concurrency: false }, async () =
         account_id: "account-1",
         bl_number: "BL-1",
         storage_yard: "Next yard",
+        send_notification: false,
+      },
+    }, response)
+  );
+
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(response.body.changed_fields, ["storage_yard"]);
+  assert.equal(response.body.email_sent, false);
+  assert.equal(calls.mail.length, 0);
+  assert.equal(calls.savedPayload.transport_updated_by_role, "admin");
+  assert.equal(calls.savedPayload.transport_updated_by_login, "ADMIN-1");
+});
+
+test("admin can save and email a warehouse schedule change", { concurrency: false }, async () => {
+  const { calls, handler } = createQuotaFixture({
+    session: {
+      account_id: "admin-account",
+      role: "admin",
+      login_id: "ADMIN-1",
+    },
+    previousInput: {
+      account_id: "account-1",
+      bl_number: "BL-1",
+      storage_yard: "Previous yard",
+      warehouse_expected_date: "2026-08-05",
+    },
+    cardRows: [{
+      account_id: "account-1",
+      bl_number: "BL-1",
+      consignee: "현대코퍼레이션H",
+      destination: "캐틀팜*우육*호주",
+    }],
+    mailSettings: {
+      warehouse_change: {
+        to_recipients: "shipper@example.com,destination@example.com",
+        cc_recipients: "ain@example.com",
+      },
+    },
+  });
+  const response = createResponse();
+
+  await withEnvironment(
+    {
+      SMTP_HOST: "smtp.example.com",
+      SMTP_USER: "mailer@example.com",
+      SMTP_PASS: "secret",
+    },
+    () => handler({
+      method: "POST",
+      body: {
+        action: "manual_fields",
+        account_id: "account-1",
+        bl_number: "BL-1",
+        storage_yard: "Next yard",
+        warehouse_expected_date: "2026-08-06",
         send_notification: true,
       },
     }, response)
   );
 
   assert.equal(response.statusCode, 200);
-  assert.deepEqual(response.body.changed_fields, []);
-  assert.equal(response.body.email_sent, false);
-  assert.equal(calls.mail.length, 0);
-  assert.equal(calls.savedPayload.transport_updated_by_role, "admin");
-  assert.equal(calls.savedPayload.transport_updated_by_login, "ADMIN-1");
+  assert.deepEqual(response.body.changed_fields, ["storage_yard", "warehouse_expected_date"]);
+  assert.equal(response.body.email_sent, true);
+  assert.equal(calls.mail.length, 1);
+  assert.equal(calls.mail[0].to, "shipper@example.com,destination@example.com");
+  assert.equal(calls.mail[0].cc, "ain@example.com");
+  assert.match(calls.mail[0].text, /Next yard/);
+  assert.match(calls.mail[0].text, /2026-08-06/);
 });
 
 test("admin can explicitly email one arrival schedule change to configured shipper and destination", { concurrency: false }, async () => {

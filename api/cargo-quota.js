@@ -542,12 +542,10 @@ module.exports = async function handler(req, res) {
       const etaChanged = Object.prototype.hasOwnProperty.call(body, "eta_date")
         && previousEta !== nextEta;
       const warehouseChangedFields = warehouseChanges(previousWarehouse, nextWarehouse);
-      const changedFields = isAdmin
-        ? (etaChanged ? ["eta_date"] : [])
-        : [
-            ...(etaChanged ? ["eta_date"] : []),
-            ...warehouseChangedFields,
-          ];
+      const changedFields = [
+        ...(etaChanged ? ["eta_date"] : []),
+        ...warehouseChangedFields,
+      ];
       nextPayload.transport_updated_by_role = isAdmin
         ? "admin"
         : session.account_category === "destination"
@@ -574,7 +572,7 @@ module.exports = async function handler(req, res) {
         );
         let emailSent = false;
         let emailMessage = "";
-        if (sendNotification && etaChanged) {
+        if (sendNotification && changedFields.length) {
           try {
             const recipientOverride = (
               Object.prototype.hasOwnProperty.call(body, "notification_to")
@@ -583,7 +581,17 @@ module.exports = async function handler(req, res) {
               to_recipients: String(body.notification_to || "").trim(),
               cc_recipients: String(body.notification_cc || "").trim(),
             } : null;
-            await sendArrivalScheduleChangeMail(card, nextInput, recipientOverride);
+            if (etaChanged) {
+              await sendArrivalScheduleChangeMail(card, nextInput, recipientOverride);
+            } else if (warehouseChangedFields.length) {
+              await sendWarehouseChangeMail(
+                card,
+                session,
+                previousWarehouse,
+                nextWarehouse,
+                recipientOverride
+              );
+            }
             emailSent = true;
           } catch (mailError) {
             emailMessage = mailError.message;
