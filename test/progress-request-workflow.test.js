@@ -707,7 +707,10 @@ test("admin can review and override arrival schedule recipients for one send", {
         notification_to: "reviewed@example.com",
         notification_cc: "reviewed-cc@example.com",
         notification_subject: "[검토완료] 변경 안내",
-        notification_text: "검토자가 수정한 최종 메일 본문입니다.",
+        notification_text: [
+          "검토자가 수정한 최종 메일 본문입니다.",
+          "입항예정일: 2026-04-21 -> 2026-04-22",
+        ].join("\n"),
       },
     }, response)
   );
@@ -717,7 +720,14 @@ test("admin can review and override arrival schedule recipients for one send", {
   assert.equal(calls.mail[0].to, "reviewed@example.com");
   assert.equal(calls.mail[0].cc, "reviewed-cc@example.com");
   assert.equal(calls.mail[0].subject, "[검토완료] 변경 안내");
-  assert.equal(calls.mail[0].text, "검토자가 수정한 최종 메일 본문입니다.");
+  assert.equal(calls.mail[0].text, [
+    "검토자가 수정한 최종 메일 본문입니다.",
+    "입항예정일: 2026-04-21 -> 2026-04-22",
+  ].join("\n"));
+  assert.match(
+    calls.mail[0].html,
+    /입항예정일: 2026-04-21 <strong style="color:#b42318;font-weight:700;">→ 2026-04-22<\/strong>/
+  );
 });
 
 test("arrival schedule mail is skipped when the effective ETA did not change", { concurrency: false }, async () => {

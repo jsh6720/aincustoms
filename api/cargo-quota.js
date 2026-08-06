@@ -140,7 +140,10 @@ function applyMailContentOverride(mail, contentOverride = null) {
   return {
     subject: String(contentOverride.subject || "").trim() || mail.subject,
     text: String(contentOverride.text || "").trim() || mail.text,
-    html: mailTextToHtml(String(contentOverride.text || "").trim() || mail.text),
+    html: mailTextToHtml(
+      String(contentOverride.text || "").trim() || mail.text,
+      { highlightChanges: true }
+    ),
   };
 }
 

@@ -59,7 +59,7 @@ test("builds the approved detailed arrival schedule change email", () => {
     "TEL: 02-518-5434",
   ].join("\n"));
   assert.doesNotMatch(mail.text, /C\/O 미수취/);
-  assert.match(mail.html, /입항예정일: 2026-04-20 <strong>→ 2026-04-22<\/strong>/);
+  assert.match(mail.html, /입항예정일: 2026-04-20 <strong style="color:#b42318;font-weight:700;">→ 2026-04-22<\/strong>/);
   assert.match(mail.html, /font-family:'Malgun Gothic','맑은 고딕',sans-serif/);
   assert.match(mail.html, /font-size:9pt/);
 });
@@ -68,6 +68,22 @@ test("wraps plain client mail in Malgun Gothic 9pt HTML", () => {
   const html = mailTextToHtml("안녕하세요.\n요청 내용을 확인해 주세요.");
   assert.match(html, /^<div style="font-family:'Malgun Gothic','맑은 고딕',sans-serif;font-size:9pt;/);
   assert.match(html, /안녕하세요\.<br>요청 내용을 확인해 주세요\.<\/div>$/);
+});
+
+test("highlights newly entered and changed transport values in reviewed mail", () => {
+  const html = mailTextToHtml([
+    "입항예정일: 2026-08-11 -> 2026-08-12",
+    "반입예정일: 2026-08-13(예정)",
+  ].join("\n"), { highlightChanges: true });
+
+  assert.match(
+    html,
+    /입항예정일: 2026-08-11 <strong style="color:#b42318;font-weight:700;">→ 2026-08-12<\/strong>/
+  );
+  assert.match(
+    html,
+    /반입예정일: <strong style="color:#b42318;font-weight:700;">2026-08-13\(예정\)<\/strong>/
+  );
 });
 
 test("keeps only the destination name before cargo descriptors", () => {
@@ -199,7 +215,7 @@ test("builds a warehouse change email with before and after values", () => {
   assert.match(mail.text, /비고: OBL 원본 미수령, IV 미수취/);
   assert.match(mail.text, /관련하여 수정 및 문의사항이 있으신 경우 아인합동관세사\(jsh@aincustoms\.com\)로 말씀 부탁드리겠습니다\./);
   assert.match(mail.html, /반입예정정보가 변경되어 아래와 같이 안내드립니다\./);
-  assert.match(mail.html, /반입예정구역: 미정 <strong>→ 강동냉장<\/strong>/);
+  assert.match(mail.html, /반입예정구역: 미정 <strong style="color:#b42318;font-weight:700;">→ 강동냉장<\/strong>/);
 });
 
 test("shows unchanged warehouse values once and arrows only for changed values", () => {
@@ -226,7 +242,7 @@ test("shows unchanged warehouse values once and arrows only for changed values",
   assert.match(mail.text, /반입예정일: 2026-08-07 -> 2026-08-10/);
   assert.match(mail.html, new RegExp(`반입예정구역: ${yard.replace(/[()]/g, "\\$&")}<br>`));
   assert.doesNotMatch(mail.html, /<strong>→ .*A50101/);
-  assert.match(mail.html, /반입예정일: 2026-08-07 <strong>→ 2026-08-10<\/strong>/);
+  assert.match(mail.html, /반입예정일: 2026-08-07 <strong style="color:#b42318;font-weight:700;">→ 2026-08-10<\/strong>/);
 });
 
 test("excludes missing C/O from poultry notes while retaining other missing documents", () => {
