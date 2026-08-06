@@ -604,6 +604,8 @@ test("admin can review and override arrival schedule recipients for one send", {
         send_notification: true,
         notification_to: "reviewed@example.com",
         notification_cc: "reviewed-cc@example.com",
+        notification_subject: "[검토완료] 변경 안내",
+        notification_text: "검토자가 수정한 최종 메일 본문입니다.",
       },
     }, response)
   );
@@ -612,8 +614,8 @@ test("admin can review and override arrival schedule recipients for one send", {
   assert.equal(response.body.email_sent, true);
   assert.equal(calls.mail[0].to, "reviewed@example.com");
   assert.equal(calls.mail[0].cc, "reviewed-cc@example.com");
-  assert.match(calls.mail[0].text, /입항: 4\/22/);
-  assert.match(calls.mail[0].text, /만기\(프리타임\): 4\/24/);
+  assert.equal(calls.mail[0].subject, "[검토완료] 변경 안내");
+  assert.equal(calls.mail[0].text, "검토자가 수정한 최종 메일 본문입니다.");
 });
 
 test("arrival schedule mail is skipped when the effective ETA did not change", { concurrency: false }, async () => {

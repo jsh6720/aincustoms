@@ -111,16 +111,41 @@ async function resolveTransportRecipients(featureKey, recipientOverride = null) 
   return resolveRoleMailRecipients({ settings, direction: "notice" });
 }
 
-async function prepareWarehouseChangeMail(card, session, previous, next, recipientOverride = null) {
+function applyMailContentOverride(mail, contentOverride = null) {
+  if (!contentOverride) return mail;
+  return {
+    subject: String(contentOverride.subject || "").trim() || mail.subject,
+    text: String(contentOverride.text || "").trim() || mail.text,
+  };
+}
+
+async function prepareWarehouseChangeMail(
+  card,
+  session,
+  previous,
+  next,
+  recipientOverride = null,
+  contentOverride = null
+) {
   const recipients = await resolveTransportRecipients("warehouse_change", recipientOverride);
   if (!recipients.to.length) {
     throw new Error("반입예정 정보 변경 메일의 화주·납품처 수신처가 설정되지 않았습니다.");
   }
-  const mail = buildWarehouseChangeMail(card, session, previous, next);
+  const mail = applyMailContentOverride(
+    buildWarehouseChangeMail(card, session, previous, next),
+    contentOverride
+  );
   return { recipients, mail };
 }
 
-async function sendWarehouseChangeMail(card, session, previous, next, recipientOverride = null) {
+async function sendWarehouseChangeMail(
+  card,
+  session,
+  previous,
+  next,
+  recipientOverride = null,
+  contentOverride = null
+) {
   const host = process.env.SMTP_HOST || "";
   const user = process.env.SMTP_USER || "";
   const pass = process.env.SMTP_PASS || "";
@@ -138,7 +163,8 @@ async function sendWarehouseChangeMail(card, session, previous, next, recipientO
     session,
     previous,
     next,
-    recipientOverride
+    recipientOverride,
+    contentOverride
   );
   await transporter.sendMail({
     from: process.env.MAIL_FROM || user,
@@ -149,16 +175,29 @@ async function sendWarehouseChangeMail(card, session, previous, next, recipientO
   });
 }
 
-async function prepareArrivalScheduleChangeMail(card, next, recipientOverride = null) {
+async function prepareArrivalScheduleChangeMail(
+  card,
+  next,
+  recipientOverride = null,
+  contentOverride = null
+) {
   const recipients = await resolveTransportRecipients("arrival_schedule_change", recipientOverride);
   if (!recipients.to.length) {
     throw new Error("입항일 변경 안내의 화주·납품처 메일 주소가 설정되지 않았습니다.");
   }
-  const mail = buildArrivalScheduleChangeMail(card, next);
+  const mail = applyMailContentOverride(
+    buildArrivalScheduleChangeMail(card, next),
+    contentOverride
+  );
   return { recipients, mail };
 }
 
-async function sendArrivalScheduleChangeMail(card, next, recipientOverride = null) {
+async function sendArrivalScheduleChangeMail(
+  card,
+  next,
+  recipientOverride = null,
+  contentOverride = null
+) {
   const host = process.env.SMTP_HOST || "";
   const user = process.env.SMTP_USER || "";
   const pass = process.env.SMTP_PASS || "";
@@ -168,7 +207,8 @@ async function sendArrivalScheduleChangeMail(card, next, recipientOverride = nul
   const { recipients, mail } = await prepareArrivalScheduleChangeMail(
     card,
     next,
-    recipientOverride
+    recipientOverride,
+    contentOverride
   );
   const transporter = nodemailer.createTransport({
     host,
@@ -581,15 +621,28 @@ module.exports = async function handler(req, res) {
               to_recipients: String(body.notification_to || "").trim(),
               cc_recipients: String(body.notification_cc || "").trim(),
             } : null;
+            const contentOverride = (
+              Object.prototype.hasOwnProperty.call(body, "notification_subject")
+              || Object.prototype.hasOwnProperty.call(body, "notification_text")
+            ) ? {
+              subject: String(body.notification_subject || "").trim(),
+              text: String(body.notification_text || "").trim(),
+            } : null;
             if (etaChanged) {
-              await sendArrivalScheduleChangeMail(card, nextInput, recipientOverride);
+              await sendArrivalScheduleChangeMail(
+                card,
+                nextInput,
+                recipientOverride,
+                contentOverride
+              );
             } else if (warehouseChangedFields.length) {
               await sendWarehouseChangeMail(
                 card,
                 session,
                 previousWarehouse,
                 nextWarehouse,
-                recipientOverride
+                recipientOverride,
+                contentOverride
               );
             }
             emailSent = true;

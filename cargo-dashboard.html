@@ -695,14 +695,21 @@
   <div id="mailPreviewModalBg" class="modal-bg">
     <div class="modal">
       <h2>메일 발송 전 확인</h2>
-      <div class="modal-card">
-        <div class="modal-row"><b>받는 사람</b><span id="mailPreviewTo"></span></div>
-        <div class="modal-row"><b>참조</b><span id="mailPreviewCc"></span></div>
-        <div class="modal-row"><b>제목</b><span id="mailPreviewSubject"></span></div>
+      <div class="modal-field">
+        <label for="mailPreviewTo">받는 사람(To)<span class="field-hint">쉼표로 구분</span></label>
+        <textarea id="mailPreviewTo" rows="2"></textarea>
+      </div>
+      <div class="modal-field">
+        <label for="mailPreviewCc">참조(CC)<span class="field-hint">쉼표로 구분 · 선택 입력</span></label>
+        <textarea id="mailPreviewCc" rows="2"></textarea>
+      </div>
+      <div class="modal-field">
+        <label for="mailPreviewSubject">제목</label>
+        <input id="mailPreviewSubject">
       </div>
       <div class="modal-field">
         <label for="mailPreviewBody">메일 내용</label>
-        <textarea id="mailPreviewBody" rows="14" readonly></textarea>
+        <textarea id="mailPreviewBody" rows="14"></textarea>
       </div>
       <div class="modal-actions">
         <button class="btn gray" type="button" onclick="closeMailPreview(false)">취소</button>
@@ -2499,18 +2506,39 @@
       ).join(",");
     }
     function openMailPreview(preview) {
-      document.getElementById("mailPreviewTo").textContent = (preview.to || []).join(", ") || "-";
-      document.getElementById("mailPreviewCc").textContent = (preview.cc || []).join(", ") || "-";
-      document.getElementById("mailPreviewSubject").textContent = preview.subject || "-";
+      document.getElementById("mailPreviewTo").value = (preview.to || []).join(", ");
+      document.getElementById("mailPreviewCc").value = (preview.cc || []).join(", ");
+      document.getElementById("mailPreviewSubject").value = preview.subject || "";
       document.getElementById("mailPreviewBody").value = preview.text || "";
       document.getElementById("mailPreviewModalBg").style.display = "flex";
       return new Promise((resolve) => { mailPreviewResolve = resolve; });
     }
     function closeMailPreview(confirmed) {
+      let reviewedMail = null;
+      if (confirmed === true) {
+        reviewedMail = {
+          to: document.getElementById("mailPreviewTo").value.trim(),
+          cc: document.getElementById("mailPreviewCc").value.trim(),
+          subject: document.getElementById("mailPreviewSubject").value.trim(),
+          text: document.getElementById("mailPreviewBody").value.trim(),
+        };
+        if (!reviewedMail.to) {
+          alert("받는 사람(To)을 입력해 주세요.");
+          return;
+        }
+        if (!reviewedMail.subject) {
+          alert("메일 제목을 입력해 주세요.");
+          return;
+        }
+        if (!reviewedMail.text) {
+          alert("메일 내용을 입력해 주세요.");
+          return;
+        }
+      }
       document.getElementById("mailPreviewModalBg").style.display = "none";
       const resolve = mailPreviewResolve;
       mailPreviewResolve = null;
-      if (resolve) resolve(confirmed === true);
+      if (resolve) resolve(reviewedMail);
     }
     async function previewProgressTransportMail(payload) {
       const response = await fetch("/api/cargo-quota", {
@@ -2699,8 +2727,14 @@
       try {
         if (sendNotification === true) {
           const preview = await previewProgressTransportMail(payload);
-          const confirmed = await openMailPreview(preview);
-          if (!confirmed) return;
+          const reviewedMail = await openMailPreview(preview);
+          if (!reviewedMail) return;
+          Object.assign(payload, {
+            notification_to: reviewedMail.to,
+            notification_cc: reviewedMail.cc,
+            notification_subject: reviewedMail.subject,
+            notification_text: reviewedMail.text,
+          });
         }
         const response = await fetch("/api/cargo-quota", {
           method: "POST",

@@ -1459,3 +1459,12 @@ test("arrival schedule mail lets an administrator review To and CC recipients", 
   assert.match(dashboard, /payload\.free_time_expiry_date = ""/);
   assert.match(dashboard, /payload\.free_time_expiry_override = ""/);
 });
+
+test("transport mail preview allows editing recipients, subject, and body before send", () => {
+  assert.match(dashboard, /<(?:textarea|input)[^>]*id="mailPreviewTo"/);
+  assert.match(dashboard, /<(?:textarea|input)[^>]*id="mailPreviewCc"/);
+  assert.match(dashboard, /<input[^>]*id="mailPreviewSubject"/);
+  assert.doesNotMatch(dashboard, /id="mailPreviewBody"[^>]*readonly/);
+  assert.match(dashboard, /notification_subject:\s*reviewedMail\.subject/);
+  assert.match(dashboard, /notification_text:\s*reviewedMail\.text/);
+});

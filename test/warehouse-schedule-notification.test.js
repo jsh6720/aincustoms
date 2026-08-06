@@ -86,7 +86,7 @@ test("warehouse schedule migration adds both planned event types", () => {
 test("day-before mail includes the OBL warning and correction reply instruction", () => {
   const mail = buildWarehouseScheduleMail("warehouse_arrival_eve", snapshot);
 
-  assert.match(mail.subject, /입고 예정 안내.*BL001/);
+  assert.equal(mail.subject, "[명일 입고 예정 안내] 현대코퍼레이션H_BL001 / 캐틀팜");
   assert.match(mail.text, /2026-08-07/);
   assert.match(mail.text, /강동냉장 보세창고/);
   assert.match(mail.text, /현재 OBL이 선사에 접수되지 않은 상태/);
@@ -96,7 +96,7 @@ test("day-before mail includes the OBL warning and correction reply instruction"
 test("same-day mail is separate and does not repeat the OBL warning", () => {
   const mail = buildWarehouseScheduleMail("warehouse_arrival_today", snapshot);
 
-  assert.match(mail.subject, /오늘 입고 예정.*BL001/);
+  assert.equal(mail.subject, "[금일 입고 예정 안내] 현대코퍼레이션H_BL001 / 캐틀팜");
   assert.match(mail.text, /오늘은 아래 화물의 예정된 입고일입니다/);
   assert.doesNotMatch(mail.text, /현재 OBL이 선사에 접수되지 않은 상태/);
 });
