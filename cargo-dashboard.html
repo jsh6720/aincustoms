@@ -2679,7 +2679,7 @@
         return;
       }
       const blNumber = card.bl_number;
-      const saveLabel = progressWarehouseFocusField === "eta_date" ? "입항일" : "반입예정정보";
+      const savedLabel = progressWarehouseFocusField === "eta_date" ? "입항일이" : "반입예정정보가";
       try {
         if (sendNotification === true) {
           const preview = await previewProgressTransportMail(payload);
@@ -2713,11 +2713,11 @@
         renderProgressStatus();
         renderProgressCalendar();
         if (sendNotification === true && result.email_sent) {
-          alert(`${saveLabel}이 저장되고 메일로 발송되었습니다.`);
+          alert(`${savedLabel} 저장되고 메일로 발송되었습니다.`);
         } else if (sendNotification === true) {
-          alert(`${saveLabel}은 저장되었지만 메일 발송에 실패했습니다.\n${result.email_message || "메일 환경설정을 확인해 주세요."}`);
+          alert(`${savedLabel} 저장되었지만 메일 발송에 실패했습니다.\n${result.email_message || "메일 환경설정을 확인해 주세요."}`);
         } else {
-          alert(`${saveLabel}이 저장되었습니다.`);
+          alert(`${savedLabel} 저장되었습니다.`);
         }
       } catch (error) {
         alert(`반입예정정보 처리 중 오류가 발생했습니다.\n${error.message || error}`);

@@ -1,104 +1,77 @@
-# Warehouse Arrival Notification Design
+# Warehouse Schedule Notification Design
 
 ## Goal
 
-Send one automatic notice on the morning before each planned bonded-warehouse
-arrival and one automatic notice when UNIPASS confirms the cargo actually
-entered that same warehouse.
+Send two independent automatic notices for each manually entered bonded-
+warehouse arrival schedule:
+
+1. at or after 09:00 KST on the previous day;
+2. at or after 09:00 KST on the scheduled day.
+
+The notice schedule uses only the saved `warehouse_expected_date`. UNIPASS
+actual-arrival matching is not a mail trigger.
 
 ## Operating Model
 
-- Reuse the `HyundaiDashboardSupabaseSync` Windows scheduled task on `NEWMAIN`.
-- The task continues to run every five minutes and remains the only polling
-  process for local UNIPASS data and planned transport data.
-- Reuse the existing signed Vercel mail endpoint instead of creating another
-  Serverless Function.
-- Keep SMTP credentials only in Vercel. The local process sends only a signed
-  event identifier.
-- Use the HCH account as the canonical source so linked CTF and Samhyeon rows do
-  not produce duplicate mail.
+- Reuse the `HyundaiDashboardSupabaseSync` task on `NEWMAIN` every five minutes.
+- Use the HCH account as the canonical source so linked CTF and Samhyeon rows
+  do not produce duplicate mail.
+- The local sync inserts immutable outbox rows and calls the existing signed
+  Vercel mail endpoint.
+- SMTP credentials remain only in Vercel.
 
-## Planned Arrival Notice
+## Event Rules
 
-- A card is eligible when it has a planned warehouse arrival date and a planned
-  warehouse name or bonded-area code.
-- Starting at 09:00 KST on the day before the planned date, the next successful
-  five-minute synchronization creates and dispatches the notice.
-- If `NEWMAIN` was unavailable at 09:00, the first later synchronization sends
-  the delayed notice while the planned arrival is still current.
-- The deduplication identity includes normalized B/L, planned date, and planned
-  warehouse identity. Repeating the same synchronization never resends it.
-- If the date or warehouse changes after an earlier notice, the new combination
-  produces one new change notice.
-- The body states that a different actual plan should be reported by replying
-  to `jsh@aincustoms.com` so the dashboard can be corrected.
+- Before 09:00 KST, neither event is eligible.
+- On the previous day at or after 09:00, create `warehouse_arrival_eve`.
+- On the scheduled day at or after 09:00, create `warehouse_arrival_today`.
+- After the scheduled day, do not create stale events.
+- The unique identity contains event type, normalized B/L, scheduled date, and
+  a normalized warehouse hash. Repeated synchronization is idempotent.
+- Changing the scheduled date or warehouse produces a new pair of notices.
 
-## Actual Arrival Notice
+## Previous-Day Notice
 
-- The local UNIPASS parser preserves the full bonded-in timestamp in addition
-  to the existing bonded-in date.
-- Terminal, pier, wharf, and CY records are not treated as actual bonded-
-  warehouse arrival.
-- Planned and actual warehouses match in this order:
-  1. exact normalized bonded-area code when both records have a code;
-  2. otherwise exact normalized warehouse name after removing whitespace,
-     punctuation, company markers, and standard warehouse words.
-- Fuzzy substring matching is not used because it can create false-positive
-  delivery notices.
-- A matching actual arrival creates one event containing the actual warehouse
-  and UNIPASS bonded-in timestamp.
-- A mismatching actual warehouse is recorded in synchronization diagnostics but
-  does not send a misleading successful-arrival notice.
-
-## Mail Routing
-
-- Both notices use the existing role-based notice routing.
-- To: effective shipper recipients plus effective destination recipients.
+- To: effective shipper plus destination recipients.
 - CC: effective AIN recipients.
-- Saved administrator settings take priority; existing feature settings and
-  environment defaults remain compatibility fallbacks.
-- The mail handler resolves recipients at send time so administrator changes are
-  reflected without reinstalling the local task.
+- Include shipper, destination, B/L, scheduled date, and planned warehouse.
+- Ask recipients to reply to `jsh@aincustoms.com` when the actual plan differs.
+- If OBL is not carrier-submitted, include a warning that planned warehouse
+  entry may be difficult and request confirmation of OBL receipt and schedule.
+
+## Same-Day Notice
+
+- Use the same role-based recipient routing.
+- State that today is the scheduled warehouse-entry date.
+- Include shipper, destination, B/L, scheduled date, and planned warehouse.
+- Do not repeat the previous-day OBL warning.
 
 ## Delivery History And Retry
 
-- Extend `cargo_status_notifications` with planned-arrival and actual-arrival
-  event types.
-- Keep a unique event key, immutable event snapshot, attempt count, send time,
-  and last error.
-- `pending` and `failed` events are retried by later synchronization runs.
-- `sent` events are never retried.
-- Existing card, document, request, date, status, and mail-setting rows are not
-  reset or deleted.
+- Reuse `cargo_status_notifications` with `warehouse_arrival_eve` and
+  `warehouse_arrival_today` event types.
+- Keep unique event key, immutable snapshot, attempt count, send time, and last
+  error.
+- Retry `pending` and `failed` rows; never resend `sent` rows.
+- Preserve all existing card, document, request, status, date, and mail-setting
+  rows.
 
-## Mail Content
+## Warehouse Display Preservation
 
-### Planned notice
-
-- Subject identifies planned bonded-warehouse arrival, shipper, B/L, and
-  destination.
-- Body includes shipper, destination, B/L, planned warehouse, planned date, and
-  the correction-reply sentence.
-
-### Actual notice
-
-- Subject identifies actual bonded-warehouse arrival, shipper, B/L, and
-  destination.
-- Body includes shipper, destination, B/L, planned warehouse, actual warehouse,
-  and the full UNIPASS bonded-in timestamp.
+- Terminal, container terminal, pier, wharf, and CY data does not replace a
+  manually entered planned warehouse.
+- A customs warehouse, refrigerated warehouse, frozen warehouse, or bonded
+  warehouse can take display precedence when actually queried.
+- The manual database value is preserved even when customs data is displayed.
+- This display precedence does not create or suppress either email event.
 
 ## Verification
 
-- Before 09:00 KST no planned event is created.
-- At or after 09:00 KST on the previous day exactly one planned event is sent.
-- A server restart or repeated five-minute run does not duplicate mail.
-- A changed planned date or warehouse produces one new notice.
-- A terminal record never triggers an actual-arrival notice.
-- Equal bonded-area codes trigger an actual-arrival notice even if display names
-  differ slightly.
-- Without codes, normalized exact names trigger the notice.
-- Different warehouse identities do not trigger the notice.
-- Actual mail contains the UNIPASS timestamp.
-- HCH, CTF, and Samhyeon linked rows still produce only one event.
-- Mail routing uses shipper and destination as To and AIN as CC.
-- Existing Node and Python regression suites remain green.
+- Previous-day 08:59 KST: no event.
+- Previous-day 09:00 KST: one `warehouse_arrival_eve` event.
+- Scheduled-day 08:59 KST: no event.
+- Scheduled-day 09:00 KST: one separate `warehouse_arrival_today` event.
+- Repeated sync: no duplicate send.
+- Linked account rows: HCH produces one canonical event only.
+- Mail routing: shipper and destination in To, AIN in CC.
+- Tests use mocked mail transport; no customer mail is sent during verification.
