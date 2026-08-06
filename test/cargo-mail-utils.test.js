@@ -6,6 +6,7 @@ const {
   buildTransportRollbackPayload,
   buildWarehouseChangeMail,
   destinationName,
+  mailTextToHtml,
   mergeManualFields,
   mergeRecipients,
   parseRecipientList,
@@ -38,10 +39,12 @@ test("builds the approved detailed arrival schedule change email", () => {
 
   assert.equal(mail.subject, "[입항 스케줄 변경] 현대_MEDUWE188588 / 다우린");
   assert.equal(mail.text, [
-    "반입예정정보가 변경되었습니다.",
+    "안녕하세요 아인합동관세사입니다.",
+    "반입예정정보가 변경되어 아래와 같이 안내드립니다.",
     "",
     "화주명: 현대코퍼레이션H",
     "B/L: MEDUWE188588",
+    "육종: 계육",
     "납품처: 다우린",
     "입항예정일: 2026-04-20 -> 2026-04-22",
     "만기일: 2026-04-24",
@@ -50,10 +53,21 @@ test("builds the approved detailed arrival schedule change email", () => {
     "반입예정일: 2026-04-23 -> 2026-04-24",
     "비고: OBL 원본 미수령, IV 미수취",
     "",
-    "관련하여 수정 및 문의사항이 있으신 경우 jsh@aincustoms.com 로 메일 부탁드리겠습니다.",
+    "관련하여 수정 및 문의사항이 있으신 경우 아인합동관세사(jsh@aincustoms.com)로 말씀 부탁드리겠습니다.",
+    "",
+    "아인합동관세사무소 | 조재호, 정석현 대표 관세사",
+    "TEL: 02-518-5434",
   ].join("\n"));
   assert.doesNotMatch(mail.text, /C\/O 미수취/);
   assert.match(mail.html, /입항예정일: 2026-04-20 <strong>→ 2026-04-22<\/strong>/);
+  assert.match(mail.html, /font-family:'Malgun Gothic','맑은 고딕',sans-serif/);
+  assert.match(mail.html, /font-size:9pt/);
+});
+
+test("wraps plain client mail in Malgun Gothic 9pt HTML", () => {
+  const html = mailTextToHtml("안녕하세요.\n요청 내용을 확인해 주세요.");
+  assert.match(html, /^<div style="font-family:'Malgun Gothic','맑은 고딕',sans-serif;font-size:9pt;/);
+  assert.match(html, /안녕하세요\.<br>요청 내용을 확인해 주세요\.<\/div>$/);
 });
 
 test("keeps only the destination name before cargo descriptors", () => {
@@ -174,7 +188,7 @@ test("builds a warehouse change email with before and after values", () => {
     }
   );
   assert.match(mail.subject, /반입예정정보 변경/);
-  assert.match(mail.text, /^반입예정정보가 변경되었습니다\./);
+  assert.match(mail.text, /^안녕하세요 아인합동관세사입니다\./);
   assert.match(mail.text, /ONEYBNEG04197300/);
   assert.match(mail.text, /납품처: 캐틀팜/);
   assert.match(mail.text, /입항예정일: 2026-07-21/);
@@ -183,8 +197,8 @@ test("builds a warehouse change email with before and after values", () => {
   assert.match(mail.text, /반입예정일: 2026-07-24\(예정\)/);
   assert.doesNotMatch(mail.text, /미입력 -> 2026-07-24/);
   assert.match(mail.text, /비고: OBL 원본 미수령, IV 미수취/);
-  assert.match(mail.text, /관련하여 수정 및 문의사항이 있으신 경우 jsh@aincustoms\.com 로 메일 부탁드리겠습니다\.$/);
-  assert.match(mail.html, /반입예정정보가 변경되었습니다\./);
+  assert.match(mail.text, /관련하여 수정 및 문의사항이 있으신 경우 아인합동관세사\(jsh@aincustoms\.com\)로 말씀 부탁드리겠습니다\./);
+  assert.match(mail.html, /반입예정정보가 변경되어 아래와 같이 안내드립니다\./);
   assert.match(mail.html, /반입예정구역: 미정 <strong>→ 강동냉장<\/strong>/);
 });
 
@@ -236,4 +250,19 @@ test("excludes missing C/O from poultry notes while retaining other missing docu
 
   assert.match(mail.text, /비고: PL 미수취/);
   assert.doesNotMatch(mail.text, /C\/O 미수취/);
+});
+
+test("uses 미정 when the warehouse expected date has not been entered", () => {
+  const mail = buildArrivalScheduleChangeMail(
+    {
+      bl_number: "MEDUWE188588",
+      consignee: "현대코퍼레이션H",
+      destination: "다우린_계육_브라질",
+    },
+    { eta_date: "2026-08-11", free_time_days: 3 },
+    { eta_date: "2026-08-12", free_time_days: 3, storage_yard: "삼진냉장" }
+  );
+
+  assert.match(mail.text, /^반입예정일: 미정$/m);
+  assert.doesNotMatch(mail.text, /^반입예정일: 미입력$/m);
 });

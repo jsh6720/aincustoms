@@ -191,6 +191,8 @@ test("successful H/C receipt mail marks linked OBL and H/C received on the mail 
   assert.equal(mailCount, 1);
   assert.match(sentMail.text, /반출처: 캐틀팜(?:\r?\n|$)/);
   assert.doesNotMatch(sentMail.text, /캐틀팜\*우육\*호주/);
+  assert.match(sentMail.html, /font-family:'Malgun Gothic','맑은 고딕',sans-serif/);
+  assert.match(sentMail.html, /font-size:9pt/);
   assert.equal(writes.length, 2);
   writes.forEach((payload) => {
     assert.equal(payload.obl_received, true);

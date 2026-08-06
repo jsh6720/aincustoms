@@ -1,6 +1,7 @@
 const nodemailer = require("nodemailer");
 const { requireWritableSession, supabaseFetch } = require("../lib/cargo-auth");
 const { koreaDate, normalizeIsoDate } = require("../lib/cargo-request-utils");
+const { mailTextToHtml } = require("../lib/cargo-mail-utils");
 const {
   defaultMailSettings,
   fetchEffectiveRoleMailSettings,
@@ -151,6 +152,7 @@ async function sendAutomaticProgressMail(card) {
     cc: recipients.cc.length ? recipients.cc.join(",") : undefined,
     subject: mail.subject,
     text: mail.text,
+    html: mailTextToHtml(mail.text),
   });
 }
 
@@ -257,6 +259,7 @@ async function sendWarehouseScheduleMail(eventType, snapshot) {
     cc: recipients.cc.length ? recipients.cc.join(",") : undefined,
     subject: mail.subject,
     text: mail.text,
+    html: mail.html || mailTextToHtml(mail.text),
   });
 }
 
@@ -354,6 +357,7 @@ async function sendMail(card, request, session, account) {
     cc: recipients.cc.length ? recipients.cc.join(",") : undefined,
     subject: mail.subject,
     text: mail.text,
+    html: mailTextToHtml(mail.text),
   });
   return { sent: true, skipped: false, message: "메일 발송 완료" };
 }

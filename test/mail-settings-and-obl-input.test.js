@@ -435,3 +435,10 @@ test("every configured mail function is wired to its delivery API", () => {
     }
   }
 });
+
+test("every client-facing mail API sends the common styled HTML body", () => {
+  for (const source of new Set(Object.values(mailApiSources))) {
+    assert.match(source, /mailTextToHtml/);
+    assert.match(source, /html\s*:/);
+  }
+});

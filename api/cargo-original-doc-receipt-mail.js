@@ -1,6 +1,10 @@
 const nodemailer = require("nodemailer");
 const { verifySession, supabaseFetch } = require("../lib/cargo-auth");
-const { destinationName, parseRecipientList } = require("../lib/cargo-mail-utils");
+const {
+  destinationName,
+  mailTextToHtml,
+  parseRecipientList,
+} = require("../lib/cargo-mail-utils");
 const {
   defaultMailSettings,
   fetchMailSetting,
@@ -133,6 +137,7 @@ async function sendMail(mail, additionalRecipients, action) {
     cc: recipients.cc.length ? recipients.cc.join(",") : undefined,
     subject: mail.subject,
     text: mail.text,
+    html: mailTextToHtml(mail.text),
   });
 }
 

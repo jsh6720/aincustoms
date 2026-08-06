@@ -185,5 +185,7 @@ test("signed HCH warehouse schedule event uses notice role routing and marks sen
   assert.equal(sentMail.length, 1);
   assert.equal(sentMail[0].to, "shipper@example.com,destination@example.com");
   assert.equal(sentMail[0].cc, "ops@example.com");
+  assert.match(sentMail[0].html, /font-family:'Malgun Gothic','맑은 고딕',sans-serif/);
+  assert.match(sentMail[0].html, /font-size:9pt/);
   assert.equal(patches[0].status, "sent");
 });

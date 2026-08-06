@@ -498,7 +498,7 @@ test("admin can explicitly email one arrival schedule change to configured shipp
   assert.match(calls.mail[0].text, /만기일: 2026-04-24/);
   assert.match(
     calls.mail[0].text,
-    /관련하여 수정 및 문의사항이 있으신 경우 jsh@aincustoms.com 로 메일 부탁드리겠습니다\./
+    /관련하여 수정 및 문의사항이 있으신 경우 아인합동관세사\(jsh@aincustoms\.com\)로 말씀 부탁드리겠습니다\./
   );
 });
 

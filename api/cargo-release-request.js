@@ -1,5 +1,6 @@
 const nodemailer = require("nodemailer");
 const { requireWritableSession, supabaseFetch } = require("../lib/cargo-auth");
+const { mailTextToHtml } = require("../lib/cargo-mail-utils");
 const {
   fetchEffectiveRoleMailSettings,
   resolveRoleMailRecipients,
@@ -105,6 +106,7 @@ async function sendMail(card, request, session, account) {
     cc: recipients.cc.length ? recipients.cc.join(",") : undefined,
     subject: mail.subject,
     text: mail.text,
+    html: mailTextToHtml(mail.text),
   });
   return { sent: true, skipped: false, message: "메일 발송 완료" };
 }
