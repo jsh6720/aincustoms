@@ -452,12 +452,13 @@
       <div class="toolbar" style="display:flex;padding:0 0 12px">
         <div class="summary">관리자 설정</div>
         <div class="toolbar-actions">
+          <button class="btn green" type="button" onclick="startAdminAccountCreate()">+ 계정 추가</button>
           <button class="btn" onclick="loadAdmin()">새로고침</button>
           <button class="btn gray" onclick="closeAdminSettings()">닫기</button>
         </div>
       </div>
       <div class="admin-layout">
-        <form class="admin-card" onsubmit="saveAdminAccount(event)">
+        <form id="adminAccountForm" class="admin-card" onsubmit="saveAdminAccount(event)">
           <h2 id="adminFormTitle">계정 추가</h2>
           <input id="adminAccountId" type="hidden">
           <label>권한</label>
@@ -4094,6 +4095,11 @@
     }
     function closeAdminSettings() {
       document.getElementById("adminPanel").style.display = "none";
+    }
+    function startAdminAccountCreate() {
+      resetAdminForm();
+      document.getElementById("adminAccountForm")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      document.getElementById("adminLoginId")?.focus();
     }
     function resetAdminForm() {
       document.getElementById("adminFormTitle").textContent = "계정 추가";

@@ -420,6 +420,15 @@ test("admin API and screen manage function-specific mail settings", () => {
   assert.match(adminApi, /add_cargo_mail_settings\.sql/);
 });
 
+test("administrator settings expose a focused new-account action", () => {
+  assert.match(dashboard, /onclick="startAdminAccountCreate\(\)"[^>]*>\+ 계정 추가<\/button>/);
+  assert.match(dashboard, /id="adminAccountForm"/);
+  assert.match(dashboard, /function startAdminAccountCreate\(\)/);
+  assert.match(dashboard, /resetAdminForm\(\)/);
+  assert.match(dashboard, /adminAccountForm[\s\S]*scrollIntoView/);
+  assert.match(dashboard, /adminLoginId[\s\S]*focus\(\)/);
+});
+
 test("every configured mail function is wired to its delivery API", () => {
   for (const [settingKey, source] of Object.entries(mailApiSources)) {
     assert.match(source, new RegExp(`["']${settingKey}["']`));
