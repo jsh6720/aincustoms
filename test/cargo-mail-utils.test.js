@@ -150,3 +150,17 @@ test("builds a warehouse change email with before and after values", () => {
   assert.match(mail.text, /미정 -> 강동냉장/);
   assert.match(mail.text, /미입력 -> 2026-07-24/);
 });
+
+test("shows unchanged warehouse values once and arrows only for changed values", () => {
+  const yard = "강동냉장(주)보세창고 (02111182/A50101)";
+  const mail = buildWarehouseChangeMail(
+    { bl_number: "MEDUUL963797", consignee: "현대코퍼레이션H" },
+    { login_id: "aincustoms", display_name: "AIN Customs 관리자" },
+    { storage_yard: yard, warehouse_expected_date: "2026-08-07" },
+    { storage_yard: yard, warehouse_expected_date: "2026-08-10" }
+  );
+
+  assert.match(mail.text, new RegExp(`반입예정구역: ${yard.replace(/[()]/g, "\\$&")}$`, "m"));
+  assert.doesNotMatch(mail.text, /반입예정구역: .* -> /);
+  assert.match(mail.text, /반입예정일: 2026-08-07 -> 2026-08-10/);
+});
