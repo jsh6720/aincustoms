@@ -53,7 +53,7 @@ test("builds the approved detailed arrival schedule change email", () => {
     "반입예정일: 2026-04-23 -> 2026-04-24",
     "비고: OBL 원본 미수령, IV 미수취",
     "",
-    "관련하여 수정 및 문의사항이 있으신 경우 아인합동관세사(jsh@aincustoms.com)로 말씀 부탁드리겠습니다.",
+    "본 메일은 발신전용 계정이오니,\n관련하여 수정 및 문의사항이 있으신 경우 아인합동관세사(jsh@aincustoms.com)로 말씀 부탁드리겠습니다.",
     "",
     "아인합동관세사무소 | 조재호, 정석현 대표 관세사",
     "TEL: 02-518-5434",
@@ -213,7 +213,7 @@ test("builds a warehouse change email with before and after values", () => {
   assert.match(mail.text, /반입예정일: 2026-07-24\(예정\)/);
   assert.doesNotMatch(mail.text, /미입력 -> 2026-07-24/);
   assert.match(mail.text, /비고: OBL 원본 미수령, IV 미수취/);
-  assert.match(mail.text, /관련하여 수정 및 문의사항이 있으신 경우 아인합동관세사\(jsh@aincustoms\.com\)로 말씀 부탁드리겠습니다\./);
+  assert.match(mail.text, /본 메일은 발신전용 계정이오니,\n관련하여 수정 및 문의사항이 있으신 경우 아인합동관세사\(jsh@aincustoms\.com\)로 말씀 부탁드리겠습니다\./);
   assert.match(mail.html, /반입예정정보가 변경되어 아래와 같이 안내드립니다\./);
   assert.match(mail.html, /반입예정구역: 미정 <strong style="color:#b42318;font-weight:700;">→ 강동냉장<\/strong>/);
 });

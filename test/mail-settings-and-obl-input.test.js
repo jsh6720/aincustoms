@@ -304,7 +304,7 @@ test("missing destination account is omitted and a future matching account is au
         {
           display_name: "다우린",
           consignee_filter: "다우린",
-          release_request_to: "dawoorin@example.com",
+          release_request_to: "ocm3800@hyundaicorp.com",
           account_category: "destination",
           is_active: true,
         },
@@ -313,7 +313,7 @@ test("missing destination account is omitted and a future matching account is au
       ainRecipients: ["ops@example.com"],
     }),
     {
-      to: ["shipper@example.com", "dawoorin@example.com"],
+      to: ["shipper@example.com", "ocm3800@hyundaicorp.com"],
       cc: ["ops@example.com"],
     }
   );
