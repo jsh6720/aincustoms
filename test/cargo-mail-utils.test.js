@@ -12,36 +12,48 @@ const {
   warehouseChanges,
 } = require("../lib/cargo-mail-utils");
 
-test("builds the approved arrival schedule change email without the stray honorific", () => {
+test("builds the approved detailed arrival schedule change email", () => {
   const mail = buildArrivalScheduleChangeMail(
     {
       bl_number: "MEDUWE188588",
       consignee: "현대코퍼레이션H",
       destination: "다우린_계육_브라질",
+      obl_received: false,
+      doc_iv_received: false,
+      doc_co_received: false,
+    },
+    {
+      eta_date: "2026-04-20",
+      storage_yard: "삼진냉장",
+      warehouse_expected_date: "2026-04-23",
+      free_time_days: 3,
     },
     {
       eta_date: "2026-04-22",
+      storage_yard: "삼진냉장",
+      warehouse_expected_date: "2026-04-24",
       free_time_days: 3,
     }
   );
 
   assert.equal(mail.subject, "[입항 스케줄 변경] 현대_MEDUWE188588 / 다우린");
   assert.equal(mail.text, [
-    "안녕하세요. 아인합동관세사입니다.",
+    "반입예정정보가 변경되었습니다.",
     "",
-    "해당 건 입항 스케줄이 변경되어, 아래와 같이 변경된 스케줄을 안내드립니다.",
-    "",
-    "화주: 현대코퍼레이션H",
-    "납품처: 다우린",
-    "",
+    "화주명: 현대코퍼레이션H",
     "B/L: MEDUWE188588",
-    "입항: 4/22",
-    "만기(프리타임): 4/24",
+    "납품처: 다우린",
+    "입항예정일: 2026-04-20 -> 2026-04-22",
+    "만기일: 2026-04-24",
     "",
-    "감사합니다.",
-    "아인합동관세사무소",
+    "반입예정구역: 삼진냉장",
+    "반입예정일: 2026-04-23 -> 2026-04-24",
+    "비고: OBL 원본 미수령, IV 미수취",
+    "",
+    "관련하여 수정 및 문의사항이 있으신 경우 jsh@aincustoms.com 로 메일 부탁드리겠습니다.",
   ].join("\n"));
-  assert.doesNotMatch(mail.text, / 귀/);
+  assert.doesNotMatch(mail.text, /C\/O 미수취/);
+  assert.match(mail.html, /입항예정일: 2026-04-20 <strong>→ 2026-04-22<\/strong>/);
 });
 
 test("keeps only the destination name before cargo descriptors", () => {
@@ -140,16 +152,38 @@ test("builds transport rollback values with previous provenance", () => {
 
 test("builds a warehouse change email with before and after values", () => {
   const mail = buildWarehouseChangeMail(
-    { bl_number: "ONEYBNEG04197300", consignee: "현대코퍼레이션H" },
+    {
+      bl_number: "ONEYBNEG04197300",
+      consignee: "현대코퍼레이션H",
+      destination: "캐틀팜_우육_호주",
+      obl_received: false,
+      doc_iv_received: false,
+    },
     { login_id: "HCH", display_name: "현대코퍼레이션H" },
-    { storage_yard: "미정", warehouse_expected_date: "" },
-    { storage_yard: "강동냉장", warehouse_expected_date: "2026-07-24" }
+    {
+      eta_date: "2026-07-21",
+      free_time_days: 3,
+      storage_yard: "미정",
+      warehouse_expected_date: "",
+    },
+    {
+      eta_date: "2026-07-21",
+      free_time_days: 3,
+      storage_yard: "강동냉장",
+      warehouse_expected_date: "2026-07-24",
+    }
   );
   assert.match(mail.subject, /반입예정정보 변경/);
   assert.match(mail.text, /^반입예정정보가 변경되었습니다\./);
   assert.match(mail.text, /ONEYBNEG04197300/);
+  assert.match(mail.text, /납품처: 캐틀팜/);
+  assert.match(mail.text, /입항예정일: 2026-07-21/);
+  assert.match(mail.text, /만기일: 2026-07-23/);
   assert.match(mail.text, /미정 -> 강동냉장/);
-  assert.match(mail.text, /미입력 -> 2026-07-24/);
+  assert.match(mail.text, /반입예정일: 2026-07-24\(예정\)/);
+  assert.doesNotMatch(mail.text, /미입력 -> 2026-07-24/);
+  assert.match(mail.text, /비고: OBL 원본 미수령, IV 미수취/);
+  assert.match(mail.text, /관련하여 수정 및 문의사항이 있으신 경우 jsh@aincustoms\.com 로 메일 부탁드리겠습니다\.$/);
   assert.match(mail.html, /반입예정정보가 변경되었습니다\./);
   assert.match(mail.html, /반입예정구역: 미정 <strong>→ 강동냉장<\/strong>/);
 });
@@ -159,8 +193,18 @@ test("shows unchanged warehouse values once and arrows only for changed values",
   const mail = buildWarehouseChangeMail(
     { bl_number: "MEDUUL963797", consignee: "현대코퍼레이션H" },
     { login_id: "aincustoms", display_name: "AIN Customs 관리자" },
-    { storage_yard: yard, warehouse_expected_date: "2026-08-07" },
-    { storage_yard: yard, warehouse_expected_date: "2026-08-10" }
+    {
+      eta_date: "2026-08-07",
+      free_time_days: 3,
+      storage_yard: yard,
+      warehouse_expected_date: "2026-08-07",
+    },
+    {
+      eta_date: "2026-08-07",
+      free_time_days: 3,
+      storage_yard: yard,
+      warehouse_expected_date: "2026-08-10",
+    }
   );
 
   assert.match(mail.text, new RegExp(`반입예정구역: ${yard.replace(/[()]/g, "\\$&")}$`, "m"));
@@ -169,4 +213,27 @@ test("shows unchanged warehouse values once and arrows only for changed values",
   assert.match(mail.html, new RegExp(`반입예정구역: ${yard.replace(/[()]/g, "\\$&")}<br>`));
   assert.doesNotMatch(mail.html, /<strong>→ .*A50101/);
   assert.match(mail.html, /반입예정일: 2026-08-07 <strong>→ 2026-08-10<\/strong>/);
+});
+
+test("excludes missing C/O from poultry notes while retaining other missing documents", () => {
+  const mail = buildWarehouseChangeMail(
+    {
+      bl_number: "MEDUWE188588",
+      consignee: "현대코퍼레이션H",
+      destination: "다우린_계육_브라질",
+      doc_co_received: false,
+      doc_pl_received: false,
+    },
+    { login_id: "aincustoms", display_name: "AIN Customs 관리자" },
+    { eta_date: "2026-08-08", free_time_days: 3 },
+    {
+      eta_date: "2026-08-08",
+      free_time_days: 3,
+      storage_yard: "삼진냉장",
+      warehouse_expected_date: "2026-08-10",
+    }
+  );
+
+  assert.match(mail.text, /비고: PL 미수취/);
+  assert.doesNotMatch(mail.text, /C\/O 미수취/);
 });

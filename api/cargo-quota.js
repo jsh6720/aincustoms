@@ -89,13 +89,36 @@ async function linkedCardTargets(card) {
   );
 }
 
-function effectiveWarehouseValues(input, card) {
+function effectiveTransportValues(input, card) {
   return {
+    delivery_terms: String(input?.delivery_terms || card?.delivery_terms || "").trim(),
+    eta_date: String(
+      input?.eta_date
+      || card?.eta_date
+      || card?.first_arrival_date
+      || card?.entry_date
+      || ""
+    ).trim(),
     storage_yard: effectiveStorageYard(
       input?.storage_yard || card?.storage_yard,
       card?.shed_name
     ),
+    free_time_days: Number.parseInt(input?.free_time_days ?? card?.free_time_days, 10) || 3,
+    free_time_expiry_date: String(
+      input?.free_time_expiry_date || card?.free_time_expiry_date || ""
+    ).trim(),
+    free_time_expiry_override: String(
+      input?.free_time_expiry_override || card?.free_time_expiry_override || ""
+    ).trim(),
     warehouse_expected_date: String(input?.warehouse_expected_date || card?.warehouse_expected_date || "").trim(),
+  };
+}
+
+function effectiveWarehouseValues(input, card) {
+  const values = effectiveTransportValues(input, card);
+  return {
+    storage_yard: values.storage_yard,
+    warehouse_expected_date: values.warehouse_expected_date,
   };
 }
 
@@ -180,6 +203,7 @@ async function sendWarehouseChangeMail(
 
 async function prepareArrivalScheduleChangeMail(
   card,
+  previous,
   next,
   recipientOverride = null,
   contentOverride = null
@@ -193,7 +217,7 @@ async function prepareArrivalScheduleChangeMail(
     throw new Error("입항일 변경 안내의 화주·납품처 메일 주소가 설정되지 않았습니다.");
   }
   const mail = applyMailContentOverride(
-    buildArrivalScheduleChangeMail(card, next),
+    buildArrivalScheduleChangeMail(card, previous, next),
     contentOverride
   );
   return { recipients, mail };
@@ -201,6 +225,7 @@ async function prepareArrivalScheduleChangeMail(
 
 async function sendArrivalScheduleChangeMail(
   card,
+  previous,
   next,
   recipientOverride = null,
   contentOverride = null
@@ -213,6 +238,7 @@ async function sendArrivalScheduleChangeMail(
   }
   const { recipients, mail } = await prepareArrivalScheduleChangeMail(
     card,
+    previous,
     next,
     recipientOverride,
     contentOverride
@@ -476,13 +502,20 @@ module.exports = async function handler(req, res) {
         cc_recipients: String(body.notification_cc || "").trim(),
       } : null;
       const mailType = String(body.mail_type || "").trim();
+      const previousTransport = effectiveTransportValues(previousInput, card);
+      const nextTransport = effectiveTransportValues(nextInput, card);
       const prepared = mailType === "arrival"
-        ? await prepareArrivalScheduleChangeMail(card, nextInput, recipientOverride)
+        ? await prepareArrivalScheduleChangeMail(
+            card,
+            previousTransport,
+            nextTransport,
+            recipientOverride
+          )
         : await prepareWarehouseChangeMail(
             card,
             session,
-            effectiveWarehouseValues(previousInput, card),
-            effectiveWarehouseValues(nextInput, card),
+            previousTransport,
+            nextTransport,
             recipientOverride
           );
       return res.status(200).json({
@@ -535,14 +568,9 @@ module.exports = async function handler(req, res) {
         }
       }
 
+      const previousTransport = effectiveTransportValues(previousInput, card);
       const previousWarehouse = effectiveWarehouseValues(previousInput, card);
-      const previousEta = String(
-        previousInput?.eta_date
-        || card?.eta_date
-        || card?.first_arrival_date
-        || card?.entry_date
-        || ""
-      ).trim();
+      const previousEta = previousTransport.eta_date;
       const nextPayload = {
         account_id: targetAccountId,
         bl_number: blNumber,
@@ -579,14 +607,9 @@ module.exports = async function handler(req, res) {
         return res.status(400).json({ success: false, message: "저장할 운송정보가 없습니다." });
       }
       const nextInput = { ...previousInput, ...nextPayload };
+      const nextTransport = effectiveTransportValues(nextInput, card);
       const nextWarehouse = effectiveWarehouseValues(nextInput, card);
-      const nextEta = String(
-        nextInput?.eta_date
-        || card?.eta_date
-        || card?.first_arrival_date
-        || card?.entry_date
-        || ""
-      ).trim();
+      const nextEta = nextTransport.eta_date;
       const etaChanged = Object.prototype.hasOwnProperty.call(body, "eta_date")
         && previousEta !== nextEta;
       const warehouseChangedFields = warehouseChanges(previousWarehouse, nextWarehouse);
@@ -639,7 +662,8 @@ module.exports = async function handler(req, res) {
             if (etaChanged) {
               await sendArrivalScheduleChangeMail(
                 card,
-                nextInput,
+                previousTransport,
+                nextTransport,
                 recipientOverride,
                 contentOverride
               );
@@ -647,8 +671,8 @@ module.exports = async function handler(req, res) {
               await sendWarehouseChangeMail(
                 card,
                 session,
-                previousWarehouse,
-                nextWarehouse,
+                previousTransport,
+                nextTransport,
                 recipientOverride,
                 contentOverride
               );
@@ -702,9 +726,14 @@ module.exports = async function handler(req, res) {
       if (!isAdmin && sendNotification && changedFields.length) {
         try {
           if (etaChanged) {
-            await sendArrivalScheduleChangeMail(card, nextInput);
+            await sendArrivalScheduleChangeMail(card, previousTransport, nextTransport);
           } else if (warehouseChangedFields.length) {
-            await sendWarehouseChangeMail(card, session, previousWarehouse, nextWarehouse);
+            await sendWarehouseChangeMail(
+              card,
+              session,
+              previousTransport,
+              nextTransport
+            );
           }
           emailSent = true;
         } catch (mailError) {

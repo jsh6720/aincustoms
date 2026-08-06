@@ -494,8 +494,12 @@ test("admin can explicitly email one arrival schedule change to configured shipp
   assert.equal(calls.mail[0].to, "shipper@example.com");
   assert.equal(calls.mail[0].cc, "destination@example.com");
   assert.match(calls.mail[0].subject, /입항 스케줄 변경/);
-  assert.match(calls.mail[0].text, /입항: 4\/22/);
-  assert.match(calls.mail[0].text, /만기\(프리타임\): 4\/24/);
+  assert.match(calls.mail[0].text, /입항예정일: 2026-04-21 -> 2026-04-22/);
+  assert.match(calls.mail[0].text, /만기일: 2026-04-24/);
+  assert.match(
+    calls.mail[0].text,
+    /관련하여 수정 및 문의사항이 있으신 경우 jsh@aincustoms.com 로 메일 부탁드리겠습니다\./
+  );
 });
 
 test("arrival schedule preview uses role recipients and has no save or mail side effects", { concurrency: false }, async () => {
@@ -556,10 +560,10 @@ test("arrival schedule preview uses role recipients and has no save or mail side
     response.body.preview.subject,
     "[입항 스케줄 변경] 현대_MEDUWE188588 / 다우린"
   );
-  assert.match(response.body.preview.text, /화주: 현대코퍼레이션H/);
+  assert.match(response.body.preview.text, /화주명: 현대코퍼레이션H/);
   assert.match(response.body.preview.text, /납품처: 다우린/);
-  assert.match(response.body.preview.text, /입항: 8\/11/);
-  assert.match(response.body.preview.text, /만기\(프리타임\): 8\/13/);
+  assert.match(response.body.preview.text, /입항예정일: 2026-08-10 -> 2026-08-11/);
+  assert.match(response.body.preview.text, /만기일: 2026-08-13/);
   assert.equal(calls.savedPayload, null);
   assert.equal(calls.mail.length, 0);
 });
