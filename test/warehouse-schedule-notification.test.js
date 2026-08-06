@@ -125,7 +125,29 @@ test("signed HCH warehouse schedule event uses notice role routing and marks sen
         }];
       }
       if (url.startsWith("/rest/v1/shipper_accounts?")) {
-        return [{ id: "hch-id", login_id: "HCH", display_name: "현대코퍼레이션H" }];
+        if (url.includes("id=eq.hch-id")) {
+          return [{ id: "hch-id", login_id: "HCH", display_name: "현대코퍼레이션H" }];
+        }
+        return [
+          {
+            id: "hch-id",
+            login_id: "HCH",
+            display_name: "현대코퍼레이션H",
+            consignee_filter: "현대코",
+            release_request_to: "shipper@example.com",
+            account_category: "shipper",
+            is_active: true,
+          },
+          {
+            id: "ctf-id",
+            login_id: "CTF",
+            display_name: "캐틀팜",
+            consignee_filter: "캐틀팜",
+            release_request_to: "destination@example.com",
+            account_category: "destination",
+            is_active: true,
+          },
+        ];
       }
       if (url.startsWith("/rest/v1/cargo_mail_settings?")) {
         const key = new URL(`https://example.invalid${url}`).searchParams

@@ -146,9 +146,12 @@ test("builds a warehouse change email with before and after values", () => {
     { storage_yard: "강동냉장", warehouse_expected_date: "2026-07-24" }
   );
   assert.match(mail.subject, /반입예정정보 변경/);
+  assert.match(mail.text, /^반입예정정보가 변경되었습니다\./);
   assert.match(mail.text, /ONEYBNEG04197300/);
   assert.match(mail.text, /미정 -> 강동냉장/);
   assert.match(mail.text, /미입력 -> 2026-07-24/);
+  assert.match(mail.html, /반입예정정보가 변경되었습니다\./);
+  assert.match(mail.html, /반입예정구역: 미정 <strong>→ 강동냉장<\/strong>/);
 });
 
 test("shows unchanged warehouse values once and arrows only for changed values", () => {
@@ -163,4 +166,7 @@ test("shows unchanged warehouse values once and arrows only for changed values",
   assert.match(mail.text, new RegExp(`반입예정구역: ${yard.replace(/[()]/g, "\\$&")}$`, "m"));
   assert.doesNotMatch(mail.text, /반입예정구역: .* -> /);
   assert.match(mail.text, /반입예정일: 2026-08-07 -> 2026-08-10/);
+  assert.match(mail.html, new RegExp(`반입예정구역: ${yard.replace(/[()]/g, "\\$&")}<br>`));
+  assert.doesNotMatch(mail.html, /<strong>→ .*A50101/);
+  assert.match(mail.html, /반입예정일: 2026-08-07 <strong>→ 2026-08-10<\/strong>/);
 });

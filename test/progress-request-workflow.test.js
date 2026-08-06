@@ -158,6 +158,9 @@ function createQuotaFixture({
         const setting = mailSettings[settingKey];
         return setting ? [{ setting_key: settingKey, ...setting }] : [];
       }
+      if (url.startsWith("/rest/v1/shipper_accounts")) {
+        return [];
+      }
       if (url.startsWith("/rest/v1/cargo_cards")) {
         const defaults = [{
           account_id: "account-1",

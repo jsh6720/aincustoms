@@ -7,6 +7,7 @@ const {
   MAIL_SETTING_KEYS,
   effectiveMailSettings,
   normalizeMailSettings,
+  resolveAccountDirectoryNoticeRecipients,
   resolveRoleMailRecipients,
   resolveMailRecipients,
 } = require("../lib/cargo-mail-settings");
@@ -179,6 +180,84 @@ test("role mail routing sends requests to AIN and notices to shipper plus destin
   );
 });
 
+test("notice recipients match shipper and destination account display names", () => {
+  const accounts = [
+    {
+      display_name: "현대코퍼레이션H",
+      consignee_filter: "현대코",
+      release_request_to: "shipper@example.com",
+      account_category: "shipper",
+      is_active: true,
+    },
+    {
+      display_name: "캐틀팜",
+      consignee_filter: "캐틀팜",
+      release_request_to: "destination@example.com",
+      account_category: "destination",
+      is_active: true,
+    },
+  ];
+
+  assert.deepEqual(
+    resolveAccountDirectoryNoticeRecipients({
+      accounts,
+      card: {
+        consignee: "현대코퍼레이션H",
+        destination: "캐틀팜_우육_호주",
+      },
+      ainRecipients: ["ops@example.com"],
+    }),
+    {
+      to: ["shipper@example.com", "destination@example.com"],
+      cc: ["ops@example.com"],
+    }
+  );
+});
+
+test("missing destination account is omitted and a future matching account is automatic", () => {
+  const shipper = {
+    display_name: "현대코퍼레이션H",
+    consignee_filter: "현대코",
+    release_request_to: "shipper@example.com",
+    account_category: "shipper",
+    is_active: true,
+  };
+  const card = {
+    consignee: "현대코퍼레이션H",
+    destination: "다우린_계육_브라질",
+  };
+
+  assert.deepEqual(
+    resolveAccountDirectoryNoticeRecipients({
+      accounts: [shipper],
+      card,
+      ainRecipients: ["ops@example.com"],
+    }),
+    { to: ["shipper@example.com"], cc: ["ops@example.com"] }
+  );
+
+  assert.deepEqual(
+    resolveAccountDirectoryNoticeRecipients({
+      accounts: [
+        shipper,
+        {
+          display_name: "다우린",
+          consignee_filter: "다우린",
+          release_request_to: "dawoorin@example.com",
+          account_category: "destination",
+          is_active: true,
+        },
+      ],
+      card,
+      ainRecipients: ["ops@example.com"],
+    }),
+    {
+      to: ["shipper@example.com", "dawoorin@example.com"],
+      cc: ["ops@example.com"],
+    }
+  );
+});
+
 test("account request recipient overrides common To while common CC remains", () => {
   assert.deepEqual(
     resolveMailRecipients({
@@ -275,6 +354,8 @@ test("admin API and screen manage function-specific mail settings", () => {
   assert.match(dashboard, /입항일 변경 안내/);
   assert.match(dashboard, /previewProgressTransportMail/);
   assert.match(dashboard, /메일 발송 전 확인/);
+  assert.match(dashboard, /기본 이메일/);
+  assert.match(dashboard, /화주·납품처 표시명과 화물 정보가 일치하면 안내 메일 주소로 자동 사용됩니다/);
   assert.match(adminApi, /add_cargo_mail_settings\.sql/);
 });
 
@@ -284,6 +365,9 @@ test("every configured mail function is wired to its delivery API", () => {
     if (["original_doc_receipt", "obl_carrier_receipt"].includes(settingKey)) {
       assert.match(source, /resolveMailRecipients/);
       assert.match(source, /defaultMailSettings/);
+    } else if (["warehouse_change", "arrival_schedule_change"].includes(settingKey)) {
+      assert.match(source, /resolveDirectoryNoticeRecipients/);
+      assert.match(source, /fetchEffectiveRoleMailSettings/);
     } else {
       assert.match(source, /resolveRoleMailRecipients/);
       assert.match(source, /fetchEffectiveRoleMailSettings/);

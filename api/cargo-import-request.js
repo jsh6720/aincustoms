@@ -5,6 +5,7 @@ const {
   defaultMailSettings,
   fetchEffectiveRoleMailSettings,
   fetchMailSetting,
+  resolveDirectoryNoticeRecipients,
   resolveMailRecipients,
   resolveRoleMailRecipients,
 } = require("../lib/cargo-mail-settings");
@@ -234,7 +235,11 @@ async function sendWarehouseScheduleMail(eventType, snapshot) {
     "notice",
     process.env
   );
-  const recipients = resolveRoleMailRecipients({ settings, direction: "notice" });
+  const recipients = await resolveDirectoryNoticeRecipients({
+    supabaseFetch,
+    settings,
+    card: snapshot,
+  });
   if (!recipients.to.length) {
     throw new Error("입고 일정 안내 수신처가 설정되지 않았습니다.");
   }

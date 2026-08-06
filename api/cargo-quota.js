@@ -4,13 +4,14 @@ const {
   buildArrivalScheduleChangeMail,
   buildTransportRollbackPayload,
   buildWarehouseChangeMail,
+  mailTextToHtml,
   mergeManualFields,
   warehouseChanges,
 } = require("../lib/cargo-mail-utils");
 const {
   fetchEffectiveRoleMailSettings,
+  resolveDirectoryNoticeRecipients,
   resolveMailRecipients,
-  resolveRoleMailRecipients,
 } = require("../lib/cargo-mail-settings");
 const { normalizeInspectionStatus } = require("../lib/cargo-progress-utils");
 const { koreaDate } = require("../lib/cargo-request-utils");
@@ -98,7 +99,7 @@ function effectiveWarehouseValues(input, card) {
   };
 }
 
-async function resolveTransportRecipients(featureKey, recipientOverride = null) {
+async function resolveTransportRecipients(featureKey, recipientOverride = null, card = null) {
   if (recipientOverride) {
     return resolveMailRecipients({ setting: recipientOverride });
   }
@@ -108,7 +109,7 @@ async function resolveTransportRecipients(featureKey, recipientOverride = null) 
     "notice",
     process.env
   );
-  return resolveRoleMailRecipients({ settings, direction: "notice" });
+  return await resolveDirectoryNoticeRecipients({ supabaseFetch, settings, card });
 }
 
 function applyMailContentOverride(mail, contentOverride = null) {
@@ -116,6 +117,7 @@ function applyMailContentOverride(mail, contentOverride = null) {
   return {
     subject: String(contentOverride.subject || "").trim() || mail.subject,
     text: String(contentOverride.text || "").trim() || mail.text,
+    html: mailTextToHtml(String(contentOverride.text || "").trim() || mail.text),
   };
 }
 
@@ -127,7 +129,7 @@ async function prepareWarehouseChangeMail(
   recipientOverride = null,
   contentOverride = null
 ) {
-  const recipients = await resolveTransportRecipients("warehouse_change", recipientOverride);
+  const recipients = await resolveTransportRecipients("warehouse_change", recipientOverride, card);
   if (!recipients.to.length) {
     throw new Error("반입예정 정보 변경 메일의 화주·납품처 수신처가 설정되지 않았습니다.");
   }
@@ -172,6 +174,7 @@ async function sendWarehouseChangeMail(
     cc: recipients.cc.length ? recipients.cc.join(",") : undefined,
     subject: mail.subject,
     text: mail.text,
+    html: mail.html || mailTextToHtml(mail.text),
   });
 }
 
@@ -181,7 +184,11 @@ async function prepareArrivalScheduleChangeMail(
   recipientOverride = null,
   contentOverride = null
 ) {
-  const recipients = await resolveTransportRecipients("arrival_schedule_change", recipientOverride);
+  const recipients = await resolveTransportRecipients(
+    "arrival_schedule_change",
+    recipientOverride,
+    card
+  );
   if (!recipients.to.length) {
     throw new Error("입항일 변경 안내의 화주·납품처 메일 주소가 설정되지 않았습니다.");
   }
@@ -222,6 +229,7 @@ async function sendArrivalScheduleChangeMail(
     cc: recipients.cc.length ? recipients.cc.join(",") : undefined,
     subject: mail.subject,
     text: mail.text,
+    html: mail.html || mailTextToHtml(mail.text),
   });
 }
 

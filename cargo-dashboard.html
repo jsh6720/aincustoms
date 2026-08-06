@@ -173,6 +173,7 @@
     .admin-layout { display:grid; grid-template-columns:360px 1fr; gap:14px; align-items:start; }
     .admin-card { background:#fff; border:1px solid #d9dee4; border-radius:8px; padding:16px; }
     .admin-card h2 { font-size:16px; margin-bottom:10px; }
+    .admin-help { margin:-3px 0 10px; color:#687482; font-size:10px; line-height:1.45; }
     .admin-table-wrap { overflow-x:auto; background:#fff; border:1px solid #d9dee4; border-radius:8px; }
     .admin-table { width:100%; min-width:980px; table-layout:fixed; border-collapse:collapse; font-size:12px; background:#fff; }
     .admin-table th, .admin-table td { border-bottom:1px solid #edf1f4; text-align:left; padding:8px; vertical-align:top; }
@@ -479,8 +480,9 @@
           <input id="adminDisplayName" placeholder="예: 현대코퍼레이션H">
           <label>필터텍스트</label>
           <input id="adminFilter" placeholder="예: 현대코">
-          <label>요청메일 우선 수신처</label>
-          <textarea id="adminReleaseTo" placeholder="쉼표로 구분: a@aincustoms.com,b@aincustoms.com"></textarea>
+          <label>기본 이메일</label>
+          <textarea id="adminReleaseTo" placeholder="쉼표로 구분: company@example.com,staff@example.com"></textarea>
+          <div class="admin-help">화주·납품처 표시명과 화물 정보가 일치하면 안내 메일 주소로 자동 사용됩니다.</div>
           <label><input id="adminActive" type="checkbox" style="width:13px;height:13px;margin-right:5px" checked> 사용</label>
           <div class="admin-actions" style="margin-top:12px">
             <button class="btn green" type="submit">저장</button>
@@ -498,7 +500,7 @@
                 <th>비밀번호</th>
                 <th>표시명</th>
                 <th>필터텍스트</th>
-                <th>요청메일 우선 수신처</th>
+                <th>기본 이메일</th>
                 <th>상태</th>
                 <th>관리</th>
               </tr>
