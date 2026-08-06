@@ -2495,7 +2495,7 @@
       const days = Math.max(1, parseInt(progressWarehouseCard?.free_time_days, 10) || 3);
       document.getElementById("progressFreeTimeExpiry").value = addDaysInclusive(eta, days);
     }
-    function populateProgressArrivalMailRecipients() {
+    async function populateProgressArrivalMailRecipients() {
       const combine = (...groups) => [...new Set(groups.flat().filter(Boolean))];
       const shipper = adminMailSettings.shipper_default || { to: [], cc: [] };
       const destination = adminMailSettings.destination_default || { to: [], cc: [] };
@@ -2506,6 +2506,30 @@
       document.getElementById("progressArrivalMailCc").value = combine(
         ain.to || [], ain.cc || []
       ).join(",");
+
+      const card = progressWarehouseCard;
+      if (!card || !card.bl_number) return;
+      const activeBl = card.bl_number;
+      const recipientPayload = {
+        account_id: card.account_id,
+        bl_number: card.bl_number,
+      };
+      if (progressWarehouseFocusField === "eta_date") {
+        recipientPayload.eta_date = document.getElementById("progressWarehouseEta").value || "";
+        recipientPayload.free_time_days = Math.max(1, parseInt(card.free_time_days, 10) || 3);
+      } else {
+        recipientPayload.storage_yard = document.getElementById("progressWarehouseYard").value.trim();
+        recipientPayload.warehouse_expected_date = document.getElementById("progressWarehouseDate").value || "";
+      }
+
+      try {
+        const preview = await previewProgressTransportMail(recipientPayload);
+        if (!progressWarehouseCard || progressWarehouseCard.bl_number !== activeBl) return;
+        document.getElementById("progressArrivalMailTo").value = (preview.to || []).join(",");
+        document.getElementById("progressArrivalMailCc").value = (preview.cc || []).join(",");
+      } catch (error) {
+        console.warn("B/L별 메일 수신처를 불러오지 못했습니다.", error);
+      }
     }
     function openMailPreview(preview) {
       document.getElementById("mailPreviewTo").value = (preview.to || []).join(", ");
@@ -2595,7 +2619,7 @@
       if (reviewTransportRecipients) {
         ensureAdminMailSettingsForReview().then((loaded) => {
           if (loaded && mailSupportedFields.includes(progressWarehouseFocusField)) {
-            populateProgressArrivalMailRecipients();
+            void populateProgressArrivalMailRecipients();
           }
         });
       }

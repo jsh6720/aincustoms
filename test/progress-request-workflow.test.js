@@ -120,6 +120,7 @@ function createResponse() {
 }
 
 function createQuotaFixture({
+  accountRows = [],
   cardRows = null,
   currentInput = null,
   omitSavedUpdatedAt = false,
@@ -159,7 +160,7 @@ function createQuotaFixture({
         return setting ? [{ setting_key: settingKey, ...setting }] : [];
       }
       if (url.startsWith("/rest/v1/shipper_accounts")) {
-        return [];
+        return accountRows;
       }
       if (url.startsWith("/rest/v1/cargo_cards")) {
         const defaults = [{
@@ -561,6 +562,100 @@ test("arrival schedule preview uses role recipients and has no save or mail side
   assert.match(response.body.preview.text, /만기\(프리타임\): 8\/13/);
   assert.equal(calls.savedPayload, null);
   assert.equal(calls.mail.length, 0);
+});
+
+test("transport preview combines the matched shipper and destination account emails", { concurrency: false }, async () => {
+  const { handler } = createQuotaFixture({
+    session: {
+      account_id: "admin-account",
+      role: "admin",
+      login_id: "aincustoms",
+    },
+    previousInput: {
+      account_id: "hch-account",
+      bl_number: "MEDUUL963797",
+      eta_date: "2026-08-07",
+      free_time_days: 3,
+    },
+    cardRows: [{
+      account_id: "hch-account",
+      bl_number: "MEDUUL963797",
+      consignee: "현대코퍼레이션H",
+      destination: "캐틀팜*우육*호주",
+    }],
+    accountRows: [
+      {
+        id: "hch-account",
+        login_id: "HCH",
+        display_name: "현대코퍼레이션H",
+        consignee_filter: "현대코",
+        release_request_to: "dmswk@hyundaicorp.com,ye25@hyundaicorp.com",
+        role: "shipper",
+        account_category: "shipper",
+        is_active: true,
+      },
+      {
+        id: "ctf-account",
+        login_id: "CTF",
+        display_name: "캐틀팜",
+        consignee_filter: "캐틀팜",
+        release_request_to: "cattlefarm9292@gmail.com",
+        role: "shipper",
+        account_category: "shipper",
+        is_active: true,
+      },
+      {
+        id: "admin-account",
+        login_id: "aincustoms",
+        display_name: "AIN Customs 관리자",
+        consignee_filter: "",
+        release_request_to: "jsh@aincustoms.com",
+        role: "admin",
+        account_category: "admin",
+        is_active: true,
+      },
+    ],
+    mailSettings: {
+      ain_default: {
+        to_recipients: "jsh@aincustoms.com,jhcho@aincustoms.com,bill@aincustoms.com,ain@aincustoms.com",
+        cc_recipients: "",
+      },
+      shipper_default: {
+        to_recipients: "fallback-shipper@example.com",
+        cc_recipients: "",
+      },
+      destination_default: {
+        to_recipients: "fallback-destination@example.com",
+        cc_recipients: "",
+      },
+    },
+  });
+  const response = createResponse();
+
+  await handler({
+    method: "POST",
+    body: {
+      action: "preview_transport_mail",
+      mail_type: "arrival",
+      account_id: "hch-account",
+      bl_number: "MEDUUL963797",
+      eta_date: "2026-08-08",
+      free_time_days: 3,
+    },
+  }, response);
+
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(response.body.preview.to, [
+    "dmswk@hyundaicorp.com",
+    "ye25@hyundaicorp.com",
+    "cattlefarm9292@gmail.com",
+  ]);
+  assert.deepEqual(response.body.preview.cc, [
+    "jsh@aincustoms.com",
+    "jhcho@aincustoms.com",
+    "bill@aincustoms.com",
+    "ain@aincustoms.com",
+  ]);
 });
 
 test("admin can review and override arrival schedule recipients for one send", { concurrency: false }, async () => {

@@ -1460,6 +1460,18 @@ test("arrival schedule mail lets an administrator review To and CC recipients", 
   assert.match(dashboard, /payload\.free_time_expiry_override = ""/);
 });
 
+test("transport recipient fields are refreshed from the server matched card directory", () => {
+  assert.match(dashboard, /async function populateProgressArrivalMailRecipients\(\)/);
+  assert.match(
+    dashboard,
+    /const preview = await previewProgressTransportMail\(recipientPayload\)/
+  );
+  assert.match(
+    dashboard,
+    /progressArrivalMailTo"\)\.value = \(preview\.to \|\| \[\]\)\.join\(","\)/
+  );
+});
+
 test("transport mail preview allows editing recipients, subject, and body before send", () => {
   assert.match(dashboard, /<(?:textarea|input)[^>]*id="mailPreviewTo"/);
   assert.match(dashboard, /<(?:textarea|input)[^>]*id="mailPreviewCc"/);
