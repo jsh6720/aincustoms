@@ -413,12 +413,15 @@ module.exports = async function handler(req, res) {
           delete compatible.docs_delivered_warehouse_at;
           return compatible;
         });
-        const omitDeliveryDates = (items) => omitDeliveryTimestamps(items).map((item) => {
+        const omitDeliveryDates = (items) => items.map((item) => {
           const compatible = { ...item };
           delete compatible.docs_delivered_samhyeon_date;
           delete compatible.docs_delivered_warehouse_date;
           return compatible;
         });
+        const omitDeliveryDatesAndTimestamps = (items) => (
+          omitDeliveryTimestamps(omitDeliveryDates(items))
+        );
         try {
           rows = await saveLinkedPayloads(linkedPayloads);
         } catch (error) {
@@ -430,12 +433,18 @@ module.exports = async function handler(req, res) {
             } catch (dateError) {
               if (!isMissingDeliveryDateColumn(dateError)) throw dateError;
               deliveryDatesSaved = false;
-              rows = await saveLinkedPayloads(omitDeliveryDates(linkedPayloads));
+              rows = await saveLinkedPayloads(omitDeliveryDatesAndTimestamps(linkedPayloads));
             }
           } else if (isMissingDeliveryDateColumn(error)) {
             deliveryDatesSaved = false;
-            deliveryTimestampsSaved = false;
-            rows = await saveLinkedPayloads(omitDeliveryDates(linkedPayloads));
+            const compatiblePayloads = omitDeliveryDates(linkedPayloads);
+            try {
+              rows = await saveLinkedPayloads(compatiblePayloads);
+            } catch (timestampError) {
+              if (!isMissingDeliveryTimestampColumn(timestampError)) throw timestampError;
+              deliveryTimestampsSaved = false;
+              rows = await saveLinkedPayloads(omitDeliveryDatesAndTimestamps(linkedPayloads));
+            }
           } else {
             throw error;
           }

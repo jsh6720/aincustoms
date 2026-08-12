@@ -60,20 +60,31 @@ test("account filter is encoded without changing the selected fields", () => {
   assert.deepEqual(selectedColumns(query), CARGO_USER_INPUT_COLUMNS);
 });
 
-test("legacy input query can omit only unavailable document delivery date columns", () => {
+test("input query can omit unavailable delivery dates while retaining timestamps", () => {
   const selected = selectedColumns(cargoUserInputsQuery("account-1", {
     omitDocumentDeliveryDates: true,
   }));
 
   assert.deepEqual(
     CARGO_USER_INPUT_COLUMNS.filter((column) => !selected.includes(column)),
-    CARGO_USER_INPUT_COLUMNS.filter((column) => (
-      DOCUMENT_DELIVERY_DATE_COLUMNS.includes(column)
-      || DOCUMENT_DELIVERY_TIMESTAMP_COLUMNS.includes(column)
-    ))
+    DOCUMENT_DELIVERY_DATE_COLUMNS
   );
   assert.ok(selected.includes("docs_delivered_samhyeon"));
   assert.ok(selected.includes("docs_delivered_warehouse"));
+  DOCUMENT_DELIVERY_TIMESTAMP_COLUMNS.forEach((column) => {
+    assert.equal(selected.includes(column), true, `${column} must be retained`);
+  });
+});
+
+test("legacy input query can omit both delivery dates and timestamps", () => {
+  const selected = selectedColumns(cargoUserInputsQuery("account-1", {
+    omitDocumentDeliveryDates: true,
+    omitDocumentDeliveryTimestamps: true,
+  }));
+
+  [...DOCUMENT_DELIVERY_DATE_COLUMNS, ...DOCUMENT_DELIVERY_TIMESTAMP_COLUMNS].forEach((column) => {
+    assert.equal(selected.includes(column), false, `${column} must be omitted`);
+  });
 });
 
 test("current input query selects separate document delivery timestamps", () => {

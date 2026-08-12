@@ -114,3 +114,112 @@ test("Samhyeon reads linked document delivery O without copying unrelated accoun
   assert.ok(inputUrl);
   assert.doesNotMatch(inputUrl, /account_id=eq\./);
 });
+
+test("cargo data retains delivery timestamp when only date columns are missing", async () => {
+  const folderName = "HCH_BL-TS_CIF_DEST";
+  const card = {
+    account_id: "hch-account",
+    bl_number: "BL-TS",
+    folder_name: folderName,
+    stage: "입항",
+    synced_at: "2026-08-12T01:00:00Z",
+  };
+  const timestamp = "2026-08-12T03:21:45.000Z";
+  const inputQueries = [];
+  const handler = loadHandler({
+    canReadAllCargo: () => true,
+    verifySession: () => ({
+      account_id: "admin-account",
+      login_id: "aincustoms",
+      display_name: "AIN Customs 관리자",
+      role: "admin",
+      account_category: "shipper",
+    }),
+    supabaseFetch: async (url) => {
+      if (url.startsWith("/rest/v1/shipper_accounts?select=calendar_preferences")) {
+        return [{ calendar_preferences: null }];
+      }
+      if (url.startsWith("/rest/v1/cargo_cards?select=*")) return [card];
+      if (url.startsWith("/rest/v1/cargo_cards?select=account_id,bl_number,folder_name")) return [card];
+      if (url.startsWith("/rest/v1/cargo_card_user_inputs?")) {
+        inputQueries.push(url);
+        if (url.includes("docs_delivered_samhyeon_date")) {
+          throw new Error('column "docs_delivered_samhyeon_date" does not exist');
+        }
+        return [{
+          account_id: "hch-account",
+          bl_number: "BL-TS",
+          docs_delivered_samhyeon: true,
+          docs_delivered_samhyeon_at: url.includes("docs_delivered_samhyeon_at") ? timestamp : null,
+          docs_delivered_warehouse: false,
+          updated_at: timestamp,
+        }];
+      }
+      return [];
+    },
+  });
+  const response = createResponse();
+
+  await handler({ method: "GET", headers: {} }, response);
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.body.cards[0].docs_delivered_samhyeon, true);
+  assert.equal(response.body.cards[0].docs_delivered_samhyeon_at, timestamp);
+  assert.equal(inputQueries.length, 2);
+  assert.doesNotMatch(inputQueries[1], /docs_delivered_samhyeon_date/);
+  assert.match(inputQueries[1], /docs_delivered_samhyeon_at/);
+});
+
+test("cargo data reads legacy delivery status when date and timestamp columns are both missing", async () => {
+  const card = {
+    account_id: "hch-account",
+    bl_number: "BL-OLD",
+    folder_name: "HCH_BL-OLD_CIF_DEST",
+    stage: "입항",
+    synced_at: "2026-08-12T01:00:00Z",
+  };
+  const inputQueries = [];
+  const handler = loadHandler({
+    canReadAllCargo: () => true,
+    verifySession: () => ({
+      account_id: "admin-account",
+      login_id: "aincustoms",
+      display_name: "AIN Customs 관리자",
+      role: "admin",
+      account_category: "shipper",
+    }),
+    supabaseFetch: async (url) => {
+      if (url.startsWith("/rest/v1/shipper_accounts?select=calendar_preferences")) {
+        return [{ calendar_preferences: null }];
+      }
+      if (url.startsWith("/rest/v1/cargo_cards?select=*")) return [card];
+      if (url.startsWith("/rest/v1/cargo_cards?select=account_id,bl_number,folder_name")) return [card];
+      if (url.startsWith("/rest/v1/cargo_card_user_inputs?")) {
+        inputQueries.push(url);
+        if (url.includes("docs_delivered_samhyeon_date")) {
+          throw new Error('column "docs_delivered_samhyeon_date" does not exist');
+        }
+        if (url.includes("docs_delivered_samhyeon_at")) {
+          throw new Error('column "docs_delivered_samhyeon_at" does not exist');
+        }
+        return [{
+          account_id: "hch-account",
+          bl_number: "BL-OLD",
+          docs_delivered_samhyeon: true,
+          docs_delivered_warehouse: false,
+          updated_at: "2026-08-12T03:21:45.000Z",
+        }];
+      }
+      return [];
+    },
+  });
+  const response = createResponse();
+
+  await handler({ method: "GET", headers: {} }, response);
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.body.cards[0].docs_delivered_samhyeon, true);
+  assert.equal(inputQueries.length, 3);
+  assert.doesNotMatch(inputQueries[2], /docs_delivered_samhyeon_date/);
+  assert.doesNotMatch(inputQueries[2], /docs_delivered_samhyeon_at/);
+});
