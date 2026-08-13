@@ -49,6 +49,14 @@ function loadReceiptHandler({ supabaseFetch, sendMail }) {
         }),
       };
     }
+    if (parent?.filename === receiptHandlerPath && request === "../lib/cargo-mail-dedupe") {
+      return {
+        deliverManualMailOnce: async ({ send }) => {
+          await send();
+          return { sent: true, deduplicated: false, message: "메일 발송 완료" };
+        },
+      };
+    }
     return originalLoad.call(this, request, parent, isMain);
   };
   try {

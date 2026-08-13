@@ -5,6 +5,7 @@ const {
   fetchEffectiveRoleMailSettings,
   resolveRoleMailRecipients,
 } = require("../lib/cargo-mail-settings");
+const { deliverManualMailOnce } = require("../lib/cargo-mail-dedupe");
 
 function canRequestOriginalDocuments(card) {
   return card?.obl_received !== true || card?.hc_received !== true;
@@ -98,15 +99,28 @@ async function sendMail(card, request, session, account) {
     auth: { user, pass },
   });
   const mail = buildMail(card, request, session);
-  await transporter.sendMail({
-    from: env("MAIL_FROM") || user,
-    to: recipients.to.join(","),
-    cc: recipients.cc.length ? recipients.cc.join(",") : undefined,
-    subject: mail.subject,
-    text: mail.text,
-    html: mailTextToHtml(mail.text),
+  const delivery = await deliverManualMailOnce({
+    supabaseFetch,
+    mailType: "original_doc_request",
+    accountId: request.account_id || session.account_id,
+    blNumber: card.bl_number,
+    businessPayload: {
+      requester_name: request.requester_name,
+      requester_email: request.requester_email,
+      requested_receipt_date: request.requested_receipt_date,
+      memo: request.memo,
+    },
+    cardSnapshot: card,
+    send: () => transporter.sendMail({
+      from: env("MAIL_FROM") || user,
+      to: recipients.to.join(","),
+      cc: recipients.cc.length ? recipients.cc.join(",") : undefined,
+      subject: mail.subject,
+      text: mail.text,
+      html: mailTextToHtml(mail.text),
+    }),
   });
-  return { sent: true, skipped: false, message: "메일 발송 완료" };
+  return { ...delivery, skipped: false };
 }
 
 module.exports = async function handler(req, res) {
@@ -197,6 +211,7 @@ module.exports = async function handler(req, res) {
       request_saved: requestSaved,
       request_save_message: requestSaveMessage,
       email_sent: !!mailResult.sent,
+      deduplicated: !!mailResult.deduplicated,
       email_message: mailResult.message,
     });
   } catch (error) {

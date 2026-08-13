@@ -1433,6 +1433,23 @@ test("dashboard exposes lifecycle exclusion and three-day free-time operations",
   assert.match(visibilityApi, /action === "restore_exclusion"/);
 });
 
+test("mobile original document manager prioritizes received OBL without carrier submission", () => {
+  assert.match(mobile, /if \(hasMobileOriginalRequest\(card\) && !oblReceived\) return 0/);
+  assert.match(mobile, /if \(oblReceived && !carrierSubmitted\) return 1/);
+});
+
+test("mobile OBL mail defaults only an empty submission date to Korea today", () => {
+  assert.match(mobile, /function koreaTodayDate\(\)/);
+  assert.match(mobile, /existingDate\s*\|\|\s*koreaTodayDate\(\)/);
+  assert.doesNotMatch(mobile, /new Date\(\)\.toISOString\(\)/);
+});
+
+test("mobile mail buttons are non-submit controls and lock while sending", () => {
+  assert.match(mobile, /type="button"[^>]*onclick="submitReceiptMail\(\)"/);
+  assert.match(mobile, /type="button"[^>]*onclick="submitOblCarrierMail\(\)"/);
+  assert.match(mobile, /mailSubmissionInProgress/);
+});
+
 test("OBL carrier submission date remains visible to shipper and destination accounts", () => {
   assert.match(
     dashboard,

@@ -1,4 +1,5 @@
 const nodemailer = require("nodemailer");
+const { deliverManualMailOnce } = require("../lib/cargo-mail-dedupe");
 const { requireWritableSession, supabaseFetch } = require("../lib/cargo-auth");
 const {
   buildArrivalScheduleChangeMail,
@@ -194,13 +195,21 @@ async function sendWarehouseChangeMail(
     recipientOverride,
     contentOverride
   );
-  await transporter.sendMail({
-    from: process.env.MAIL_FROM || user,
-    to: recipients.to.join(","),
-    cc: recipients.cc.length ? recipients.cc.join(",") : undefined,
-    subject: mail.subject,
-    text: mail.text,
-    html: mail.html || mailTextToHtml(mail.text),
+  return deliverManualMailOnce({
+    supabaseFetch,
+    mailType: "warehouse_change",
+    accountId: card.account_id,
+    blNumber: card.bl_number,
+    businessPayload: { previous, next, recipients, subject: mail.subject, text: mail.text },
+    cardSnapshot: card,
+    send: () => transporter.sendMail({
+      from: process.env.MAIL_FROM || user,
+      to: recipients.to.join(","),
+      cc: recipients.cc.length ? recipients.cc.join(",") : undefined,
+      subject: mail.subject,
+      text: mail.text,
+      html: mail.html || mailTextToHtml(mail.text),
+    }),
   });
 }
 
@@ -252,13 +261,21 @@ async function sendArrivalScheduleChangeMail(
     secure: String(process.env.SMTP_SECURE || "true").toLowerCase() !== "false",
     auth: { user, pass },
   });
-  await transporter.sendMail({
-    from: process.env.MAIL_FROM || user,
-    to: recipients.to.join(","),
-    cc: recipients.cc.length ? recipients.cc.join(",") : undefined,
-    subject: mail.subject,
-    text: mail.text,
-    html: mail.html || mailTextToHtml(mail.text),
+  return deliverManualMailOnce({
+    supabaseFetch,
+    mailType: "arrival_schedule_change",
+    accountId: card.account_id,
+    blNumber: card.bl_number,
+    businessPayload: { previous, next, recipients, subject: mail.subject, text: mail.text },
+    cardSnapshot: card,
+    send: () => transporter.sendMail({
+      from: process.env.MAIL_FROM || user,
+      to: recipients.to.join(","),
+      cc: recipients.cc.length ? recipients.cc.join(",") : undefined,
+      subject: mail.subject,
+      text: mail.text,
+      html: mail.html || mailTextToHtml(mail.text),
+    }),
   });
 }
 
@@ -671,8 +688,9 @@ module.exports = async function handler(req, res) {
               subject: String(body.notification_subject || "").trim(),
               text: String(body.notification_text || "").trim(),
             } : null;
+            let delivery;
             if (etaChanged) {
-              await sendArrivalScheduleChangeMail(
+              delivery = await sendArrivalScheduleChangeMail(
                 card,
                 previousTransport,
                 nextTransport,
@@ -680,7 +698,7 @@ module.exports = async function handler(req, res) {
                 contentOverride
               );
             } else if (warehouseChangedFields.length) {
-              await sendWarehouseChangeMail(
+              delivery = await sendWarehouseChangeMail(
                 card,
                 session,
                 previousTransport,
@@ -689,7 +707,8 @@ module.exports = async function handler(req, res) {
                 contentOverride
               );
             }
-            emailSent = true;
+            emailSent = !!delivery?.sent;
+            emailMessage = delivery?.message || "";
           } catch (mailError) {
             emailMessage = mailError.message;
           }
@@ -737,17 +756,19 @@ module.exports = async function handler(req, res) {
       let emailMessage = "";
       if (!isAdmin && sendNotification && changedFields.length) {
         try {
+          let delivery;
           if (etaChanged) {
-            await sendArrivalScheduleChangeMail(card, previousTransport, nextTransport);
+            delivery = await sendArrivalScheduleChangeMail(card, previousTransport, nextTransport);
           } else if (warehouseChangedFields.length) {
-            await sendWarehouseChangeMail(
+            delivery = await sendWarehouseChangeMail(
               card,
               session,
               previousTransport,
               nextTransport
             );
           }
-          emailSent = true;
+          emailSent = !!delivery?.sent;
+          emailMessage = delivery?.message || "";
         } catch (mailError) {
           emailMessage = mailError.message;
           const savedUpdatedAt = input?.updated_at;

@@ -25,6 +25,13 @@ const quotaApi = fs.readFileSync(path.join(root, "api/cargo-quota.js"), "utf8");
 const quotaHandlerPath = path.join(root, "api/cargo-quota.js");
 const { koreaDate, normalizeIsoDate } = require("../lib/cargo-request-utils");
 
+const mailDedupeTestDouble = {
+  deliverManualMailOnce: async ({ send }) => {
+    await send();
+    return { sent: true, deduplicated: false, message: "메일 발송 완료" };
+  },
+};
+
 function loadImportRequestHandler({ verifySession, supabaseFetch, sendMail }) {
   const originalLoad = Module._load;
   delete require.cache[importRequestHandlerPath];
@@ -40,6 +47,9 @@ function loadImportRequestHandler({ verifySession, supabaseFetch, sendMail }) {
       return {
         createTransport: () => ({ sendMail }),
       };
+    }
+    if (parent?.filename === importRequestHandlerPath && request === "../lib/cargo-mail-dedupe") {
+      return mailDedupeTestDouble;
     }
     return originalLoad.call(this, request, parent, isMain);
   };
@@ -67,6 +77,9 @@ function loadOriginalRequestHandler({ verifySession, supabaseFetch, sendMail }) 
         createTransport: () => ({ sendMail }),
       };
     }
+    if (parent?.filename === originalRequestHandlerPath && request === "../lib/cargo-mail-dedupe") {
+      return mailDedupeTestDouble;
+    }
     return originalLoad.call(this, request, parent, isMain);
   };
   try {
@@ -92,6 +105,9 @@ function loadQuotaHandler({ verifySession, supabaseFetch, sendMail }) {
       return {
         createTransport: () => ({ sendMail }),
       };
+    }
+    if (parent?.filename === quotaHandlerPath && request === "../lib/cargo-mail-dedupe") {
+      return mailDedupeTestDouble;
     }
     return originalLoad.call(this, request, parent, isMain);
   };

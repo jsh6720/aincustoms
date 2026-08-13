@@ -14,6 +14,7 @@ const {
   koreaDate,
   markLinkedOriginalDocsReceived,
 } = require("../lib/cargo-original-doc-receipt");
+const { deliverManualMailOnce } = require("../lib/cargo-mail-dedupe");
 
 function env(name) {
   return process.env[name] || "";
@@ -189,12 +190,30 @@ module.exports = async function handler(req, res) {
     }
 
     const card = cards[0];
+    const receivedDate = koreaDate();
     const mail = action === "obl_carrier_submission"
       ? buildOblCarrierMail(card, submittedDate, memo)
       : buildMail(card, totalPages, memo, receivedDocuments);
-    await sendMail(mail, additionalRecipients, action);
+    const delivery = await deliverManualMailOnce({
+      supabaseFetch,
+      mailType: action === "obl_carrier_submission"
+        ? "obl_carrier_submission"
+        : "original_doc_receipt",
+      accountId,
+      blNumber,
+      businessPayload: action === "obl_carrier_submission"
+        ? { submitted_date: submittedDate, memo, additional_recipients: additionalRecipients }
+        : {
+          received_date: receivedDate,
+          documents: [...receivedDocuments].sort(),
+          total_pages: totalPages,
+          memo,
+          additional_recipients: additionalRecipients,
+        },
+      cardSnapshot: card,
+      send: () => sendMail(mail, additionalRecipients, action),
+    });
     if (action === "hc_receipt") {
-      const receivedDate = koreaDate();
       try {
         await markLinkedOriginalDocsReceived({
           supabaseFetch,
@@ -205,7 +224,8 @@ module.exports = async function handler(req, res) {
       } catch (error) {
         return res.status(500).json({
           success: false,
-          email_sent: true,
+          email_sent: delivery.sent,
+          deduplicated: delivery.deduplicated,
           receipt_saved: false,
           message: "수령메일은 발송됐지만 OBL/H/C 수취상태 저장에 실패했습니다. 메일을 다시 보내지 말고 관리자에게 상태 저장을 요청해 주세요.",
           detail: error.message,
@@ -213,12 +233,18 @@ module.exports = async function handler(req, res) {
       }
       return res.status(200).json({
         success: true,
-        email_sent: true,
+        email_sent: delivery.sent,
+        deduplicated: delivery.deduplicated,
         receipt_saved: true,
         received_date: receivedDate,
       });
     }
-    return res.status(200).json({ success: true, email_sent: true });
+    return res.status(200).json({
+      success: true,
+      email_sent: delivery.sent,
+      deduplicated: delivery.deduplicated,
+      message: delivery.message,
+    });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
   }

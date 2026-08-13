@@ -17,6 +17,7 @@ const {
 const {
   buildWarehouseScheduleMail,
 } = require("../lib/cargo-warehouse-schedule-notification");
+const { deliverManualMailOnce } = require("../lib/cargo-mail-dedupe");
 
 const ALLOWED_STAGES = ["입항", "반입"];
 
@@ -351,15 +352,30 @@ async function sendMail(card, request, session, account) {
     auth: { user, pass },
   });
   const mail = buildMail(card, request, session);
-  await transporter.sendMail({
-    from: env("MAIL_FROM") || user,
-    to: recipients.to.join(","),
-    cc: recipients.cc.length ? recipients.cc.join(",") : undefined,
-    subject: mail.subject,
-    text: mail.text,
-    html: mailTextToHtml(mail.text),
+  const delivery = await deliverManualMailOnce({
+    supabaseFetch,
+    mailType: "import_request",
+    accountId: request.account_id || session.account_id,
+    blNumber: card.bl_number,
+    businessPayload: {
+      requester_name: request.requester_name,
+      requester_email: request.requester_email,
+      requested_import_date: request.requested_import_date,
+      requested_release_date: request.requested_release_date,
+      delivery_address: request.delivery_address,
+      memo: request.memo,
+    },
+    cardSnapshot: card,
+    send: () => transporter.sendMail({
+      from: env("MAIL_FROM") || user,
+      to: recipients.to.join(","),
+      cc: recipients.cc.length ? recipients.cc.join(",") : undefined,
+      subject: mail.subject,
+      text: mail.text,
+      html: mailTextToHtml(mail.text),
+    }),
   });
-  return { sent: true, skipped: false, message: "메일 발송 완료" };
+  return { ...delivery, skipped: false };
 }
 
 module.exports = async function handler(req, res) {
@@ -448,6 +464,7 @@ module.exports = async function handler(req, res) {
       success: true,
       request: savedRequest,
       email_sent: !!mailResult.sent,
+      deduplicated: !!mailResult.deduplicated,
       email_message: mailResult.message,
     });
   } catch (error) {
