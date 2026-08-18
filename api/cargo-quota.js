@@ -29,6 +29,14 @@ function isValidDate(value) {
   return /^\d{4}-\d{2}-\d{2}$/.test(value);
 }
 
+function normalizeCargoDate(value) {
+  const text = String(value || "").trim();
+  const compact = text.match(/^(\d{4})(\d{2})(\d{2})$/);
+  if (compact) return `${compact[1]}-${compact[2]}-${compact[3]}`;
+  const iso = text.match(/^(\d{4}-\d{2}-\d{2})/);
+  return iso ? iso[1] : "";
+}
+
 function isMissingDeliveryDateColumn(error) {
   const message = String(error?.message || "");
   return [
@@ -91,15 +99,14 @@ async function linkedCardTargets(card) {
 }
 
 function effectiveTransportValues(input, card) {
+  const customsArrivalDate = normalizeCargoDate(card?.entry_date);
   return {
     delivery_terms: String(input?.delivery_terms || card?.delivery_terms || "").trim(),
-    eta_date: String(
-      input?.eta_date
-      || card?.eta_date
-      || card?.first_arrival_date
-      || card?.entry_date
-      || ""
-    ).trim(),
+    eta_date: customsArrivalDate
+      || normalizeCargoDate(input?.eta_date)
+      || normalizeCargoDate(card?.eta_date)
+      || normalizeCargoDate(card?.first_arrival_date),
+    arrival_confirmed_by_customs: !!customsArrivalDate,
     storage_yard: effectiveStorageYard(
       input?.storage_yard || card?.storage_yard,
       card?.shed_name

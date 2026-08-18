@@ -64,6 +64,30 @@ test("builds the approved detailed arrival schedule change email", () => {
   assert.match(mail.html, /font-size:9pt/);
 });
 
+test("builds a customs-confirmed arrival email with the actual arrival date highlighted", () => {
+  const mail = buildArrivalScheduleChangeMail(
+    {
+      bl_number: "ONEYBNEG04898400",
+      consignee: "현대코퍼레이션H",
+      destination: "캐틀팜*우육*호주",
+    },
+    { eta_date: "" },
+    {
+      eta_date: "2026-08-18",
+      free_time_days: 3,
+      arrival_confirmed_by_customs: true,
+    }
+  );
+
+  assert.equal(mail.subject, "[입항 확인] 현대_ONEYBNEG04898400 / 캐틀팜");
+  assert.match(mail.text, /관세청 전산에서 실제 입항이 확인되어 아래와 같이 안내드립니다\./);
+  assert.match(mail.text, /입항일: 2026-08-18 \(관세청 확인\)/);
+  assert.match(
+    mail.html,
+    /입항일: <strong style="color:#b42318;font-weight:700;">2026-08-18 \(관세청 확인\)<\/strong>/
+  );
+});
+
 test("wraps plain client mail in Malgun Gothic 9pt HTML", () => {
   const html = mailTextToHtml("안녕하세요.\n요청 내용을 확인해 주세요.");
   assert.match(html, /^<div style="font-family:'Malgun Gothic','맑은 고딕',sans-serif;font-size:9pt;/);
@@ -73,12 +97,17 @@ test("wraps plain client mail in Malgun Gothic 9pt HTML", () => {
 test("highlights newly entered and changed transport values in reviewed mail", () => {
   const html = mailTextToHtml([
     "입항예정일: 2026-08-11 -> 2026-08-12",
+    "입항일: 2026-08-18 (관세청 확인)",
     "반입예정일: 2026-08-13(예정)",
   ].join("\n"), { highlightChanges: true });
 
   assert.match(
     html,
     /입항예정일: 2026-08-11 <strong style="color:#b42318;font-weight:700;">→ 2026-08-12<\/strong>/
+  );
+  assert.match(
+    html,
+    /입항일: <strong style="color:#b42318;font-weight:700;">2026-08-18 \(관세청 확인\)<\/strong>/
   );
   assert.match(
     html,

@@ -578,6 +578,52 @@ test("admin can send an already-saved arrival schedule without rewriting transpo
   assert.match(calls.mail[0].text, /입항예정일: 2026-08-18/);
 });
 
+test("customs compact entry date is used for the actual-arrival mail preview", { concurrency: false }, async () => {
+  const { handler } = createQuotaFixture({
+    session: {
+      account_id: "admin-account",
+      role: "admin",
+      login_id: "ADMIN-1",
+    },
+    previousInput: {
+      account_id: "account-1",
+      bl_number: "ONEYBNEG04898400",
+      eta_date: null,
+      free_time_days: 3,
+    },
+    cardRows: [{
+      account_id: "account-1",
+      bl_number: "ONEYBNEG04898400",
+      consignee: "현대코퍼레이션H",
+      destination: "캐틀팜*우육*호주",
+      entry_date: "20260818",
+    }],
+    mailSettings: {
+      arrival_schedule_change: {
+        to_recipients: "shipper@example.com",
+        cc_recipients: "ain@example.com",
+      },
+    },
+  });
+  const response = createResponse();
+
+  await handler({
+    method: "POST",
+    body: {
+      action: "preview_transport_mail",
+      account_id: "account-1",
+      bl_number: "ONEYBNEG04898400",
+      mail_type: "arrival",
+    },
+  }, response);
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.body.preview.subject, "[입항 확인] 현대_ONEYBNEG04898400 / 캐틀팜");
+  assert.match(response.body.preview.text, /관세청 전산에서 실제 입항이 확인/);
+  assert.match(response.body.preview.text, /입항일: 2026-08-18 \(관세청 확인\)/);
+  assert.doesNotMatch(response.body.preview.text, /입항예정일: 미입력/);
+});
+
 test("already-saved arrival schedule reports a duplicate without saving or sending SMTP again", { concurrency: false }, async () => {
   const { calls, handler } = createQuotaFixture({
     session: {
