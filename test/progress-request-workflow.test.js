@@ -90,7 +90,7 @@ function loadOriginalRequestHandler({ verifySession, supabaseFetch, sendMail }) 
   }
 }
 
-function loadQuotaHandler({ verifySession, supabaseFetch, sendMail }) {
+function loadQuotaHandler({ verifySession, supabaseFetch, sendMail, deliverManualMailOnce }) {
   const originalLoad = Module._load;
   delete require.cache[quotaHandlerPath];
   Module._load = function mockedLoad(request, parent, isMain) {
@@ -107,7 +107,10 @@ function loadQuotaHandler({ verifySession, supabaseFetch, sendMail }) {
       };
     }
     if (parent?.filename === quotaHandlerPath && request === "../lib/cargo-mail-dedupe") {
-      return mailDedupeTestDouble;
+      return {
+        deliverManualMailOnce: deliverManualMailOnce
+          || mailDedupeTestDouble.deliverManualMailOnce,
+      };
     }
     return originalLoad.call(this, request, parent, isMain);
   };
@@ -148,6 +151,7 @@ function createQuotaFixture({
   sendMail = async () => {},
   mailSettings = {},
   saveError = null,
+  deliverManualMailOnce = null,
 }) {
   const storedPreviousInput = previousInput?.account_id
     ? {
@@ -169,6 +173,7 @@ function createQuotaFixture({
       calls.mail.push(mail);
       return sendMail(mail);
     },
+    deliverManualMailOnce,
     supabaseFetch: async (url, options) => {
       if (url.includes("/rest/v1/cargo_mail_settings")) {
         const settingKey = decodeURIComponent((url.match(/setting_key=eq\.([^&]+)/) || [])[1] || "");
@@ -516,6 +521,121 @@ test("admin can explicitly email one arrival schedule change to configured shipp
     calls.mail[0].text,
     /본 메일은 발신전용 계정이오니,\n관련하여 수정 및 문의사항이 있으신 경우 아인합동관세사\(jsh@aincustoms\.com\)로 말씀 부탁드리겠습니다\./
   );
+});
+
+test("admin can send an already-saved arrival schedule without rewriting transport data", { concurrency: false }, async () => {
+  const { calls, handler } = createQuotaFixture({
+    session: {
+      account_id: "admin-account",
+      role: "admin",
+      login_id: "ADMIN-1",
+    },
+    previousInput: {
+      account_id: "account-1",
+      bl_number: "BL-1",
+      eta_date: "2026-08-18",
+      free_time_days: 3,
+    },
+    cardRows: [{
+      account_id: "account-1",
+      bl_number: "BL-1",
+      consignee: "현대코퍼레이션H",
+      destination: "캐틀팜*우육*호주",
+    }],
+    mailSettings: {
+      arrival_schedule_change: {
+        to_recipients: "shipper@example.com",
+        cc_recipients: "ain@example.com",
+      },
+    },
+  });
+  const response = createResponse();
+
+  await withEnvironment(
+    {
+      SMTP_HOST: "smtp.example.com",
+      SMTP_USER: "mailer@example.com",
+      SMTP_PASS: "secret",
+    },
+    () => handler({
+      method: "POST",
+      body: {
+        action: "manual_fields",
+        account_id: "account-1",
+        bl_number: "BL-1",
+        mail_type: "arrival",
+        send_notification: true,
+      },
+    }, response)
+  );
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.body.success, true);
+  assert.equal(response.body.email_sent, true);
+  assert.deepEqual(response.body.changed_fields, []);
+  assert.equal(calls.savedPayload, null);
+  assert.equal(calls.mail.length, 1);
+  assert.match(calls.mail[0].text, /입항예정일: 2026-08-18/);
+});
+
+test("already-saved arrival schedule reports a duplicate without saving or sending SMTP again", { concurrency: false }, async () => {
+  const { calls, handler } = createQuotaFixture({
+    session: {
+      account_id: "admin-account",
+      role: "admin",
+      login_id: "ADMIN-1",
+    },
+    previousInput: {
+      account_id: "account-1",
+      bl_number: "BL-1",
+      eta_date: "2026-08-18",
+      free_time_days: 3,
+    },
+    cardRows: [{
+      account_id: "account-1",
+      bl_number: "BL-1",
+      consignee: "현대코퍼레이션H",
+      destination: "캐틀팜*우육*호주",
+    }],
+    mailSettings: {
+      arrival_schedule_change: {
+        to_recipients: "shipper@example.com",
+        cc_recipients: "ain@example.com",
+      },
+    },
+    deliverManualMailOnce: async () => ({
+      sent: false,
+      deduplicated: true,
+      message: "동일한 내용의 메일이 이미 발송되었습니다.",
+    }),
+  });
+  const response = createResponse();
+
+  await withEnvironment(
+    {
+      SMTP_HOST: "smtp.example.com",
+      SMTP_USER: "mailer@example.com",
+      SMTP_PASS: "secret",
+    },
+    () => handler({
+      method: "POST",
+      body: {
+        action: "manual_fields",
+        account_id: "account-1",
+        bl_number: "BL-1",
+        mail_type: "arrival",
+        send_notification: true,
+      },
+    }, response)
+  );
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.body.success, true);
+  assert.equal(response.body.email_sent, false);
+  assert.equal(response.body.deduplicated, true);
+  assert.match(response.body.email_message, /이미 발송/);
+  assert.equal(calls.savedPayload, null);
+  assert.equal(calls.mail.length, 0);
 });
 
 test("arrival schedule preview uses role recipients and has no save or mail side effects", { concurrency: false }, async () => {

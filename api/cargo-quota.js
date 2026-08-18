@@ -561,6 +561,9 @@ module.exports = async function handler(req, res) {
     if (action === "manual_fields") {
       const previousInput = await findManualInput(targetAccountId, blNumber);
       const sendNotification = body.send_notification === true;
+      const requestedMailType = String(body.mail_type || "").trim();
+      const canSendWithoutSave = sendNotification
+        && ["arrival", "warehouse"].includes(requestedMailType);
       const confirmField = String(body.confirm_field || "").trim();
       const confirmationAction = String(body.confirmation_action || "").trim();
       const hasConfirmationRequest = !!(confirmField || confirmationAction);
@@ -632,7 +635,8 @@ module.exports = async function handler(req, res) {
         nextPayload[confirmField] = confirmedValue;
         nextPayload[CONFIRMABLE_FIELDS[confirmField]] = confirmationAction === "confirm";
       }
-      if (Object.keys(nextPayload).length === 2) {
+      const hasTransportFieldsToSave = Object.keys(nextPayload).length > 2;
+      if (!hasTransportFieldsToSave && !canSendWithoutSave) {
         return res.status(400).json({ success: false, message: "저장할 운송정보가 없습니다." });
       }
       const nextInput = { ...previousInput, ...nextPayload };
@@ -646,6 +650,58 @@ module.exports = async function handler(req, res) {
         ...(etaChanged ? ["eta_date"] : []),
         ...warehouseChangedFields,
       ];
+      if (!hasTransportFieldsToSave && canSendWithoutSave) {
+        const recipientOverride = (
+          Object.prototype.hasOwnProperty.call(body, "notification_to")
+          || Object.prototype.hasOwnProperty.call(body, "notification_cc")
+        ) ? {
+          to_recipients: String(body.notification_to || "").trim(),
+          cc_recipients: String(body.notification_cc || "").trim(),
+        } : null;
+        const contentOverride = (
+          Object.prototype.hasOwnProperty.call(body, "notification_subject")
+          || Object.prototype.hasOwnProperty.call(body, "notification_text")
+        ) ? {
+          subject: String(body.notification_subject || "").trim(),
+          text: String(body.notification_text || "").trim(),
+        } : null;
+        try {
+          const delivery = requestedMailType === "arrival"
+            ? await sendArrivalScheduleChangeMail(
+                card,
+                previousTransport,
+                nextTransport,
+                recipientOverride,
+                contentOverride
+              )
+            : await sendWarehouseChangeMail(
+                card,
+                session,
+                previousTransport,
+                nextTransport,
+                recipientOverride,
+                contentOverride
+              );
+          return res.status(200).json({
+            success: true,
+            input: previousInput?.account_id ? previousInput : null,
+            changed_fields: [],
+            email_sent: !!delivery?.sent,
+            deduplicated: !!delivery?.deduplicated,
+            email_message: delivery?.message || "",
+          });
+        } catch (mailError) {
+          return res.status(502).json({
+            success: false,
+            input: previousInput?.account_id ? previousInput : null,
+            changed_fields: [],
+            email_sent: false,
+            deduplicated: false,
+            email_message: mailError.message,
+            message: `메일 발송에 실패했습니다: ${mailError.message}`,
+          });
+        }
+      }
       nextPayload.transport_updated_by_role = isAdmin
         ? "admin"
         : session.account_category === "destination"
@@ -671,6 +727,7 @@ module.exports = async function handler(req, res) {
           }
         );
         let emailSent = false;
+        let emailDeduplicated = false;
         let emailMessage = "";
         if (sendNotification && changedFields.length) {
           try {
@@ -708,6 +765,7 @@ module.exports = async function handler(req, res) {
               );
             }
             emailSent = !!delivery?.sent;
+            emailDeduplicated = !!delivery?.deduplicated;
             emailMessage = delivery?.message || "";
           } catch (mailError) {
             emailMessage = mailError.message;
@@ -719,6 +777,7 @@ module.exports = async function handler(req, res) {
           inputs: rows || [],
           changed_fields: changedFields,
           email_sent: emailSent,
+          deduplicated: emailDeduplicated,
           email_message: emailMessage,
         });
       }
@@ -753,6 +812,7 @@ module.exports = async function handler(req, res) {
         });
       }
       let emailSent = false;
+      let emailDeduplicated = false;
       let emailMessage = "";
       if (!isAdmin && sendNotification && changedFields.length) {
         try {
@@ -768,6 +828,7 @@ module.exports = async function handler(req, res) {
             );
           }
           emailSent = !!delivery?.sent;
+          emailDeduplicated = !!delivery?.deduplicated;
           emailMessage = delivery?.message || "";
         } catch (mailError) {
           emailMessage = mailError.message;
@@ -820,6 +881,7 @@ module.exports = async function handler(req, res) {
         input,
         changed_fields: changedFields,
         email_sent: emailSent,
+        deduplicated: emailDeduplicated,
         email_message: emailMessage,
       });
     }

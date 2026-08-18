@@ -253,11 +253,13 @@ test("progress transport editor renders role-specific save commands", () => {
   const saveEnd = dashboard.indexOf("function openProgressStatus", saveStart);
   const saveBody = dashboard.slice(saveStart, saveEnd);
   assert.match(saveBody, /send_notification:\s*sendNotification === true/);
+  assert.match(saveBody, /mail_type:\s*progressWarehouseFocusField === "eta_date"\s*\?\s*"arrival"\s*:\s*"warehouse"/);
   assert.match(saveBody, /response\.status === 409/);
   assert.match(saveBody, /await loadData\(\)/);
   assert.match(saveBody, /메일 발송에 실패/);
   assert.match(saveBody, /저장되었습니다/);
   assert.match(saveBody, /메일로 발송되었습니다/);
+  assert.match(saveBody, /result\.deduplicated/);
   assert.match(saveBody, /confirm_field/);
   assert.match(saveBody, /confirmation_action/);
 });
@@ -1354,8 +1356,8 @@ test("pre-migration original document saves fall back without transfer override"
 
 test("shipper warehouse save precedes mail and includes an optimistic rollback", () => {
   const blockAt = quotaApi.indexOf('if (action === "manual_fields")');
-  const mailAt = quotaApi.indexOf("await sendWarehouseChangeMail");
   const saveAt = quotaApi.indexOf("const rows = await supabaseFetch", blockAt);
+  const mailAt = quotaApi.indexOf("await sendWarehouseChangeMail", saveAt);
   assert.ok(saveAt >= 0 && mailAt > saveAt);
   assert.match(quotaApi, /updated_at=eq\.\$\{updated\}/);
   assert.match(quotaApi, /변경을 취소했습니다/);

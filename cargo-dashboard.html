@@ -2676,6 +2676,9 @@
         account_id: card.account_id,
         bl_number: card.bl_number,
         send_notification: sendNotification === true,
+        ...(sendNotification === true ? {
+          mail_type: progressWarehouseFocusField === "eta_date" ? "arrival" : "warehouse",
+        } : {}),
       };
       const values = {
         eta_date: document.getElementById("progressWarehouseEta").value || "",
@@ -2741,7 +2744,7 @@
         }
       }
       const changedFields = Object.keys(payload).filter(field => ![
-        "action", "account_id", "bl_number", "send_notification", "notification_to", "notification_cc"
+        "action", "account_id", "bl_number", "send_notification", "mail_type", "notification_to", "notification_cc"
       ].includes(field));
       if (!changedFields.length && sendNotification !== true) {
         alert("변경된 운송정보가 없습니다.");
@@ -2791,6 +2794,8 @@
         renderProgressCalendar();
         if (sendNotification === true && result.email_sent) {
           alert(`${savedLabel} 저장되고 메일로 발송되었습니다.`);
+        } else if (sendNotification === true && result.deduplicated) {
+          alert(result.email_message || "동일한 내용의 메일이 이미 발송되어 중복 발송하지 않았습니다.");
         } else if (sendNotification === true) {
           alert(`${savedLabel} 저장되었지만 메일 발송에 실패했습니다.\n${result.email_message || "메일 환경설정을 확인해 주세요."}`);
         } else {
