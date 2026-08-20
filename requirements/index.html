@@ -46,6 +46,7 @@
                 <span class="nav-title">AIN 수입요건 관리</span>
             </div>
             <div class="nav-right">
+                <button id="databaseRefreshBtn" class="btn-logout"><i class="fas fa-sync-alt"></i> DB 기준 새로고침</button>
                 <span id="userInfo" class="user-info"></span>
                 <button id="logoutBtn" class="btn-logout"><i class="fas fa-sign-out-alt"></i> 로그아웃</button>
             </div>
@@ -732,18 +733,18 @@
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     
     <!-- Google Sheets API 통합 (가장 먼저 로드) -->
-    <!-- 캐시 무효화: v5.4.4 (확인필요 List 검색 버그 수정) -->
+    <!-- 캐시 무효화: v6.0.0 (토큰 인증 및 DB 새로고침) -->
     <script src="js/runtime-config.js"></script>
-    <script src="js/google-sheets-api.js?v=5.4.4"></script>
-    <script src="js/date-formatter.js?v=5.4.4"></script>
-    <script src="js/auth.js?v=5.4.4"></script>
-    <script src="js/parser.js?v=5.4.4"></script>
-    <script src="js/file-handler.js?v=5.4.4"></script>
-    <script src="js/unified-search.js?v=5.4.4"></script>
-    <script src="js/review-needed.js?v=5.4.4"></script>
-    <script src="js/selection-delete.js?v=5.4.4"></script>
-    <script src="js/duplicate-checker.js?v=5.4.4"></script>
-    <script src="js/edit-request.js?v=5.4.4"></script>
-    <script src="js/app.js?v=5.4.4"></script>
+    <script src="js/google-sheets-api.js?v=6.0.0"></script>
+    <script src="js/date-formatter.js?v=6.0.0"></script>
+    <script src="js/auth.js?v=6.0.0"></script>
+    <script src="js/parser.js?v=6.0.0"></script>
+    <script src="js/file-handler.js?v=6.0.0"></script>
+    <script src="js/unified-search.js?v=6.0.0"></script>
+    <script src="js/review-needed.js?v=6.0.0"></script>
+    <script src="js/selection-delete.js?v=6.0.0"></script>
+    <script src="js/duplicate-checker.js?v=6.0.0"></script>
+    <script src="js/edit-request.js?v=6.0.0"></script>
+    <script src="js/app.js?v=6.0.0"></script>
 </body>
 </html>

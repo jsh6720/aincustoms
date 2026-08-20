@@ -4,6 +4,46 @@ let currentSection = 'overview';
 let currentDataType = '';
 let currentDetailRecord = null;
 
+async function loadCurrentSection() {
+    switch (currentSection) {
+        case 'chemical': await loadChemicalData(); break;
+        case 'msds': await loadMsdsData(); break;
+        case 'radio': await loadRadioData(); break;
+        case 'electrical': await loadElectricalData(); break;
+        case 'medical': await loadMedicalData(); break;
+        case 'non_target': await loadNonTargetData(); break;
+        case 'review_needed':
+            if (typeof loadReviewNeededData === 'function') await loadReviewNeededData();
+            break;
+        case 'editRequests':
+            if (typeof loadEditRequests === 'function') await loadEditRequests();
+            break;
+    }
+}
+
+async function clearAndReloadFromDatabase() {
+    GoogleSheetsAPI.clearAllCache();
+    await loadDashboard();
+    await loadCurrentSection();
+}
+
+document.getElementById('databaseRefreshBtn')?.addEventListener('click', async (event) => {
+    const button = event.currentTarget;
+    const originalContent = button.innerHTML;
+    button.disabled = true;
+    button.innerHTML = '<i class="fas fa-sync-alt fa-spin"></i> 새로고침 중...';
+    try {
+        await clearAndReloadFromDatabase();
+        alert('Google Sheet 기준으로 새로고침했습니다.');
+    } catch (error) {
+        console.error('DB 기준 새로고침 오류:', error);
+        alert('DB 기준 새로고침에 실패했습니다. 잠시 후 다시 시도해주세요.');
+    } finally {
+        button.disabled = false;
+        button.innerHTML = originalContent;
+    }
+});
+
 // 대시보드 로드
 async function loadDashboard() {
     try {
@@ -2934,30 +2974,11 @@ async function saveEditedData() {
             const errorText = await response.text();
             console.error('수정 실패 응답:', response.status, errorText);
             
-            // 403 오류인 경우 특별 처리
-            if (response.status === 403) {
-                alert('⚠️ 배포 사이트에서는 수정이 불가능합니다.\n\n' +
-                      '✅ 해결 방법:\n' +
-                      '미리보기 환경에서 작업해주세요.\n\n' +
-                      '미리보기 URL:\n' +
-                      '/requirements/\n\n' +
-                      '※ 미리보기에서는 모든 수정/삭제가 정상 작동합니다.');
-            } else {
-                alert(`수정 중 오류가 발생했습니다.\n상태 코드: ${response.status}\n${errorText ? '오류 내용: ' + errorText : ''}`);
-            }
+            alert(`수정 중 오류가 발생했습니다.\n상태 코드: ${response.status}\n${errorText ? '오류 내용: ' + errorText : ''}`);
         }
     } catch (error) {
         console.error('수정 오류:', error);
         
-        // 403 오류 메시지가 포함된 경우
-        if (error.message.includes('403') || error.message.includes('read-only')) {
-            alert('⚠️ 배포 사이트에서는 수정이 불가능합니다.\n\n' +
-                  '✅ 해결 방법:\n' +
-                  '미리보기 환경에서 작업해주세요.\n\n' +
-                  '미리보기 URL:\n' +
-                  '/requirements/');
-        } else {
-            alert(`수정 중 오류가 발생했습니다.\n오류 내용: ${error.message}`);
-        }
+        alert(`수정 중 오류가 발생했습니다.\n오류 내용: ${error.message}`);
     }
 }

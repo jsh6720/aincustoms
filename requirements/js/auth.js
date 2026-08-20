@@ -3,6 +3,14 @@
 // 현재 로그인한 사용자 정보
 let currentUser = null;
 
+function sanitizeSessionUser(user) {
+    return {
+        username: user?.username || '',
+        role: user?.role || '',
+        company_name: user?.company_name || ''
+    };
+}
+
 // 회사명 정규화 함수 (주식회사, (주) 제거)
 function normalizeCompanyName(companyName) {
     if (!companyName) return '';
@@ -22,9 +30,10 @@ async function login(username, password) {
         
         if (result.success) {
             // 로그인 성공
-            currentUser = result.user;
-            sessionStorage.setItem('currentUser', JSON.stringify(result.user));
-            return { success: true, user: result.user };
+            currentUser = sanitizeSessionUser(result.user);
+            const session = { token: result.token, user: currentUser };
+            sessionStorage.setItem('ainRequirementsSession', JSON.stringify(session));
+            return { success: true, user: currentUser };
         } else {
             return { success: false, message: result.error || '아이디 또는 비밀번호가 올바르지 않습니다.' };
         }
@@ -37,17 +46,24 @@ async function login(username, password) {
 // 로그아웃 처리
 function logout() {
     currentUser = null;
-    sessionStorage.removeItem('currentUser');
+    sessionStorage.removeItem('ainRequirementsSession');
+    GoogleSheetsAPI.clearAllCache();
     showScreen('login');
 }
 
 // 세션 확인
 function checkSession() {
-    const savedUser = sessionStorage.getItem('currentUser');
-    if (savedUser) {
-        currentUser = JSON.parse(savedUser);
-        return true;
+    try {
+        const savedSession = JSON.parse(sessionStorage.getItem('ainRequirementsSession') || 'null');
+        if (savedSession?.token && savedSession?.user) {
+            currentUser = savedSession.user;
+            return true;
+        }
+    } catch (error) {
+        // Invalid session data is discarded below.
     }
+    currentUser = null;
+    sessionStorage.removeItem('ainRequirementsSession');
     return false;
 }
 
@@ -56,15 +72,9 @@ function isMasterUser() {
     return currentUser && currentUser.role === 'master';
 }
 
-// 로컬 요건관리 경로에서 실행 중인지 확인
-function isProductionEnvironment() {
-    return window.location.pathname.startsWith('/requirements/');
-}
-
-// 수정 권한 확인 (Google Sheets 연동으로 모든 환경에서 수정 가능)
+// 수정 권한 확인 (사용자 역할 기준)
 function canEditData() {
-    // Google Sheets 연동으로 배포 환경에서도 수정 가능
-    return true;
+    return Boolean(currentUser && (currentUser.role === 'master' || currentUser.role === 'user'));
 }
 
 // 영인에스엔 계정이 접근 가능한 회사 목록
