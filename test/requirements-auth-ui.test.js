@@ -27,18 +27,22 @@ function element() {
 
 function authHarness(loginResult) {
   const storage = new Map();
+  const events = [];
   const context = {
     console: { log() {}, warn() {}, error() {} },
     confirm: () => true,
     loadDashboard() {},
     sessionStorage: {
       getItem: (key) => storage.get(key) || null,
-      setItem: (key, value) => storage.set(key, value),
+      setItem: (key, value) => {
+        events.push("session-write:" + key);
+        storage.set(key, value);
+      },
       removeItem: (key) => storage.delete(key),
     },
     GoogleSheetsAPI: {
       login: async () => loginResult,
-      clearAllCache() {},
+      clearAllCache: () => events.push("cache-clear"),
     },
     document: {
       body: { classList: { add() {}, remove() {} } },
@@ -53,7 +57,7 @@ function authHarness(loginResult) {
     `${authSource}; this.loginForTest = login; this.logoutForTest = logout; this.sessionForTest = checkSession; this.userForTest = () => currentUser;`,
     context
   );
-  return { context, storage };
+  return { context, storage, events };
 }
 
 test("login stores only the sanitized requirements session", async () => {
@@ -142,4 +146,26 @@ test("auth and production scripts do not log credentials or contain Genspark run
     const text = fs.readFileSync(path.join(jsRoot, name), "utf8");
     assert.doesNotMatch(text, /gensparkspace|genspark\.ai|page_private|zxjqwehj/i, name);
   }
+});
+
+test("successful login clears prior-user cache before replacing the session", async () => {
+  const { context, storage, events } = authHarness({
+    success: true,
+    token: "new-user-token",
+    user: { username: "new-user", role: "user", company_name: "NEW" },
+  });
+  storage.set(
+    "ainRequirementsSession",
+    JSON.stringify({
+      token: "old-user-token",
+      user: { username: "old-user", role: "user", company_name: "OLD" },
+    })
+  );
+
+  await context.loginForTest("new-user", "secret");
+
+  assert.deepEqual(events, [
+    "cache-clear",
+    "session-write:ainRequirementsSession",
+  ]);
 });

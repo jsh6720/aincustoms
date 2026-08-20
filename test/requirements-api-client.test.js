@@ -147,3 +147,47 @@ test("clearAllCache forces the next read to call the API", async () => {
   await context.API.getData("msds");
   assert.equal(calls.length, 2);
 });
+
+test("missing session never serves cached table data", async () => {
+  const { context, calls, storage } = harness([
+    { success: true, data: [{ id: "prior-user-row" }] },
+    { success: false, error_code: "UNAUTHORIZED", error: "Login required" },
+  ]);
+
+  await context.API.getData("msds");
+  storage.delete("ainRequirementsSession");
+
+  const response = await context.fetch("tables/msds");
+  assert.equal(response.status, 401);
+  assert.equal(calls.length, 2);
+  assert.equal(calls[1].body.token, "");
+});
+
+test("UNAUTHORIZED clears every cached table before a replacement session reads", async () => {
+  const { context, calls, storage } = harness([
+    { success: true, data: [{ id: "old-msds" }] },
+    { success: true, data: [{ id: "old-radio" }] },
+    { success: false, error_code: "UNAUTHORIZED", error: "Expired" },
+    { success: true, data: [{ id: "new-msds" }] },
+    { success: true, data: [{ id: "new-radio" }] },
+  ]);
+
+  await context.API.getData("msds");
+  await context.API.getData("radio_law");
+  await context.API.call("getData", { tableName: "electrical_law" });
+  assert.equal(storage.has("ainRequirementsSession"), false);
+
+  storage.set(
+    "ainRequirementsSession",
+    JSON.stringify({
+      token: "replacement-token",
+      user: { username: "other", role: "user", company_name: "OTHER" },
+    })
+  );
+
+  const msds = await context.API.getData("msds");
+  const radio = await context.API.getData("radio_law");
+  assert.equal(msds.data[0].id, "new-msds");
+  assert.equal(radio.data[0].id, "new-radio");
+  assert.equal(calls.length, 5);
+});

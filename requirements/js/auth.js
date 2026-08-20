@@ -30,6 +30,7 @@ async function login(username, password) {
         
         if (result.success) {
             // 로그인 성공
+            GoogleSheetsAPI.clearAllCache();
             currentUser = sanitizeSessionUser(result.user);
             const session = { token: result.token, user: currentUser };
             sessionStorage.setItem('ainRequirementsSession', JSON.stringify(session));
@@ -64,6 +65,7 @@ function checkSession() {
     }
     currentUser = null;
     sessionStorage.removeItem('ainRequirementsSession');
+    GoogleSheetsAPI.clearAllCache();
     return false;
 }
 

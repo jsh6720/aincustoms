@@ -47,6 +47,7 @@ function currentSession() {
         return JSON.parse(sessionStorage.getItem('ainRequirementsSession') || 'null');
     } catch (error) {
         sessionStorage.removeItem('ainRequirementsSession');
+        dataCache.clear();
         return null;
     }
 }
@@ -75,6 +76,7 @@ async function callApi(action, params = {}, { anonymous = false } = {}) {
         const result = await response.json();
         if (!result.success && result.error_code === 'UNAUTHORIZED') {
             sessionStorage.removeItem('ainRequirementsSession');
+            dataCache.clear();
         }
         return result;
     } catch (error) {
@@ -93,8 +95,13 @@ const GoogleSheetsAPI = {
     },
 
     async getData(tableName) {
-        const cached = dataCache.get(tableName);
-        if (cached) return cached;
+        const session = currentSession();
+        if (!session?.token) {
+            dataCache.clear();
+        } else {
+            const cached = dataCache.get(tableName);
+            if (cached) return cached;
+        }
 
         const mappedTable = TABLE_NAME_MAP[tableName] || tableName;
         const result = await this.call('getData', { tableName: mappedTable });
