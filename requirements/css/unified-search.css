@@ -1,0 +1,266 @@
+/* 통합 검색 스타일 */
+.unified-search-section {
+    background: var(--card-bg);
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 24px;
+    box-shadow: var(--shadow);
+}
+
+.unified-search-section h3 {
+    font-size: 18px;
+    margin-bottom: 16px;
+    color: var(--text-primary);
+}
+
+.unified-search-section h3 i {
+    color: var(--primary-color);
+    margin-right: 8px;
+}
+
+.unified-search {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.unified-search input {
+    flex: 1;
+    padding: 12px 16px;
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 14px;
+}
+
+.unified-search button {
+    padding: 12px 24px;
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.unified-search button:hover {
+    opacity: 0.9;
+}
+
+.unified-result {
+    margin-top: 20px;
+}
+
+.unified-result-empty {
+    text-align: center;
+    padding: 40px;
+    color: var(--text-secondary);
+}
+
+.unified-result-card {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 20px;
+}
+
+.unified-result-header {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 16px;
+    color: var(--text-primary);
+}
+
+.unified-result-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 16px;
+}
+
+.result-item {
+    background: white;
+    border-radius: 8px;
+    padding: 16px;
+    border: 2px solid var(--border-color);
+    transition: all 0.2s ease;
+}
+
+.result-item.has-data {
+    border-color: var(--success-color);
+}
+
+.result-item.clickable {
+    cursor: pointer;
+}
+
+.result-item.clickable:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    border-color: var(--primary-color);
+}
+
+.result-item.clickable:active {
+    transform: translateY(0);
+}
+
+.result-item-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.result-item-title {
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 14px;
+}
+
+.result-status {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 14px;
+}
+
+.result-status.registered {
+    background-color: var(--success-color);
+    color: white;
+}
+
+.result-status.not-registered {
+    background-color: #e5e7eb;
+    color: #9ca3af;
+}
+
+.result-item-details {
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+}
+
+.result-item-details div {
+    margin-bottom: 4px;
+}
+
+.result-item-details strong {
+    color: var(--text-primary);
+}
+
+/* 법령별 물품 안내 */
+.law-guide-section {
+    margin-top: 40px;
+    padding-top: 32px;
+    border-top: 2px solid var(--border-color);
+}
+
+.law-guide-section h3 {
+    font-size: 18px;
+    margin-bottom: 20px;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.law-guide-section h3 i {
+    color: var(--primary-color);
+}
+
+.law-guide-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 16px;
+}
+
+.law-guide-item {
+    background: white;
+    border: 2px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 20px;
+    transition: all 0.2s;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.law-guide-item:hover {
+    border-color: var(--primary-color);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    transform: translateY(-2px);
+}
+
+.law-guide-item:nth-child(1):hover {
+    border-color: #667eea;
+}
+
+.law-guide-item:nth-child(2):hover {
+    border-color: #f5576c;
+}
+
+.law-guide-item:nth-child(3):hover {
+    border-color: #4facfe;
+}
+
+.law-guide-item:nth-child(4):hover {
+    border-color: #43e97b;
+}
+
+.law-guide-item:nth-child(5):hover {
+    border-color: #fa709a;
+}
+
+.law-guide-title {
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--text-primary);
+}
+
+.law-guide-title i {
+    font-size: 24px;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    background: #f3f4f6;
+}
+
+.law-guide-item:nth-child(1) .law-guide-title i {
+    color: #667eea;
+    background: #eef2ff;
+}
+
+.law-guide-item:nth-child(2) .law-guide-title i {
+    color: #f5576c;
+    background: #fef2f2;
+}
+
+.law-guide-item:nth-child(3) .law-guide-title i {
+    color: #4facfe;
+    background: #eff6ff;
+}
+
+.law-guide-item:nth-child(4) .law-guide-title i {
+    color: #43e97b;
+    background: #f0fdf4;
+}
+
+.law-guide-item:nth-child(5) .law-guide-title i {
+    color: #fa709a;
+    background: #fef2f7;
+}
+
+.law-guide-content {
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--text-secondary);
+}
+
+/* 통합 다운로드 기능 제거됨 */
