@@ -6,6 +6,7 @@ const vm = require("node:vm");
 
 const appSource = fs.readFileSync(path.join(__dirname, "..", "requirements", "js", "app.js"), "utf8");
 const unifiedSource = fs.readFileSync(path.join(__dirname, "..", "requirements", "js", "unified-search.js"), "utf8");
+const reviewSource = fs.readFileSync(path.join(__dirname, "..", "requirements", "js", "review-needed.js"), "utf8");
 const sections = ["unified", "overview", "chemical", "msds", "radio", "electrical", "medical", "non_target", "review_needed", "editRequests"];
 
 function makeElement(id, dataset = {}) {
@@ -20,7 +21,7 @@ function makeElement(id, dataset = {}) {
       const key = name.slice(5).replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
       return name.startsWith("data-") ? this.dataset[key] ?? null : null;
     },
-    appendChild() {}, focus() {},
+    appendChild(child) { this.innerHTML += child.innerHTML || ""; }, focus() {},
   };
 }
 
@@ -31,7 +32,7 @@ function harness(fetchImpl) {
   const content = sections.map((section) => makeElement(section + "Section"));
   for (const item of [...menus, ...content]) elements.set(item.id, item);
   elements.set("nonTargetSection", elements.get("non_targetSection"));
-  for (const id of ["databaseRefreshBtn", "detailContent", "detailModalTitle", "detailModal", "detailDeleteButton", "unifiedSearch", "chemicalSearch", "msdsSearch", "radioSearch", "electricalSearch", "medicalSearch", "non_targetSearch", "reviewNeededSearch", "statChemical", "statMsds", "statRadio", "statElectrical", "statMedical", "statNonTarget"]) elements.set(id, makeElement(id));
+  for (const id of ["databaseRefreshBtn", "detailContent", "detailModalTitle", "detailModal", "detailDeleteButton", "unifiedSearch", "unifiedSearchResult", "chemicalSearch", "msdsSearch", "radioSearch", "electricalSearch", "medicalSearch", "non_targetSearch", "reviewNeededSearch", "chemicalTableBody", "msdsTableBody", "radioTableBody", "electricalTableBody", "medicalTableBody", "nonTargetTableBody", "reviewNeededTableBody", "statChemical", "statMsds", "statRadio", "statElectrical", "statMedical", "statNonTarget"]) elements.set(id, makeElement(id));
   const document = {
     getElementById: (id) => elements.get(id) || null,
     createElement: (id) => makeElement(id),
@@ -55,7 +56,8 @@ function harness(fetchImpl) {
   context.dispatchEvent = (event) => windowListeners.get(event.type)?.(event);
   vm.createContext(context);
   vm.runInContext(appSource + "\nthis.__reliability = { loadCurrentSection, loadDashboard, viewDetail, deleteCurrentRecord, navigateToDashboardSection, setCurrentSection: (section) => { currentSection = section; }, getCurrentSection: () => currentSection, getCurrentDetailRecord: () => currentDetailRecord };", context);
-  vm.runInContext(unifiedSource + "\nthis.__navigateToSection = navigateToSection;", context);
+  vm.runInContext(reviewSource, context);
+  vm.runInContext(unifiedSource + "\nthis.__navigateToSection = navigateToSection; this.__performUnifiedSearch = performUnifiedSearch;", context);
   ready.forEach((listener) => listener());
   return { context, elements, menuBySection, selectorCalls };
 }
@@ -197,3 +199,87 @@ for (const [sectionId, menuSection, loader] of dashboardTargets) {
     assert.deepEqual(calls, [menuSection]);
   });
 }
+function response(status, body) {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    json: async () => body,
+  };
+}
+
+const staleLoaderCases = [
+  ["chemical", "loadChemicalData", "chemicalTableBody"],
+  ["msds", "loadMsdsData", "msdsTableBody"],
+  ["radio", "loadRadioData", "radioTableBody"],
+  ["electrical", "loadElectricalData", "electricalTableBody"],
+  ["medical", "loadMedicalData", "medicalTableBody"],
+  ["non_target", "loadNonTargetData", "nonTargetTableBody"],
+  ["review_needed", "loadReviewNeededData", "reviewNeededTableBody"],
+];
+
+for (const [section, loader, bodyId] of staleLoaderCases) {
+  test(`a stale ${section} 409 cannot overwrite the latest list`, async () => {
+    const slow = deferred();
+    let calls = 0;
+    const { context, elements } = harness(async () => {
+      calls += 1;
+      return calls === 1
+        ? slow.promise
+        : response(200, { data: [{ id: "new", spec_no: "NEW-ROW", created_at: 2 }] });
+    });
+    const oldLoad = context[loader]();
+    await context[loader]();
+    const latestHtml = elements.get(bodyId).innerHTML;
+    assert.match(latestHtml, /NEW-ROW/);
+
+    slow.resolve(response(409, { success: false, error_code: "STALE_REFRESH" }));
+    await oldLoad;
+    assert.equal(elements.get(bodyId).innerHTML, latestHtml);
+  });
+}
+
+for (const status of [403, 503]) {
+  test(`a current chemical ${status} renders its safe error state`, async () => {
+    const { context, elements } = harness(async () => response(status, { success: false }));
+    await context.loadChemicalData();
+    assert.match(elements.get("chemicalTableBody").innerHTML, /데이터를 불러올 수 없습니다/);
+  });
+}
+
+test("a stale dashboard 409 cannot zero newer counts", async () => {
+  const oldResponses = Array.from({ length: 6 }, () => deferred());
+  let calls = 0;
+  const { context, elements } = harness(async () => {
+    calls += 1;
+    if (calls <= oldResponses.length) return oldResponses[calls - 1].promise;
+    return response(200, { data: [{ id: "new" }] });
+  });
+
+  const oldLoad = context.__reliability.loadDashboard();
+  await context.__reliability.loadDashboard();
+  assert.equal(elements.get("statRadio").textContent, 1);
+
+  oldResponses.forEach((pending) => pending.resolve(response(409, { success: false, error_code: "STALE_REFRESH" })));
+  await oldLoad;
+  assert.equal(elements.get("statRadio").textContent, 1);
+});
+
+test("a stale unified-search 409 cannot replace newer results", async () => {
+  const oldResponses = Array.from({ length: 7 }, () => deferred());
+  let calls = 0;
+  const { context, elements } = harness(async () => {
+    calls += 1;
+    if (calls <= oldResponses.length) return oldResponses[calls - 1].promise;
+    return response(200, { data: [{ id: "new", spec_no: "NEW-QUERY" }] });
+  });
+
+  elements.get("unifiedSearch").value = "OLD-QUERY";
+  const oldSearch = context.__performUnifiedSearch();
+  elements.get("unifiedSearch").value = "NEW-QUERY";
+  await context.__performUnifiedSearch();
+
+  oldResponses.forEach((pending) => pending.resolve(response(409, { success: false, error_code: "STALE_REFRESH" })));
+  await oldSearch;
+  assert.match(elements.get("unifiedSearchResult").innerHTML, /NEW-QUERY/);
+  assert.doesNotMatch(elements.get("unifiedSearchResult").innerHTML, /OLD-QUERY|검색 중 오류/);
+});

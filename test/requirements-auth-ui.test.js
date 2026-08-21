@@ -193,3 +193,133 @@ test("session-expiry event returns the requirements UI to login", async () => {
   assert.equal(storage.has("ainRequirementsSession"), false);
   assert.equal(events.includes("login-screen:active"), true);
 });
+function sessionDomHarness() {
+  const elements = new Map();
+  const ready = [];
+  const windowListeners = new Map();
+  function domElement(id, dataset = {}) {
+    const classes = new Set();
+    const listeners = new Map();
+    return {
+      id, dataset, innerHTML: "", textContent: "", value: "", style: {}, disabled: false,
+      classList: {
+        add: (...names) => names.forEach((name) => classes.add(name)),
+        remove: (...names) => names.forEach((name) => classes.delete(name)),
+        has: (name) => classes.has(name),
+      },
+      addEventListener: (type, listener) => listeners.set(type, listener),
+      appendChild(child) { this.innerHTML += child.innerHTML || ""; },
+      focus() {},
+      click: () => listeners.get("click")?.({ currentTarget: this }),
+    };
+  }
+  const ids = [
+    "loginScreen", "dashboardScreen", "loginForm", "logoutBtn", "username", "password", "loginError", "userInfo",
+    "databaseRefreshBtn", "detailContent", "detailModalTitle", "detailModal", "detailDeleteButton",
+    "unifiedSearch", "unifiedSearchResult", "chemicalSearch", "msdsSearch", "radioSearch", "electricalSearch", "medicalSearch", "non_targetSearch", "reviewNeededSearch",
+    "chemicalTableBody", "msdsTableBody", "radioTableBody", "electricalTableBody", "medicalTableBody", "nonTargetTableBody", "reviewNeededTableBody", "editRequestsTableBody",
+    "statChemical", "statMsds", "statRadio", "statElectrical", "statMedical", "statNonTarget",
+  ];
+  ids.forEach((id) => elements.set(id, domElement(id)));
+  const menus = ["overview", "chemical", "msds", "radio", "electrical", "medical", "non_target", "review_needed"]
+    .map((section) => domElement(`${section}Menu`, { section }));
+  const sections = ["overview", "chemical", "msds", "radio", "electrical", "medical", "non_target", "review_needed"]
+    .map((section) => domElement(`${section}Section`));
+  const storage = new Map();
+  const document = {
+    body: domElement("body"),
+    getElementById: (id) => elements.get(id) || null,
+    createElement: (tag) => domElement(tag),
+    addEventListener: (type, listener) => { if (type === "DOMContentLoaded") ready.push(listener); },
+    querySelectorAll: (selector) => ({
+      ".screen": [elements.get("loginScreen"), elements.get("dashboardScreen")],
+      ".menu-item": menus,
+      ".content-section": sections,
+      ".btn-master-only": [elements.get("detailDeleteButton")],
+    }[selector] || []),
+    querySelector: (selector) => selector === "#detailModal .btn-danger" ? elements.get("detailDeleteButton") : null,
+  };
+  const context = {
+    document,
+    sessionStorage: {
+      getItem: (key) => storage.get(key) || null,
+      setItem: (key, value) => storage.set(key, value),
+      removeItem: (key) => storage.delete(key),
+    },
+    GoogleSheetsAPI: {
+      login: async (username) => ({
+        success: true,
+        token: `${username}-token`,
+        user: { username, role: "user", company_name: username },
+      }),
+      clearAllCache() {},
+    },
+    fetch: async (url) => url.includes("/record-a")
+      ? { ok: true, status: 200, json: async () => ({ id: "record-a", spec_no: "A-DETAIL" }) }
+      : { ok: true, status: 200, json: async () => ({ data: [{ id: "row-a", spec_no: "A-ROW", created_at: 1 }] }) },
+    console: { log() {}, warn() {}, error() {} },
+    alert() {}, confirm: () => true, prompt: () => null,
+    formatDate: (value) => value, isDateField: () => false,
+    performance: { now: () => 0 }, setTimeout, clearTimeout,
+  };
+  context.window = context;
+  context.location = { pathname: "/requirements/" };
+  context.addEventListener = (type, listener) => {
+    const listeners = windowListeners.get(type) || [];
+    listeners.push(listener);
+    windowListeners.set(type, listeners);
+  };
+  context.dispatchEvent = (event) => (windowListeners.get(event.type) || []).forEach((listener) => listener(event));
+  vm.createContext(context);
+  vm.runInContext(authSource, context);
+  vm.runInContext(appSource, context);
+  vm.runInContext(fs.readFileSync(path.join(root, "requirements", "js", "unified-search.js"), "utf8"), context);
+  vm.runInContext(`this.sessionUI = { login, logout, loadChemicalData, viewDetail, performUnifiedSearch, detail: () => currentDetailRecord };`, context);
+  return { context, elements, storage };
+}
+
+async function renderPriorUserData(harness) {
+  const { context, elements } = harness;
+  await context.sessionUI.login("USER-A", "secret");
+  await context.sessionUI.loadChemicalData();
+  elements.get("unifiedSearch").value = "A-ROW";
+  await context.sessionUI.performUnifiedSearch();
+  await context.sessionUI.viewDetail("chemical", "record-a");
+  elements.get("reviewNeededTableBody").innerHTML = "A-REVIEW";
+  elements.get("statChemical").textContent = "1";
+  assert.match(elements.get("chemicalTableBody").innerHTML, /A-ROW/);
+  assert.match(elements.get("unifiedSearchResult").innerHTML, /A-ROW/);
+  assert.equal(elements.get("detailModal").classList.has("show"), true);
+}
+
+function assertSessionUiScrubbed(harness) {
+  const { context, elements } = harness;
+  for (const id of ["chemicalTableBody", "msdsTableBody", "radioTableBody", "electricalTableBody", "medicalTableBody", "nonTargetTableBody", "reviewNeededTableBody", "editRequestsTableBody", "unifiedSearchResult", "detailContent"]) {
+    assert.equal(elements.get(id).innerHTML, "", id);
+  }
+  for (const id of ["unifiedSearch", "chemicalSearch", "msdsSearch", "radioSearch", "electricalSearch", "medicalSearch", "non_targetSearch", "reviewNeededSearch"]) {
+    assert.equal(elements.get(id).value, "", id);
+  }
+  assert.equal(elements.get("statChemical").textContent, "");
+  assert.equal(elements.get("detailModal").classList.has("show"), false);
+  assert.equal(elements.get("detailDeleteButton").disabled, true);
+  assert.equal(elements.get("detailDeleteButton").style.display, "none");
+  assert.equal(context.sessionUI.detail(), null);
+  assert.equal(elements.get("loginScreen").classList.has("active"), true);
+}
+
+test("logout, expiry, and replacement login scrub all prior-user UI", async () => {
+  const harness = sessionDomHarness();
+  await renderPriorUserData(harness);
+  harness.context.sessionUI.logout();
+  assertSessionUiScrubbed(harness);
+
+  await renderPriorUserData(harness);
+  harness.context.dispatchEvent({ type: "ain-requirements-session-expired" });
+  assertSessionUiScrubbed(harness);
+
+  harness.elements.get("chemicalTableBody").innerHTML = "HIDDEN-A-ROW";
+  await harness.context.sessionUI.login("USER-B", "secret");
+  assert.equal(harness.elements.get("chemicalTableBody").innerHTML, "");
+  assert.equal(harness.context.sessionUI.detail(), null);
+});

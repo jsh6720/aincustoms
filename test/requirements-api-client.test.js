@@ -76,6 +76,7 @@ function harness(apiResults, fetchImpl) {
       }
     },
     Response,
+    AbortController,
     setTimeout,
     clearTimeout,
   };
@@ -447,4 +448,67 @@ test("stale fetch responses are non-auth cancellations that preserve replacement
   assert.equal("data" in result, false);
   assert.equal(events.length, 0);
   assert.equal(JSON.parse(storage.get("ainRequirementsSession")).token, "replacement-token");
+});
+test("clearAllCache aborts active old reads and skips queued and retry wire calls", async () => {
+  const retryable = deferredJson({ success: false, error_code: "INTERNAL_ERROR" });
+  const hanging = new Map();
+  function hangingResponse(table, options) {
+    return new Promise((resolve, reject) => {
+      const release = () => resolve(jsonResponse({ success: true, data: [{ id: `released-${table}` }] }));
+      hanging.set(table, release);
+      options.signal?.addEventListener("abort", () => {
+        const error = new Error("aborted");
+        error.name = "AbortError";
+        reject(error);
+      }, { once: true });
+    });
+  }
+
+  let radioCalls = 0;
+  const { context, calls } = harness([], async (_url, options) => {
+    const { tableName } = JSON.parse(options.body);
+    if (tableName === "msds" || tableName === "chemical_confirmation") {
+      return hangingResponse(tableName, options);
+    }
+    if (tableName === "radio_law" && radioCalls++ === 0) return retryable.response;
+    return jsonResponse({ success: true, data: [{ id: `fresh-${tableName}` }] });
+  });
+
+  const oldActive = context.API.getData("msds");
+  const oldRetry = context.API.getData("radio_law");
+  const oldQueued = context.API.getData("chemical_confirmation");
+  retryable.resolve();
+  for (let turn = 0; turn < 10 && !calls.some((call) => call.body.tableName === "chemical_confirmation"); turn += 1) {
+    await new Promise((resolve) => setImmediate(resolve));
+  }
+  const oldNeverStarted = context.API.getData("electrical_law");
+  assert.equal(calls.filter((call) => call.body.tableName === "radio_law").length, 1);
+  assert.equal(calls.some((call) => call.body.tableName === "chemical_confirmation"), true);
+
+  context.API.clearAllCache();
+  const callsAtClear = calls.length;
+  const freshRead = context.API.getData("medical_device");
+  const admittedPromptly = await Promise.race([
+    freshRead.then(() => true),
+    new Promise((resolve) => setImmediate(() => resolve(false))),
+  ]);
+
+  if (!admittedPromptly) {
+    hanging.forEach((release) => release());
+  }
+  const [activeResult, retryResult, queuedResult, neverStartedResult, freshResult] = await Promise.all([
+    oldActive, oldRetry, oldQueued, oldNeverStarted, freshRead,
+  ]);
+
+  assert.equal(admittedPromptly, true);
+  for (const result of [activeResult, retryResult, queuedResult, neverStartedResult]) {
+    assert.equal(result.error_code, "STALE_REFRESH");
+  }
+  assert.equal(freshResult.data[0].id, "fresh-medical_device");
+  assert.deepEqual(
+    calls.slice(callsAtClear).map((call) => call.body.tableName),
+    ["medical_device"]
+  );
+  assert.equal(calls.filter((call) => call.body.tableName === "radio_law").length, 1);
+  assert.equal(calls.some((call) => call.body.tableName === "electrical_law"), false);
 });

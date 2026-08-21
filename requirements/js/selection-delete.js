@@ -94,32 +94,16 @@ async function deleteSelectedRows(type) {
         `;
         document.body.appendChild(progressDiv);
 
-        // 재시도 함수
-        async function deleteWithRetry(url, maxRetries = 3) {
-            for (let attempt = 1; attempt <= maxRetries; attempt++) {
-                try {
-                    const response = await fetch(url, { method: 'DELETE' });
-
-                    if (response.ok || response.status === 204) {
-                        return { success: true };
-                    }
-
-                    // 5xx 에러는 재시도
-                    if (response.status >= 500 && attempt < maxRetries) {
-                        await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
-                        continue;
-                    }
-
-                    return { success: false, error: `HTTP ${response.status}` };
-                } catch (error) {
-                    if (attempt < maxRetries) {
-                        await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
-                        continue;
-                    }
-                    return { success: false, error: error.message };
-                }
+        // 쓰기는 재시도하지 않는다. 응답 유실 시 동일 변경이 중복 적용될 수 있다.
+        async function deleteOnce(url) {
+            try {
+                const response = await fetch(url, { method: 'DELETE' });
+                return response.ok || response.status === 204
+                    ? { success: true }
+                    : { success: false, error: `HTTP ${response.status}` };
+            } catch (error) {
+                return { success: false, error: 'NETWORK_ERROR' };
             }
-            return { success: false, error: 'Max retries reached' };
         }
 
         // 배치 삭제
@@ -132,7 +116,7 @@ async function deleteSelectedRows(type) {
             const batch = selectedIds.slice(i, i + batchSize);
             const batchPromises = batch.map(async (id, idx) => {
                 const actualIndex = i + idx;
-                const result = await deleteWithRetry(`tables/${tableName}/${id}`, 3);
+                const result = await deleteOnce(`tables/${tableName}/${id}`);
                 return { ...result, index: actualIndex, id: id };
             });
 
@@ -146,11 +130,11 @@ async function deleteSelectedRows(type) {
                         successCount++;
                     } else {
                         errorCount++;
-                        console.error(`삭제 실패 [${i + idx}]:`, result.value.error, batch[idx]);
+                        console.error(`삭제 실패 [${i + idx}]: ${result.value.error}`);
                     }
                 } else {
                     errorCount++;
-                    console.error(`삭제 실패 [${i + idx}]:`, result.reason, batch[idx]);
+                    console.error(`삭제 실패 [${i + idx}]`);
                 }
             });
 

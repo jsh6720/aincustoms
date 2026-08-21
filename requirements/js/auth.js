@@ -29,7 +29,8 @@ async function login(username, password) {
         const result = await GoogleSheetsAPI.login(username, password);
 
         if (result.success) {
-            // 로그인 성공
+            // 로그인 성공 전 이전 세션의 화면 데이터를 제거한다.
+            if (typeof resetRequirementsSessionUI === 'function') resetRequirementsSessionUI();
             GoogleSheetsAPI.clearAllCache();
             currentUser = sanitizeSessionUser(result.user);
             const session = { token: result.token, user: currentUser };
@@ -46,6 +47,7 @@ async function login(username, password) {
 
 // 로그아웃 처리
 function logout() {
+    if (typeof resetRequirementsSessionUI === 'function') resetRequirementsSessionUI();
     currentUser = null;
     sessionStorage.removeItem('ainRequirementsSession');
     GoogleSheetsAPI.clearAllCache();
@@ -69,6 +71,7 @@ function checkSession() {
     } catch (error) {
         // Invalid session data is discarded below.
     }
+    if (typeof resetRequirementsSessionUI === 'function') resetRequirementsSessionUI();
     currentUser = null;
     sessionStorage.removeItem('ainRequirementsSession');
     GoogleSheetsAPI.clearAllCache();

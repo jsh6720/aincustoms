@@ -4,6 +4,75 @@ let currentSection = 'overview';
 let currentDataType = '';
 let currentDetailRecord = null;
 let currentDetailRequestId = 0;
+const requirementsViewGenerations = new Map();
+let requirementsViewSessionGeneration = 0;
+
+function beginRequirementsViewRequest(view) {
+    const generation = (requirementsViewGenerations.get(view) || 0) + 1;
+    requirementsViewGenerations.set(view, generation);
+    return { view, generation, sessionGeneration: requirementsViewSessionGeneration };
+}
+
+function isCurrentRequirementsViewRequest(request) {
+    return request.sessionGeneration === requirementsViewSessionGeneration &&
+        requirementsViewGenerations.get(request.view) === request.generation;
+}
+
+function invalidateRequirementsViewRequests() {
+    requirementsViewSessionGeneration += 1;
+    requirementsViewGenerations.clear();
+    currentDetailRequestId += 1;
+}
+
+function resetRequirementsSessionUI() {
+    invalidateRequirementsViewRequests();
+    clearCurrentDetailState();
+    currentSection = 'overview';
+    currentDataType = '';
+
+    const detailModal = document.getElementById('detailModal');
+    if (detailModal) detailModal.classList.remove('show');
+    const detailTitle = document.getElementById('detailModalTitle');
+    if (detailTitle) detailTitle.textContent = '';
+
+    [
+        'chemicalTableBody', 'msdsTableBody', 'radioTableBody', 'electricalTableBody',
+        'medicalTableBody', 'nonTargetTableBody', 'reviewNeededTableBody', 'editRequestsTableBody',
+        'unifiedSearchResult'
+    ].forEach(id => {
+        const element = document.getElementById(id);
+        if (element) element.innerHTML = '';
+    });
+
+    ['statChemical', 'statMsds', 'statRadio', 'statElectrical', 'statMedical', 'statNonTarget']
+        .forEach(id => {
+            const element = document.getElementById(id);
+            if (element) element.textContent = '';
+        });
+
+    [
+        'unifiedSearch', 'chemicalSearch', 'msdsSearch', 'radioSearch', 'electricalSearch',
+        'medicalSearch', 'non_targetSearch', 'reviewNeededSearch'
+    ].forEach(id => {
+        const input = document.getElementById(id);
+        if (input) input.value = '';
+    });
+
+    document.querySelectorAll('.menu-item').forEach(item => {
+        item.classList.remove('active');
+        if (item.dataset.section === 'overview') item.classList.add('active');
+    });
+    document.querySelectorAll('.content-section').forEach(section => {
+        section.classList.remove('active');
+        if (section.id === 'overviewSection') section.classList.add('active');
+    });
+    document.body?.classList?.remove('master-user');
+
+    if (typeof allReviewData !== 'undefined') allReviewData = [];
+    if (typeof currentReviewFilter !== 'undefined') currentReviewFilter = 'all';
+    window.__ainRequirementsPendingSectionSearch = null;
+    window.__ainRequirementsMenuLoadPromise = null;
+}
 
 function setDetailDeleteActionEnabled(enabled) {
     const deleteButton = document.querySelector('#detailModal .btn-danger');
@@ -61,11 +130,13 @@ document.getElementById('databaseRefreshBtn')?.addEventListener('click', async (
 
 // 대시보드 로드
 async function loadDashboard() {
+    const viewRequest = beginRequirementsViewRequest('dashboard');
     try {
         // 각 테이블을 개별적으로 로드하여 일부 실패해도 계속 진행
         const loadTableSafely = async (url, defaultValue = { data: [] }) => {
             try {
                 const response = await fetch(url);
+                if (response.status === 409) return null;
                 if (!response.ok) {
                     console.warn(`테이블 로드 실패: ${url} (status: ${response.status})`);
                     return defaultValue;
@@ -86,6 +157,11 @@ async function loadDashboard() {
             loadTableSafely('tables/medical_device?limit=1000'),
             loadTableSafely('tables/non_target?limit=1000')
         ]);
+
+        if (!isCurrentRequirementsViewRequest(viewRequest) ||
+            [chemicalData, msdsData, radioData, electricalData, medicalData, nonTargetData].some(data => data === null)) {
+            return;
+        }
 
         // 통합검색 성능 개선: 확인필요 List도 백그라운드에서 미리 캐시 (await 안 함)
         loadTableSafely('tables/review_needed?limit=1000');
@@ -112,6 +188,7 @@ async function loadDashboard() {
         document.getElementById('statNonTarget').textContent = filteredNonTarget.length;
 
     } catch (error) {
+        if (!isCurrentRequirementsViewRequest(viewRequest)) return;
         console.error('대시보드 로드 오류:', error);
         // 치명적인 오류만 알림 표시
         alert('대시보드 초기화 중 오류가 발생했습니다.\n\n' +
@@ -122,14 +199,17 @@ async function loadDashboard() {
 
 // 화학물질확인 데이터 로드
 async function loadChemicalData(searchQuery = '') {
+    const viewRequest = beginRequirementsViewRequest('list:chemical');
     try {
         const response = await fetch('tables/chemical_confirmation?limit=1000');
+        if (!isCurrentRequirementsViewRequest(viewRequest) || response.status === 409) return;
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
 
         const data = await response.json();
+        if (!isCurrentRequirementsViewRequest(viewRequest)) return;
 
         let records = data.data || [];
 
@@ -188,6 +268,7 @@ async function loadChemicalData(searchQuery = '') {
         });
 
     } catch (error) {
+        if (!isCurrentRequirementsViewRequest(viewRequest)) return;
         console.error('화학물질확인 데이터 로드 오류:', error);
         const tbody = document.getElementById('chemicalTableBody');
         if (tbody) {
@@ -265,14 +346,17 @@ function classifyMsdsMixtureType(records) {
 
 // MSDS 데이터 로드
 async function loadMsdsData(searchQuery = '') {
+    const viewRequest = beginRequirementsViewRequest('list:msds');
     try {
         const response = await fetch('tables/msds?limit=1000');
+        if (!isCurrentRequirementsViewRequest(viewRequest) || response.status === 409) return;
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
 
         const data = await response.json();
+        if (!isCurrentRequirementsViewRequest(viewRequest)) return;
 
         let records = data.data || [];
 
@@ -335,6 +419,7 @@ async function loadMsdsData(searchQuery = '') {
         });
 
     } catch (error) {
+        if (!isCurrentRequirementsViewRequest(viewRequest)) return;
         console.error('MSDS 데이터 로드 오류:', error);
         const tbody = document.getElementById('msdsTableBody');
         if (tbody) {
@@ -345,14 +430,17 @@ async function loadMsdsData(searchQuery = '') {
 
 // 전파법 데이터 로드
 async function loadRadioData(searchQuery = '') {
+    const viewRequest = beginRequirementsViewRequest('list:radio');
     try {
         const response = await fetch('tables/radio_law?limit=1000');
+        if (!isCurrentRequirementsViewRequest(viewRequest) || response.status === 409) return;
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
 
         const data = await response.json();
+        if (!isCurrentRequirementsViewRequest(viewRequest)) return;
 
         let records = data.data || [];
 
@@ -416,6 +504,7 @@ async function loadRadioData(searchQuery = '') {
         });
 
     } catch (error) {
+        if (!isCurrentRequirementsViewRequest(viewRequest)) return;
         console.error('전파법 데이터 로드 오류:', error);
         const tbody = document.getElementById('radioTableBody');
         if (tbody) {
@@ -426,14 +515,17 @@ async function loadRadioData(searchQuery = '') {
 
 // 전안법 데이터 로드
 async function loadElectricalData(searchQuery = '') {
+    const viewRequest = beginRequirementsViewRequest('list:electrical');
     try {
         const response = await fetch('tables/electrical_law?limit=1000');
+        if (!isCurrentRequirementsViewRequest(viewRequest) || response.status === 409) return;
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
 
         const data = await response.json();
+        if (!isCurrentRequirementsViewRequest(viewRequest)) return;
 
         let records = data.data || [];
 
@@ -499,6 +591,7 @@ async function loadElectricalData(searchQuery = '') {
         });
 
     } catch (error) {
+        if (!isCurrentRequirementsViewRequest(viewRequest)) return;
         console.error('전안법 데이터 로드 오류:', error);
         const tbody = document.getElementById('electricalTableBody');
         if (tbody) {
@@ -509,14 +602,17 @@ async function loadElectricalData(searchQuery = '') {
 
 // 의료기기 데이터 로드
 async function loadMedicalData(searchQuery = '') {
+    const viewRequest = beginRequirementsViewRequest('list:medical');
     try {
         const response = await fetch('tables/medical_device?limit=1000');
+        if (!isCurrentRequirementsViewRequest(viewRequest) || response.status === 409) return;
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
 
         const data = await response.json();
+        if (!isCurrentRequirementsViewRequest(viewRequest)) return;
 
         let records = data.data || [];
 
@@ -578,6 +674,7 @@ async function loadMedicalData(searchQuery = '') {
         });
 
     } catch (error) {
+        if (!isCurrentRequirementsViewRequest(viewRequest)) return;
         console.error('의료기기 데이터 로드 오류:', error);
         const tbody = document.getElementById('medicalTableBody');
         if (tbody) {
@@ -630,14 +727,17 @@ function getLawCode(lawName) {
 
 // 비대상 데이터 로드
 async function loadNonTargetData(searchQuery = '') {
+    const viewRequest = beginRequirementsViewRequest('list:non_target');
     try {
         const response = await fetch('tables/non_target?limit=1000');
+        if (!isCurrentRequirementsViewRequest(viewRequest) || response.status === 409) return;
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
 
         const data = await response.json();
+        if (!isCurrentRequirementsViewRequest(viewRequest)) return;
 
         let records = data.data || [];
 
@@ -699,6 +799,7 @@ async function loadNonTargetData(searchQuery = '') {
         });
 
     } catch (error) {
+        if (!isCurrentRequirementsViewRequest(viewRequest)) return;
         console.error('비대상 데이터 로드 오류:', error);
         const tbody = document.getElementById('nonTargetTableBody');
         if (tbody) {
@@ -1228,7 +1329,6 @@ async function deleteAllData(type) {
             } else if (result.data && Array.isArray(result.data)) {
                 pageData = result.data;
             } else {
-                console.error('예상치 못한 응답 구조:', result);
                 throw new Error('데이터 형식이 올바르지 않습니다');
             }
 
@@ -1282,34 +1382,16 @@ async function deleteAllData(type) {
         `;
         document.body.appendChild(progressDiv);
 
-        // 재시도 함수
-        async function deleteWithRetry(url, maxRetries = 3) {
-            for (let attempt = 1; attempt <= maxRetries; attempt++) {
-                try {
-                    const response = await fetch(url, { method: 'DELETE' });
-
-                    if (response.ok || response.status === 204) {
-                        return { success: true };
-                    }
-
-                    // 5xx 에러는 재시도
-                    if (response.status >= 500 && attempt < maxRetries) {
-                        console.log(`재시도 ${attempt}/${maxRetries}:`, url);
-                        await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
-                        continue;
-                    }
-
-                    return { success: false, error: `HTTP ${response.status}` };
-                } catch (error) {
-                    if (attempt < maxRetries) {
-                        console.log(`재시도 ${attempt}/${maxRetries} (네트워크 오류):`, url);
-                        await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
-                        continue;
-                    }
-                    return { success: false, error: error.message };
-                }
+        // 쓰기는 재시도하지 않는다. 응답 유실 시 동일 변경이 중복 적용될 수 있다.
+        async function deleteOnce(url) {
+            try {
+                const response = await fetch(url, { method: 'DELETE' });
+                return response.ok || response.status === 204
+                    ? { success: true }
+                    : { success: false, error: `HTTP ${response.status}` };
+            } catch (error) {
+                return { success: false, error: 'NETWORK_ERROR' };
             }
-            return { success: false, error: 'Max retries reached' };
         }
 
         // 모든 레코드 배치 삭제
@@ -1322,7 +1404,7 @@ async function deleteAllData(type) {
             const batch = data.slice(i, i + batchSize);
             const batchPromises = batch.map(async (record, idx) => {
                 const actualIndex = i + idx;
-                const result = await deleteWithRetry(`tables/${tableName}/${record.id}`, 3);
+                const result = await deleteOnce(`tables/${tableName}/${record.id}`);
                 return { ...result, index: actualIndex, id: record.id };
             });
 
@@ -1336,11 +1418,11 @@ async function deleteAllData(type) {
                         successCount++;
                     } else {
                         errorCount++;
-                        console.error(`삭제 실패 [${i + idx}]:`, result.value.error, batch[idx].id);
+                        console.error(`삭제 실패 [${i + idx}]: ${result.value.error}`);
                     }
                 } else {
                     errorCount++;
-                    console.error(`삭제 실패 [${i + idx}]:`, result.reason, batch[idx].id);
+                    console.error(`삭제 실패 [${i + idx}]`);
                 }
             });
 
@@ -1458,7 +1540,6 @@ function parseTSVLine(line) {
 function parseTSVTable(text, dataType = null) {
     console.log('\n=== parseTSVTable 시작 ===');
     console.log('입력 텍스트 길이:', text.length);
-    console.log('첫 100자:', text.substring(0, 100));
 
     // trim()은 전체 텍스트의 앞뒤만 제거, 각 줄은 유지
     const lines = text.split('\n').map(line => line.replace(/\r$/, '')); // 윈도우 줄바꿈(\r\n) 처리
@@ -1476,7 +1557,6 @@ function parseTSVTable(text, dataType = null) {
     }
 
     // 첫 줄 구분자 확인
-    console.log('첫 줄:', nonEmptyLines[0]);
     const hasTab = nonEmptyLines[0].includes('\t');
     const tabCount = (nonEmptyLines[0].match(/\t/g) || []).length;
     const spaceCount = (nonEmptyLines[0].match(/\s{2,}/g) || []).length;
@@ -1484,7 +1564,6 @@ function parseTSVTable(text, dataType = null) {
 
     // 첫 줄을 파싱
     const firstLine = parseTSVLine(nonEmptyLines[0]);
-    console.log('첫 줄 파싱 결과:', firstLine);
 
     // 헤더 감지: 한국어 필드명이 포함되어 있으면 헤더로 간주
     const commonHeaders = ['규격정제', '접수일자', '접수번호', '상태', '상호', '수입자', '물질', '화주', '모델명', '인증번호', '법령', '수출자', 'Description'];
@@ -1492,7 +1571,6 @@ function parseTSVTable(text, dataType = null) {
     const hasHeader = firstLine.some(cell => cell && commonHeaders.includes(cell));
 
     console.log('헤더 감지 결과:', hasHeader);
-    console.log('첫 줄 셀 내용:', firstLine);
 
     let headers;
     let dataStartIndex;
@@ -1501,13 +1579,10 @@ function parseTSVTable(text, dataType = null) {
         // 헤더가 있는 경우
         headers = firstLine;
         dataStartIndex = 1;
-        console.log('✅ 헤더 감지됨:', headers, '(길이:', headers.length + ')');
     } else {
         // 헤더가 없는 경우 - 데이터 타입별 기본 헤더 사용
         headers = getDefaultHeadersForType(dataType);
         dataStartIndex = 0;
-        console.log('⚠️ 헤더 없음 - 기본 헤더 사용:', headers, '(길이:', headers.length + ')');
-        console.log('첫 줄 데이터:', firstLine, '(길이:', firstLine.length + ')');
     }
 
     if (nonEmptyLines.length < dataStartIndex + 1) {
@@ -1524,21 +1599,6 @@ function parseTSVTable(text, dataType = null) {
 
         const values = parseTSVLine(line);
 
-        // 디버깅: 첫 3개 행만 상세 로그
-        if (records.length < 3) {
-            console.log(`\n=== 행 ${i + 1} 파싱 ===`);
-            console.log('원본 줄:', JSON.stringify(line.substring(0, 150)));
-            const lineHasTab = line.includes('\t');
-            console.log('구분자:', lineHasTab ? `탭 ${(line.match(/\t/g) || []).length}개` : `연속공백 ${(line.match(/\s{2,}/g) || []).length}개`);
-            console.log('파싱된 값 개수:', values.length);
-            console.log('헤더 개수:', headers.length);
-            console.log('파싱된 값:', values);
-            console.log('매핑 결과:');
-            headers.forEach((header, idx) => {
-                console.log(`  ${header}: "${values[idx] || ''}"`)
-            });
-        }
-
         if (values.length < headers.length) {
             console.warn(`행 ${i + 1}: 값 개수(${values.length})가 헤더 개수(${headers.length})보다 적음 - 빈 문자열로 채움`);
             // 부족한 열은 빈 문자열로 채움
@@ -1553,10 +1613,6 @@ function parseTSVTable(text, dataType = null) {
         });
         records.push(record);
 
-        // 첫 번째 레코드만 로그 출력
-        if (records.length === 1) {
-            console.log('첫 번째 레코드 파싱 결과:', record);
-        }
     }
 
     console.log(`총 ${records.length}개 레코드 파싱 완료`);
@@ -1821,37 +1877,20 @@ async function saveTableData() {
             return;
         }
 
-        // 재시도 함수
-        async function saveWithRetry(url, data, maxRetries = 3) {
-            for (let attempt = 1; attempt <= maxRetries; attempt++) {
-                try {
-                    const response = await fetch(url, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(data)
-                    });
-
-                    if (response.ok) {
-                        return { success: true };
-                    }
-
-                    // 500 에러는 재시도
-                    if (response.status >= 500 && attempt < maxRetries) {
-                        await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
-                        continue;
-                    }
-
-                    const errorText = await response.text();
-                    return { success: false, error: `HTTP ${response.status}`, data: data };
-                } catch (error) {
-                    if (attempt < maxRetries) {
-                        await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
-                        continue;
-                    }
-                    return { success: false, error: error.message, data: data };
-                }
+        // 쓰기는 재시도하지 않는다. 응답 유실 시 동일 변경이 중복 적용될 수 있다.
+        async function saveOnce(url, data) {
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                return response.ok
+                    ? { success: true }
+                    : { success: false, error: `HTTP ${response.status}` };
+            } catch (error) {
+                return { success: false, error: 'NETWORK_ERROR' };
             }
-            return { success: false, error: 'Max retries reached', data: data };
         }
 
         // 배치 처리로 저장 (한 번에 50개씩)
@@ -1859,11 +1898,10 @@ async function saveTableData() {
             const batch = nonDuplicateRecords.slice(i, i + batchSize);
             const batchPromises = batch.map(async (data, idx) => {
                 const actualIndex = i + idx;
-                const result = await saveWithRetry(`tables/${tableName}`, data, 3);
+                const result = await saveOnce(`tables/${tableName}`, data);
 
                 if (!result.success) {
                     console.error(`저장 실패 [${actualIndex}]:`, result.error);
-                    console.error('실패한 데이터:', result.data);
                 }
 
                 return { ...result, index: actualIndex };
@@ -1882,7 +1920,7 @@ async function saveTableData() {
                     }
                 } else {
                     errorCount++;
-                    console.error(`배치 처리 실패 [${i + idx}]:`, result.reason);
+                    console.error(`배치 처리 실패 [${i + idx}]`);
                 }
             });
 
@@ -1993,11 +2031,6 @@ function mapHeadersToFields(record, type) {
         data.accident_prep_substance = record['사고대비물질'] || '';
         data.importer = record['상호'] || (currentUser ? currentUser.company_name : '');
 
-        // 디버깅: 매핑된 데이터 확인 (첫 번째만)
-        if (Object.keys(record).length > 0 && !record._logged) {
-            console.log('화학물질확인 매핑 데이터:', { 입력레코드: record, 출력데이터: data });
-            record._logged = true;
-        }
     } else if (type === 'msds') {
         data.importer = record['수입자'] || (currentUser ? currentUser.company_name : '');
         data.spec_no = String(record['규격정제'] || '');
@@ -2009,11 +2042,6 @@ function mapHeadersToFields(record, type) {
         data.note = record['비고'] || '';
         data.mixture_type = record['혼합/단일'] || '';
 
-        // 디버깅: 매핑된 데이터 확인
-        if (Object.keys(record).length > 0 && !record._logged) {
-            console.log('MSDS 매핑 데이터:', { 입력레코드: record, 출력데이터: data });
-            record._logged = true;
-        }
     } else if (type === 'radio') {
         data.spec_no = String(record['규격정제'] || '');
         data.consignee = record['화주'] || (currentUser ? currentUser.company_name : '');
@@ -2026,11 +2054,6 @@ function mapHeadersToFields(record, type) {
         data.item_name = record['품목명'] || '';
         data.derived_model_name = record['파생모델명'] || '';
 
-        // 디버깅: 매핑된 데이터 확인 (첫 번째만)
-        if (Object.keys(record).length > 0 && !record._logged) {
-            console.log('전파법 매핑 데이터:', { 입력레코드: record, 출력데이터: data });
-            record._logged = true;
-        }
     } else if (type === 'electrical') {
         data.spec_no = String(record['규격정제'] || '');
         data.certification_agency = record['인증기관'] || '';
@@ -2044,11 +2067,6 @@ function mapHeadersToFields(record, type) {
         data.item_name = record['품목명'] || '';
         data.derived_model_name = record['파생모델명'] || '';
 
-        // 디버깅: 매핑된 데이터 확인 (첫 번째만)
-        if (Object.keys(record).length > 0 && !record._logged) {
-            console.log('전안법 매핑 데이터:', { 입력레코드: record, 출력데이터: data });
-            record._logged = true;
-        }
     } else if (type === 'medical') {
         data.spec_no = String(record['규격정제'] || '');
         data.law = record['법령'] || '';
@@ -2057,11 +2075,6 @@ function mapHeadersToFields(record, type) {
         data.exporter = record['수출자'] || '';
         data.confirmation_status = record['확인 여부'] || '';
 
-        // 디버깅: 매핑된 데이터 확인 (첫 번째만)
-        if (Object.keys(record).length > 0 && !record._logged) {
-            console.log('의료기기 매핑 데이터:', { 입력레코드: record, 출력데이터: data });
-            record._logged = true;
-        }
     } else if (type === 'non_target') {
         data.spec_no = String(record['규격정제'] || '');
         data.law = record['법령'] || '';
@@ -2070,11 +2083,6 @@ function mapHeadersToFields(record, type) {
         data.exporter = record['수출자'] || '';
         data.non_target_reason = record['비대상 사유'] || '';
 
-        // 디버깅: 매핑된 데이터 확인 (첫 번째만)
-        if (Object.keys(record).length > 0 && !record._logged) {
-            console.log('비대상 매핑 데이터:', { 입력레코드: record, 출력데이터: data });
-            record._logged = true;
-        }
     } else if (type === 'review_needed') {
         data.spec_no = String(record['규격정제'] || '');
         data.description = record['Description'] || '';
@@ -2095,11 +2103,6 @@ function mapHeadersToFields(record, type) {
         data.note = record['비고'] || '';
         data.action_note = record['조치사항'] || '';
 
-        // 디버깅: 매핑된 데이터 확인 (첫 번째만)
-        if (Object.keys(record).length > 0 && !record._logged) {
-            console.log('확인필요 매핑 데이터:', { 입력레코드: record, 출력데이터: data });
-            record._logged = true;
-        }
     }
 
     data.created_by = currentUser ? currentUser.username : '';
@@ -2597,7 +2600,6 @@ async function downloadCSV(type) {
         }
 
         const result = await response.json();
-        console.log('CSV API 응답:', result);
 
         // 응답 구조 확인
         let records;
@@ -2606,7 +2608,6 @@ async function downloadCSV(type) {
         } else if (result.data && Array.isArray(result.data)) {
             records = result.data;
         } else {
-            console.error('예상치 못한 응답 구조:', result);
             throw new Error('데이터 형식이 올바르지 않습니다');
         }
 
@@ -2920,8 +2921,6 @@ async function saveEditedData() {
         delete cleanedData.created_at;
         delete cleanedData.updated_at;
 
-        console.log('수정 요청 데이터:', cleanedData);
-        console.log('레코드 ID:', currentEditRecord.recordId);
 
         // 일반 사용자: 수정 요청 생성
         if (!isMasterUser()) {
@@ -2949,7 +2948,6 @@ async function saveEditedData() {
 
         if (response.ok) {
             const result = await response.json();
-            console.log('수정 성공 응답:', result);
 
             // 타입을 미리 저장 (closeEditModal에서 currentEditRecord가 null이 되기 전에)
             const recordType = currentEditRecord.type;
@@ -2968,10 +2966,7 @@ async function saveEditedData() {
             }
             await loadDashboard();
         } else {
-            const errorText = await response.text();
-            console.error('수정 실패 응답:', response.status, errorText);
-
-            alert(`수정 중 오류가 발생했습니다.\n상태 코드: ${response.status}\n${errorText ? '오류 내용: ' + errorText : ''}`);
+            alert(`수정 중 오류가 발생했습니다.\n상태 코드: ${response.status}`);
         }
     } catch (error) {
         console.error('수정 오류:', error);

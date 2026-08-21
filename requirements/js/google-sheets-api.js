@@ -71,6 +71,7 @@ const MAX_READ_ATTEMPTS = 3;
 const READ_TIMEOUT_MS = 90000;
 let activeReadCount = 0;
 const queuedReads = [];
+const activeReadControllers = new Set();
 
 function activeSessionToken() {
     return currentSession()?.token || '';
@@ -102,36 +103,56 @@ function expireSessionForToken(token) {
     return true;
 }
 
-function runQueuedRead(task) {
-    return new Promise((resolve) => {
-        const start = () => {
-            activeReadCount += 1;
-            Promise.resolve(task()).then(resolve)
-                .finally(() => {
-                    activeReadCount -= 1;
-                    const next = queuedReads.shift();
-                    if (next) next();
-                });
-        };
-        if (activeReadCount < MAX_CONCURRENT_READS) start();
-        else queuedReads.push(start);
+function drainReadQueue() {
+    while (activeReadCount < MAX_CONCURRENT_READS && queuedReads.length > 0) {
+        const entry = queuedReads.shift();
+        if (entry.epoch !== readCacheEpoch) {
+            entry.resolve(staleRefreshResult());
+            continue;
+        }
+        activeReadCount += 1;
+        let taskResult;
+        try {
+            taskResult = entry.epoch === readCacheEpoch ? entry.task() : staleRefreshResult();
+        } catch (error) {
+            taskResult = Promise.reject(error);
+        }
+        Promise.resolve(taskResult)
+            .then(entry.resolve, entry.reject)
+            .finally(() => {
+                activeReadCount -= 1;
+                drainReadQueue();
+            });
+    }
+}
+
+function runQueuedRead(task, epoch) {
+    if (epoch !== readCacheEpoch) return Promise.resolve(staleRefreshResult());
+    return new Promise((resolve, reject) => {
+        queuedReads.push({ task, epoch, resolve, reject });
+        drainReadQueue();
     });
 }
 
-async function callApi(action, params = {}, { anonymous = false, sessionToken, deferUnauthorized = false } = {}) {
+async function callApi(action, params = {}, { anonymous = false, sessionToken, deferUnauthorized = false, readEpoch } = {}) {
     const token = anonymous ? '' : (sessionToken ?? activeSessionToken());
+    if (readEpoch !== undefined && readEpoch !== readCacheEpoch) return staleRefreshResult();
     const body = { action, ...params };
     if (!anonymous) body.token = token;
 
     const controller = typeof AbortController === 'function' ? new AbortController() : null;
+    const activeRead = controller && readEpoch !== undefined ? { controller, epoch: readEpoch } : null;
+    if (activeRead) activeReadControllers.add(activeRead);
     const timeout = controller ? setTimeout(() => controller.abort(), READ_TIMEOUT_MS) : null;
     try {
+        if (readEpoch !== undefined && readEpoch !== readCacheEpoch) return staleRefreshResult();
         const response = await originalFetch(AIN_REQUIREMENTS_CONFIG.apiUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'text/plain' },
             body: JSON.stringify(body),
             ...(controller ? { signal: controller.signal } : {})
         });
+        if (readEpoch !== undefined && readEpoch !== readCacheEpoch) return staleRefreshResult();
         const status = Number(response?.status) || 0;
         let parsed;
         try {
@@ -139,6 +160,7 @@ async function callApi(action, params = {}, { anonymous = false, sessionToken, d
         } catch (error) {
             parsed = null;
         }
+        if (readEpoch !== undefined && readEpoch !== readCacheEpoch) return staleRefreshResult();
         if (status === 401 || status === 403) {
             const result = {
                 success: false,
@@ -167,9 +189,11 @@ async function callApi(action, params = {}, { anonymous = false, sessionToken, d
         }
         return parsed;
     } catch (error) {
+        if (readEpoch !== undefined && readEpoch !== readCacheEpoch) return staleRefreshResult();
         return { success: false, error_code: 'NETWORK_ERROR' };
     } finally {
         if (timeout) clearTimeout(timeout);
+        if (activeRead) activeReadControllers.delete(activeRead);
     }
 }
 
@@ -180,21 +204,25 @@ function isRetryableReadFailure(result) {
         result?.status >= 500;
 }
 
-async function readDataWithRetries(mappedTable, token) {
+async function readDataWithRetries(mappedTable, token, epoch) {
     let result;
     for (let attempt = 0; attempt < MAX_READ_ATTEMPTS; attempt += 1) {
+        if (epoch !== readCacheEpoch) return staleRefreshResult();
         if (!isCurrentSessionToken(token)) return staleSessionResult();
         result = await runQueuedRead(() => {
+            if (epoch !== readCacheEpoch) return staleRefreshResult();
             if (!isCurrentSessionToken(token)) return staleSessionResult();
             return callApi('getData', { tableName: mappedTable }, {
                 sessionToken: token,
-                deferUnauthorized: true
+                deferUnauthorized: true,
+                readEpoch: epoch
             });
-        });
+        }, epoch);
+        if (epoch !== readCacheEpoch) return staleRefreshResult();
         if (!isCurrentSessionToken(token)) return staleSessionResult();
         if (!isRetryableReadFailure(result)) return result;
     }
-    return unavailableResult();
+    return epoch === readCacheEpoch ? unavailableResult() : staleRefreshResult();
 }
 const GoogleSheetsAPI = {
     async call(action, params = {}, options = {}) {
@@ -221,7 +249,7 @@ const GoogleSheetsAPI = {
         if (existing) return existing;
 
         const pending = (async () => {
-            const result = await readDataWithRetries(mappedTable, token);
+            const result = await readDataWithRetries(mappedTable, token, epoch);
             if (epoch !== readCacheEpoch) return staleRefreshResult();
             if (!isCurrentSessionToken(token)) return staleSessionResult();
             if (!result.success) {
@@ -271,6 +299,17 @@ const GoogleSheetsAPI = {
     clearAllCache() {
         readCacheEpoch += 1;
         dataCache.clear();
+
+        for (let index = queuedReads.length - 1; index >= 0; index -= 1) {
+            if (queuedReads[index].epoch !== readCacheEpoch) {
+                const [stale] = queuedReads.splice(index, 1);
+                stale.resolve(staleRefreshResult());
+            }
+        }
+        activeReadControllers.forEach(read => {
+            if (read.epoch !== readCacheEpoch) read.controller.abort();
+        });
+        drainReadQueue();
     }
 };
 

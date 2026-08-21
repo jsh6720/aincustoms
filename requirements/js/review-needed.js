@@ -5,14 +5,17 @@ let allReviewData = [];
 
 // 확인 필요 데이터 로드
 async function loadReviewNeededData(searchQuery = '') {
+    const viewRequest = beginRequirementsViewRequest('list:review_needed');
     try {
         const response = await fetch('tables/review_needed?limit=1000');
+        if (!isCurrentRequirementsViewRequest(viewRequest) || response.status === 409) return;
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
 
         const data = await response.json();
+        if (!isCurrentRequirementsViewRequest(viewRequest)) return;
 
         let records = data.data || [];
 
@@ -39,6 +42,7 @@ async function loadReviewNeededData(searchQuery = '') {
         renderReviewNeededTable(records);
 
     } catch (error) {
+        if (!isCurrentRequirementsViewRequest(viewRequest)) return;
         console.error('확인 필요 데이터 로드 오류:', error);
         const tbody = document.getElementById('reviewNeededTableBody');
         if (tbody) {

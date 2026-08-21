@@ -108,7 +108,6 @@ async function readExcelFile(file) {
 // 파일 업로드 처리
 async function handleFileUpload(file, dataType) {
     try {
-        console.log('handleFileUpload 시작:', file.name);
         const fileExtension = file.name.split('.').pop().toLowerCase();
         console.log('파일 확장자:', fileExtension);
         let result;
@@ -123,7 +122,6 @@ async function handleFileUpload(file, dataType) {
             throw new Error('지원하지 않는 파일 형식입니다. (.csv, .xlsx, .xls만 지원)');
         }
 
-        console.log('파일 파싱 결과:', result);
 
         if (!result || result.records.length === 0) {
             throw new Error('파일에서 데이터를 찾을 수 없습니다.');
@@ -132,7 +130,6 @@ async function handleFileUpload(file, dataType) {
         console.log('handleFileUpload 완료, 레코드 수:', result.records.length);
         return result;
     } catch (error) {
-        console.error('파일 업로드 오류 상세:', error);
         throw error;
     }
 }
@@ -181,7 +178,6 @@ function downloadCSV(data, filename, headers) {
 // Excel 다운로드
 function downloadExcel(data, filename, headers) {
     try {
-        console.log('Excel 다운로드 시작:', { filename, headers, dataCount: data.length });
 
         // 헤더와 데이터를 2차원 배열로 변환
         const wsData = [headers];
@@ -191,7 +187,6 @@ function downloadExcel(data, filename, headers) {
                 const fieldName = getFieldNameFromLabel(header);
                 const value = row[fieldName];
                 if (index === 0) {
-                    console.log(`헤더 "${header}" -> 필드 "${fieldName}" -> 값:`, value);
                 }
                 return value !== undefined && value !== null ? value : '';
             });
@@ -234,8 +229,6 @@ function downloadExcel(data, filename, headers) {
 
         return true;
     } catch (error) {
-        console.error('Excel 다운로드 오류 상세:', error);
-        console.error('오류 스택:', error.stack);
         throw error;
     }
 }
@@ -402,14 +395,12 @@ function showFileUploadDialog(dataType) {
         if (!file) return;
 
         try {
-            console.log('파일 업로드 시작:', file.name, dataType);
             showLoading('파일 업로드 중...');
 
             console.log('파일 읽기 시작...');
             const result = await handleFileUpload(file, dataType);
             console.log('파일 읽기 완료');
 
-            console.log('파일 파싱 결과:', result);
 
             if (!result.records || result.records.length === 0) {
                 hideLoading();
@@ -420,7 +411,6 @@ function showFileUploadDialog(dataType) {
             // app.js의 mapHeadersToFields 함수 사용
             const mappedRecords = result.records.map(record => mapHeadersToFields(record, dataType));
 
-            console.log('매핑된 레코드:', mappedRecords);
 
             // 데이터 저장
             const tableMap = {
@@ -480,51 +470,30 @@ function showFileUploadDialog(dataType) {
             const batchSize = 10;
             const startTime = Date.now();
 
-            // 재시도 함수
-            async function saveWithRetry(url, data, maxRetries = 3) {
-                for (let attempt = 1; attempt <= maxRetries; attempt++) {
-                    try {
-                        const response = await fetch(url, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(data)
-                        });
-
-                        if (response.ok) {
-                            return { success: true };
-                        }
-
-                        // 500 에러는 재시도
-                        if (response.status >= 500 && attempt < maxRetries) {
-                            const errorText = await response.text();
-                            console.log(`재시도 ${attempt}/${maxRetries} (HTTP ${response.status}):`, errorText);
-                            await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
-                            continue;
-                        }
-
-                        const errorText = await response.text();
-                        return { success: false, error: `HTTP ${response.status}: ${errorText}`, data: data };
-                    } catch (error) {
-                        if (attempt < maxRetries) {
-                            console.log(`재시도 ${attempt}/${maxRetries} (네트워크 오류):`, error.message);
-                            await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
-                            continue;
-                        }
-                        return { success: false, error: error.message, data: data };
-                    }
+            // 쓰기는 재시도하지 않는다. 응답 유실 시 동일 변경이 중복 적용될 수 있다.
+            async function saveOnce(url, data) {
+                try {
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(data)
+                    });
+                    return response.ok
+                        ? { success: true }
+                        : { success: false, error: `HTTP ${response.status}` };
+                } catch (error) {
+                    return { success: false, error: 'NETWORK_ERROR' };
                 }
-                return { success: false, error: 'Max retries reached', data: data };
             }
 
             for (let i = 0; i < nonDuplicateRecords.length; i += batchSize) {
                 const batch = nonDuplicateRecords.slice(i, i + batchSize);
                 const batchPromises = batch.map(async (record, idx) => {
                     const actualIndex = i + idx;
-                    const result = await saveWithRetry(`tables/${tableMap[dataType]}`, record, 3);
+                    const result = await saveOnce(`tables/${tableMap[dataType]}`, record);
 
                     if (!result.success) {
                         console.error(`저장 실패 [${actualIndex}]:`, result.error);
-                        console.error('실패한 데이터:', result.data);
                     }
 
                     return { ...result, index: actualIndex };
@@ -543,7 +512,6 @@ function showFileUploadDialog(dataType) {
                         }
                     } else {
                         errorCount++;
-                        console.error(`배치 처리 실패 [${i + idx}]:`, result.reason);
                     }
                 });
 
@@ -630,7 +598,6 @@ async function showDownloadDialog(dataType) {
         }
 
         const result = await response.json();
-        console.log('API 응답:', result);
 
         // 응답 구조 확인
         let data;
@@ -639,7 +606,6 @@ async function showDownloadDialog(dataType) {
         } else if (result.data && Array.isArray(result.data)) {
             data = result.data;
         } else {
-            console.error('예상치 못한 응답 구조:', result);
             throw new Error('데이터 형식이 올바르지 않습니다');
         }
 
@@ -666,7 +632,6 @@ async function showDownloadDialog(dataType) {
 
     } catch (error) {
         hideLoading();
-        console.error('다운로드 오류 상세:', error);
         alert(`다운로드 중 오류가 발생했습니다.\n\n오류 내용: ${error.message}`);
     }
 }

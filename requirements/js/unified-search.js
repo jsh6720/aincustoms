@@ -48,6 +48,7 @@ let isUnifiedSearching = false;
 
 // 통합 검색 실행
 async function performUnifiedSearch() {
+    const viewRequest = beginRequirementsViewRequest('unified-search');
     const searchInput = document.getElementById('unifiedSearch');
     const searchValue = searchInput.value.trim();
 
@@ -56,20 +57,12 @@ async function performUnifiedSearch() {
         return;
     }
 
-    // 이미 검색 중이면 중복 실행 방지
-    if (isUnifiedSearching) {
-        return;
-    }
     isUnifiedSearching = true;
-
     const resultDiv = document.getElementById('unifiedSearchResult');
     resultDiv.innerHTML = '<div class="unified-result-empty"><i class="fas fa-spinner fa-spin"></i> 검색 중... (처음 검색은 데이터 로딩으로 다소 걸릴 수 있습니다)</div>';
 
-    const startTime = performance.now();
-
     try {
-        // 모든 테이블에서 데이터 조회 (확인필요 리스트 포함) - 병렬 처리
-        const [chemicalData, msdsData, radioData, electricalData, medicalData, nonTargetData, reviewNeededData] = await Promise.all([
+        const results = await Promise.all([
             searchInTable('chemical_confirmation', searchValue),
             searchInTable('msds', searchValue),
             searchInTable('radio_law', searchValue),
@@ -78,11 +71,9 @@ async function performUnifiedSearch() {
             searchInTable('non_target', searchValue),
             searchInTable('review_needed', searchValue)
         ]);
+        if (!isCurrentRequirementsViewRequest(viewRequest) || results.some(result => result === null)) return;
 
-        const elapsed = ((performance.now() - startTime) / 1000).toFixed(2);
-        console.log(`[통합검색] 완료: ${elapsed}초 (검색어: ${searchValue})`);
-
-        // 결과 표시
+        const [chemicalData, msdsData, radioData, electricalData, medicalData, nonTargetData, reviewNeededData] = results;
         displayUnifiedSearchResult({
             chemical: chemicalData,
             msds: msdsData,
@@ -92,12 +83,12 @@ async function performUnifiedSearch() {
             nonTarget: nonTargetData,
             reviewNeeded: reviewNeededData
         }, searchValue);
-
     } catch (error) {
-        console.error('통합 검색 오류:', error);
+        if (!isCurrentRequirementsViewRequest(viewRequest)) return;
+        console.error('통합 검색 오류');
         resultDiv.innerHTML = '<div class="unified-result-empty"><i class="fas fa-exclamation-triangle"></i> 검색 중 오류가 발생했습니다.</div>';
     } finally {
-        isUnifiedSearching = false;
+        if (isCurrentRequirementsViewRequest(viewRequest)) isUnifiedSearching = false;
     }
 }
 
@@ -126,25 +117,18 @@ const UNIFIED_SEARCH_FIELDS = {
 async function searchInTable(tableName, searchValue) {
     try {
         const response = await fetch(`tables/${tableName}?limit=1000`);
+        if (response.status === 409) return null;
         if (!response.ok) return [];
 
         const result = await response.json();
-        let data = Array.isArray(result) ? result : (result.data || []);
-
-        // 정규화된 검색어 (공백/하이픈 무시)
+        const data = Array.isArray(result) ? result : (result.data || []);
         const searchNorm = normalizeForSearch(searchValue);
-
-        // 검색 대상 필드 (매핑에 없으면 spec_no만)
         const fields = UNIFIED_SEARCH_FIELDS[tableName] || ['spec_no'];
-
-        const filtered = data.filter(item =>
+        return data.filter(item =>
             fields.some(field => normalizeForSearch(item[field]).includes(searchNorm))
         );
-
-        console.log(`${tableName} 검색 결과:`, filtered.length, '건', '(검색어:', searchValue + ', 필드:', fields.join('/') + ')');
-        return filtered;
     } catch (error) {
-        console.error(`${tableName} 검색 오류:`, error);
+        console.error(`${tableName} 검색 오류`);
         return [];
     }
 }

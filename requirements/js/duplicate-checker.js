@@ -33,34 +33,14 @@ const TABLE_MAP = {
     'review_needed': 'review_needed'
 };
 
-// 재시도 로직이 있는 삭제 함수
-async function deleteWithRetry(url, maxRetries = 3) {
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-        try {
-            const response = await fetch(url, { method: 'DELETE' });
-
-            if (response.ok || response.status === 204) {
-                return true;
-            }
-
-            // 5xx 에러는 재시도
-            if (response.status >= 500 && attempt < maxRetries) {
-                console.log(`삭제 재시도 ${attempt}/${maxRetries}:`, url);
-                await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
-                continue;
-            }
-
-            return false;
-        } catch (error) {
-            if (attempt < maxRetries) {
-                console.log(`삭제 재시도 ${attempt}/${maxRetries} (네트워크 오류):`, url);
-                await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
-                continue;
-            }
-            throw error;
-        }
+// 쓰기는 재시도하지 않는다. 응답 유실 시 동일 변경이 중복 적용될 수 있다.
+async function deleteOnce(url) {
+    try {
+        const response = await fetch(url, { method: 'DELETE' });
+        return response.ok || response.status === 204;
+    } catch (error) {
+        return false;
     }
-    return false;
 }
 
 // 중복 체크 다이얼로그 표시
@@ -374,7 +354,7 @@ async function confirmAndRemoveDuplicates(results) {
 
             const batchResults = await Promise.allSettled(
                 batch.map(record =>
-                    deleteWithRetry(`tables/${tableName}/${record.id}`, 3)
+                    deleteOnce(`tables/${tableName}/${record.id}`)
                 )
             );
 
@@ -385,7 +365,7 @@ async function confirmAndRemoveDuplicates(results) {
                 } else {
                     sectionFailed++;
                     totalFailed++;
-                    console.error(`삭제 실패 (${section}):`, batch[idx].id, result.reason);
+                    console.error(`삭제 실패 (${section})`);
                 }
             });
 

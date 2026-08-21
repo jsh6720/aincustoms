@@ -57,6 +57,23 @@ test("root navigation opens the local requirements application", () => {
   );
 });
 
+test("changed requirements scripts share the 6.0.2 cache epoch", () => {
+  const html = fs.readFileSync(path.join(appRoot, "index.html"), "utf8");
+  const changedScripts = [
+    "google-sheets-api",
+    "auth",
+    "file-handler",
+    "unified-search",
+    "review-needed",
+    "selection-delete",
+    "duplicate-checker",
+    "app",
+  ];
+
+  for (const script of changedScripts) {
+    assert.equal(html.includes(`src="js/${script}.js?v=6.0.2"`), true, script);
+  }
+});
 test("requirements package excludes source, runtime, and secret-bearing artifacts", () => {
   const allowed = new Set([
     "index.html",
