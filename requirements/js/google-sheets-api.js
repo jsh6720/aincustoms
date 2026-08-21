@@ -55,7 +55,8 @@ function currentSession() {
 function mapApiErrorCodeToStatus(errorCode) {
     return {
         UNAUTHORIZED: 401,
-        STALE_SESSION: 401,
+        STALE_SESSION: 409,
+        STALE_REFRESH: 409,
         FORBIDDEN: 403,
         NOT_FOUND: 404,
         SERVICE_UNAVAILABLE: 503

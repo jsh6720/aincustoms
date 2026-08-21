@@ -431,3 +431,20 @@ test("replacement sessions prevent queued and retrying old-token reads from reac
   oldSuccess.resolve();
   assert.equal((await oldActive).error_code, "STALE_SESSION");
 });
+
+test("stale fetch responses are non-auth cancellations that preserve replacement sessions", async () => {
+  const delayed = deferredJson({ success: true, data: [{ id: "old-row" }] });
+  const { context, events, storage } = harness([delayed.response]);
+  const oldFetch = context.fetch("tables/msds");
+
+  storage.set("ainRequirementsSession", JSON.stringify({ token: "replacement-token" }));
+  delayed.resolve();
+  const response = await oldFetch;
+  const result = await response.json();
+
+  assert.equal(response.status, 409);
+  assert.equal(result.error_code, "STALE_SESSION");
+  assert.equal("data" in result, false);
+  assert.equal(events.length, 0);
+  assert.equal(JSON.parse(storage.get("ainRequirementsSession")).token, "replacement-token");
+});
