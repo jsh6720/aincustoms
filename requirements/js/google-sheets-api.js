@@ -64,6 +64,7 @@ function mapApiErrorCodeToStatus(errorCode) {
 
 const originalFetch = window.fetch;
 const pendingTableReads = new Map();
+let readCacheEpoch = 0;
 const MAX_CONCURRENT_READS = 2;
 const MAX_READ_ATTEMPTS = 3;
 const READ_TIMEOUT_MS = 90000;
@@ -80,6 +81,10 @@ function isCurrentSessionToken(token) {
 
 function staleSessionResult() {
     return { success: false, error_code: 'STALE_SESSION' };
+}
+
+function staleRefreshResult() {
+    return { success: false, error_code: 'STALE_REFRESH' };
 }
 
 function unavailableResult() {
@@ -133,6 +138,17 @@ async function callApi(action, params = {}, { anonymous = false, sessionToken, d
         } catch (error) {
             parsed = null;
         }
+        if (status === 401 || status === 403) {
+            const result = {
+                success: false,
+                error_code: status === 401 ? 'UNAUTHORIZED' : 'FORBIDDEN',
+                status
+            };
+            if (result.error_code === 'UNAUTHORIZED' && !deferUnauthorized) {
+                expireSessionForToken(token);
+            }
+            return result;
+        }
         if (response?.ok === false || !parsed || typeof parsed !== 'object') {
             return {
                 success: false,
@@ -166,10 +182,15 @@ function isRetryableReadFailure(result) {
 async function readDataWithRetries(mappedTable, token) {
     let result;
     for (let attempt = 0; attempt < MAX_READ_ATTEMPTS; attempt += 1) {
-        result = await runQueuedRead(() => callApi('getData', { tableName: mappedTable }, {
-            sessionToken: token,
-            deferUnauthorized: true
-        }));
+        if (!isCurrentSessionToken(token)) return staleSessionResult();
+        result = await runQueuedRead(() => {
+            if (!isCurrentSessionToken(token)) return staleSessionResult();
+            return callApi('getData', { tableName: mappedTable }, {
+                sessionToken: token,
+                deferUnauthorized: true
+            });
+        });
+        if (!isCurrentSessionToken(token)) return staleSessionResult();
         if (!isRetryableReadFailure(result)) return result;
     }
     return unavailableResult();
@@ -193,12 +214,14 @@ const GoogleSheetsAPI = {
         }
 
         const mappedTable = TABLE_NAME_MAP[tableName] || tableName;
-        const pendingKey = `${token}:${mappedTable}`;
+        const epoch = readCacheEpoch;
+        const pendingKey = `${epoch}:${token}:${mappedTable}`;
         const existing = pendingTableReads.get(pendingKey);
         if (existing) return existing;
 
         const pending = (async () => {
             const result = await readDataWithRetries(mappedTable, token);
+            if (epoch !== readCacheEpoch) return staleRefreshResult();
             if (!isCurrentSessionToken(token)) return staleSessionResult();
             if (!result.success) {
                 if (result.error_code === 'UNAUTHORIZED') expireSessionForToken(token);
@@ -211,6 +234,7 @@ const GoogleSheetsAPI = {
                 page: 1,
                 limit: 10000
             };
+            if (epoch !== readCacheEpoch) return staleRefreshResult();
             if (!isCurrentSessionToken(token)) return staleSessionResult();
             dataCache.set(tableName, response);
             return response;
@@ -244,6 +268,7 @@ const GoogleSheetsAPI = {
     },
 
     clearAllCache() {
+        readCacheEpoch += 1;
         dataCache.clear();
     }
 };

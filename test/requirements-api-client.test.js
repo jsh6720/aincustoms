@@ -357,3 +357,77 @@ test("current-token authorization failure expires one visible session", async ()
   assert.equal(storage.has("ainRequirementsSession"), false);
   assert.deepEqual(events, ["ain-requirements-session-expired"]);
 });
+
+test("HTTP 401 and 403 responses canonicalize auth failures without upstream bodies", async () => {
+  const cases = [
+    [jsonResponse({ success: false, error: "upstream detail" }, { status: 401 }), "UNAUTHORIZED", 401, true],
+    [jsonResponse("upstream detail", { status: 401 }), "UNAUTHORIZED", 401, true],
+    [jsonResponse({ success: false, error: "upstream detail" }, { status: 403 }), "FORBIDDEN", 403, false],
+    [jsonResponse("upstream detail", { status: 403 }), "FORBIDDEN", 403, false],
+  ];
+
+  for (const [upstream, errorCode, status, expires] of cases) {
+    const { context, calls, events, storage } = harness(upstream);
+    const response = await context.fetch("tables/msds");
+    const result = await response.json();
+
+    assert.equal(response.status, status);
+    assert.equal(result.error_code, errorCode);
+    assert.equal("error" in result, false);
+    assert.equal(calls.length, 1);
+    assert.equal(storage.has("ainRequirementsSession"), !expires);
+    assert.equal(events.length, expires ? 1 : 0);
+  }
+});
+
+test("clearAllCache starts a new read epoch and keeps old rows stale", async () => {
+  const oldResponse = deferredJson({ success: true, data: [{ id: "old" }] });
+  const { context, calls } = harness([
+    oldResponse.response,
+    { success: true, data: [{ id: "new" }] },
+  ]);
+  const oldRead = context.API.getData("msds");
+  assert.equal(calls.length, 1);
+
+  context.API.clearAllCache();
+  const refreshed = context.API.getData("msds");
+  const sameEpoch = context.API.getData("msds");
+  assert.equal(calls.length, 2);
+  oldResponse.resolve();
+
+  assert.equal((await oldRead).error_code, "STALE_REFRESH");
+  assert.equal((await refreshed).data[0].id, "new");
+  assert.deepEqual(await refreshed, await sameEpoch);
+  assert.equal((await context.API.getData("msds")).data[0].id, "new");
+  assert.equal(calls.length, 2);
+});
+
+test("replacement sessions prevent queued and retrying old-token reads from reaching the wire", async () => {
+  const oldSuccess = deferredJson({ success: true, data: [{ id: "old" }] });
+  const oldRetryable = deferredJson({ success: false, error_code: "INTERNAL_ERROR" });
+  const { context, calls, storage } = harness([
+    oldSuccess.response,
+    oldRetryable.response,
+    { success: true, data: [{ id: "new" }] },
+  ]);
+  const oldActive = context.API.getData("msds");
+  const oldRetry = context.API.getData("radio_law");
+  const oldQueued = context.API.getData("chemical_confirmation");
+  assert.equal(calls.length, 2);
+
+  storage.set("ainRequirementsSession", JSON.stringify({ token: "replacement-token" }));
+  const newRead = context.API.getData("electrical_law");
+  oldRetryable.resolve();
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.equal(calls.length, 3);
+  assert.equal(calls.filter((call) => call.body.tableName === "radio_law").length, 1);
+  assert.equal(calls.some((call) => call.body.tableName === "chemical_confirmation"), false);
+  assert.equal(calls[2].body.token, "replacement-token");
+  assert.equal((await oldRetry).error_code, "STALE_SESSION");
+  assert.equal((await oldQueued).error_code, "STALE_SESSION");
+  assert.equal((await newRead).data[0].id, "new");
+
+  oldSuccess.resolve();
+  assert.equal((await oldActive).error_code, "STALE_SESSION");
+});
