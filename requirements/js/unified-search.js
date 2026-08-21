@@ -32,14 +32,14 @@ function getLawCode(lawName) {
         '생활살생물제법': '87',
         '위생용품관리법': '94'
     };
-    
+
     // 법령명에서 키워드 검색 (부분 일치)
     for (const [key, code] of Object.entries(lawMapping)) {
         if (lawName && lawName.includes(key)) {
             return code;
         }
     }
-    
+
     return '-';
 }
 
@@ -50,7 +50,7 @@ let isUnifiedSearching = false;
 async function performUnifiedSearch() {
     const searchInput = document.getElementById('unifiedSearch');
     const searchValue = searchInput.value.trim();
-    
+
     if (!searchValue) {
         alert('규격정제 또는 인증번호를 입력해주세요.');
         return;
@@ -61,12 +61,12 @@ async function performUnifiedSearch() {
         return;
     }
     isUnifiedSearching = true;
-    
+
     const resultDiv = document.getElementById('unifiedSearchResult');
     resultDiv.innerHTML = '<div class="unified-result-empty"><i class="fas fa-spinner fa-spin"></i> 검색 중... (처음 검색은 데이터 로딩으로 다소 걸릴 수 있습니다)</div>';
 
     const startTime = performance.now();
-    
+
     try {
         // 모든 테이블에서 데이터 조회 (확인필요 리스트 포함) - 병렬 처리
         const [chemicalData, msdsData, radioData, electricalData, medicalData, nonTargetData, reviewNeededData] = await Promise.all([
@@ -81,7 +81,7 @@ async function performUnifiedSearch() {
 
         const elapsed = ((performance.now() - startTime) / 1000).toFixed(2);
         console.log(`[통합검색] 완료: ${elapsed}초 (검색어: ${searchValue})`);
-        
+
         // 결과 표시
         displayUnifiedSearchResult({
             chemical: chemicalData,
@@ -92,7 +92,7 @@ async function performUnifiedSearch() {
             nonTarget: nonTargetData,
             reviewNeeded: reviewNeededData
         }, searchValue);
-        
+
     } catch (error) {
         console.error('통합 검색 오류:', error);
         resultDiv.innerHTML = '<div class="unified-result-empty"><i class="fas fa-exclamation-triangle"></i> 검색 중 오류가 발생했습니다.</div>';
@@ -127,10 +127,10 @@ async function searchInTable(tableName, searchValue) {
     try {
         const response = await fetch(`tables/${tableName}?limit=1000`);
         if (!response.ok) return [];
-        
+
         const result = await response.json();
         let data = Array.isArray(result) ? result : (result.data || []);
-        
+
         // 정규화된 검색어 (공백/하이픈 무시)
         const searchNorm = normalizeForSearch(searchValue);
 
@@ -152,12 +152,12 @@ async function searchInTable(tableName, searchValue) {
 // 통합 검색 결과 표시
 function displayUnifiedSearchResult(results, searchValue) {
     const resultDiv = document.getElementById('unifiedSearchResult');
-    
-    const totalCount = results.chemical.length + results.msds.length + 
+
+    const totalCount = results.chemical.length + results.msds.length +
                       results.radio.length + results.electrical.length + results.medical.length +
                       (results.nonTarget ? results.nonTarget.length : 0) +
                       (results.reviewNeeded ? results.reviewNeeded.length : 0);
-    
+
     if (totalCount === 0) {
         resultDiv.innerHTML = `
             <div class="unified-result-empty">
@@ -167,7 +167,7 @@ function displayUnifiedSearchResult(results, searchValue) {
         `;
         return;
     }
-    
+
     let html = `
         <div class="unified-result-card">
             <div class="unified-result-header">
@@ -175,7 +175,7 @@ function displayUnifiedSearchResult(results, searchValue) {
             </div>
             <div class="unified-result-grid">
     `;
-    
+
     // 화학물질확인
     html += generateResultItem(
         '화학물질확인',
@@ -187,7 +187,7 @@ function displayUnifiedSearchResult(results, searchValue) {
         } : null,
         'chemical'
     );
-    
+
     // MSDS
     html += generateResultItem(
         'MSDS 등록/신고',
@@ -199,7 +199,7 @@ function displayUnifiedSearchResult(results, searchValue) {
         } : null,
         'msds'
     );
-    
+
     // 전파법
     html += generateResultItem(
         '전파법',
@@ -212,7 +212,7 @@ function displayUnifiedSearchResult(results, searchValue) {
         } : null,
         'radio'
     );
-    
+
     // 전안법
     html += generateResultItem(
         '전안법',
@@ -227,7 +227,7 @@ function displayUnifiedSearchResult(results, searchValue) {
         } : null,
         'electrical'
     );
-    
+
     // 의료기기/원안법 등
     html += generateResultItem(
         '의료기기/원안법 등',
@@ -242,7 +242,7 @@ function displayUnifiedSearchResult(results, searchValue) {
         } : null,
         'medical'
     );
-    
+
     // 비대상
     html += generateResultItem(
         '비대상',
@@ -258,7 +258,7 @@ function displayUnifiedSearchResult(results, searchValue) {
         } : null,
         'non_target'
     );
-    
+
     // 확인 필요 List
     html += generateResultItem(
         '확인 필요 List',
@@ -272,12 +272,12 @@ function displayUnifiedSearchResult(results, searchValue) {
         } : null,
         'review_needed'
     );
-    
+
     html += `
             </div>
         </div>
     `;
-    
+
     resultDiv.innerHTML = html;
 }
 
@@ -285,7 +285,7 @@ function displayUnifiedSearchResult(results, searchValue) {
 function generateResultItem(title, icon, hasData, details, dataType) {
     const clickableClass = hasData ? 'clickable' : '';
     const onclickAttr = hasData ? `onclick="navigateToSection('${dataType}')"` : '';
-    
+
     let html = `
         <div class="result-item ${hasData ? 'has-data' : ''} ${clickableClass}" ${onclickAttr}>
             <div class="result-item-header">
@@ -297,7 +297,7 @@ function generateResultItem(title, icon, hasData, details, dataType) {
                 </div>
             </div>
     `;
-    
+
     if (hasData && details) {
         html += '<div class="result-item-details">';
         for (const [key, value] of Object.entries(details)) {
@@ -307,7 +307,7 @@ function generateResultItem(title, icon, hasData, details, dataType) {
         }
         html += '</div>';
     }
-    
+
     html += '</div>';
     return html;
 }
@@ -316,7 +316,7 @@ function generateResultItem(title, icon, hasData, details, dataType) {
 function navigateToSection(dataType) {
     // 검색어 저장
     const searchValue = document.getElementById('unifiedSearch').value.trim();
-    
+
     // 섹션 매핑
     const sectionMap = {
         'chemical': 'chemicalSection',
@@ -327,10 +327,10 @@ function navigateToSection(dataType) {
         'non_target': 'nonTargetSection',
         'review_needed': 'review_neededSection'
     };
-    
+
     const sectionId = sectionMap[dataType];
     if (!sectionId) return;
-    
+
     // 메뉴 클릭 (섹션 표시)
     const menuItems = document.querySelectorAll('.menu-item');
     menuItems.forEach(item => {
@@ -338,7 +338,7 @@ function navigateToSection(dataType) {
             item.click();
         }
     });
-    
+
     // 해당 섹션의 검색창에 검색어 입력 및 검색 실행
     setTimeout(() => {
         const searchInputMap = {
@@ -350,14 +350,14 @@ function navigateToSection(dataType) {
             'non_target': 'non_targetSearch',
             'review_needed': 'reviewNeededSearch'
         };
-        
+
         const searchInputId = searchInputMap[dataType];
         const searchInput = document.getElementById(searchInputId);
-        
+
         if (searchInput) {
             searchInput.value = searchValue;
             searchInput.focus();
-            
+
             // 검색 함수 실행
             if (dataType === 'review_needed') {
                 // review_needed는 별도 함수 사용

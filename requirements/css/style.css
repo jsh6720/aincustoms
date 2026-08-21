@@ -944,7 +944,7 @@ textarea:focus {
     .detail-grid {
         grid-template-columns: 1fr;
     }
-    
+
     .manual-form {
         grid-template-columns: 1fr;
     }

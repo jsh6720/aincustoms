@@ -38,18 +38,18 @@ async function deleteWithRetry(url, maxRetries = 3) {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
             const response = await fetch(url, { method: 'DELETE' });
-            
+
             if (response.ok || response.status === 204) {
                 return true;
             }
-            
+
             // 5xx 에러는 재시도
             if (response.status >= 500 && attempt < maxRetries) {
                 console.log(`삭제 재시도 ${attempt}/${maxRetries}:`, url);
                 await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
                 continue;
             }
-            
+
             return false;
         } catch (error) {
             if (attempt < maxRetries) {
@@ -69,7 +69,7 @@ function showDuplicateCheckDialog() {
         alert('관리자만 중복 체크 기능을 사용할 수 있습니다.');
         return;
     }
-    
+
     const modal = document.createElement('div');
     modal.className = 'modal';
     modal.style.display = 'block';
@@ -98,7 +98,7 @@ function showDuplicateCheckDialog() {
                         </li>
                     </ul>
                 </div>
-                
+
                 <div style="margin-bottom: 20px;">
                     <h3 style="margin-bottom: 10px;">체크할 섹션 선택:</h3>
                     <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
@@ -132,9 +132,9 @@ function showDuplicateCheckDialog() {
                         </label>
                     </div>
                 </div>
-                
+
                 <div id="duplicateCheckResult" style="margin-top: 20px;"></div>
-                
+
                 <div style="margin-top: 20px; display: flex; gap: 10px; justify-content: flex-end;">
                     <button class="btn-secondary" onclick="this.closest('.modal').remove()">취소</button>
                     <button class="btn-primary" onclick="startDuplicateCheck()">
@@ -144,30 +144,30 @@ function showDuplicateCheckDialog() {
             </div>
         </div>
     `;
-    
+
     document.body.appendChild(modal);
 }
 
 // 중복 체크 시작
 async function startDuplicateCheck() {
     const selectedSections = [];
-    
+
     ['chemical', 'msds', 'radio', 'electrical', 'medical', 'non_target', 'review_needed'].forEach(section => {
         if (document.getElementById(`check_${section}`)?.checked) {
             selectedSections.push(section);
         }
     });
-    
+
     if (selectedSections.length === 0) {
         alert('최소 1개 이상의 섹션을 선택해주세요.');
         return;
     }
-    
+
     const resultDiv = document.getElementById('duplicateCheckResult');
     resultDiv.innerHTML = '<div style="text-align: center; padding: 20px;"><i class="fas fa-spinner fa-spin fa-2x"></i><p style="margin-top: 10px;">중복 데이터 검색 중...</p></div>';
-    
+
     const duplicateResults = {};
-    
+
     for (const section of selectedSections) {
         const tableName = TABLE_MAP[section];
         const result = await findDuplicates(tableName, section);
@@ -175,7 +175,7 @@ async function startDuplicateCheck() {
             duplicateResults[section] = result;
         }
     }
-    
+
     displayDuplicateResults(duplicateResults);
 }
 
@@ -187,22 +187,22 @@ async function findDuplicates(tableName, sectionType) {
         let page = 1;
         const limit = 1000; // 한 번에 1000개씩
         let hasMore = true;
-        
+
         while (hasMore) {
             const response = await fetch(`tables/${tableName}?page=${page}&limit=${limit}`);
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
-            
+
             const data = await response.json();
             const records = data.data || [];
-            
+
             if (records.length === 0) {
                 hasMore = false;
             } else {
                 allRecords = allRecords.concat(records);
                 page++;
-                
+
                 // 안전장치: 최대 20페이지(20,000개)까지만
                 if (page > 20) {
                     console.warn(`${SECTION_NAMES[sectionType]}: 최대 페이지 수 도달`);
@@ -210,23 +210,23 @@ async function findDuplicates(tableName, sectionType) {
                 }
             }
         }
-        
+
         console.log(`${SECTION_NAMES[sectionType]}: 총 ${allRecords.length}개 데이터 검사 중...`);
-        
+
         // 중복 그룹 찾기
         const criteria = DUPLICATE_CRITERIA[sectionType];
         const duplicateMap = new Map();
-        
+
         allRecords.forEach(record => {
             // 중복 키 생성
             const key = criteria.map(field => String(record[field] || '')).join('||');
-            
+
             if (!duplicateMap.has(key)) {
                 duplicateMap.set(key, []);
             }
             duplicateMap.get(key).push(record);
         });
-        
+
         // 2개 이상인 그룹만 필터링
         const duplicateGroups = [];
         duplicateMap.forEach((group, key) => {
@@ -237,7 +237,7 @@ async function findDuplicates(tableName, sectionType) {
                     const timeB = b.created_at || 0;
                     return timeA - timeB;
                 });
-                
+
                 duplicateGroups.push({
                     key: key,
                     count: group.length,
@@ -247,15 +247,15 @@ async function findDuplicates(tableName, sectionType) {
                 });
             }
         });
-        
+
         console.log(`${SECTION_NAMES[sectionType]}: ${duplicateGroups.length}개 중복 그룹 발견`);
-        
+
         return {
             totalRecords: allRecords.length,
             duplicateGroups: duplicateGroups,
             totalDuplicates: duplicateGroups.reduce((sum, g) => sum + g.deleteRecords.length, 0)
         };
-        
+
     } catch (error) {
         console.error(`${SECTION_NAMES[sectionType]} 중복 체크 오류:`, error);
         return {
@@ -270,7 +270,7 @@ async function findDuplicates(tableName, sectionType) {
 // 중복 결과 표시
 function displayDuplicateResults(results) {
     const resultDiv = document.getElementById('duplicateCheckResult');
-    
+
     if (Object.keys(results).length === 0) {
         resultDiv.innerHTML = `
             <div style="padding: 20px; background: #d4edda; border: 1px solid #c3e6cb; border-radius: 8px; text-align: center;">
@@ -281,15 +281,15 @@ function displayDuplicateResults(results) {
         `;
         return;
     }
-    
+
     let html = '<div style="background: #fff; border-radius: 8px; padding: 20px;">';
     html += '<h3 style="margin-bottom: 15px; color: #dc3545;"><i class="fas fa-exclamation-circle"></i> 중복 데이터 발견!</h3>';
-    
+
     let totalDuplicates = 0;
-    
+
     Object.entries(results).forEach(([section, result]) => {
         totalDuplicates += result.totalDuplicates;
-        
+
         html += `
             <div style="margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 5px; border-left: 4px solid #dc3545;">
                 <h4 style="margin: 0 0 10px 0; color: #dc3545;">
@@ -303,39 +303,39 @@ function displayDuplicateResults(results) {
             </div>
         `;
     });
-    
+
     html += `
         <div style="margin-top: 20px; padding: 15px; background: #fff3cd; border-radius: 5px; border: 1px solid #ffc107;">
             <strong>총 삭제 예정:</strong> <span style="font-size: 20px; color: #dc3545;">${totalDuplicates}개</span>
         </div>
-        
+
         <div style="margin-top: 20px; text-align: right;">
             <button class="btn-danger" onclick="confirmAndRemoveDuplicates(${JSON.stringify(results).replace(/"/g, '&quot;')})">
                 <i class="fas fa-trash-alt"></i> 중복 데이터 삭제
             </button>
         </div>
     `;
-    
+
     html += '</div>';
-    
+
     resultDiv.innerHTML = html;
 }
 
 // 중복 제거 확인 및 실행
 async function confirmAndRemoveDuplicates(results) {
     const totalDuplicates = Object.values(results).reduce((sum, r) => sum + r.totalDuplicates, 0);
-    
+
     const confirmation = prompt(
         `⚠️ 경고: ${totalDuplicates}개의 중복 데이터를 삭제합니다.\n\n` +
         `이 작업은 되돌릴 수 없습니다!\n\n` +
         `계속하려면 "삭제확인"을 입력하세요:`
     );
-    
+
     if (confirmation !== '삭제확인') {
         alert('취소되었습니다.');
         return;
     }
-    
+
     // 진행 상황 표시
     const resultDiv = document.getElementById('duplicateCheckResult');
     resultDiv.innerHTML = `
@@ -345,39 +345,39 @@ async function confirmAndRemoveDuplicates(results) {
             <p id="deleteProgress" style="margin-top: 10px; font-size: 16px;">준비 중...</p>
         </div>
     `;
-    
+
     let totalDeleted = 0;
     let totalFailed = 0;
     const deleteResults = {};
-    
+
     for (const [section, result] of Object.entries(results)) {
         const tableName = TABLE_MAP[section];
         const progressText = document.getElementById('deleteProgress');
-        
+
         if (progressText) {
             progressText.textContent = `${SECTION_NAMES[section]} 처리 중... (${totalDeleted}개 삭제됨)`;
         }
-        
+
         let sectionDeleted = 0;
         let sectionFailed = 0;
-        
+
         // 각 중복 그룹의 삭제 대상 레코드들 처리 (배치 단위)
         const allDeleteRecords = [];
         for (const group of result.duplicateGroups) {
             allDeleteRecords.push(...group.deleteRecords);
         }
-        
+
         // 배치 처리 (10개씩)
         const batchSize = 10;
         for (let i = 0; i < allDeleteRecords.length; i += batchSize) {
             const batch = allDeleteRecords.slice(i, i + batchSize);
-            
+
             const batchResults = await Promise.allSettled(
-                batch.map(record => 
+                batch.map(record =>
                     deleteWithRetry(`tables/${tableName}/${record.id}`, 3)
                 )
             );
-            
+
             batchResults.forEach((result, idx) => {
                 if (result.status === 'fulfilled' && result.value === true) {
                     sectionDeleted++;
@@ -388,24 +388,24 @@ async function confirmAndRemoveDuplicates(results) {
                     console.error(`삭제 실패 (${section}):`, batch[idx].id, result.reason);
                 }
             });
-            
+
             // 진행 상황 업데이트
             if (progressText) {
                 progressText.textContent = `${SECTION_NAMES[section]} 처리 중... (${totalDeleted}/${totalDuplicates}개 삭제됨)`;
             }
-            
+
             // 다음 배치 전 짧은 대기
             if (i + batchSize < allDeleteRecords.length) {
                 await new Promise(resolve => setTimeout(resolve, 300));
             }
         }
-        
+
         deleteResults[section] = {
             deleted: sectionDeleted,
             failed: sectionFailed
         };
     }
-    
+
     // 완료 메시지
     let summaryHtml = `
         <div style="padding: 20px; background: #d4edda; border: 1px solid #c3e6cb; border-radius: 8px;">
@@ -416,25 +416,25 @@ async function confirmAndRemoveDuplicates(results) {
                 <div>✅ 삭제 성공: <strong>${totalDeleted}개</strong></div>
                 ${totalFailed > 0 ? `<div style="color: #dc3545;">❌ 삭제 실패: <strong>${totalFailed}개</strong></div>` : ''}
             </div>
-            
+
             <details style="margin-top: 15px;">
                 <summary style="cursor: pointer; color: #155724; font-weight: bold;">섹션별 상세 결과</summary>
                 <div style="margin-top: 10px; padding: 10px; background: white; border-radius: 5px;">
     `;
-    
+
     Object.entries(deleteResults).forEach(([section, counts]) => {
         summaryHtml += `
             <div style="margin-bottom: 10px; padding: 8px; background: #f8f9fa; border-radius: 4px;">
-                <strong>${SECTION_NAMES[section]}:</strong> 
+                <strong>${SECTION_NAMES[section]}:</strong>
                 ${counts.deleted}개 삭제${counts.failed > 0 ? `, ${counts.failed}개 실패` : ''}
             </div>
         `;
     });
-    
+
     summaryHtml += `
                 </div>
             </details>
-            
+
             <div style="margin-top: 20px; text-align: center;">
                 <button class="btn-primary" onclick="location.reload()">
                     <i class="fas fa-sync"></i> 페이지 새로고침
@@ -442,6 +442,6 @@ async function confirmAndRemoveDuplicates(results) {
             </div>
         </div>
     `;
-    
+
     resultDiv.innerHTML = summaryHtml;
 }

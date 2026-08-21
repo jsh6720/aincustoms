@@ -9,15 +9,15 @@ function formatDate(dateValue) {
     if (!dateValue || dateValue === '-' || dateValue === '') {
         return '-';
     }
-    
+
     try {
         let date;
-        
+
         // 이미 YYYY-MM-DD 형식이면 그대로 반환
         if (typeof dateValue === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
             return dateValue;
         }
-        
+
         // ISO 문자열 (2012-06-17T15:00:00.000Z 형식)
         if (typeof dateValue === 'string' && dateValue.includes('T')) {
             date = new Date(dateValue);
@@ -34,19 +34,19 @@ function formatDate(dateValue) {
         else {
             date = new Date(dateValue);
         }
-        
+
         // Invalid Date 체크
         if (isNaN(date.getTime())) {
             return dateValue; // 원본 반환
         }
-        
+
         // YYYY-MM-DD 형식으로 반환
         const year = date.getFullYear();
         const month = String(date.getMonth() + 1).padStart(2, '0');
         const day = String(date.getDate()).padStart(2, '0');
-        
+
         return `${year}-${month}-${day}`;
-        
+
     } catch (error) {
         console.warn('[Date Formatter] 날짜 파싱 실패:', dateValue, error);
         return dateValue; // 오류 시 원본 반환
@@ -62,10 +62,10 @@ function formatDateTime(dateValue) {
     if (!dateValue || dateValue === '-' || dateValue === '') {
         return '-';
     }
-    
+
     try {
         let date;
-        
+
         // ISO 문자열
         if (typeof dateValue === 'string' && dateValue.includes('T')) {
             date = new Date(dateValue);
@@ -82,12 +82,12 @@ function formatDateTime(dateValue) {
         else {
             date = new Date(dateValue);
         }
-        
+
         // Invalid Date 체크
         if (isNaN(date.getTime())) {
             return dateValue;
         }
-        
+
         // 한국어 로케일로 날짜/시간 포맷팅
         return date.toLocaleString('ko-KR', {
             year: 'numeric',
@@ -97,7 +97,7 @@ function formatDateTime(dateValue) {
             minute: '2-digit',
             second: '2-digit'
         });
-        
+
     } catch (error) {
         console.warn('[Date Formatter] 날짜/시간 파싱 실패:', dateValue, error);
         return dateValue;
@@ -120,8 +120,8 @@ function isDateField(fieldName) {
         'date',
         // 추가 날짜 필드가 있으면 여기에 추가
     ];
-    
-    return dateFields.includes(fieldName) || 
+
+    return dateFields.includes(fieldName) ||
            fieldName.toLowerCase().includes('date') ||
            fieldName.toLowerCase().includes('날짜') ||
            fieldName.toLowerCase().includes('일자');
@@ -136,15 +136,15 @@ function formatObjectDates(obj) {
     if (!obj || typeof obj !== 'object') {
         return obj;
     }
-    
+
     const formatted = { ...obj };
-    
+
     for (const key in formatted) {
         if (isDateField(key)) {
             formatted[key] = formatDate(formatted[key]);
         }
     }
-    
+
     return formatted;
 }
 

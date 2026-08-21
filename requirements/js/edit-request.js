@@ -4,12 +4,12 @@
 async function submitEditRequest(tableName, recordId, originalData, newData) {
     try {
         const { username, role, company_name } = currentUser;
-        
+
         // master는 직접 수정
         if (role === 'master') {
             return await updateRecordDirectly(tableName, recordId, newData);
         }
-        
+
         // 일반 사용자는 수정 요청 생성
         const requestData = {
             table_name: tableName,
@@ -21,18 +21,18 @@ async function submitEditRequest(tableName, recordId, originalData, newData) {
             status: 'pending',
             request_date: new Date().getTime()
         };
-        
+
         console.log('[Edit Request] 수정 요청 생성:', requestData);
-        
+
         const result = await GoogleSheetsAPI.addData('edit_requests', requestData, username);
-        
+
         if (result.success) {
             alert('수정 요청이 제출되었습니다. 관리자 승인 후 반영됩니다.');
             return { success: true };
         } else {
             throw new Error(result.error || '수정 요청 제출 실패');
         }
-        
+
     } catch (error) {
         console.error('[Edit Request] 요청 실패:', error);
         alert('수정 요청 제출 중 오류가 발생했습니다: ' + error.message);
@@ -44,7 +44,7 @@ async function submitEditRequest(tableName, recordId, originalData, newData) {
 async function updateRecordDirectly(tableName, recordId, newData) {
     try {
         const { username, role, company_name } = currentUser;
-        
+
         const response = await fetch(`tables/${tableName}/${recordId}`, {
             method: 'PUT',
             headers: {
@@ -52,14 +52,14 @@ async function updateRecordDirectly(tableName, recordId, newData) {
             },
             body: JSON.stringify(newData)
         });
-        
+
         if (response.ok) {
             alert('수정되었습니다.');
             return { success: true };
         } else {
             throw new Error('수정 실패');
         }
-        
+
     } catch (error) {
         console.error('[Edit] 직접 수정 실패:', error);
         alert('수정 중 오류가 발생했습니다: ' + error.message);
@@ -71,13 +71,13 @@ async function updateRecordDirectly(tableName, recordId, newData) {
 async function loadEditRequests() {
     try {
         const tbody = document.getElementById('editRequestsTableBody');
-        
+
         // 섹션이 없으면 종료 (다른 페이지에서 호출된 경우)
         if (!tbody) {
             console.log('[Edit Requests] 수정 요청 관리 섹션이 없습니다.');
             return;
         }
-        
+
         if (!isMasterUser()) {
             tbody.innerHTML = `
                 <tr>
@@ -89,24 +89,24 @@ async function loadEditRequests() {
             `;
             return;
         }
-        
+
         const { username, role, company_name } = currentUser;
-        
+
         const response = await fetch(`tables/edit_requests?limit=1000`);
         if (!response.ok) {
             throw new Error('수정 요청 목록 로드 실패');
         }
-        
+
         const result = await response.json();
         const requests = result.data || [];
-        
+
         console.log('[Edit Requests] 로드:', requests.length + '건');
-        
+
         // pending 상태만 필터링
         const pendingRequests = requests.filter(req => req.status === 'pending');
-        
+
         displayEditRequests(pendingRequests);
-        
+
     } catch (error) {
         console.error('[Edit Requests] 로드 오류:', error);
         document.getElementById('editRequestsTableBody').innerHTML = `
@@ -122,13 +122,13 @@ async function loadEditRequests() {
 // 수정 요청 표시
 function displayEditRequests(requests) {
     const tbody = document.getElementById('editRequestsTableBody');
-    
+
     // tbody가 없으면 종료 (다른 페이지에서 호출된 경우)
     if (!tbody) {
         console.log('[Edit Requests] editRequestsTableBody를 찾을 수 없습니다.');
         return;
     }
-    
+
     if (requests.length === 0) {
         tbody.innerHTML = `
             <tr>
@@ -140,21 +140,21 @@ function displayEditRequests(requests) {
         `;
         return;
     }
-    
+
     tbody.innerHTML = requests.map(req => {
         const requestDate = new Date(req.request_date || req.created_at);
         const originalData = JSON.parse(req.original_data || '{}');
         const requestedData = JSON.parse(req.requested_data || '{}');
-        
+
         // 변경된 필드 찾기
         const changedFields = [];
         for (const key in requestedData) {
-            if (requestedData[key] !== originalData[key] && 
+            if (requestedData[key] !== originalData[key] &&
                 key !== 'id' && key !== 'created_at' && key !== 'updated_at') {
                 changedFields.push(key);
             }
         }
-        
+
         return `
             <tr>
                 <td>${requestDate.toLocaleString('ko-KR')}</td>
@@ -201,17 +201,17 @@ async function viewEditRequestDetails(requestId) {
         if (!response.ok) {
             throw new Error('수정 요청 조회 실패');
         }
-        
+
         const request = await response.json();
         const originalData = JSON.parse(request.original_data || '{}');
         const requestedData = JSON.parse(request.requested_data || '{}');
-        
+
         // 변경사항 비교
         let changesHTML = '<table style="width: 100%; border-collapse: collapse;">';
         changesHTML += '<tr style="background: #f8f9fa;"><th style="padding: 10px; border: 1px solid #ddd;">필드</th><th style="padding: 10px; border: 1px solid #ddd;">변경 전</th><th style="padding: 10px; border: 1px solid #ddd;">변경 후</th></tr>';
-        
+
         for (const key in requestedData) {
-            if (requestedData[key] !== originalData[key] && 
+            if (requestedData[key] !== originalData[key] &&
                 key !== 'id' && key !== 'created_at' && key !== 'updated_at') {
                 changesHTML += `
                     <tr>
@@ -223,7 +223,7 @@ async function viewEditRequestDetails(requestId) {
             }
         }
         changesHTML += '</table>';
-        
+
         const modalContent = `
             <h3 style="margin-bottom: 20px;">수정 요청 상세</h3>
             <p><strong>요청자:</strong> ${request.requester_username} (${request.requester_company})</p>
@@ -233,10 +233,10 @@ async function viewEditRequestDetails(requestId) {
             <h4 style="margin-bottom: 10px;">변경 내용</h4>
             ${changesHTML}
         `;
-        
+
         document.getElementById('modalContent').innerHTML = modalContent;
         document.getElementById('editModal').style.display = 'block';
-        
+
     } catch (error) {
         console.error('[Edit Request] 상세보기 오류:', error);
         alert('수정 요청 조회 중 오류가 발생했습니다: ' + error.message);
@@ -248,19 +248,19 @@ async function approveEditRequest(requestId) {
     if (!confirm('이 수정 요청을 승인하시겠습니까?')) {
         return;
     }
-    
+
     try {
         const { username } = currentUser;
-        
+
         // 수정 요청 조회
         const response = await fetch(`tables/edit_requests/${requestId}`);
         if (!response.ok) {
             throw new Error('수정 요청 조회 실패');
         }
-        
+
         const request = await response.json();
         const requestedData = JSON.parse(request.requested_data || '{}');
-        
+
         // 실제 데이터 수정
         const updateResponse = await fetch(`tables/${request.table_name}/${request.record_id}`, {
             method: 'PUT',
@@ -269,21 +269,21 @@ async function approveEditRequest(requestId) {
             },
             body: JSON.stringify(requestedData)
         });
-        
+
         if (!updateResponse.ok) {
             throw new Error('데이터 수정 실패');
         }
-        
+
         // 요청 상태를 'approved'로 변경
         await GoogleSheetsAPI.updateData('edit_requests', requestId, {
             status: 'approved',
             approved_by: username,
             approved_date: new Date().getTime()
         }, username, 'master', '관리자');
-        
+
         alert('수정 요청이 승인되었습니다.');
         loadEditRequests();
-        
+
     } catch (error) {
         console.error('[Edit Request] 승인 오류:', error);
         alert('수정 요청 승인 중 오류가 발생했습니다: ' + error.message);
@@ -296,10 +296,10 @@ async function rejectEditRequest(requestId) {
     if (!reason) {
         return;
     }
-    
+
     try {
         const { username } = currentUser;
-        
+
         // 요청 상태를 'rejected'로 변경
         await GoogleSheetsAPI.updateData('edit_requests', requestId, {
             status: 'rejected',
@@ -307,10 +307,10 @@ async function rejectEditRequest(requestId) {
             rejected_date: new Date().getTime(),
             rejection_reason: reason
         }, username, 'master', '관리자');
-        
+
         alert('수정 요청이 거부되었습니다.');
         loadEditRequests();
-        
+
     } catch (error) {
         console.error('[Edit Request] 거부 오류:', error);
         alert('수정 요청 거부 중 오류가 발생했습니다: ' + error.message);

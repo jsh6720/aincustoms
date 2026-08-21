@@ -94,14 +94,14 @@
                     <div class="section-header">
                         <h2><i class="fas fa-search"></i> 규격정제 통합 조회</h2>
                     </div>
-                    
+
                     <div class="unified-search-section">
                         <div class="search-bar unified-search">
                             <input type="text" id="unifiedSearch" placeholder="규격정제(모델규격), 인증번호(전파법/전안법)를 입력하세요...">
                             <button onclick="performUnifiedSearch()"><i class="fas fa-search"></i> 조회</button>
                         </div>
                         <div id="unifiedSearchResult" class="unified-result"></div>
-                        
+
                         <!-- 법령별 물품 설명 -->
                         <div class="law-guide-section">
                             <h3><i class="fas fa-info-circle"></i> 법령별 대상 물품 안내</h3>
@@ -163,7 +163,7 @@
                             </button>
                         </div>
                     </div>
-                    
+
                     <div class="stats-grid">
                         <div class="stat-card clickable" onclick="navigateToDashboardSection('chemicalSection')" title="클릭하여 화학물질확인 섹션으로 이동">
                             <i class="fas fa-flask"></i>
@@ -517,7 +517,7 @@
                             </button>
                         </div>
                     </div>
-                    
+
                     <!-- 업체별 다운로드 버튼 (마스터 전용) -->
                     <div class="company-download-section btn-master-only">
                         <button class="btn-company-download" onclick="showCompanyDownloadDialog()">
@@ -525,7 +525,7 @@
                         </button>
                         <p class="download-help-text">업체별로 화관법/화평법/전파법/전안법 검토 필요 항목을 별도 시트로 구분하여 다운로드합니다.</p>
                     </div>
-                    
+
                     <!-- 필터 버튼 -->
                     <div class="filter-buttons">
                         <button class="btn-filter active" onclick="filterReviewNeeded('all')">
@@ -544,7 +544,7 @@
                             <i class="fas fa-plug"></i> 전안법 검토 필요
                         </button>
                     </div>
-                    
+
                     <div class="search-bar">
                         <input type="text" id="reviewNeededSearch" placeholder="규격정제, Description, 수입자상호로 검색...">
                         <button onclick="searchReviewNeeded()"><i class="fas fa-search"></i> 검색</button>
@@ -592,12 +592,12 @@
                             </button>
                         </div>
                     </div>
-                    
+
                     <div class="info-box" style="margin-bottom: 20px; padding: 15px; background: #e7f3ff; border-left: 4px solid #2196F3; border-radius: 4px;">
                         <i class="fas fa-info-circle" style="color: #2196F3;"></i>
                         <strong>안내:</strong> 일반 사용자가 데이터 수정을 요청하면 이곳에 표시됩니다. 승인 시 실제 데이터에 반영되며, 거부 시 요청이 취소됩니다.
                     </div>
-                    
+
                     <div class="table-container">
                         <table>
                             <thead>
@@ -642,7 +642,7 @@
                     <!-- 수동 입력 -->
                     <div id="manualInputTab" class="tab-pane active">
                         <p class="help-text">
-                            <i class="fas fa-edit"></i> 
+                            <i class="fas fa-edit"></i>
                             각 필드를 직접 입력하세요.
                         </p>
                         <form id="manualInputForm" class="manual-form"></form>
@@ -650,14 +650,14 @@
                             <i class="fas fa-save"></i> 저장
                         </button>
                     </div>
-                    
+
                     <!-- 표 형식 입력 -->
                     <div id="tableInputTab" class="tab-pane">
                         <p class="help-text">
-                            <i class="fas fa-info-circle"></i> 
+                            <i class="fas fa-info-circle"></i>
                             Excel이나 Google Sheets에서 표를 복사하여 붙여넣으세요. (헤더 포함, 탭으로 자동 구분)
                         </p>
-                        
+
                         <!-- AI 정리 프롬프트 -->
                         <div id="aiPromptBox" class="ai-prompt-box">
                             <div class="ai-prompt-header">
@@ -671,7 +671,7 @@
                                 <!-- 동적으로 생성됨 -->
                             </div>
                         </div>
-                        
+
                         <textarea id="tableInput" rows="15" placeholder="Excel에서 표를 복사하여 붙여넣으세요...
 
 ✅ 헤더 포함 가능 (자동 인식):
@@ -731,7 +731,7 @@
 
     <!-- SheetJS 라이브러리 (Excel 파일 처리) -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-    
+
     <!-- Google Sheets API 통합 (가장 먼저 로드) -->
     <!-- 캐시 무효화: v6.0.0 (토큰 인증 및 DB 새로고침) -->
     <script src="js/runtime-config.js"></script>

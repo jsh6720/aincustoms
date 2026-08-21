@@ -14,7 +14,7 @@ function sanitizeSessionUser(user) {
 // 회사명 정규화 함수 (주식회사, (주) 제거)
 function normalizeCompanyName(companyName) {
     if (!companyName) return '';
-    
+
     return companyName
         .replace(/\s*주식회사\s*/g, '')  // "주식회사" 제거
         .replace(/\s*\(주\)\s*/g, '')    // "(주)" 제거
@@ -27,7 +27,7 @@ async function login(username, password) {
     try {
         // Google Sheets API로 로그인
         const result = await GoogleSheetsAPI.login(username, password);
-        
+
         if (result.success) {
             // 로그인 성공
             GoogleSheetsAPI.clearAllCache();
@@ -100,11 +100,11 @@ function isYounginSN() {
 function canAccessData(dataOwner) {
     if (!currentUser) return false;
     if (isMasterUser()) return true; // 마스터는 모든 데이터 접근 가능
-    
+
     // 회사명 정규화하여 비교
     const normalizedDataOwner = normalizeCompanyName(dataOwner);
     const normalizedUserCompany = normalizeCompanyName(currentUser.company_name);
-    
+
     // 영인에스엔 계정은 8개 업체 데이터 모두 접근 가능
     if (isYounginSN()) {
         // 영인에스엔 관련 회사 목록도 정규화하여 비교
@@ -113,9 +113,9 @@ function canAccessData(dataOwner) {
             return true;
         }
     }
-    
+
     // 일반 사용자는 자신의 회사 데이터만 접근 (정규화된 이름으로 비교)
-    return normalizedDataOwner === normalizedUserCompany || 
+    return normalizedDataOwner === normalizedUserCompany ||
            dataOwner === currentUser.username;
 }
 
@@ -124,7 +124,7 @@ function showScreen(screenName) {
     document.querySelectorAll('.screen').forEach(screen => {
         screen.classList.remove('active');
     });
-    
+
     if (screenName === 'login') {
         document.getElementById('loginScreen').classList.add('active');
     } else if (screenName === 'dashboard') {
@@ -139,9 +139,9 @@ function showScreen(screenName) {
 function updateUIPermissions() {
     const isMaster = currentUser && currentUser.role === 'master';
     const masterOnlyElements = document.querySelectorAll('.btn-master-only');
-    
+
     console.log('[Auth] UI 권한 업데이트:', { isMaster, elementsCount: masterOnlyElements.length });
-    
+
     masterOnlyElements.forEach(el => {
         if (isMaster) {
             el.style.display = ''; // 관리자: 표시 (기본값 복원)
@@ -157,7 +157,7 @@ function updateUserInfo() {
         const userInfoEl = document.getElementById('userInfo');
         const roleText = currentUser.role === 'master' ? '관리자' : '일반 사용자';
         userInfoEl.textContent = `${currentUser.company_name} (${roleText})`;
-        
+
         // 마스터 전용 요소 표시/숨김 (body 클래스로 제어)
         if (currentUser.role === 'master') {
             document.body.classList.add('master-user');
@@ -170,14 +170,14 @@ function updateUserInfo() {
 // 로그인 폼 이벤트 리스너
 document.getElementById('loginForm')?.addEventListener('submit', async (e) => {
     e.preventDefault();
-    
+
     const username = document.getElementById('username').value;
     const password = document.getElementById('password').value;
     const errorEl = document.getElementById('loginError');
-    
+
     // 로그인 시도
     const result = await login(username, password);
-    
+
     if (result.success) {
         // 로그인 성공
         errorEl.classList.remove('show');
