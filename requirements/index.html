@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AIN 수입요건 관리 시스템</title>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/unified-search.css">
+    <link rel="stylesheet" href="css/review-needed.css">
+</head>
+<body>
+    <!-- 로그인 화면 -->
+    <div id="loginScreen" class="screen active">
+        <div class="login-container">
+            <div class="login-box">
+                <div class="login-header">
+                    <i class="fas fa-file-import"></i>
+                    <h1>AIN 수입요건 관리</h1>
+                    <p>AIN Import Requirements Management System</p>
+                </div>
+                <form id="loginForm">
+                    <div class="form-group">
+                        <label for="username"><i class="fas fa-user"></i> 아이디</label>
+                        <input type="text" id="username" name="username" required autocomplete="username">
+                    </div>
+                    <div class="form-group">
+                        <label for="password"><i class="fas fa-lock"></i> 비밀번호</label>
+                        <input type="password" id="password" name="password" required autocomplete="current-password">
+                    </div>
+                    <button type="submit" class="btn-primary">
+                        <i class="fas fa-sign-in-alt"></i> 로그인
+                    </button>
+                    <div id="loginError" class="error-message"></div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- 메인 대시보드 -->
+    <div id="dashboardScreen" class="screen">
+        <nav class="navbar">
+            <div class="nav-left">
+                <i class="fas fa-file-import"></i>
+                <span class="nav-title">AIN 수입요건 관리</span>
+            </div>
+            <div class="nav-right">
+                <button id="databaseRefreshBtn" class="btn-logout"><i class="fas fa-sync-alt"></i> DB 기준 새로고침</button>
+                <span id="userInfo" class="user-info"></span>
+                <button id="logoutBtn" class="btn-logout"><i class="fas fa-sign-out-alt"></i> 로그아웃</button>
+            </div>
+        </nav>
+
+        <div class="main-container">
+            <aside class="sidebar">
+                <ul class="menu">
+                    <li class="menu-item active" data-section="unified">
+                        <i class="fas fa-search"></i> 통합조회
+                    </li>
+                    <li class="menu-item" data-section="overview">
+                        <i class="fas fa-chart-bar"></i> 대시보드
+                    </li>
+                    <li class="menu-item" data-section="chemical">
+                        <i class="fas fa-flask"></i> 화학물질확인
+                    </li>
+                    <li class="menu-item" data-section="msds">
+                        <i class="fas fa-file-medical"></i> MSDS 등록/신고
+                    </li>
+                    <li class="menu-item" data-section="radio">
+                        <i class="fas fa-broadcast-tower"></i> 전파법
+                    </li>
+                    <li class="menu-item" data-section="electrical">
+                        <i class="fas fa-plug"></i> 전안법
+                    </li>
+                    <li class="menu-item" data-section="medical">
+                        <i class="fas fa-notes-medical"></i> 의료기기/원안법 등
+                    </li>
+                    <li class="menu-item" data-section="non_target">
+                        <i class="fas fa-times-circle"></i> 비대상
+                    </li>
+                    <li class="menu-item" data-section="review_needed">
+                        <i class="fas fa-exclamation-triangle"></i> 확인 필요 List
+                    </li>
+                    <li class="menu-item btn-master-only" data-section="editRequests">
+                        <i class="fas fa-clipboard-check"></i> 수정 요청 관리
+                    </li>
+                </ul>
+            </aside>
+
+            <main class="content">
+                <!-- 통합조회 섹션 -->
+                <section id="unifiedSection" class="content-section active">
+                    <div class="section-header">
+                        <h2><i class="fas fa-search"></i> 규격정제 통합 조회</h2>
+                    </div>
+
+                    <div class="unified-search-section">
+                        <div class="search-bar unified-search">
+                            <input type="text" id="unifiedSearch" placeholder="규격정제(모델규격), 인증번호(전파법/전안법)를 입력하세요...">
+                            <button onclick="performUnifiedSearch()"><i class="fas fa-search"></i> 조회</button>
+                        </div>
+                        <div id="unifiedSearchResult" class="unified-result"></div>
+
+                        <!-- 법령별 물품 설명 -->
+                        <div class="law-guide-section">
+                            <h3><i class="fas fa-info-circle"></i> 법령별 대상 물품 안내</h3>
+                            <div class="law-guide-grid">
+                                <div class="law-guide-item">
+                                    <div class="law-guide-title">
+                                        <i class="fas fa-broadcast-tower"></i> 전파법
+                                    </div>
+                                    <div class="law-guide-content">
+                                        • 유무선 통신 기능이 있는 기기 or<br>
+                                        • USB, LAN 등 포트가 있는 기기 or<br>
+                                        • 전동기가 내장되어 전자기 발생기기 등 전파 발생/영향 물품
+                                    </div>
+                                </div>
+                                <div class="law-guide-item">
+                                    <div class="law-guide-title">
+                                        <i class="fas fa-plug"></i> 전안법
+                                    </div>
+                                    <div class="law-guide-content">
+                                        파워코드, 파워서플라이, 배터리, 노트북 등 전원장치 및 폭발/화재 우려 물품
+                                    </div>
+                                </div>
+                                <div class="law-guide-item">
+                                    <div class="law-guide-title">
+                                        <i class="fas fa-flask"></i> 화학물질관리법/화학물질평가법
+                                    </div>
+                                    <div class="law-guide-content">
+                                        화학물질 포함한 물품 (시약, 카트리지 등)
+                                    </div>
+                                </div>
+                                <div class="law-guide-item">
+                                    <div class="law-guide-title">
+                                        <i class="fas fa-radiation"></i> 원안법
+                                    </div>
+                                    <div class="law-guide-content">
+                                        방사선물질 포함 또는 발생장치
+                                    </div>
+                                </div>
+                                <div class="law-guide-item">
+                                    <div class="law-guide-title">
+                                        <i class="fas fa-notes-medical"></i> 의료기기법
+                                    </div>
+                                    <div class="law-guide-content">
+                                        의료(치료, 진단, Medical, Diagnosis)용 기기
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 대시보드 섹션 -->
+                <section id="overviewSection" class="content-section">
+                    <div class="section-header">
+                        <h2><i class="fas fa-chart-bar"></i> 대시보드</h2>
+                        <div class="header-actions btn-master-only">
+                            <button class="btn-danger" onclick="showDuplicateCheckDialog()" title="중복 데이터 체크 및 제거">
+                                <i class="fas fa-copy"></i> 중복 체크
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="stats-grid">
+                        <div class="stat-card clickable" onclick="navigateToDashboardSection('chemicalSection')" title="클릭하여 화학물질확인 섹션으로 이동">
+                            <i class="fas fa-flask"></i>
+                            <h3>화학물질확인</h3>
+                            <p class="stat-number" id="statChemical">0</p>
+                        </div>
+                        <div class="stat-card clickable" onclick="navigateToDashboardSection('msdsSection')" title="클릭하여 MSDS 섹션으로 이동">
+                            <i class="fas fa-file-medical"></i>
+                            <h3>MSDS</h3>
+                            <p class="stat-number" id="statMsds">0</p>
+                        </div>
+                        <div class="stat-card clickable" onclick="navigateToDashboardSection('radioSection')" title="클릭하여 전파법 섹션으로 이동">
+                            <i class="fas fa-broadcast-tower"></i>
+                            <h3>전파법</h3>
+                            <p class="stat-number" id="statRadio">0</p>
+                        </div>
+                        <div class="stat-card clickable" onclick="navigateToDashboardSection('electricalSection')" title="클릭하여 전안법 섹션으로 이동">
+                            <i class="fas fa-plug"></i>
+                            <h3>전안법</h3>
+                            <p class="stat-number" id="statElectrical">0</p>
+                        </div>
+                        <div class="stat-card clickable" onclick="navigateToDashboardSection('medicalSection')" title="클릭하여 의료기기 섹션으로 이동">
+                            <i class="fas fa-notes-medical"></i>
+                            <h3>의료기기/원안법 등</h3>
+                            <p class="stat-number" id="statMedical">0</p>
+                        </div>
+                        <div class="stat-card clickable" onclick="navigateToDashboardSection('nonTargetSection')" title="클릭하여 비대상 섹션으로 이동">
+                            <i class="fas fa-times-circle"></i>
+                            <h3>비대상</h3>
+                            <p class="stat-number" id="statNonTarget">0</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 화학물질확인 섹션 -->
+                <section id="chemicalSection" class="content-section">
+                    <div class="section-header">
+                        <h2><i class="fas fa-flask"></i> 화학물질확인 관리</h2>
+                        <div class="header-actions">
+                            <button class="btn-secondary" onclick="showFileUploadDialog('chemical')">
+                                <i class="fas fa-upload"></i> 파일 업로드
+                            </button>
+                            <button class="btn-secondary btn-master-only" onclick="showDownloadDialog('chemical')">
+                                <i class="fas fa-download"></i> 다운로드
+                            </button>
+                            <button class="btn-danger btn-master-only btn-delete-all" onclick="deleteAllData('chemical')">
+                                <i class="fas fa-trash-alt"></i> 전체 삭제
+                            </button>
+                            <button class="btn-danger btn-delete-selected btn-master-only" id="chemicalDeleteSelected" onclick="deleteSelectedRows('chemical')">
+                                <i class="fas fa-trash"></i> 선택 삭제 <span class="selection-counter" id="chemicalSelectionCount">0</span>
+                            </button>
+                            <button class="btn-primary" onclick="showInputModal('chemical')">
+                                <i class="fas fa-plus"></i> 데이터 추가
+                            </button>
+                        </div>
+                    </div>
+                    <div class="search-bar">
+                        <input type="text" id="chemicalSearch" placeholder="규격정제, 제품명, 모델명으로 검색...">
+                        <button onclick="searchData('chemical')"><i class="fas fa-search"></i> 검색</button>
+                    </div>
+                    <div class="table-container">
+                        <table id="chemicalTable">
+                            <thead>
+                                <tr>
+                                    <th class="checkbox-cell">
+                                        <input type="checkbox" class="select-all-checkbox" id="chemicalSelectAll" onchange="toggleSelectAll('chemical')">
+                                    </th>
+                                    <th>규격정제</th>
+                                    <th>접수일자</th>
+                                    <th>접수번호</th>
+                                    <th>상태</th>
+                                    <th>상호</th>
+                                    <th>제품명</th>
+                                    <th>모델·규격</th>
+                                    <th>수입국</th>
+                                    <th>HSK No</th>
+                                    <th>작업</th>
+                                </tr>
+                            </thead>
+                            <tbody id="chemicalTableBody"></tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- MSDS 섹션 -->
+                <section id="msdsSection" class="content-section">
+                    <div class="section-header">
+                        <h2><i class="fas fa-file-medical"></i> MSDS 관리</h2>
+                        <div class="header-actions">
+                            <button class="btn-secondary" onclick="showFileUploadDialog('msds')">
+                                <i class="fas fa-upload"></i> 파일 업로드
+                            </button>
+                            <button class="btn-secondary btn-master-only" onclick="showDownloadDialog('msds')">
+                                <i class="fas fa-download"></i> 다운로드
+                            </button>
+                            <button class="btn-danger btn-master-only btn-delete-all" onclick="deleteAllData('msds')">
+                                <i class="fas fa-trash-alt"></i> 전체 삭제
+                            </button>
+                            <button class="btn-danger btn-delete-selected btn-master-only" id="msdsDeleteSelected" onclick="deleteSelectedRows('msds')">
+                                <i class="fas fa-trash"></i> 선택 삭제 <span class="selection-counter" id="msdsSelectionCount">0</span>
+                            </button>
+                            <button class="btn-primary" onclick="showInputModal('msds')">
+                                <i class="fas fa-plus"></i> 데이터 추가
+                            </button>
+                        </div>
+                    </div>
+                    <div class="search-bar">
+                        <input type="text" id="msdsSearch" placeholder="규격정제, 물질명으로 검색...">
+                        <button onclick="searchData('msds')"><i class="fas fa-search"></i> 검색</button>
+                    </div>
+                    <div class="table-container">
+                        <table id="msdsTable">
+                            <thead>
+                                <tr>
+                                    <th class="checkbox-cell">
+                                        <input type="checkbox" class="select-all-checkbox" id="msdsSelectAll" onchange="toggleSelectAll('msds')">
+                                    </th>
+                                    <th>수입자</th>
+                                    <th>규격정제</th>
+                                    <th>내부관리 No</th>
+                                    <th>물질</th>
+                                    <th>비중</th>
+                                    <th>기존/신규(Cas)</th>
+                                    <th>유해</th>
+                                    <th>비고</th>
+                                    <th>혼합/단일</th>
+                                    <th>작업</th>
+                                </tr>
+                            </thead>
+                            <tbody id="msdsTableBody"></tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- 전파법 섹션 -->
+                <section id="radioSection" class="content-section">
+                    <div class="section-header">
+                        <h2><i class="fas fa-broadcast-tower"></i> 전파법 관리</h2>
+                        <div class="header-actions">
+                            <button class="btn-secondary" onclick="showFileUploadDialog('radio')">
+                                <i class="fas fa-upload"></i> 파일 업로드
+                            </button>
+                            <button class="btn-secondary btn-master-only" onclick="showDownloadDialog('radio')">
+                                <i class="fas fa-download"></i> 다운로드
+                            </button>
+                            <button class="btn-danger btn-master-only btn-delete-all" onclick="deleteAllData('radio')">
+                                <i class="fas fa-trash-alt"></i> 전체 삭제
+                            </button>
+                            <button class="btn-danger btn-delete-selected btn-master-only" id="radioDeleteSelected" onclick="deleteSelectedRows('radio')">
+                                <i class="fas fa-trash"></i> 선택 삭제 <span class="selection-counter" id="radioSelectionCount">0</span>
+                            </button>
+                            <button class="btn-primary" onclick="showInputModal('radio')">
+                                <i class="fas fa-plus"></i> 데이터 추가
+                            </button>
+                        </div>
+                    </div>
+                    <div class="search-bar">
+                        <input type="text" id="radioSearch" placeholder="규격정제, 모델명, 제조사, 품목명, 인증번호로 검색...">
+                        <button onclick="searchData('radio')"><i class="fas fa-search"></i> 검색</button>
+                    </div>
+                    <div class="table-container">
+                        <table id="radioTable">
+                            <thead>
+                                <tr>
+                                    <th class="checkbox-cell">
+                                        <input type="checkbox" class="select-all-checkbox" id="radioSelectAll" onchange="toggleSelectAll('radio')">
+                                    </th>
+                                    <th>규격정제</th>
+                                    <th>화주</th>
+                                    <th>모델명</th>
+                                    <th>비고</th>
+                                    <th>제조사</th>
+                                    <th>제조국</th>
+                                    <th>인증번호</th>
+                                    <th>인증일자</th>
+                                    <th>품목명</th>
+                                    <th>파생모델명</th>
+                                    <th>작업</th>
+                                </tr>
+                            </thead>
+                            <tbody id="radioTableBody"></tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- 전안법 섹션 -->
+                <section id="electricalSection" class="content-section">
+                    <div class="section-header">
+                        <h2><i class="fas fa-plug"></i> 전안법 관리</h2>
+                        <div class="header-actions">
+                            <button class="btn-secondary" onclick="showFileUploadDialog('electrical')">
+                                <i class="fas fa-upload"></i> 파일 업로드
+                            </button>
+                            <button class="btn-secondary btn-master-only" onclick="showDownloadDialog('electrical')">
+                                <i class="fas fa-download"></i> 다운로드
+                            </button>
+                            <button class="btn-danger btn-master-only btn-delete-all" onclick="deleteAllData('electrical')">
+                                <i class="fas fa-trash-alt"></i> 전체 삭제
+                            </button>
+                            <button class="btn-danger btn-delete-selected btn-master-only" id="electricalDeleteSelected" onclick="deleteSelectedRows('electrical')">
+                                <i class="fas fa-trash"></i> 선택 삭제 <span class="selection-counter" id="electricalSelectionCount">0</span>
+                            </button>
+                            <button class="btn-primary" onclick="showInputModal('electrical')">
+                                <i class="fas fa-plus"></i> 데이터 추가
+                            </button>
+                        </div>
+                    </div>
+                    <div class="search-bar">
+                        <input type="text" id="electricalSearch" placeholder="규격정제, 모델명, 제조사, 품목명, 인증번호로 검색...">
+                        <button onclick="searchData('electrical')"><i class="fas fa-search"></i> 검색</button>
+                    </div>
+                    <div class="table-container">
+                        <table id="electricalTable">
+                            <thead>
+                                <tr>
+                                    <th class="checkbox-cell">
+                                        <input type="checkbox" class="select-all-checkbox" id="electricalSelectAll" onchange="toggleSelectAll('electrical')">
+                                    </th>
+                                    <th>규격정제</th>
+                                    <th>인증기관</th>
+                                    <th>화주</th>
+                                    <th>모델명</th>
+                                    <th>비고</th>
+                                    <th>제조사</th>
+                                    <th>제조국</th>
+                                    <th>인증번호</th>
+                                    <th>인증일자</th>
+                                    <th>품목명</th>
+                                    <th>파생모델명</th>
+                                    <th>작업</th>
+                                </tr>
+                            </thead>
+                            <tbody id="electricalTableBody"></tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- 의료기기/원안법 등 섹션 -->
+                <section id="medicalSection" class="content-section">
+                    <div class="section-header">
+                        <h2><i class="fas fa-notes-medical"></i> 의료기기/원안법 등</h2>
+                        <div class="header-actions">
+                            <button class="btn-secondary" onclick="showFileUploadDialog('medical')">
+                                <i class="fas fa-upload"></i> 파일 업로드
+                            </button>
+                            <button class="btn-secondary btn-master-only" onclick="showDownloadDialog('medical')">
+                                <i class="fas fa-download"></i> 다운로드
+                            </button>
+                            <button class="btn-danger btn-master-only btn-delete-all" onclick="deleteAllData('medical')">
+                                <i class="fas fa-trash-alt"></i> 전체 삭제
+                            </button>
+                            <button class="btn-danger btn-delete-selected btn-master-only" id="medicalDeleteSelected" onclick="deleteSelectedRows('medical')">
+                                <i class="fas fa-trash"></i> 선택 삭제 <span class="selection-counter" id="medicalSelectionCount">0</span>
+                            </button>
+                            <button class="btn-primary" onclick="showInputModal('medical')">
+                                <i class="fas fa-plus"></i> 데이터 추가
+                            </button>
+                        </div>
+                    </div>
+                    <div class="search-bar">
+                        <input type="text" id="medicalSearch" placeholder="규격정제, 수입자, 모델명, 허가번호로 검색...">
+                        <button onclick="searchData('medical')"><i class="fas fa-search"></i> 검색</button>
+                    </div>
+                    <div class="table-container">
+                        <table id="medicalTable">
+                            <thead>
+                                <tr>
+                                    <th class="checkbox-cell">
+                                        <input type="checkbox" class="select-all-checkbox" id="medicalSelectAll" onchange="toggleSelectAll('medical')">
+                                    </th>
+                                    <th>규격정제</th>
+                                    <th>법령부호</th>
+                                    <th>법령</th>
+                                    <th>수입자</th>
+                                    <th>수출자</th>
+                                    <th>확인 여부</th>
+                                    <th>작업</th>
+                                </tr>
+                            </thead>
+                            <tbody id="medicalTableBody"></tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- 비대상 섹션 -->
+                <section id="non_targetSection" class="content-section">
+                    <div class="section-header">
+                        <h2><i class="fas fa-times-circle"></i> 비대상</h2>
+                        <div class="header-actions">
+                            <button class="btn-secondary" onclick="showFileUploadDialog('non_target')">
+                                <i class="fas fa-upload"></i> 파일 업로드
+                            </button>
+                            <button class="btn-secondary btn-master-only" onclick="showDownloadDialog('non_target')">
+                                <i class="fas fa-download"></i> 다운로드
+                            </button>
+                            <button class="btn-danger btn-master-only btn-delete-all" onclick="deleteAllData('non_target')">
+                                <i class="fas fa-trash-alt"></i> 전체 삭제
+                            </button>
+                            <button class="btn-danger btn-delete-selected btn-master-only" id="non_targetDeleteSelected" onclick="deleteSelectedRows('non_target')">
+                                <i class="fas fa-trash"></i> 선택 삭제 <span class="selection-counter" id="non_targetSelectionCount">0</span>
+                            </button>
+                            <button class="btn-primary" onclick="showInputModal('non_target')">
+                                <i class="fas fa-plus"></i> 데이터 추가
+                            </button>
+                        </div>
+                    </div>
+                    <div class="search-bar">
+                        <input type="text" id="non_targetSearch" placeholder="규격정제, 법령으로 검색...">
+                        <button onclick="searchData('non_target')"><i class="fas fa-search"></i> 검색</button>
+                    </div>
+                    <div class="table-container">
+                        <table id="nonTargetTable">
+                            <thead>
+                                <tr>
+                                    <th class="checkbox-cell">
+                                        <input type="checkbox" class="select-all-checkbox" id="non_targetSelectAll" onchange="toggleSelectAll('non_target')">
+                                    </th>
+                                    <th>규격정제</th>
+                                    <th>법령부호</th>
+                                    <th>법령</th>
+                                    <th>수입자</th>
+                                    <th>수출자</th>
+                                    <th>비대상 사유</th>
+                                    <th>작업</th>
+                                </tr>
+                            </thead>
+                            <tbody id="nonTargetTableBody"></tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- 확인 필요 List 섹션 -->
+                <section id="review_neededSection" class="content-section">
+                    <div class="section-header">
+                        <h2><i class="fas fa-exclamation-triangle"></i> 확인 필요 List</h2>
+                        <div class="header-actions">
+                            <button class="btn-secondary" onclick="showFileUploadDialog('review_needed')">
+                                <i class="fas fa-upload"></i> 파일 업로드
+                            </button>
+                            <button class="btn-secondary btn-master-only" onclick="showDownloadDialog('review_needed')">
+                                <i class="fas fa-download"></i> 다운로드
+                            </button>
+                            <button class="btn-danger btn-master-only btn-delete-all" onclick="deleteAllData('review_needed')">
+                                <i class="fas fa-trash-alt"></i> 전체 삭제
+                            </button>
+                            <button class="btn-danger btn-delete-selected btn-master-only" id="review_neededDeleteSelected" onclick="deleteSelectedRows('review_needed')">
+                                <i class="fas fa-trash"></i> 선택 삭제 <span class="selection-counter" id="review_neededSelectionCount">0</span>
+                            </button>
+                            <button class="btn-primary" onclick="showInputModal('review_needed')">
+                                <i class="fas fa-plus"></i> 데이터 추가
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 업체별 다운로드 버튼 (마스터 전용) -->
+                    <div class="company-download-section btn-master-only">
+                        <button class="btn-company-download" onclick="showCompanyDownloadDialog()">
+                            <i class="fas fa-building"></i> 업체별 검토 필요 현황 다운로드
+                        </button>
+                        <p class="download-help-text">업체별로 화관법/화평법/전파법/전안법 검토 필요 항목을 별도 시트로 구분하여 다운로드합니다.</p>
+                    </div>
+
+                    <!-- 필터 버튼 -->
+                    <div class="filter-buttons">
+                        <button class="btn-filter active" onclick="filterReviewNeeded('all')">
+                            <i class="fas fa-list"></i> 전체보기
+                        </button>
+                        <button class="btn-filter" onclick="filterReviewNeeded('chemical_confirm')">
+                            <i class="fas fa-flask"></i> 화관법 검토 필요
+                        </button>
+                        <button class="btn-filter" onclick="filterReviewNeeded('msds')">
+                            <i class="fas fa-file-medical"></i> 화평법 검토 필요
+                        </button>
+                        <button class="btn-filter" onclick="filterReviewNeeded('radio')">
+                            <i class="fas fa-broadcast-tower"></i> 전파법 검토 필요
+                        </button>
+                        <button class="btn-filter" onclick="filterReviewNeeded('electrical')">
+                            <i class="fas fa-plug"></i> 전안법 검토 필요
+                        </button>
+                    </div>
+
+                    <div class="search-bar">
+                        <input type="text" id="reviewNeededSearch" placeholder="규격정제, Description, 수입자상호로 검색...">
+                        <button onclick="searchReviewNeeded()"><i class="fas fa-search"></i> 검색</button>
+                    </div>
+                    <div class="table-container">
+                        <table id="reviewNeededTable">
+                            <thead>
+                                <tr>
+                                    <th class="checkbox-cell">
+                                        <input type="checkbox" class="select-all-checkbox" id="review_neededSelectAll" onchange="toggleSelectAll('review_needed')">
+                                    </th>
+                                    <th>규격정제</th>
+                                    <th>Description</th>
+                                    <th>단가</th>
+                                    <th>HS code</th>
+                                    <th>수입자상호</th>
+                                    <th>해외공급처</th>
+                                    <th>화학물질대상</th>
+                                    <th>화관법(확인명세)</th>
+                                    <th>화평법(MSDS)</th>
+                                    <th>의료기기/원안법</th>
+                                    <th>전파대상</th>
+                                    <th>전파법인증</th>
+                                    <th>전파비대상</th>
+                                    <th>전안법대상</th>
+                                    <th>전안법인증</th>
+                                    <th>전안비대상</th>
+                                    <th>비고</th>
+                                    <th>조치사항</th>
+                                    <th>작업</th>
+                                </tr>
+                            </thead>
+                            <tbody id="reviewNeededTableBody"></tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- 수정 요청 관리 섹션 (관리자 전용) -->
+                <section id="editRequestsSection" class="content-section btn-master-only">
+                    <div class="section-header">
+                        <h2><i class="fas fa-clipboard-check"></i> 수정 요청 관리</h2>
+                        <div class="header-actions">
+                            <button class="btn-secondary" onclick="loadEditRequests()">
+                                <i class="fas fa-sync-alt"></i> 새로고침
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="info-box" style="margin-bottom: 20px; padding: 15px; background: #e7f3ff; border-left: 4px solid #2196F3; border-radius: 4px;">
+                        <i class="fas fa-info-circle" style="color: #2196F3;"></i>
+                        <strong>안내:</strong> 일반 사용자가 데이터 수정을 요청하면 이곳에 표시됩니다. 승인 시 실제 데이터에 반영되며, 거부 시 요청이 취소됩니다.
+                    </div>
+
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>요청일시</th>
+                                    <th>테이블</th>
+                                    <th>요청자</th>
+                                    <th>회사</th>
+                                    <th>상세</th>
+                                    <th>변경 필드</th>
+                                    <th>작업</th>
+                                </tr>
+                            </thead>
+                            <tbody id="editRequestsTableBody">
+                                <tr>
+                                    <td colspan="7" style="text-align: center; padding: 40px; color: #999;">
+                                        <i class="fas fa-spinner fa-spin" style="font-size: 48px; margin-bottom: 10px; display: block;"></i>
+                                        로딩 중...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <!-- 데이터 입력 모달 -->
+    <div id="inputModal" class="modal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h2 id="modalTitle">데이터 입력</h2>
+                <button class="close-btn" onclick="closeInputModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="input-tabs">
+                    <button class="tab-btn active" data-tab="manual">수동 입력</button>
+                    <button class="tab-btn" data-tab="table">표 입력 (CSV)</button>
+                </div>
+                <div class="tab-content">
+                    <!-- 수동 입력 -->
+                    <div id="manualInputTab" class="tab-pane active">
+                        <p class="help-text">
+                            <i class="fas fa-edit"></i>
+                            각 필드를 직접 입력하세요.
+                        </p>
+                        <form id="manualInputForm" class="manual-form"></form>
+                        <button id="saveManualBtn" class="btn-primary" onclick="saveManualData()">
+                            <i class="fas fa-save"></i> 저장
+                        </button>
+                    </div>
+
+                    <!-- 표 형식 입력 -->
+                    <div id="tableInputTab" class="tab-pane">
+                        <p class="help-text">
+                            <i class="fas fa-info-circle"></i>
+                            Excel이나 Google Sheets에서 표를 복사하여 붙여넣으세요. (헤더 포함, 탭으로 자동 구분)
+                        </p>
+
+                        <!-- AI 정리 프롬프트 -->
+                        <div id="aiPromptBox" class="ai-prompt-box">
+                            <div class="ai-prompt-header">
+                                <i class="fas fa-robot"></i>
+                                <strong>AI에게 데이터 정리 요청</strong>
+                                <button class="btn-copy-prompt" onclick="copyAIPrompt()" title="프롬프트 복사">
+                                    <i class="fas fa-copy"></i>
+                                </button>
+                            </div>
+                            <div class="ai-prompt-content" id="aiPromptContent">
+                                <!-- 동적으로 생성됨 -->
+                            </div>
+                        </div>
+
+                        <textarea id="tableInput" rows="15" placeholder="Excel에서 표를 복사하여 붙여넣으세요...
+
+✅ 헤더 포함 가능 (자동 인식):
+규격정제	접수일자	접수번호	상태	상호
+241-005-0087	2024-02-19	42402150082	승인	영인과학(주)
+
+✅ 헤더 없이도 가능 (열 순서만 맞으면 OK):
+241-005-0087	2024-02-19	42402150082	승인	영인과학(주)
+241-005-0088	2024-02-20	42402150083	승인	영인크로매스(주)"></textarea>
+                        <button class="btn-primary" onclick="saveTableData()">
+                            <i class="fas fa-table"></i> 표 데이터 저장
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 상세보기 모달 -->
+    <div id="detailModal" class="modal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h2 id="detailModalTitle">상세정보</h2>
+                <button class="close-btn" onclick="closeDetailModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="detailContent"></div>
+                <div class="modal-actions">
+                    <button class="btn-secondary" onclick="closeDetailModal()">닫기</button>
+                    <button class="btn-danger" onclick="deleteCurrentRecord()">삭제</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 데이터 수정 모달 -->
+    <div id="editModal" class="modal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h2 id="editModalTitle">데이터 수정</h2>
+                <button class="close-btn" onclick="closeEditModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="editFormContainer"></div>
+                <div class="modal-actions">
+                    <button class="btn-secondary" onclick="closeEditModal()">취소</button>
+                    <button class="btn-primary" onclick="saveEditedData()">
+                        <i class="fas fa-save"></i> 저장
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CSV 업로드를 위한 숨겨진 input -->
+    <input type="file" id="csvFileInput" accept=".csv,.txt" style="display: none;">
+
+    <!-- SheetJS 라이브러리 (Excel 파일 처리) -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+    <!-- Google Sheets API 통합 (가장 먼저 로드) -->
+    <!-- 캐시 무효화: v6.0.0 (토큰 인증 및 DB 새로고침) -->
+    <script src="js/runtime-config.js"></script>
+    <script src="js/google-sheets-api.js?v=6.0.2"></script>
+    <script src="js/date-formatter.js?v=6.0.0"></script>
+    <script src="js/auth.js?v=6.0.2"></script>
+    <script src="js/parser.js?v=6.0.0"></script>
+    <script src="js/file-handler.js?v=6.0.2"></script>
+    <script src="js/unified-search.js?v=6.0.2"></script>
+    <script src="js/review-needed.js?v=6.0.3"></script>
+    <script src="js/selection-delete.js?v=6.0.2"></script>
+    <script src="js/duplicate-checker.js?v=6.0.4"></script>
+    <script src="js/edit-request.js?v=6.0.0"></script>
+    <script src="js/app.js?v=6.0.3"></script>
+</body>
+</html>

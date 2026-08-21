@@ -1,0 +1,125 @@
+/* 확인 필요 리스트 스타일 */
+
+.filter-buttons {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.btn-filter {
+    padding: 10px 20px;
+    background-color: white;
+    color: var(--text-primary);
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-filter:hover {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+    background-color: #eff6ff;
+}
+
+.btn-filter.active {
+    background-color: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+.btn-filter i {
+    font-size: 16px;
+}
+
+/* 업체별 다운로드 섹션 */
+.company-download-section {
+    margin-bottom: 20px;
+    padding: 16px 20px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.btn-company-download {
+    background: var(--secondary-color);
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.btn-company-download:hover {
+    background-color: #334155;
+}
+
+.btn-company-download i {
+    margin-right: 6px;
+    font-size: 14px;
+}
+
+.download-help-text {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 13px;
+    flex: 1;
+}
+
+/* 검토 상태 뱃지 */
+.review-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.review-badge.msds-needed {
+    background-color: #fef3c7;
+    color: #92400e;
+}
+
+.review-badge.new-registration {
+    background-color: #fee2e2;
+    color: #991b1b;
+}
+
+.review-badge.complete {
+    background-color: #d1fae5;
+    color: #065f46;
+}
+
+/* 테이블 가로 스크롤 */
+#reviewNeededTable {
+    min-width: 1800px;
+}
+
+#reviewNeededTable th,
+#reviewNeededTable td {
+    white-space: nowrap;
+    padding: 12px 8px;
+}
+
+#reviewNeededTable th:nth-child(2),
+#reviewNeededTable td:nth-child(2) {
+    min-width: 300px;
+    max-width: 400px;
+    white-space: normal;
+    word-break: break-word;
+}
