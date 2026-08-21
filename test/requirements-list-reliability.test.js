@@ -30,7 +30,8 @@ function harness(fetchImpl) {
   const menuBySection = new Map(menus.map((item) => [item.dataset.section, item]));
   const content = sections.map((section) => makeElement(section + "Section"));
   for (const item of [...menus, ...content]) elements.set(item.id, item);
-  for (const id of ["databaseRefreshBtn", "detailContent", "detailModalTitle", "detailModal", "unifiedSearch", "chemicalSearch", "msdsSearch", "radioSearch", "electricalSearch", "medicalSearch", "non_targetSearch", "reviewNeededSearch", "statChemical", "statMsds", "statRadio", "statElectrical", "statMedical", "statNonTarget"]) elements.set(id, makeElement(id));
+  elements.set("nonTargetSection", elements.get("non_targetSection"));
+  for (const id of ["databaseRefreshBtn", "detailContent", "detailModalTitle", "detailModal", "detailDeleteButton", "unifiedSearch", "chemicalSearch", "msdsSearch", "radioSearch", "electricalSearch", "medicalSearch", "non_targetSearch", "reviewNeededSearch", "statChemical", "statMsds", "statRadio", "statElectrical", "statMedical", "statNonTarget"]) elements.set(id, makeElement(id));
   const document = {
     getElementById: (id) => elements.get(id) || null,
     createElement: (id) => makeElement(id),
@@ -38,6 +39,7 @@ function harness(fetchImpl) {
     querySelectorAll: (selector) => selector === ".menu-item" ? menus : selector === ".content-section" ? content : [],
     querySelector: (selector) => {
       selectorCalls.push(selector);
+      if (selector === "#detailModal .btn-danger") return elements.get("detailDeleteButton");
       const match = selector.match(/^\.menu-item\[data-section="([^"]+)"\]$/);
       return match ? menuBySection.get(match[1]) || null : null;
     },
@@ -52,7 +54,7 @@ function harness(fetchImpl) {
   context.addEventListener = (type, listener) => windowListeners.set(type, listener);
   context.dispatchEvent = (event) => windowListeners.get(event.type)?.(event);
   vm.createContext(context);
-  vm.runInContext(appSource + "\nthis.__reliability = { loadCurrentSection, loadDashboard, viewDetail, setCurrentSection: (section) => { currentSection = section; }, getCurrentSection: () => currentSection };", context);
+  vm.runInContext(appSource + "\nthis.__reliability = { loadCurrentSection, loadDashboard, viewDetail, deleteCurrentRecord, navigateToDashboardSection, setCurrentSection: (section) => { currentSection = section; }, getCurrentSection: () => currentSection, getCurrentDetailRecord: () => currentDetailRecord };", context);
   vm.runInContext(unifiedSource + "\nthis.__navigateToSection = navigateToSection;", context);
   ready.forEach((listener) => listener());
   return { context, elements, menuBySection, selectorCalls };
@@ -141,3 +143,57 @@ test("a successful detail response still renders record fields", async () => {
   assert.match(result.elements.get("detailContent").innerHTML, /Example/);
   assert.equal(result.elements.get("detailModal").classList.has("show"), true);
 });
+
+function deferred() {
+  let resolve;
+  const promise = new Promise((done) => { resolve = done; });
+  return { promise, resolve };
+}
+
+test("a stale detail completion cannot clear a newer detail or retarget delete", async () => {
+  const first = deferred();
+  let requestCount = 0;
+  const { context, elements } = harness(async () => {
+    requestCount += 1;
+    if (requestCount === 1) return first.promise;
+    return { ok: true, status: 200, json: async () => ({ id: "new", spec_no: "NEW-RECORD" }) };
+  });
+  let deleteTarget = null;
+  context.deleteRecord = async (type, id) => { deleteTarget = { type, id }; };
+
+  const oldRequest = context.__reliability.viewDetail("radio", "old");
+  const newRequest = context.__reliability.viewDetail("radio", "new");
+  await newRequest;
+  first.resolve({ ok: false, status: 409, json: async () => ({ success: false, error_code: "STALE_SESSION" }) });
+  await oldRequest;
+
+  assert.match(elements.get("detailContent").innerHTML, /NEW-RECORD/);
+  assert.equal(context.__reliability.getCurrentDetailRecord().type, "radio");
+  assert.equal(context.__reliability.getCurrentDetailRecord().id, "new");
+  assert.equal(elements.get("detailDeleteButton").disabled, false);
+  context.__reliability.deleteCurrentRecord();
+  assert.deepEqual(deleteTarget, { type: "radio", id: "new" });
+});
+
+const dashboardTargets = [
+  ["chemicalSection", "chemical", "loadChemicalData"],
+  ["msdsSection", "msds", "loadMsdsData"],
+  ["radioSection", "radio", "loadRadioData"],
+  ["electricalSection", "electrical", "loadElectricalData"],
+  ["medicalSection", "medical", "loadMedicalData"],
+  ["nonTargetSection", "non_target", "loadNonTargetData"],
+];
+for (const [sectionId, menuSection, loader] of dashboardTargets) {
+  test("dashboard " + sectionId + " activates " + menuSection + " through one menu load", async () => {
+    const { context, elements, menuBySection } = harness();
+    const calls = [];
+    context[loader] = async () => calls.push(menuSection);
+
+    await context.__reliability.navigateToDashboardSection(sectionId);
+
+    assert.equal(menuBySection.get(menuSection).classList.has("active"), true);
+    assert.equal(elements.get(sectionId).classList.has("active"), true);
+    assert.equal(context.__reliability.getCurrentSection(), menuSection);
+    assert.deepEqual(calls, [menuSection]);
+  });
+}

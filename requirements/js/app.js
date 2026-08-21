@@ -3,6 +3,21 @@
 let currentSection = 'overview';
 let currentDataType = '';
 let currentDetailRecord = null;
+let currentDetailRequestId = 0;
+
+function setDetailDeleteActionEnabled(enabled) {
+    const deleteButton = document.querySelector('#detailModal .btn-danger');
+    if (!deleteButton) return;
+    deleteButton.disabled = !enabled;
+    deleteButton.style.display = enabled ? '' : 'none';
+}
+
+function clearCurrentDetailState() {
+    currentDetailRecord = null;
+    const detailContent = document.getElementById('detailContent');
+    if (detailContent) detailContent.innerHTML = '';
+    setDetailDeleteActionEnabled(false);
+}
 
 async function loadCurrentSection(searchQuery = '') {
     switch (currentSection) {
@@ -751,6 +766,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // 데이터 상세보기
 async function viewDetail(type, recordId) {
+    const requestId = ++currentDetailRequestId;
+    currentDetailRecord = null;
+    setDetailDeleteActionEnabled(false);
+
     try {
         const tableMap = {
             'chemical': 'chemical_confirmation',
@@ -763,12 +782,12 @@ async function viewDetail(type, recordId) {
         };
 
         const response = await fetch('tables/' + tableMap[type] + '/' + recordId);
+        if (requestId !== currentDetailRequestId) return;
+
         if (!response.ok) {
-            if (response.status === 409) {
-                document.getElementById('detailContent').innerHTML = '';
-                return;
-            }
-            if (response.status === 401) return;
+            clearCurrentDetailState();
+            if (response.status === 409 || response.status === 401) return;
+
             const message = {
                 403: '이 데이터에 접근 권한이 없습니다.',
                 404: '요청한 데이터를 찾을 수 없습니다.',
@@ -780,8 +799,13 @@ async function viewDetail(type, recordId) {
             document.getElementById('detailModal').classList.add('show');
             return;
         }
+
         const record = await response.json();
-        if (!record || record.success === false) return;
+        if (requestId !== currentDetailRequestId) return;
+        if (!record || record.success === false) {
+            clearCurrentDetailState();
+            return;
+        }
 
         currentDetailRecord = { type, id: recordId };
 
@@ -807,8 +831,11 @@ async function viewDetail(type, recordId) {
 
         document.getElementById('detailModalTitle').textContent = `${getTypeLabel(type)} 상세정보`;
         document.getElementById('detailModal').classList.add('show');
+        setDetailDeleteActionEnabled(true);
 
     } catch (error) {
+        if (requestId !== currentDetailRequestId) return;
+        clearCurrentDetailState();
         console.error('상세보기 오류:', error);
         alert('상세정보를 불러오는 중 오류가 발생했습니다.');
     }
@@ -877,8 +904,10 @@ function getTypeLabel(type) {
 
 // 상세보기 모달 닫기
 function closeDetailModal() {
+    currentDetailRequestId += 1;
     document.getElementById('detailModal').classList.remove('show');
     currentDetailRecord = null;
+    setDetailDeleteActionEnabled(false);
 }
 
 // 레코드 삭제
@@ -924,47 +953,29 @@ async function deleteRecord(type, recordId) {
 
 // 현재 상세보기 레코드 삭제
 function deleteCurrentRecord() {
-    if (!currentDetailRecord) return;
+    const record = currentDetailRecord;
+    if (!record) return;
 
     closeDetailModal();
-    deleteRecord(currentDetailRecord.type, currentDetailRecord.id);
+    deleteRecord(record.type, record.id);
 }
 
 // 대시보드 카드 클릭 시 해당 섹션으로 이동
 function navigateToDashboardSection(sectionId) {
-    console.log(`[Dashboard] 섹션 이동: ${sectionId}`);
+    const sectionMap = {
+        chemicalSection: 'chemical',
+        msdsSection: 'msds',
+        radioSection: 'radio',
+        electricalSection: 'electrical',
+        medicalSection: 'medical',
+        nonTargetSection: 'non_target',
+        review_neededSection: 'review_needed'
+    };
+    const section = sectionMap[sectionId];
+    if (!section) return;
 
-    // sectionId에서 'Section' 제거하여 data-section 값 얻기
-    // 예: 'chemicalSection' → 'chemical'
-    const section = sectionId.replace('Section', '');
-
-    // 메뉴 아이템 찾기 및 클릭
-    const menuItems = document.querySelectorAll('.menu-item');
-    menuItems.forEach(item => {
-        if (item.getAttribute('data-section') === section) {
-            // 메뉴 활성화
-            menuItems.forEach(m => m.classList.remove('active'));
-            item.classList.add('active');
-
-            // 섹션 표시
-            document.querySelectorAll('.content-section').forEach(s => {
-                s.classList.remove('active');
-            });
-            const targetSection = document.getElementById(sectionId);
-            if (targetSection) {
-                targetSection.classList.add('active');
-            }
-
-            currentSection = section;
-
-            // 섹션별 데이터 로드
-            if (section === 'review_needed') {
-                loadReviewNeededData();
-            }
-
-            console.log(`[Dashboard] 섹션 전환 완료: ${section}`);
-        }
-    });
+    const menuItem = document.querySelector('.menu-item[data-section="' + section + '"]');
+    return menuItem ? menuItem.click() : undefined;
 }
 
 // 입력 모달 표시
