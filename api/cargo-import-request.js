@@ -17,9 +17,15 @@ const {
 const {
   buildWarehouseScheduleMail,
 } = require("../lib/cargo-warehouse-schedule-notification");
+const {
+  buildMissingWarehousePlanMail,
+} = require("../lib/cargo-missing-warehouse-plan-notification");
 const { deliverManualMailOnce } = require("../lib/cargo-mail-dedupe");
 
 const ALLOWED_STAGES = ["입항", "반입"];
+const MISSING_WAREHOUSE_PLAN_RECIPIENTS = [
+  "jsh@aincustoms.com", "jhcho@aincustoms.com", "bill@aincustoms.com",
+];
 
 function env(name) {
   return process.env[name] || "";
@@ -324,6 +330,107 @@ async function handleAutomaticWarehouseScheduleNotice(req, res, body) {
   }
 }
 
+async function sendMissingWarehousePlanMail(snapshot) {
+  const host = env("SMTP_HOST");
+  const user = env("SMTP_USER");
+  const pass = env("SMTP_PASS");
+  if (!host || !user || !pass) {
+    throw new Error("메일 환경변수가 설정되지 않았습니다.");
+  }
+
+  const transporter = nodemailer.createTransport({
+    host,
+    port: Number(env("SMTP_PORT") || 465),
+    secure: String(env("SMTP_SECURE") || "true").toLowerCase() !== "false",
+    auth: { user, pass },
+  });
+  const mail = buildMissingWarehousePlanMail(snapshot);
+  await transporter.sendMail({
+    from: env("MAIL_FROM") || user,
+    to: MISSING_WAREHOUSE_PLAN_RECIPIENTS.join(","),
+    subject: mail.subject,
+    text: mail.text,
+    html: mail.html || mailTextToHtml(mail.text),
+  });
+}
+
+async function handleAutomaticMissingWarehousePlanNotice(req, res, body) {
+  const eventId = String(body.event_id || "").trim();
+  const timestamp = String(req.headers?.["x-cargo-sync-timestamp"] || "").trim();
+  const signature = String(req.headers?.["x-cargo-sync-signature"] || "").trim();
+  if (!verifySyncSignature({
+    secret: env("SUPABASE_SERVICE_ROLE_KEY"),
+    timestamp,
+    eventId,
+    signature,
+  })) {
+    return res.status(401).json({ success: false, message: "Invalid sync signature" });
+  }
+
+  const events = await supabaseFetch(
+    `/rest/v1/cargo_status_notifications?select=*&id=eq.${encodeURIComponent(eventId)}&event_type=eq.warehouse_plan_missing&limit=1`
+  );
+  const event = events && events[0];
+  if (!event) {
+    return res.status(404).json({
+      success: false,
+      message: "반입예정정보 미입력 알림 이벤트를 찾을 수 없습니다.",
+    });
+  }
+  if (event.status === "sent") {
+    return res.status(200).json({
+      success: true,
+      email_sent: false,
+      deduplicated: true,
+    });
+  }
+
+  const accounts = await supabaseFetch(
+    `/rest/v1/shipper_accounts?select=id,login_id,display_name&id=eq.${encodeURIComponent(event.account_id)}&limit=1`
+  );
+  const account = accounts && accounts[0];
+  if (!account || String(account.login_id || "").trim().toUpperCase() !== "HCH") {
+    return res.status(403).json({
+      success: false,
+      message: "HCH 반입예정정보 미입력 이벤트가 아닙니다.",
+    });
+  }
+
+  const attemptedAt = new Date().toISOString();
+  const attemptCount = Number(event.attempt_count || 0) + 1;
+  try {
+    await sendMissingWarehousePlanMail(event.card_snapshot || {});
+    await updateNotification(event.id, {
+      status: "sent",
+      attempt_count: attemptCount,
+      last_attempt_at: attemptedAt,
+      sent_at: attemptedAt,
+      error_message: null,
+    });
+    return res.status(200).json({
+      success: true,
+      email_sent: true,
+      deduplicated: false,
+    });
+  } catch (error) {
+    try {
+      await updateNotification(event.id, {
+        status: "failed",
+        attempt_count: attemptCount,
+        last_attempt_at: attemptedAt,
+        error_message: String(error.message || error).slice(0, 2000),
+      });
+    } catch {
+      // The NEWMAIN sync retries only today's pending or failed event.
+    }
+    return res.status(502).json({
+      success: false,
+      email_sent: false,
+      message: error.message,
+    });
+  }
+}
+
 async function sendMail(card, request, session, account) {
   const host = env("SMTP_HOST");
   const user = env("SMTP_USER");
@@ -391,6 +498,9 @@ module.exports = async function handler(req, res) {
     }
     if (body.action === "auto_warehouse_schedule_notice") {
       return await handleAutomaticWarehouseScheduleNotice(req, res, body);
+    }
+    if (body.action === "auto_missing_warehouse_plan_notice") {
+      return await handleAutomaticMissingWarehousePlanNotice(req, res, body);
     }
 
     const session = requireWritableSession(req, res);
