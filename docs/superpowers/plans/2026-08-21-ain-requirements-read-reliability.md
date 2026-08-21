@@ -220,4 +220,3 @@ Verify login, dashboard counts, every list tab, `hmt130` unified search, unified
 - [ ] **Step 7: Complete final whole-branch review**
 
 Dispatch a fresh reviewer over the entire remediation diff. Resolve Critical/Important findings through one focused fix wave and scoped re-review before calling the Preview complete.
-
