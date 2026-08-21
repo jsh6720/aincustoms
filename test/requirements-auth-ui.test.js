@@ -28,6 +28,12 @@ function element() {
 function authHarness(loginResult) {
   const storage = new Map();
   const events = [];
+  const listeners = new Map();
+  const loginScreen = element();
+  loginScreen.classList = {
+    add: (name) => events.push(`login-screen:${name}`),
+    remove() {},
+  };
   const context = {
     console: { log() {}, warn() {}, error() {} },
     confirm: () => true,
@@ -47,10 +53,14 @@ function authHarness(loginResult) {
     document: {
       body: { classList: { add() {}, remove() {} } },
       addEventListener() {},
-      getElementById: () => element(),
+      getElementById: (id) => (id === "loginScreen" ? loginScreen : element()),
       querySelectorAll: () => [],
     },
-    window: { location: { pathname: "/requirements/" } },
+    window: {
+      location: { pathname: "/requirements/" },
+      addEventListener: (type, listener) => listeners.set(type, listener),
+      dispatchEvent: (event) => listeners.get(event.type)?.(event),
+    },
   };
   vm.createContext(context);
   vm.runInContext(
@@ -168,4 +178,18 @@ test("successful login clears prior-user cache before replacing the session", as
     "cache-clear",
     "session-write:ainRequirementsSession",
   ]);
+});
+
+test("session-expiry event returns the requirements UI to login", async () => {
+  const { context, storage, events } = authHarness({
+    success: true,
+    token: "signed-token",
+    user: { username: "tester", role: "user", company_name: "AIN" },
+  });
+  await context.loginForTest("tester", "secret");
+
+  context.window.dispatchEvent({ type: "ain-requirements-session-expired" });
+  assert.equal(context.userForTest(), null);
+  assert.equal(storage.has("ainRequirementsSession"), false);
+  assert.equal(events.includes("login-screen:active"), true);
 });

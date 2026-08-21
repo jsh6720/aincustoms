@@ -53,6 +53,12 @@ function logout() {
 }
 
 // 세션 확인
+if (typeof window !== 'undefined' && !window.__ainRequirementsSessionExpiryListener) {
+    window.__ainRequirementsSessionExpiryListener = true;
+    window.addEventListener('ain-requirements-session-expired', () => {
+        logout();
+    });
+}
 function checkSession() {
     try {
         const savedSession = JSON.parse(sessionStorage.getItem('ainRequirementsSession') || 'null');

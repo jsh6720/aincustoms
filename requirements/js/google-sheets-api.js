@@ -55,36 +55,125 @@ function currentSession() {
 function mapApiErrorCodeToStatus(errorCode) {
     return {
         UNAUTHORIZED: 401,
+        STALE_SESSION: 401,
         FORBIDDEN: 403,
-        NOT_FOUND: 404
+        NOT_FOUND: 404,
+        SERVICE_UNAVAILABLE: 503
     }[errorCode] || 400;
 }
 
 const originalFetch = window.fetch;
+const pendingTableReads = new Map();
+const MAX_CONCURRENT_READS = 2;
+const MAX_READ_ATTEMPTS = 3;
+const READ_TIMEOUT_MS = 90000;
+let activeReadCount = 0;
+const queuedReads = [];
 
-async function callApi(action, params = {}, { anonymous = false } = {}) {
-    const session = currentSession();
+function activeSessionToken() {
+    return currentSession()?.token || '';
+}
+
+function isCurrentSessionToken(token) {
+    return activeSessionToken() === token;
+}
+
+function staleSessionResult() {
+    return { success: false, error_code: 'STALE_SESSION' };
+}
+
+function unavailableResult() {
+    return { success: false, error_code: 'SERVICE_UNAVAILABLE', status: 503 };
+}
+
+function expireSessionForToken(token) {
+    if (!token || !isCurrentSessionToken(token)) return false;
+    sessionStorage.removeItem('ainRequirementsSession');
+    dataCache.clear();
+    if (typeof window.dispatchEvent === 'function' && typeof CustomEvent === 'function') {
+        window.dispatchEvent(new CustomEvent('ain-requirements-session-expired'));
+    }
+    return true;
+}
+
+function runQueuedRead(task) {
+    return new Promise((resolve) => {
+        const start = () => {
+            activeReadCount += 1;
+            Promise.resolve(task()).then(resolve)
+                .finally(() => {
+                    activeReadCount -= 1;
+                    const next = queuedReads.shift();
+                    if (next) next();
+                });
+        };
+        if (activeReadCount < MAX_CONCURRENT_READS) start();
+        else queuedReads.push(start);
+    });
+}
+
+async function callApi(action, params = {}, { anonymous = false, sessionToken, deferUnauthorized = false } = {}) {
+    const token = anonymous ? '' : (sessionToken ?? activeSessionToken());
     const body = { action, ...params };
-    if (!anonymous) body.token = session?.token || '';
+    if (!anonymous) body.token = token;
 
+    const controller = typeof AbortController === 'function' ? new AbortController() : null;
+    const timeout = controller ? setTimeout(() => controller.abort(), READ_TIMEOUT_MS) : null;
     try {
         const response = await originalFetch(AIN_REQUIREMENTS_CONFIG.apiUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'text/plain' },
-            body: JSON.stringify(body)
+            body: JSON.stringify(body),
+            ...(controller ? { signal: controller.signal } : {})
         });
-        const result = await response.json();
-        if (!result.success && result.error_code === 'UNAUTHORIZED') {
-            sessionStorage.removeItem('ainRequirementsSession');
-            dataCache.clear();
+        const status = Number(response?.status) || 0;
+        let parsed;
+        try {
+            parsed = JSON.parse(await response.text());
+        } catch (error) {
+            parsed = null;
         }
-        return result;
+        if (response?.ok === false || !parsed || typeof parsed !== 'object') {
+            return {
+                success: false,
+                error_code: status === 429 ? 'RATE_LIMITED' : 'UPSTREAM_ERROR',
+                status
+            };
+        }
+        if (parsed.success === false) {
+            const result = { success: false, error_code: parsed.error_code || 'UPSTREAM_ERROR' };
+            if (status) result.status = status;
+            if (result.error_code === 'UNAUTHORIZED' && !deferUnauthorized) {
+                expireSessionForToken(token);
+            }
+            return result;
+        }
+        return parsed;
     } catch (error) {
-        console.error(`[Google Sheets API] ${action} 오류:`, error);
-        return { success: false, error_code: 'NETWORK_ERROR', error: error.message };
+        return { success: false, error_code: 'NETWORK_ERROR' };
+    } finally {
+        if (timeout) clearTimeout(timeout);
     }
 }
 
+function isRetryableReadFailure(result) {
+    return result?.error_code === 'INTERNAL_ERROR' ||
+        result?.error_code === 'NETWORK_ERROR' ||
+        result?.status === 429 ||
+        result?.status >= 500;
+}
+
+async function readDataWithRetries(mappedTable, token) {
+    let result;
+    for (let attempt = 0; attempt < MAX_READ_ATTEMPTS; attempt += 1) {
+        result = await runQueuedRead(() => callApi('getData', { tableName: mappedTable }, {
+            sessionToken: token,
+            deferUnauthorized: true
+        }));
+        if (!isRetryableReadFailure(result)) return result;
+    }
+    return unavailableResult();
+}
 const GoogleSheetsAPI = {
     async call(action, params = {}, options = {}) {
         return callApi(action, params, options);
@@ -95,8 +184,8 @@ const GoogleSheetsAPI = {
     },
 
     async getData(tableName) {
-        const session = currentSession();
-        if (!session?.token) {
+        const token = activeSessionToken();
+        if (!token) {
             dataCache.clear();
         } else {
             const cached = dataCache.get(tableName);
@@ -104,19 +193,35 @@ const GoogleSheetsAPI = {
         }
 
         const mappedTable = TABLE_NAME_MAP[tableName] || tableName;
-        const result = await this.call('getData', { tableName: mappedTable });
-        if (!result.success) return result;
+        const pendingKey = `${token}:${mappedTable}`;
+        const existing = pendingTableReads.get(pendingKey);
+        if (existing) return existing;
 
-        const response = {
-            data: result.data || [],
-            total: result.total || (result.data ? result.data.length : 0),
-            page: 1,
-            limit: 10000
-        };
-        dataCache.set(tableName, response);
-        return response;
+        const pending = (async () => {
+            const result = await readDataWithRetries(mappedTable, token);
+            if (!isCurrentSessionToken(token)) return staleSessionResult();
+            if (!result.success) {
+                if (result.error_code === 'UNAUTHORIZED') expireSessionForToken(token);
+                return result;
+            }
+
+            const response = {
+                data: result.data || [],
+                total: result.total || (result.data ? result.data.length : 0),
+                page: 1,
+                limit: 10000
+            };
+            if (!isCurrentSessionToken(token)) return staleSessionResult();
+            dataCache.set(tableName, response);
+            return response;
+        })();
+        pendingTableReads.set(pendingKey, pending);
+        try {
+            return await pending;
+        } finally {
+            pendingTableReads.delete(pendingKey);
+        }
     },
-
     async addData(tableName, data) {
         const mappedTable = TABLE_NAME_MAP[tableName] || tableName;
         const result = await this.call('addData', { tableName: mappedTable, data });

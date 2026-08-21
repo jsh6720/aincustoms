@@ -9,8 +9,41 @@ const source = fs.readFileSync(
   "utf8"
 );
 
-function harness(apiResults) {
+function jsonResponse(body, { status = 200 } = {}) {
+  const encoded = typeof body === "string" ? body : JSON.stringify(body);
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    text: async () => encoded,
+    json: async () => JSON.parse(encoded),
+  };
+}
+
+function deferredJson(body, { status = 200 } = {}) {
+  let resolve;
+  const settled = new Promise((done) => {
+    resolve = done;
+  });
+  const encoded = typeof body === "string" ? body : JSON.stringify(body);
+  return {
+    response: {
+      ok: status >= 200 && status < 300,
+      status,
+      text: async () => {
+        await settled;
+        return encoded;
+      },
+      json: async () => {
+        await settled;
+        return JSON.parse(encoded);
+      },
+    },
+    resolve,
+  };
+}
+function harness(apiResults, fetchImpl) {
   const calls = [];
+  const events = [];
   const storage = new Map([
     [
       "ainRequirementsSession",
@@ -31,13 +64,23 @@ function harness(apiResults) {
     },
     fetch: async (url, options) => {
       calls.push({ url, options, body: JSON.parse(options.body) });
-      return { json: async () => results.shift() };
+      if (fetchImpl) return fetchImpl(url, options);
+      const next = results.shift();
+      if (next instanceof Error) throw next;
+      if (next?.text) return next;
+      return next?.response || jsonResponse(next);
+    },
+    CustomEvent: class CustomEvent {
+      constructor(type) {
+        this.type = type;
+      }
     },
     Response,
     setTimeout,
     clearTimeout,
   };
   context.window = context;
+  context.dispatchEvent = (event) => events.push(event.type);
   context.AIN_REQUIREMENTS_CONFIG = {
     apiUrl: "https://script.google.com/macros/s/test/exec",
   };
@@ -46,7 +89,7 @@ function harness(apiResults) {
     `${source}; this.API = GoogleSheetsAPI; this.mapStatus = typeof mapApiErrorCodeToStatus === "function" ? mapApiErrorCodeToStatus : undefined;`,
     context
   );
-  return { context, calls, storage };
+  return { context, calls, storage, events };
 }
 
 test("authenticated requests send token but not client authority", async () => {
@@ -190,4 +233,127 @@ test("UNAUTHORIZED clears every cached table before a replacement session reads"
   assert.equal(msds.data[0].id, "new-msds");
   assert.equal(radio.data[0].id, "new-radio");
   assert.equal(calls.length, 5);
+});
+
+function concurrentHarness() {
+  let active = 0;
+  let maximum = 0;
+  const { context, calls } = harness([], () => {
+    active += 1;
+    maximum = Math.max(maximum, active);
+    return {
+      ok: true,
+      status: 200,
+      text: async () => {
+        active -= 1;
+        return JSON.stringify({ success: true, data: [] });
+      },
+      json: async () => {
+        active -= 1;
+        return { success: true, data: [] };
+      },
+    };
+  });
+  return { context, calls, maxActive: () => maximum };
+}
+test("concurrent reads of one table share one wire request", async () => {
+  const pending = deferredJson({ success: true, data: [{ id: "one" }] });
+  const { context, calls } = harness([pending.response]);
+  const first = context.API.getData("radio_law");
+  const second = context.API.getData("radio_law");
+
+  assert.equal(calls.length, 1);
+  pending.resolve();
+  assert.deepEqual(await first, await second);
+});
+
+test("cold reads never exceed two remote requests", async () => {
+  const { context, maxActive } = concurrentHarness();
+  await Promise.all(["chemical_confirmation", "msds", "radio_law", "electrical_law"].map(
+    (table) => context.API.getData(table)
+  ));
+
+  assert.equal(maxActive(), 2);
+});
+
+test("reads retry transient backend failures at most twice", async () => {
+  const retryableFailures = [
+    { result: { success: false, error_code: "INTERNAL_ERROR" } },
+    { result: new Error("network detail") },
+    { result: { success: false, error_code: "RATE_LIMITED" }, status: 429 },
+    { result: { success: false, error_code: "UPSTREAM_ERROR" }, status: 500 },
+    { result: "not json", status: 503 },
+  ];
+
+  for (const { result, status } of retryableFailures) {
+    const firstResponse = result instanceof Error ? result : jsonResponse(result, { status });
+    const { context, calls } = harness([
+      firstResponse,
+      { success: true, data: [{ id: "recovered" }] },
+    ]);
+    const response = await context.API.getData("msds");
+
+    assert.equal(response.data[0].id, "recovered");
+    assert.equal(calls.length, 2);
+  }
+});
+
+test("read retry exhaustion returns a safe synthetic 503 result", async () => {
+  const { context, calls } = harness([
+    jsonResponse("upstream credential text", { status: 500 }),
+    jsonResponse("upstream credential text", { status: 500 }),
+    jsonResponse("upstream credential text", { status: 500 }),
+  ]);
+
+  const result = await context.API.getData("msds");
+  assert.equal(result.success, false);
+  assert.equal(result.error_code, "SERVICE_UNAVAILABLE");
+  assert.equal(result.status, 503);
+  assert.equal(calls.length, 3);
+  assert.equal("error" in result, false);
+});
+
+test("authorization, validation, and write operations are never retried", async () => {
+  const cases = [
+    (api) => api.getData("msds"),
+    (api) => api.getData("msds"),
+    (api) => api.login("tester", "secret"),
+    (api) => api.addData("msds", { value: "new" }),
+    (api) => api.updateData("msds", "one", { value: "changed" }),
+    (api) => api.deleteData("msds", "one"),
+  ];
+  const failures = ["UNAUTHORIZED", "VALIDATION_ERROR", "INTERNAL_ERROR", "INTERNAL_ERROR", "INTERNAL_ERROR", "INTERNAL_ERROR"];
+
+  for (let index = 0; index < cases.length; index += 1) {
+    const { context, calls } = harness({ success: false, error_code: failures[index] });
+    await cases[index](context.API);
+    assert.equal(calls.length, 1);
+  }
+});
+
+test("old-token authorization failures leave a replacement session and cache intact", async () => {
+  const pending = deferredJson({ success: false, error_code: "UNAUTHORIZED" });
+  const { context, calls, storage } = harness([
+    pending.response,
+    { success: true, data: [{ id: "replacement-row" }] },
+  ]);
+  const oldRead = context.API.getData("msds");
+  storage.set("ainRequirementsSession", JSON.stringify({ token: "replacement-token" }));
+  pending.resolve();
+
+  assert.equal((await oldRead).error_code, "STALE_SESSION");
+  assert.equal(JSON.parse(storage.get("ainRequirementsSession")).token, "replacement-token");
+  assert.equal((await context.API.getData("msds")).data[0].id, "replacement-row");
+  assert.equal(calls.length, 2);
+});
+
+test("current-token authorization failure expires one visible session", async () => {
+  const { context, events, storage } = harness({
+    success: false,
+    error_code: "UNAUTHORIZED",
+  });
+
+  await context.API.getData("msds");
+  assert.equal(storage.has("ainRequirementsSession"), false);
+  assert.deepEqual(events, ["ain-requirements-session-expired"]);
 });
