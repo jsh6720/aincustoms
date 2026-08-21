@@ -13,7 +13,14 @@ const appSource = fs.readFileSync(
   path.join(root, "requirements", "js", "app.js"),
   "utf8"
 );
-
+const duplicateSource = fs.readFileSync(
+  path.join(root, "requirements", "js", "duplicate-checker.js"),
+  "utf8"
+);
+const reviewSource = fs.readFileSync(
+  path.join(root, "requirements", "js", "review-needed.js"),
+  "utf8"
+);
 function element() {
   return {
     addEventListener() {},
@@ -195,27 +202,87 @@ test("session-expiry event returns the requirements UI to login", async () => {
 });
 function sessionDomHarness() {
   const elements = new Map();
+  const dynamicModals = new Set();
+  const companyCheckboxes = [{ value: "A-SELECTED-COMPANY", checked: true }];
   const ready = [];
   const windowListeners = new Map();
+  let dynamicId = 0;
+  let document;
+
+  function registerEmbeddedIds(owner, html) {
+    for (const match of String(html).matchAll(/id="([^"]+)"/g)) {
+      if (!elements.has(match[1])) {
+        const child = domElement(match[1]);
+        child.ownerModal = owner;
+        elements.set(match[1], child);
+      }
+    }
+  }
+
   function domElement(id, dataset = {}) {
     const classes = new Set();
     const listeners = new Map();
-    return {
-      id, dataset, innerHTML: "", textContent: "", value: "", style: {}, disabled: false,
+    let html = "";
+    let className = "";
+    const node = {
+      id, dataset, textContent: "", value: "", style: {}, disabled: false,
+      checked: false, onchange: null, children: [], parentNode: null, ownerModal: null,
       classList: {
         add: (...names) => names.forEach((name) => classes.add(name)),
         remove: (...names) => names.forEach((name) => classes.delete(name)),
         has: (name) => classes.has(name),
+        contains: (name) => classes.has(name),
       },
       addEventListener: (type, listener) => listeners.set(type, listener),
-      appendChild(child) { this.innerHTML += child.innerHTML || ""; },
+      appendChild(child) {
+        child.parentNode = this;
+        this.children.push(child);
+        if (document && this === document.body) {
+          if (child.classList.has("modal") || child.className.split(/\s+/).includes("modal")) {
+            dynamicModals.add(child);
+          }
+        } else {
+          this.innerHTML += child.innerHTML || "";
+        }
+        return child;
+      },
+      remove() {
+        dynamicModals.delete(this);
+        if (this.parentNode) {
+          this.parentNode.children = this.parentNode.children.filter((child) => child !== this);
+        }
+        for (const [key, value] of elements) {
+          if (value.ownerModal === this) elements.delete(key);
+        }
+        this.parentNode = null;
+      },
+      setAttribute() {},
+      querySelectorAll: () => [],
       focus() {},
-      click: () => listeners.get("click")?.({ currentTarget: this }),
+      click() { return listeners.get("click")?.({ currentTarget: this }); },
     };
+    Object.defineProperty(node, "innerHTML", {
+      get: () => html,
+      set: (value) => {
+        html = String(value);
+        registerEmbeddedIds(node, html);
+      },
+    });
+    Object.defineProperty(node, "className", {
+      get: () => className,
+      set: (value) => {
+        className = String(value);
+        className.split(/\s+/).filter(Boolean).forEach((name) => classes.add(name));
+      },
+    });
+    return node;
   }
+
   const ids = [
     "loginScreen", "dashboardScreen", "loginForm", "logoutBtn", "username", "password", "loginError", "userInfo",
     "databaseRefreshBtn", "detailContent", "detailModalTitle", "detailModal", "detailDeleteButton",
+    "inputModal", "modalTitle", "tableInput", "manualInputForm", "csvFileInput", "aiPromptBox", "aiPromptContent",
+    "editModal", "editModalTitle", "editFormContainer", "modalContent",
     "unifiedSearch", "unifiedSearchResult", "chemicalSearch", "msdsSearch", "radioSearch", "electricalSearch", "medicalSearch", "non_targetSearch", "reviewNeededSearch",
     "chemicalTableBody", "msdsTableBody", "radioTableBody", "electricalTableBody", "medicalTableBody", "nonTargetTableBody", "reviewNeededTableBody", "editRequestsTableBody",
     "statChemical", "statMsds", "statRadio", "statElectrical", "statMedical", "statNonTarget",
@@ -226,19 +293,42 @@ function sessionDomHarness() {
   const sections = ["overview", "chemical", "msds", "radio", "electrical", "medical", "non_target", "review_needed"]
     .map((section) => domElement(`${section}Section`));
   const storage = new Map();
-  const document = {
+  document = {
     body: domElement("body"),
     getElementById: (id) => elements.get(id) || null,
-    createElement: (tag) => domElement(tag),
+    createElement: (tag) => domElement(`${tag}-${++dynamicId}`),
     addEventListener: (type, listener) => { if (type === "DOMContentLoaded") ready.push(listener); },
     querySelectorAll: (selector) => ({
       ".screen": [elements.get("loginScreen"), elements.get("dashboardScreen")],
       ".menu-item": menus,
       ".content-section": sections,
       ".btn-master-only": [elements.get("detailDeleteButton")],
+      ".company-checkbox:checked": companyCheckboxes.filter((checkbox) => checkbox.checked),
+      "[data-requirements-session-modal]": [...dynamicModals].filter((modal) => modal.dataset.requirementsSessionModal),
+      ".modal": [elements.get("inputModal"), elements.get("detailModal"), elements.get("editModal"), ...dynamicModals],
     }[selector] || []),
-    querySelector: (selector) => selector === "#detailModal .btn-danger" ? elements.get("detailDeleteButton") : null,
+    querySelector: (selector) => {
+      if (selector === "#detailModal .btn-danger") return elements.get("detailDeleteButton");
+      if (selector === ".modal.show") {
+        return [...dynamicModals].find((modal) => modal.classList.has("show")) || null;
+      }
+      return null;
+    },
   };
+
+  const defaultFetch = async (url) => {
+    if (url.includes("/record-a")) {
+      return { ok: true, status: 200, json: async () => ({ id: "record-a", spec_no: "A-DETAIL" }) };
+    }
+    if (/tables\/chemical_confirmation\/(?:edit-a|edit-current)/.test(url)) {
+      return { ok: true, status: 200, json: async () => ({ id: url.split("/").pop(), spec_no: "CURRENT-EDIT" }) };
+    }
+    if (url.includes("tables/review_needed")) {
+      return { ok: true, status: 200, json: async () => ({ data: [{ id: "review-a", importer: "CURRENT-COMPANY", spec_no: "R-1" }] }) };
+    }
+    return { ok: true, status: 200, json: async () => ({ data: [{ id: "row-a", spec_no: "A-ROW", created_at: 1 }] }) };
+  };
+
   const context = {
     document,
     sessionStorage: {
@@ -250,15 +340,15 @@ function sessionDomHarness() {
       login: async (username) => ({
         success: true,
         token: `${username}-token`,
-        user: { username, role: "user", company_name: username },
+        user: { username, role: "master", company_name: username },
       }),
       clearAllCache() {},
     },
-    fetch: async (url) => url.includes("/record-a")
-      ? { ok: true, status: 200, json: async () => ({ id: "record-a", spec_no: "A-DETAIL" }) }
-      : { ok: true, status: 200, json: async () => ({ data: [{ id: "row-a", spec_no: "A-ROW", created_at: 1 }] }) },
+    fetchImpl: defaultFetch,
+    fetch: (...args) => context.fetchImpl(...args),
     console: { log() {}, warn() {}, error() {} },
     alert() {}, confirm: () => true, prompt: () => null,
+    showLoading() {}, hideLoading() {},
     formatDate: (value) => value, isDateField: () => false,
     performance: { now: () => 0 }, setTimeout, clearTimeout,
   };
@@ -274,10 +364,16 @@ function sessionDomHarness() {
   vm.runInContext(authSource, context);
   vm.runInContext(appSource, context);
   vm.runInContext(fs.readFileSync(path.join(root, "requirements", "js", "unified-search.js"), "utf8"), context);
-  vm.runInContext(`this.sessionUI = { login, logout, loadChemicalData, viewDetail, performUnifiedSearch, detail: () => currentDetailRecord };`, context);
-  return { context, elements, storage };
+  vm.runInContext(reviewSource, context);
+  vm.runInContext(duplicateSource, context);
+  vm.runInContext(`this.sessionUI = {
+    login, logout, loadChemicalData, viewDetail, performUnifiedSearch, showInputModal,
+    editRecord, showDuplicateCheckDialog, showCompanyDownloadDialog, loadCompanyList, downloadSelectedCompanies,
+    detail: () => currentDetailRecord, edit: () => currentEditRecord,
+    dataType: () => currentDataType
+  };`, context);
+  return { context, elements, storage, dynamicModals };
 }
-
 async function renderPriorUserData(harness) {
   const { context, elements } = harness;
   await context.sessionUI.login("USER-A", "secret");
@@ -322,4 +418,145 @@ test("logout, expiry, and replacement login scrub all prior-user UI", async () =
   await harness.context.sessionUI.login("USER-B", "secret");
   assert.equal(harness.elements.get("chemicalTableBody").innerHTML, "");
   assert.equal(harness.context.sessionUI.detail(), null);
+});
+async function renderPriorUserModalState(harness) {
+  const { context, elements, dynamicModals } = harness;
+  await context.sessionUI.login("USER-A", "secret");
+
+  context.sessionUI.showInputModal("chemical");
+  elements.get("inputModal").style.display = "block";
+  elements.get("tableInput").value = "A-ROW-BODY";
+  elements.get("manualInputForm").innerHTML = "A-MANUAL-MUTATION-TARGET";
+  elements.get("csvFileInput").value = "A-upload.csv";
+  elements.get("csvFileInput").onchange = () => "A-UPLOAD-TARGET";
+
+  await context.sessionUI.editRecord("chemical", "edit-a");
+  elements.get("editModal").style.display = "block";
+  elements.get("modalContent").innerHTML = "A-LEGACY-EDIT-DETAIL";
+
+  context.sessionUI.showDuplicateCheckDialog();
+  elements.get("duplicateCheckResult").innerHTML = "A-DUPLICATE-ROWS-AND-DELETE-TARGET";
+  context.sessionUI.showCompanyDownloadDialog();
+  await context.sessionUI.loadCompanyList();
+
+  assert.equal(elements.get("inputModal").classList.has("show"), true);
+  assert.equal(elements.get("editModal").classList.has("show"), true);
+  assert.notEqual(context.sessionUI.edit(), null);
+  assert.equal(context.sessionUI.dataType(), "chemical");
+  assert.equal(dynamicModals.size, 2);
+  assert.match(elements.get("companyListContainer").innerHTML, /CURRENT-COMPANY/);
+}
+
+function assertModalUiScrubbed(harness) {
+  const { context, elements, dynamicModals } = harness;
+  for (const id of ["inputModal", "editModal"]) {
+    assert.equal(elements.get(id).classList.has("show"), false, `${id} class`);
+    assert.equal(elements.get(id).style.display, "none", `${id} display`);
+  }
+  assert.equal(elements.get("tableInput").value, "");
+  assert.equal(elements.get("manualInputForm").innerHTML, "");
+  assert.equal(elements.get("editFormContainer").innerHTML, "");
+  assert.equal(elements.get("modalContent").innerHTML, "");
+  assert.equal(elements.get("csvFileInput").value, "");
+  assert.equal(elements.get("csvFileInput").onchange, null);
+  assert.equal(context.sessionUI.edit(), null);
+  assert.equal(context.sessionUI.dataType(), "");
+  assert.equal(dynamicModals.size, 0);
+  assert.equal(elements.has("duplicateCheckResult"), false);
+  assert.equal(elements.has("companyListContainer"), false);
+}
+
+test("all mutation modals are scrubbed on logout, expiry, and replacement login", async () => {
+  const harness = sessionDomHarness();
+
+  await renderPriorUserModalState(harness);
+  harness.context.sessionUI.logout();
+  assertModalUiScrubbed(harness);
+
+  await renderPriorUserModalState(harness);
+  harness.context.dispatchEvent({ type: "ain-requirements-session-expired" });
+  assertModalUiScrubbed(harness);
+
+  await renderPriorUserModalState(harness);
+  await harness.context.sessionUI.login("USER-B", "secret");
+  assertModalUiScrubbed(harness);
+});
+
+function deferredResponse() {
+  let resolve;
+  const promise = new Promise((done) => { resolve = done; });
+  return { promise, resolve };
+}
+
+test("late prior-session edit and company reads cannot restore modal data or targets", async () => {
+  const harness = sessionDomHarness();
+  const editResponse = deferredResponse();
+  const companyResponse = deferredResponse();
+  harness.context.fetchImpl = (url) => {
+    if (url.includes("/edit-a")) return editResponse.promise;
+    if (url.includes("tables/review_needed")) return companyResponse.promise;
+    throw new Error(`unexpected URL: ${url}`);
+  };
+
+  await harness.context.sessionUI.login("USER-A", "secret");
+  const editLoad = harness.context.sessionUI.editRecord("chemical", "edit-a");
+  harness.context.sessionUI.showCompanyDownloadDialog();
+  const companyLoad = harness.context.sessionUI.loadCompanyList();
+
+  await harness.context.sessionUI.login("USER-B", "secret");
+  editResponse.resolve({
+    ok: true,
+    status: 200,
+    json: async () => ({ id: "edit-a", spec_no: "A-LATE-EDIT" }),
+  });
+  companyResponse.resolve({
+    ok: true,
+    status: 200,
+    json: async () => ({ data: [{ importer: "A-LATE-COMPANY" }] }),
+  });
+  await Promise.allSettled([editLoad, companyLoad]);
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assertModalUiScrubbed(harness);
+  assert.doesNotMatch(harness.elements.get("editFormContainer").innerHTML, /A-LATE-EDIT/);
+});
+
+test("current-session edit and dynamic modal loaders still render normally", async () => {
+  const harness = sessionDomHarness();
+  await harness.context.sessionUI.login("USER-B", "secret");
+
+  await harness.context.sessionUI.editRecord("chemical", "edit-current");
+  assert.equal(harness.elements.get("editModal").classList.has("show"), true);
+  assert.match(harness.elements.get("editFormContainer").innerHTML, /CURRENT-EDIT/);
+  assert.equal(harness.context.sessionUI.edit().recordId, "edit-current");
+
+  harness.context.sessionUI.showCompanyDownloadDialog();
+  await harness.context.sessionUI.loadCompanyList();
+  assert.match(harness.elements.get("companyListContainer").innerHTML, /CURRENT-COMPANY/);
+
+  harness.context.sessionUI.showDuplicateCheckDialog();
+  assert.equal(harness.dynamicModals.size, 2);
+  assert.notEqual(harness.elements.get("duplicateCheckResult"), undefined);
+});
+test("a company export read cannot continue with prior-session selections after reset", async () => {
+  const harness = sessionDomHarness();
+  const companyResponse = deferredResponse();
+  let downloads = 0;
+  harness.context.fetchImpl = (url) => {
+    if (url.includes("tables/review_needed")) return companyResponse.promise;
+    throw new Error(`unexpected URL: ${url}`);
+  };
+  harness.context.downloadCompanyReviewNeeded = async () => { downloads += 1; };
+
+  await harness.context.sessionUI.login("USER-A", "secret");
+  const exportLoad = harness.context.sessionUI.downloadSelectedCompanies();
+  await harness.context.sessionUI.login("USER-B", "secret");
+  companyResponse.resolve({
+    ok: true,
+    status: 200,
+    json: async () => ({ data: [{ importer: "A-SELECTED-COMPANY" }] }),
+  });
+  await exportLoad;
+
+  assert.equal(downloads, 0);
 });

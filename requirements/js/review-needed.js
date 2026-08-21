@@ -289,9 +289,10 @@ function showCompanyDownloadDialog() {
         return;
     }
 
-    // 모달 생성
+    const viewRequest = beginRequirementsViewRequest('modal:review-company');
     const modal = document.createElement('div');
     modal.className = 'modal show';
+    modal.dataset.requirementsSessionModal = 'review-company';
     modal.innerHTML = `
         <div class="modal-content">
             <div class="modal-header">
@@ -314,24 +315,21 @@ function showCompanyDownloadDialog() {
             </div>
         </div>
     `;
-
     document.body.appendChild(modal);
-
-    // 업체 목록 로드
-    loadCompanyList();
+    return loadCompanyList(viewRequest);
 }
 
 // 업체 목록 로드
-async function loadCompanyList() {
+async function loadCompanyList(viewRequest = beginRequirementsViewRequest('modal:review-company')) {
     try {
         const response = await fetch('tables/review_needed?limit=1000');
+        if (!isCurrentRequirementsViewRequest(viewRequest) || response.status === 409) return;
         const data = await response.json();
+        if (!isCurrentRequirementsViewRequest(viewRequest)) return;
         const records = data.data || [];
-
-        // 업체 목록 추출 (중복 제거)
         const companies = [...new Set(records.map(item => item.importer).filter(c => c))].sort();
-
         const container = document.getElementById('companyListContainer');
+        if (!container) return;
 
         if (companies.length === 0) {
             container.innerHTML = '<p style="text-align: center; color: #64748b;">데이터가 없습니다.</p>';
@@ -345,7 +343,6 @@ async function loadCompanyList() {
                 <strong>전체 선택 (${companies.length}개 업체)</strong>
             </label>
         `;
-
         companies.forEach(company => {
             html += `
                 <label style="padding: 10px; border: 2px solid #e2e8f0; border-radius: 8px; cursor: pointer; transition: all 0.2s;"
@@ -357,13 +354,12 @@ async function loadCompanyList() {
             `;
         });
         html += '</div>';
-
         container.innerHTML = html;
-
     } catch (error) {
-        console.error('업체 목록 로드 오류:', error);
+        if (!isCurrentRequirementsViewRequest(viewRequest)) return;
+        console.error('업체 목록 로드 오류');
         const container = document.getElementById('companyListContainer');
-        container.innerHTML = '<p style="text-align: center; color: #ef4444;">업체 목록을 불러오는 중 오류가 발생했습니다.</p>';
+        if (container) container.innerHTML = '<p style="text-align: center; color: #ef4444;">업체 목록을 불러오는 중 오류가 발생했습니다.</p>';
     }
 }
 
@@ -376,6 +372,7 @@ function toggleAllCompanies(checked) {
 
 // 선택된 업체 다운로드
 async function downloadSelectedCompanies() {
+    const viewRequest = beginRequirementsViewRequest('modal:review-company-export');
     const selectedCompanies = Array.from(document.querySelectorAll('.company-checkbox:checked'))
         .map(cb => cb.value);
 
@@ -386,30 +383,43 @@ async function downloadSelectedCompanies() {
 
     try {
         showLoading('데이터 준비 중...');
-
-        // 전체 데이터 로드
         const response = await fetch('tables/review_needed?limit=1000');
+        if (!isCurrentRequirementsViewRequest(viewRequest) || response.status === 409) {
+            hideLoading();
+            return;
+        }
         const data = await response.json();
+        if (!isCurrentRequirementsViewRequest(viewRequest)) {
+            hideLoading();
+            return;
+        }
         const allData = data.data || [];
 
-        // 선택된 업체별로 파일 생성
         for (const company of selectedCompanies) {
+            if (!isCurrentRequirementsViewRequest(viewRequest)) {
+                hideLoading();
+                return;
+            }
             showLoading(`${company} 데이터 생성 중...`);
             await downloadCompanyReviewNeeded(company, allData);
-
-            // 다음 다운로드 전 약간의 지연 (브라우저 부하 방지)
+            if (!isCurrentRequirementsViewRequest(viewRequest)) {
+                hideLoading();
+                return;
+            }
             await new Promise(resolve => setTimeout(resolve, 500));
         }
 
+        if (!isCurrentRequirementsViewRequest(viewRequest)) {
+            hideLoading();
+            return;
+        }
         hideLoading();
-        alert(`${selectedCompanies.length}개 업체의 검토 필요 현황이 다운로드되었습니다.`);
-
-        // 모달 닫기
-        document.querySelector('.modal.show').remove();
-
+        alert(`${selectedCompanies.length}개 업체의 검토 필요 현황을 다운로드했습니다.`);
+        document.querySelector('.modal.show')?.remove();
     } catch (error) {
         hideLoading();
-        console.error('업체별 다운로드 오류:', error);
+        if (!isCurrentRequirementsViewRequest(viewRequest)) return;
+        console.error('업체별 다운로드 오류');
         alert('다운로드 중 오류가 발생했습니다.');
     }
 }

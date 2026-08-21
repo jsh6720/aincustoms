@@ -34,6 +34,33 @@ function resetRequirementsSessionUI() {
     if (detailModal) detailModal.classList.remove('show');
     const detailTitle = document.getElementById('detailModalTitle');
     if (detailTitle) detailTitle.textContent = '';
+    const inputModal = document.getElementById('inputModal');
+    if (inputModal) {
+        inputModal.classList.remove('show');
+        inputModal.style.display = 'none';
+    }
+    const tableInput = document.getElementById('tableInput');
+    if (tableInput) tableInput.value = '';
+    const manualInputForm = document.getElementById('manualInputForm');
+    if (manualInputForm) manualInputForm.innerHTML = '';
+    const csvFileInput = document.getElementById('csvFileInput');
+    if (csvFileInput) {
+        csvFileInput.value = '';
+        csvFileInput.onchange = null;
+    }
+
+    const editModal = document.getElementById('editModal');
+    if (editModal) {
+        editModal.classList.remove('show');
+        editModal.style.display = 'none';
+    }
+    ['editFormContainer', 'modalContent'].forEach(id => {
+        const element = document.getElementById(id);
+        if (element) element.innerHTML = '';
+    });
+    currentEditRecord = null;
+
+    document.querySelectorAll('[data-requirements-session-modal]').forEach(modal => modal.remove());
 
     [
         'chemicalTableBody', 'msdsTableBody', 'radioTableBody', 'electricalTableBody',
@@ -72,6 +99,7 @@ function resetRequirementsSessionUI() {
     if (typeof currentReviewFilter !== 'undefined') currentReviewFilter = 'all';
     window.__ainRequirementsPendingSectionSearch = null;
     window.__ainRequirementsMenuLoadPromise = null;
+    window.__ainRequirementsDuplicateModalRequest = null;
 }
 
 function setDetailDeleteActionEnabled(enabled) {
@@ -1090,12 +1118,16 @@ function showInputModal(type) {
     // AI 프롬프트 생성 (관리자만)
     generateAIPrompt(type);
 
-    document.getElementById('inputModal').classList.add('show');
+    const inputModal = document.getElementById('inputModal');
+    inputModal.style.display = '';
+    inputModal.classList.add('show');
 }
 
 // 입력 모달 닫기
 function closeInputModal() {
-    document.getElementById('inputModal').classList.remove('show');
+    const inputModal = document.getElementById('inputModal');
+    inputModal.classList.remove('show');
+    inputModal.style.display = 'none';
     document.getElementById('tableInput').value = '';
     document.getElementById('manualInputForm').innerHTML = '';
     currentDataType = '';
@@ -2697,6 +2729,16 @@ let currentEditRecord = null;
 
 // 레코드 수정 모달 열기
 async function editRecord(type, recordId) {
+    const viewRequest = beginRequirementsViewRequest('modal:edit');
+    currentEditRecord = null;
+    const editModal = document.getElementById('editModal');
+    const editFormContainer = document.getElementById('editFormContainer');
+    if (editModal) {
+        editModal.classList.remove('show');
+        editModal.style.display = 'none';
+    }
+    if (editFormContainer) editFormContainer.innerHTML = '';
+
     try {
         const tableMap = {
             'chemical': 'chemical_confirmation',
@@ -2709,35 +2751,33 @@ async function editRecord(type, recordId) {
         };
 
         const response = await fetch(`tables/${tableMap[type]}/${recordId}`);
+        if (!isCurrentRequirementsViewRequest(viewRequest) || response.status === 409) return;
         if (!response.ok) {
             alert('데이터를 불러올 수 없습니다.');
             return;
         }
 
         const record = await response.json();
-        currentEditRecord = { type, recordId, data: record };
+        if (!isCurrentRequirementsViewRequest(viewRequest)) return;
+        currentEditRecord = { type, recordId, data: record, viewRequest };
         currentDataType = type;
 
-        // 수정 폼 생성
-        const formHtml = generateEditForm(type, record);
-        document.getElementById('editFormContainer').innerHTML = formHtml;
-
-        // 모달 제목 설정
+        editFormContainer.innerHTML = generateEditForm(type, record);
         const typeLabels = {
             'chemical': '화학물질확인',
             'msds': 'MSDS',
             'radio': '전파법',
             'electrical': '전안법',
             'medical': '의료기기/원안법 등',
-            'non_target': '비대상'
+            'non_target': '비대상',
+            'review_needed': '확인 필요 List'
         };
-        document.getElementById('editModalTitle').textContent = `${typeLabels[type]} 수정`;
-
-        // 모달 열기
-        document.getElementById('editModal').classList.add('show');
-
+        document.getElementById('editModalTitle').textContent = `${typeLabels[type] || type} 수정`;
+        editModal.style.display = '';
+        editModal.classList.add('show');
     } catch (error) {
-        console.error('레코드 불러오기 오류:', error);
+        if (!isCurrentRequirementsViewRequest(viewRequest)) return;
+        console.error('레코드 불러오기 오류');
         alert('데이터를 불러오는 중 오류가 발생했습니다.');
     }
 }
@@ -2868,35 +2908,34 @@ function generateEditForm(type, record) {
 
 // 수정 모달 닫기
 function closeEditModal() {
-    document.getElementById('editModal').classList.remove('show');
+    beginRequirementsViewRequest('modal:edit');
+    const editModal = document.getElementById('editModal');
+    editModal.classList.remove('show');
+    editModal.style.display = 'none';
+    const editFormContainer = document.getElementById('editFormContainer');
+    if (editFormContainer) editFormContainer.innerHTML = '';
+    const modalContent = document.getElementById('modalContent');
+    if (modalContent) modalContent.innerHTML = '';
     currentEditRecord = null;
 }
 
 // 수정된 데이터 저장
 async function saveEditedData() {
-    if (!currentEditRecord) {
+    const editTarget = currentEditRecord;
+    if (!editTarget || !isCurrentRequirementsViewRequest(editTarget.viewRequest)) {
         alert('수정할 데이터가 없습니다.');
         return;
     }
 
     const formContainer = document.getElementById('editFormContainer');
     const inputs = formContainer.querySelectorAll('input, select, textarea');
-
-    const updatedData = { ...currentEditRecord.data };
+    const updatedData = { ...editTarget.data };
 
     inputs.forEach(input => {
         const fieldName = input.name;
         let value = input.value.trim();
-
-        // spec_no는 반드시 문자열로 유지 (20001.210이 20001.21로 변환되는 것 방지)
-        if (fieldName === 'spec_no') {
-            value = String(value);
-        }
-        // 숫자 타입 처리
-        else if (input.type === 'number' && value) {
-            value = parseFloat(value);
-        }
-
+        if (fieldName === 'spec_no') value = String(value);
+        else if (input.type === 'number' && value) value = parseFloat(value);
         updatedData[fieldName] = value;
     });
 
@@ -2910,10 +2949,7 @@ async function saveEditedData() {
             'non_target': 'non_target',
             'review_needed': 'review_needed'
         };
-
-        const tableName = tableMap[currentEditRecord.type];
-
-        // 시스템 필드 제거 (읽기 전용 필드)
+        const tableName = tableMap[editTarget.type];
         const cleanedData = { ...updatedData };
         delete cleanedData.id;
         delete cleanedData.gs_project_id;
@@ -2921,41 +2957,32 @@ async function saveEditedData() {
         delete cleanedData.created_at;
         delete cleanedData.updated_at;
 
-
-        // 일반 사용자: 수정 요청 생성
         if (!isMasterUser()) {
             const result = await submitEditRequest(
                 tableName,
-                currentEditRecord.recordId,
-                currentEditRecord.data,
+                editTarget.recordId,
+                editTarget.data,
                 cleanedData
             );
-
-            if (result.success) {
-                closeEditModal();
-            }
+            if (!isCurrentRequirementsViewRequest(editTarget.viewRequest) || currentEditRecord !== editTarget) return;
+            if (result.success) closeEditModal();
             return;
         }
 
-        // 관리자: 직접 수정
-        const response = await fetch(`tables/${tableName}/${currentEditRecord.recordId}`, {
+        const response = await fetch(`tables/${tableName}/${editTarget.recordId}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(cleanedData)
         });
-
+        if (!isCurrentRequirementsViewRequest(editTarget.viewRequest) || currentEditRecord !== editTarget) return;
         console.log('응답 상태:', response.status, response.statusText);
 
         if (response.ok) {
-            const result = await response.json();
-
-            // 타입을 미리 저장 (closeEditModal에서 currentEditRecord가 null이 되기 전에)
-            const recordType = currentEditRecord.type;
-
+            await response.json();
+            if (!isCurrentRequirementsViewRequest(editTarget.viewRequest) || currentEditRecord !== editTarget) return;
+            const recordType = editTarget.type;
             alert('수정되었습니다.');
             closeEditModal();
-
-            // 데이터 새로고침
             switch(recordType) {
                 case 'chemical': await loadChemicalData(); break;
                 case 'msds': await loadMsdsData(); break;
@@ -2963,14 +2990,15 @@ async function saveEditedData() {
                 case 'electrical': await loadElectricalData(); break;
                 case 'medical': await loadMedicalData(); break;
                 case 'non_target': await loadNonTargetData(); break;
+                case 'review_needed': await loadReviewNeededData(); break;
             }
             await loadDashboard();
         } else {
             alert(`수정 중 오류가 발생했습니다.\n상태 코드: ${response.status}`);
         }
     } catch (error) {
-        console.error('수정 오류:', error);
-
-        alert(`수정 중 오류가 발생했습니다.\n오류 내용: ${error.message}`);
+        if (!isCurrentRequirementsViewRequest(editTarget.viewRequest) || currentEditRecord !== editTarget) return;
+        console.error('수정 오류');
+        alert('수정 중 오류가 발생했습니다.');
     }
 }

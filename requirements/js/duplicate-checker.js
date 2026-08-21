@@ -50,8 +50,11 @@ function showDuplicateCheckDialog() {
         return;
     }
 
+    const viewRequest = beginRequirementsViewRequest('modal:duplicate');
+    window.__ainRequirementsDuplicateModalRequest = viewRequest;
     const modal = document.createElement('div');
     modal.className = 'modal';
+    modal.dataset.requirementsSessionModal = 'duplicate';
     modal.style.display = 'block';
     modal.innerHTML = `
         <div class="modal-content" style="max-width: 800px;">
@@ -130,33 +133,30 @@ function showDuplicateCheckDialog() {
 
 // 중복 체크 시작
 async function startDuplicateCheck() {
+    const viewRequest = window.__ainRequirementsDuplicateModalRequest;
+    if (!viewRequest || !isCurrentRequirementsViewRequest(viewRequest)) return;
+
     const selectedSections = [];
-
     ['chemical', 'msds', 'radio', 'electrical', 'medical', 'non_target', 'review_needed'].forEach(section => {
-        if (document.getElementById(`check_${section}`)?.checked) {
-            selectedSections.push(section);
-        }
+        if (document.getElementById(`check_${section}`)?.checked) selectedSections.push(section);
     });
-
     if (selectedSections.length === 0) {
         alert('최소 1개 이상의 섹션을 선택해주세요.');
         return;
     }
 
     const resultDiv = document.getElementById('duplicateCheckResult');
+    if (!resultDiv) return;
     resultDiv.innerHTML = '<div style="text-align: center; padding: 20px;"><i class="fas fa-spinner fa-spin fa-2x"></i><p style="margin-top: 10px;">중복 데이터 검색 중...</p></div>';
-
     const duplicateResults = {};
 
     for (const section of selectedSections) {
-        const tableName = TABLE_MAP[section];
-        const result = await findDuplicates(tableName, section);
-        if (result.duplicateGroups.length > 0) {
-            duplicateResults[section] = result;
-        }
+        const result = await findDuplicates(TABLE_MAP[section], section);
+        if (!isCurrentRequirementsViewRequest(viewRequest) || document.getElementById('duplicateCheckResult') !== resultDiv) return;
+        if (result.duplicateGroups.length > 0) duplicateResults[section] = result;
     }
 
-    displayDuplicateResults(duplicateResults);
+    if (isCurrentRequirementsViewRequest(viewRequest)) displayDuplicateResults(duplicateResults);
 }
 
 // 중복 데이터 찾기
