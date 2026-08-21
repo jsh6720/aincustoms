@@ -66,7 +66,7 @@ test("requirements scripts use their current cache epochs", () => {
     "unified-search": "6.0.2",
     "review-needed": "6.0.3",
     "selection-delete": "6.0.2",
-    "duplicate-checker": "6.0.3",
+    "duplicate-checker": "6.0.4",
     app: "6.0.3",
   };
 

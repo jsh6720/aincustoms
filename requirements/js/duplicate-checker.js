@@ -34,9 +34,24 @@ const TABLE_MAP = {
 };
 
 // 쓰기는 재시도하지 않는다. 응답 유실 시 동일 변경이 중복 적용될 수 있다.
-async function deleteOnce(url) {
+function isCurrentDuplicateRequest(duplicateRequest) {
+    const resultDiv = duplicateRequest?.resultDiv;
+    return Boolean(
+        duplicateRequest &&
+        window.__ainRequirementsDuplicateModalRequest === duplicateRequest &&
+        isCurrentRequirementsViewRequest(duplicateRequest.viewRequest) &&
+        duplicateRequest.modal?.parentNode &&
+        resultDiv &&
+        document.getElementById('duplicateCheckResult') === resultDiv
+    );
+}
+
+async function deleteOnce(url, duplicateRequest) {
+    const guardsDuplicateView = duplicateRequest && typeof duplicateRequest === 'object';
+    if (guardsDuplicateView && !isCurrentDuplicateRequest(duplicateRequest)) return false;
     try {
         const response = await fetch(url, { method: 'DELETE' });
+        if (guardsDuplicateView && !isCurrentDuplicateRequest(duplicateRequest)) return false;
         return response.ok || response.status === 204;
     } catch (error) {
         return false;
@@ -51,8 +66,9 @@ function showDuplicateCheckDialog() {
     }
 
     const viewRequest = beginRequirementsViewRequest('modal:duplicate');
-    window.__ainRequirementsDuplicateModalRequest = viewRequest;
     const modal = document.createElement('div');
+    const duplicateRequest = { viewRequest, modal, resultDiv: null };
+    window.__ainRequirementsDuplicateModalRequest = duplicateRequest;
     modal.className = 'modal';
     modal.dataset.requirementsSessionModal = 'duplicate';
     modal.style.display = 'block';
@@ -129,12 +145,13 @@ function showDuplicateCheckDialog() {
     `;
 
     document.body.appendChild(modal);
+    duplicateRequest.resultDiv = document.getElementById('duplicateCheckResult');
 }
 
 // 중복 체크 시작
 async function startDuplicateCheck() {
-    const viewRequest = window.__ainRequirementsDuplicateModalRequest;
-    if (!viewRequest || !isCurrentRequirementsViewRequest(viewRequest)) return;
+    const duplicateRequest = window.__ainRequirementsDuplicateModalRequest;
+    if (!isCurrentDuplicateRequest(duplicateRequest)) return;
 
     const selectedSections = [];
     ['chemical', 'msds', 'radio', 'electrical', 'medical', 'non_target', 'review_needed'].forEach(section => {
@@ -145,23 +162,27 @@ async function startDuplicateCheck() {
         return;
     }
 
-    const resultDiv = document.getElementById('duplicateCheckResult');
-    if (!resultDiv) return;
+    const resultDiv = duplicateRequest.resultDiv;
+    if (!isCurrentDuplicateRequest(duplicateRequest)) return;
     resultDiv.innerHTML = '<div style="text-align: center; padding: 20px;"><i class="fas fa-spinner fa-spin fa-2x"></i><p style="margin-top: 10px;">중복 데이터 검색 중...</p></div>';
     const duplicateResults = {};
 
     for (const section of selectedSections) {
-        const result = await findDuplicates(TABLE_MAP[section], section);
-        if (!isCurrentRequirementsViewRequest(viewRequest) || document.getElementById('duplicateCheckResult') !== resultDiv) return;
-        if (result.duplicateGroups.length > 0) duplicateResults[section] = result;
+        if (!isCurrentDuplicateRequest(duplicateRequest)) return;
+        const result = await findDuplicates(TABLE_MAP[section], section, duplicateRequest);
+        if (!isCurrentDuplicateRequest(duplicateRequest)) return;
+        if (result?.duplicateGroups.length > 0) duplicateResults[section] = result;
     }
 
-    if (isCurrentRequirementsViewRequest(viewRequest)) displayDuplicateResults(duplicateResults);
+    if (isCurrentDuplicateRequest(duplicateRequest)) {
+        displayDuplicateResults(duplicateResults, duplicateRequest);
+    }
 }
 
 // 중복 데이터 찾기
-async function findDuplicates(tableName, sectionType) {
+async function findDuplicates(tableName, sectionType, duplicateRequest = window.__ainRequirementsDuplicateModalRequest) {
     try {
+        if (!isCurrentDuplicateRequest(duplicateRequest)) return null;
         // 페이지네이션으로 모든 데이터 가져오기
         let allRecords = [];
         let page = 1;
@@ -169,12 +190,15 @@ async function findDuplicates(tableName, sectionType) {
         let hasMore = true;
 
         while (hasMore) {
+            if (!isCurrentDuplicateRequest(duplicateRequest)) return null;
             const response = await fetch(`tables/${tableName}?page=${page}&limit=${limit}`);
+            if (!isCurrentDuplicateRequest(duplicateRequest)) return null;
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
 
             const data = await response.json();
+            if (!isCurrentDuplicateRequest(duplicateRequest)) return null;
             const records = data.data || [];
 
             if (records.length === 0) {
@@ -230,6 +254,7 @@ async function findDuplicates(tableName, sectionType) {
 
         console.log(`${SECTION_NAMES[sectionType]}: ${duplicateGroups.length}개 중복 그룹 발견`);
 
+        if (!isCurrentDuplicateRequest(duplicateRequest)) return null;
         return {
             totalRecords: allRecords.length,
             duplicateGroups: duplicateGroups,
@@ -237,6 +262,7 @@ async function findDuplicates(tableName, sectionType) {
         };
 
     } catch (error) {
+        if (!isCurrentDuplicateRequest(duplicateRequest)) return null;
         console.error(`${SECTION_NAMES[sectionType]} 중복 체크 오류:`, error);
         return {
             totalRecords: 0,
@@ -248,8 +274,9 @@ async function findDuplicates(tableName, sectionType) {
 }
 
 // 중복 결과 표시
-function displayDuplicateResults(results) {
-    const resultDiv = document.getElementById('duplicateCheckResult');
+function displayDuplicateResults(results, duplicateRequest = window.__ainRequirementsDuplicateModalRequest) {
+    if (!isCurrentDuplicateRequest(duplicateRequest)) return;
+    const resultDiv = duplicateRequest.resultDiv;
 
     if (Object.keys(results).length === 0) {
         resultDiv.innerHTML = `
@@ -290,7 +317,7 @@ function displayDuplicateResults(results) {
         </div>
 
         <div style="margin-top: 20px; text-align: right;">
-            <button class="btn-danger" onclick="confirmAndRemoveDuplicates(${JSON.stringify(results).replace(/"/g, '&quot;')})">
+            <button class="btn-danger" onclick="confirmAndRemoveDuplicates(${JSON.stringify(results).replace(/"/g, '&quot;')}, window.__ainRequirementsDuplicateModalRequest)">
                 <i class="fas fa-trash-alt"></i> 중복 데이터 삭제
             </button>
         </div>
@@ -302,7 +329,9 @@ function displayDuplicateResults(results) {
 }
 
 // 중복 제거 확인 및 실행
-async function confirmAndRemoveDuplicates(results) {
+async function confirmAndRemoveDuplicates(results, duplicateRequest = window.__ainRequirementsDuplicateModalRequest) {
+    if (!isCurrentDuplicateRequest(duplicateRequest)) return;
+    const resultDiv = duplicateRequest.resultDiv;
     const totalDuplicates = Object.values(results).reduce((sum, r) => sum + r.totalDuplicates, 0);
 
     const confirmation = prompt(
@@ -311,13 +340,14 @@ async function confirmAndRemoveDuplicates(results) {
         `계속하려면 "삭제확인"을 입력하세요:`
     );
 
+    if (!isCurrentDuplicateRequest(duplicateRequest)) return;
     if (confirmation !== '삭제확인') {
         alert('취소되었습니다.');
         return;
     }
 
     // 진행 상황 표시
-    const resultDiv = document.getElementById('duplicateCheckResult');
+    if (!isCurrentDuplicateRequest(duplicateRequest)) return;
     resultDiv.innerHTML = `
         <div style="text-align: center; padding: 20px;">
             <i class="fas fa-spinner fa-spin fa-2x" style="color: #dc3545;"></i>
@@ -331,10 +361,11 @@ async function confirmAndRemoveDuplicates(results) {
     const deleteResults = {};
 
     for (const [section, result] of Object.entries(results)) {
+        if (!isCurrentDuplicateRequest(duplicateRequest)) return;
         const tableName = TABLE_MAP[section];
         const progressText = document.getElementById('deleteProgress');
 
-        if (progressText) {
+        if (progressText && isCurrentDuplicateRequest(duplicateRequest)) {
             progressText.textContent = `${SECTION_NAMES[section]} 처리 중... (${totalDeleted}개 삭제됨)`;
         }
 
@@ -350,15 +381,18 @@ async function confirmAndRemoveDuplicates(results) {
         // 배치 처리 (10개씩)
         const batchSize = 10;
         for (let i = 0; i < allDeleteRecords.length; i += batchSize) {
+            if (!isCurrentDuplicateRequest(duplicateRequest)) return;
             const batch = allDeleteRecords.slice(i, i + batchSize);
+            const pendingDeletes = [];
+            for (const record of batch) {
+                if (!isCurrentDuplicateRequest(duplicateRequest)) return;
+                pendingDeletes.push(deleteOnce(`tables/${tableName}/${record.id}`, duplicateRequest));
+            }
 
-            const batchResults = await Promise.allSettled(
-                batch.map(record =>
-                    deleteOnce(`tables/${tableName}/${record.id}`)
-                )
-            );
+            const batchResults = await Promise.allSettled(pendingDeletes);
+            if (!isCurrentDuplicateRequest(duplicateRequest)) return;
 
-            batchResults.forEach((result, idx) => {
+            batchResults.forEach(result => {
                 if (result.status === 'fulfilled' && result.value === true) {
                     sectionDeleted++;
                     totalDeleted++;
@@ -370,16 +404,18 @@ async function confirmAndRemoveDuplicates(results) {
             });
 
             // 진행 상황 업데이트
-            if (progressText) {
+            if (progressText && isCurrentDuplicateRequest(duplicateRequest)) {
                 progressText.textContent = `${SECTION_NAMES[section]} 처리 중... (${totalDeleted}/${totalDuplicates}개 삭제됨)`;
             }
 
             // 다음 배치 전 짧은 대기
             if (i + batchSize < allDeleteRecords.length) {
                 await new Promise(resolve => setTimeout(resolve, 300));
+                if (!isCurrentDuplicateRequest(duplicateRequest)) return;
             }
         }
 
+        if (!isCurrentDuplicateRequest(duplicateRequest)) return;
         deleteResults[section] = {
             deleted: sectionDeleted,
             failed: sectionFailed
@@ -423,5 +459,6 @@ async function confirmAndRemoveDuplicates(results) {
         </div>
     `;
 
+    if (!isCurrentDuplicateRequest(duplicateRequest)) return;
     resultDiv.innerHTML = summaryHtml;
 }

@@ -347,10 +347,15 @@ function sessionDomHarness() {
     fetchImpl: defaultFetch,
     fetch: (...args) => context.fetchImpl(...args),
     console: { log() {}, warn() {}, error() {} },
-    alert() {}, confirm: () => true, prompt: () => null,
+    alert() {}, confirm: () => true,
+    promptImpl: () => null,
+    prompt: (...args) => context.promptImpl(...args),
     showLoading() {}, hideLoading() {},
     formatDate: (value) => value, isDateField: () => false,
-    performance: { now: () => 0 }, setTimeout, clearTimeout,
+    performance: { now: () => 0 },
+    delayImpl: (...args) => setTimeout(...args),
+    setTimeout: (...args) => context.delayImpl(...args),
+    clearTimeout,
   };
   context.window = context;
   context.location = { pathname: "/requirements/" };
@@ -368,7 +373,8 @@ function sessionDomHarness() {
   vm.runInContext(duplicateSource, context);
   vm.runInContext(`this.sessionUI = {
     login, logout, loadChemicalData, viewDetail, performUnifiedSearch, showInputModal,
-    editRecord, showDuplicateCheckDialog, showCompanyDownloadDialog, loadCompanyList, downloadSelectedCompanies,
+    editRecord, showDuplicateCheckDialog, startDuplicateCheck, findDuplicates, confirmAndRemoveDuplicates,
+    showCompanyDownloadDialog, loadCompanyList, downloadSelectedCompanies,
     detail: () => currentDetailRecord, edit: () => currentEditRecord,
     dataType: () => currentDataType
   };`, context);
@@ -559,4 +565,129 @@ test("a company export read cannot continue with prior-session selections after 
   await exportLoad;
 
   assert.equal(downloads, 0);
+});
+function duplicateDeleteResults(ids) {
+  return {
+    chemical: {
+      totalRecords: ids.length + 1,
+      totalDuplicates: ids.length,
+      duplicateGroups: [{
+        key: "A-DUPLICATE-KEY",
+        count: ids.length + 1,
+        keepRecord: { id: "A-KEEP" },
+        deleteRecords: ids.map((id) => ({ id })),
+      }],
+    },
+  };
+}
+
+test("late prior-session duplicate scan stops before another read or stale render", async () => {
+  const harness = sessionDomHarness();
+  const firstPage = deferredResponse();
+  const calls = [];
+  harness.context.fetchImpl = (url, options = {}) => {
+    const session = JSON.parse(harness.storage.get("ainRequirementsSession") || "null");
+    calls.push({ url, method: options.method || "GET", token: session?.token || null });
+    if (calls.length === 1) return firstPage.promise;
+    return Promise.resolve({ ok: true, status: 200, json: async () => ({ data: [] }) });
+  };
+
+  await harness.context.sessionUI.login("USER-A", "secret");
+  harness.context.sessionUI.showDuplicateCheckDialog();
+  harness.elements.get("check_chemical").checked = true;
+  const priorResult = harness.elements.get("duplicateCheckResult");
+  const scan = harness.context.sessionUI.startDuplicateCheck();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(calls.length, 1);
+
+  await harness.context.sessionUI.login("USER-B", "secret");
+  const removedHtml = priorResult.innerHTML;
+  firstPage.resolve({
+    ok: true,
+    status: 200,
+    json: async () => ({
+      data: [
+        { id: "A-KEEP", spec_no: "S-1", receipt_number: "R-1", product_name: "P-1", created_at: 1 },
+        { id: "A-DELETE", spec_no: "S-1", receipt_number: "R-1", product_name: "P-1", created_at: 2 },
+      ],
+    }),
+  });
+  await scan;
+
+  assert.equal(calls.length, 1);
+  assert.deepEqual(calls.map((call) => call.token), ["USER-A-token"]);
+  assert.equal(priorResult.innerHTML, removedHtml);
+  assert.equal(harness.elements.has("duplicateCheckResult"), false);
+});
+
+test("reset during a duplicate delete batch cancels later batches and stale progress", async () => {
+  const harness = sessionDomHarness();
+  const firstBatch = deferredResponse();
+  const calls = [];
+  harness.context.promptImpl = () => "삭제확인";
+  harness.context.delayImpl = (callback) => { callback(); return 1; };
+  harness.context.fetchImpl = (url, options = {}) => {
+    const session = JSON.parse(harness.storage.get("ainRequirementsSession") || "null");
+    calls.push({ url, method: options.method || "GET", token: session?.token || null });
+    if (calls.length <= 10) return firstBatch.promise;
+    return Promise.resolve({ ok: true, status: 204 });
+  };
+
+  await harness.context.sessionUI.login("USER-A", "secret");
+  harness.context.sessionUI.showDuplicateCheckDialog();
+  const priorResult = harness.elements.get("duplicateCheckResult");
+  const deletion = harness.context.sessionUI.confirmAndRemoveDuplicates(
+    duplicateDeleteResults(Array.from({ length: 12 }, (_, index) => `A-${index + 1}`))
+  );
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(calls.length, 10);
+  const priorProgress = harness.elements.get("deleteProgress");
+
+  await harness.context.sessionUI.login("USER-B", "secret");
+  const removedHtml = priorResult.innerHTML;
+  const removedProgress = priorProgress.textContent;
+  firstBatch.resolve({ ok: true, status: 204 });
+  await deletion;
+
+  assert.equal(calls.length, 10);
+  assert.equal(calls.some((call) => call.token === "USER-B-token"), false);
+  assert.equal(calls.every((call) => /\/A-(?:[1-9]|10)$/.test(call.url)), true);
+  assert.equal(priorResult.innerHTML, removedHtml);
+  assert.equal(priorProgress.textContent, removedProgress);
+  assert.equal(harness.elements.has("duplicateCheckResult"), false);
+});
+
+test("current-session duplicate scan and multiple delete batches complete normally", async () => {
+  const harness = sessionDomHarness();
+  const calls = [];
+  let page = 0;
+  harness.context.promptImpl = () => "삭제확인";
+  harness.context.delayImpl = (callback) => { callback(); return 1; };
+  harness.context.fetchImpl = async (url, options = {}) => {
+    calls.push({ url, method: options.method || "GET" });
+    if (options.method === "DELETE") return { ok: true, status: 204 };
+    page += 1;
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({ data: page === 1 ? [
+        { id: "KEEP", spec_no: "S-1", receipt_number: "R-1", product_name: "P-1", created_at: 1 },
+        { id: "DELETE", spec_no: "S-1", receipt_number: "R-1", product_name: "P-1", created_at: 2 },
+      ] : [] }),
+    };
+  };
+
+  await harness.context.sessionUI.login("USER-B", "secret");
+  harness.context.sessionUI.showDuplicateCheckDialog();
+  harness.elements.get("check_chemical").checked = true;
+  await harness.context.sessionUI.startDuplicateCheck();
+  assert.match(harness.elements.get("duplicateCheckResult").innerHTML, /confirmAndRemoveDuplicates/);
+
+  await harness.context.sessionUI.confirmAndRemoveDuplicates(
+    duplicateDeleteResults(Array.from({ length: 12 }, (_, index) => `B-${index + 1}`))
+  );
+
+  assert.equal(calls.filter((call) => call.method === "GET").length, 2);
+  assert.equal(calls.filter((call) => call.method === "DELETE").length, 12);
+  assert.match(harness.elements.get("duplicateCheckResult").innerHTML, /12/);
 });
