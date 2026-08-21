@@ -4,16 +4,16 @@ let currentSection = 'overview';
 let currentDataType = '';
 let currentDetailRecord = null;
 
-async function loadCurrentSection() {
+async function loadCurrentSection(searchQuery = '') {
     switch (currentSection) {
-        case 'chemical': await loadChemicalData(); break;
-        case 'msds': await loadMsdsData(); break;
-        case 'radio': await loadRadioData(); break;
-        case 'electrical': await loadElectricalData(); break;
-        case 'medical': await loadMedicalData(); break;
-        case 'non_target': await loadNonTargetData(); break;
+        case 'chemical': await loadChemicalData(searchQuery); break;
+        case 'msds': await loadMsdsData(searchQuery); break;
+        case 'radio': await loadRadioData(searchQuery); break;
+        case 'electrical': await loadElectricalData(searchQuery); break;
+        case 'medical': await loadMedicalData(searchQuery); break;
+        case 'non_target': await loadNonTargetData(searchQuery); break;
         case 'review_needed':
-            if (typeof loadReviewNeededData === 'function') await loadReviewNeededData();
+            if (typeof loadReviewNeededData === 'function') await loadReviewNeededData(searchQuery);
             break;
         case 'editRequests':
             if (typeof loadEditRequests === 'function') await loadEditRequests();
@@ -95,18 +95,6 @@ async function loadDashboard() {
         document.getElementById('statElectrical').textContent = filteredElectrical.length;
         document.getElementById('statMedical').textContent = filteredMedical.length;
         document.getElementById('statNonTarget').textContent = filteredNonTarget.length;
-
-        // 각 섹션 데이터도 로드 (실패해도 계속 진행)
-        const loadPromises = [
-            loadChemicalData(),
-            loadMsdsData(),
-            loadRadioData(),
-            loadElectricalData(),
-            loadMedicalData(),
-            loadNonTargetData()
-        ];
-
-        await Promise.allSettled(loadPromises);
 
     } catch (error) {
         console.error('대시보드 로드 오류:', error);
@@ -774,13 +762,26 @@ async function viewDetail(type, recordId) {
             'review_needed': 'review_needed'
         };
 
-        const response = await fetch(`tables/${tableMap[type]}/${recordId}`);
-        const record = await response.json();
-
-        if (!record) {
-            alert('데이터를 찾을 수 없습니다.');
+        const response = await fetch('tables/' + tableMap[type] + '/' + recordId);
+        if (!response.ok) {
+            if (response.status === 409) {
+                document.getElementById('detailContent').innerHTML = '';
+                return;
+            }
+            if (response.status === 401) return;
+            const message = {
+                403: '이 데이터에 접근 권한이 없습니다.',
+                404: '요청한 데이터를 찾을 수 없습니다.',
+                503: '일시적인 오류입니다. 잠시 후 다시 시도해주세요.'
+            }[response.status] || '상세 정보를 불러오는 중 오류가 발생했습니다.';
+            const detailContent = document.getElementById('detailContent');
+            detailContent.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-triangle"></i><p>' + message + '</p></div>';
+            document.getElementById('detailModalTitle').textContent = getTypeLabel(type) + ' 상세정보';
+            document.getElementById('detailModal').classList.add('show');
             return;
         }
+        const record = await response.json();
+        if (!record || record.success === false) return;
 
         currentDetailRecord = { type, id: recordId };
 
@@ -1127,43 +1128,28 @@ document.addEventListener('DOMContentLoaded', () => {
 // 메뉴 전환
 document.addEventListener('DOMContentLoaded', () => {
     const menuItems = document.querySelectorAll('.menu-item');
-
     menuItems.forEach(item => {
-        item.addEventListener('click', () => {
+        item.addEventListener('click', async () => {
             const section = item.dataset.section;
-
-            // 메뉴 활성화
             menuItems.forEach(m => m.classList.remove('active'));
             item.classList.add('active');
-
-            // 섹션 표시
-            document.querySelectorAll('.content-section').forEach(s => {
-                s.classList.remove('active');
-            });
-
-            // 섹션 ID 결정
-            const sectionId = `${section}Section`;
-            const targetSection = document.getElementById(sectionId);
-
-            if (targetSection) {
-                targetSection.classList.add('active');
-                currentSection = section;
-
-                console.log('[App] 섹션 전환:', section, '→', sectionId);
-
-                // 섹션별 데이터 로드
-                if (section === 'review_needed') {
-                    loadReviewNeededData();
-                } else if (section === 'editRequests') {
-                    loadEditRequests();
-                }
-            } else {
-                console.warn('[App] 섹션을 찾을 수 없음:', sectionId);
+            document.querySelectorAll('.content-section').forEach(s => s.classList.remove('active'));
+            const targetSection = document.getElementById(section + 'Section');
+            if (!targetSection) {
+                console.warn('[App] 섹션을 찾을 수 없음:', section);
+                return;
             }
+            targetSection.classList.add('active');
+            currentSection = section;
+            const pending = window.__ainRequirementsPendingSectionSearch;
+            const searchQuery = pending && pending.section === section ? pending.query : '';
+            if (pending && pending.section === section) window.__ainRequirementsPendingSectionSearch = null;
+            const loadPromise = loadCurrentSection(searchQuery);
+            window.__ainRequirementsMenuLoadPromise = loadPromise;
+            await loadPromise;
         });
     });
 });
-
 // 전체 데이터 삭제 (마스터 전용)
 async function deleteAllData(type) {
     console.log('deleteAllData 호출됨:', type);

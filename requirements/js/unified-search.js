@@ -313,61 +313,23 @@ function generateResultItem(title, icon, hasData, details, dataType) {
 }
 
 // 통합검색에서 섹션으로 이동
-function navigateToSection(dataType) {
-    // 검색어 저장
+async function navigateToSection(dataType) {
     const searchValue = document.getElementById('unifiedSearch').value.trim();
-
-    // 섹션 매핑
-    const sectionMap = {
-        'chemical': 'chemicalSection',
-        'msds': 'msdsSection',
-        'radio': 'radioSection',
-        'electrical': 'electricalSection',
-        'medical': 'medicalSection',
-        'non_target': 'nonTargetSection',
-        'review_needed': 'review_neededSection'
+    const searchInputMap = {
+        'chemical': 'chemicalSearch', 'msds': 'msdsSearch', 'radio': 'radioSearch',
+        'electrical': 'electricalSearch', 'medical': 'medicalSearch',
+        'non_target': 'non_targetSearch', 'review_needed': 'reviewNeededSearch'
     };
-
-    const sectionId = sectionMap[dataType];
-    if (!sectionId) return;
-
-    // 메뉴 클릭 (섹션 표시)
-    const menuItems = document.querySelectorAll('.menu-item');
-    menuItems.forEach(item => {
-        if (item.getAttribute('data-section') === sectionId) {
-            item.click();
-        }
-    });
-
-    // 해당 섹션의 검색창에 검색어 입력 및 검색 실행
-    setTimeout(() => {
-        const searchInputMap = {
-            'chemical': 'chemicalSearch',
-            'msds': 'msdsSearch',
-            'radio': 'radioSearch',
-            'electrical': 'electricalSearch',
-            'medical': 'medicalSearch',
-            'non_target': 'non_targetSearch',
-            'review_needed': 'reviewNeededSearch'
-        };
-
-        const searchInputId = searchInputMap[dataType];
-        const searchInput = document.getElementById(searchInputId);
-
-        if (searchInput) {
-            searchInput.value = searchValue;
-            searchInput.focus();
-
-            // 검색 함수 실행
-            if (dataType === 'review_needed') {
-                // review_needed는 별도 함수 사용
-                searchReviewNeeded();
-            } else {
-                // 나머지는 searchData 함수 사용
-                searchData(dataType);
-            }
-        }
-    }, 100);
+    const searchInput = document.getElementById(searchInputMap[dataType]);
+    const menuItem = document.querySelector('.menu-item[data-section="' + dataType + '"]');
+    if (!menuItem || !searchInput) return;
+    searchInput.value = searchValue;
+    searchInput.focus();
+    window.__ainRequirementsPendingSectionSearch = { section: dataType, query: searchValue };
+    const clickResult = menuItem.click();
+    const loadPromise = window.__ainRequirementsMenuLoadPromise;
+    if (loadPromise) await loadPromise;
+    else await clickResult;
 }
 
 // 엔터키로 통합 검색
