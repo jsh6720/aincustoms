@@ -176,7 +176,7 @@ function searchReviewNeeded() {
     filterButtons.forEach(btn => btn.classList.remove('active'));
     if (filterButtons.length > 0) filterButtons[0].classList.add('active'); // 첫 번째 = 전체
 
-    loadReviewNeededData(searchQuery);
+    return loadReviewNeededData(searchQuery);
 }
 
 // 엔터키 검색

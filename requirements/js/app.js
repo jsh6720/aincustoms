@@ -133,6 +133,46 @@ async function loadCurrentSection(searchQuery = '') {
     }
 }
 
+const REQUIREMENTS_SECTION_SEARCH_INPUTS = {
+    chemical: 'chemicalSearch',
+    msds: 'msdsSearch',
+    radio: 'radioSearch',
+    electrical: 'electricalSearch',
+    medical: 'medicalSearch',
+    non_target: 'non_targetSearch',
+    review_needed: 'reviewNeededSearch'
+};
+
+async function activateRequirementsSection(section, searchQuery = null) {
+    const menuItem = document.querySelector('.menu-item[data-section="' + section + '"]');
+    const targetSection = document.getElementById(section + 'Section');
+    const searchInputId = searchQuery === null ? null : REQUIREMENTS_SECTION_SEARCH_INPUTS[section];
+    const searchInput = searchInputId ? document.getElementById(searchInputId) : null;
+    if (!menuItem || !targetSection || (searchQuery !== null && !searchInput)) {
+        console.warn('[App] Section or search input not found:', section);
+        return false;
+    }
+
+    const query = searchQuery === null ? '' : String(searchQuery).trim();
+    if (searchInput) {
+        searchInput.value = query;
+        searchInput.focus();
+    }
+
+    document.querySelectorAll('.menu-item').forEach(item => item.classList.remove('active'));
+    menuItem.classList.add('active');
+    document.querySelectorAll('.content-section').forEach(item => item.classList.remove('active'));
+    targetSection.classList.add('active');
+    currentSection = section;
+
+    const loadPromise = section === 'review_needed' && searchQuery !== null && typeof searchReviewNeeded === 'function'
+        ? searchReviewNeeded()
+        : loadCurrentSection(query);
+    window.__ainRequirementsMenuLoadPromise = loadPromise;
+    await loadPromise;
+    return true;
+}
+
 async function clearAndReloadFromDatabase() {
     GoogleSheetsAPI.clearAllCache();
     await loadDashboard();
@@ -1275,22 +1315,10 @@ document.addEventListener('DOMContentLoaded', () => {
     menuItems.forEach(item => {
         item.addEventListener('click', async () => {
             const section = item.dataset.section;
-            menuItems.forEach(m => m.classList.remove('active'));
-            item.classList.add('active');
-            document.querySelectorAll('.content-section').forEach(s => s.classList.remove('active'));
-            const targetSection = document.getElementById(section + 'Section');
-            if (!targetSection) {
-                console.warn('[App] 섹션을 찾을 수 없음:', section);
-                return;
-            }
-            targetSection.classList.add('active');
-            currentSection = section;
             const pending = window.__ainRequirementsPendingSectionSearch;
             const searchQuery = pending && pending.section === section ? pending.query : '';
             if (pending && pending.section === section) window.__ainRequirementsPendingSectionSearch = null;
-            const loadPromise = loadCurrentSection(searchQuery);
-            window.__ainRequirementsMenuLoadPromise = loadPromise;
-            await loadPromise;
+            await activateRequirementsSection(section, searchQuery);
         });
     });
 });
