@@ -1316,7 +1316,7 @@ document.addEventListener('DOMContentLoaded', () => {
         item.addEventListener('click', async () => {
             const section = item.dataset.section;
             const pending = window.__ainRequirementsPendingSectionSearch;
-            const searchQuery = pending && pending.section === section ? pending.query : '';
+            const searchQuery = pending && pending.section === section ? pending.query : null;
             if (pending && pending.section === section) window.__ainRequirementsPendingSectionSearch = null;
             await activateRequirementsSection(section, searchQuery);
         });

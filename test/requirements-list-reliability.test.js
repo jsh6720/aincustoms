@@ -88,6 +88,22 @@ for (const [section, loader] of loaderCases) {
   });
 }
 
+
+for (const section of ["overview", "editRequests"]) {
+  test("selecting non-search section " + section + " still activates it", async () => {
+    const { context, elements, menuBySection } = harness();
+    const calls = [];
+    context.loadEditRequests = async () => calls.push("editRequests");
+    await menuBySection.get(section).click();
+    await context.__ainRequirementsMenuLoadPromise;
+
+    assert.equal(menuBySection.get(section).classList.has("active"), true);
+    assert.equal(elements.get(section + "Section").classList.has("active"), true);
+    assert.equal(context.__reliability.getCurrentSection(), section);
+    assert.deepEqual(calls, section === "editRequests" ? ["editRequests"] : []);
+  });
+}
+
 test("dashboard statistics do not eagerly hydrate list DOM", async () => {
   const { context, elements } = harness(async () => ({ ok: true, status: 200, json: async () => ({ data: [{ id: "one" }] }) }));
   const calls = [];
