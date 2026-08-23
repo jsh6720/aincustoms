@@ -63,11 +63,11 @@ test("requirements scripts use their current cache epochs", () => {
     "google-sheets-api": "6.0.2",
     auth: "6.0.2",
     "file-handler": "6.0.2",
-    "unified-search": "6.0.5",
-    "review-needed": "6.0.5",
+    "unified-search": "6.0.6",
+    "review-needed": "6.0.6",
     "selection-delete": "6.0.2",
     "duplicate-checker": "6.0.4",
-    app: "6.0.5",
+    app: "6.0.6",
   };
 
   for (const [script, version] of Object.entries(expectedVersions)) {
