@@ -883,8 +883,7 @@ async function loadNonTargetData(searchQuery = '') {
 function searchData(type) {
     // review_needed는 검색창 id가 다르므로(reviewNeededSearch) 전용 함수로 위임
     if (type === 'review_needed') {
-        searchReviewNeeded();
-        return;
+        return searchReviewNeeded();
     }
 
     const searchInput = document.getElementById(`${type}Search`);
@@ -899,27 +898,31 @@ function searchData(type) {
 
     switch(type) {
         case 'chemical':
-            loadChemicalData(query);
-            break;
+            return loadChemicalData(query);
         case 'msds':
-            loadMsdsData(query);
-            break;
+            return loadMsdsData(query);
         case 'radio':
-            loadRadioData(query);
-            break;
+            return loadRadioData(query);
         case 'electrical':
-            loadElectricalData(query);
-            break;
+            return loadElectricalData(query);
         case 'medical':
-            loadMedicalData(query);
-            break;
+            return loadMedicalData(query);
         case 'non_target':
-            loadNonTargetData(query);
-            break;
-        case 'review_needed':
-            searchReviewNeeded();
-            break;
+            return loadNonTargetData(query);
     }
+}
+
+function clearSectionSearch(type) {
+    const searchInputId = REQUIREMENTS_SECTION_SEARCH_INPUTS[type];
+    const searchInput = searchInputId ? document.getElementById(searchInputId) : null;
+    if (!searchInput) {
+        console.error(`검색 입력창을 찾을 수 없습니다: ${type}`);
+        return;
+    }
+
+    searchInput.value = '';
+    searchInput.focus();
+    return searchData(type);
 }
 
 // 엔터키로 검색

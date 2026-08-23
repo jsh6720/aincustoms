@@ -99,6 +99,7 @@
                         <div class="search-bar unified-search">
                             <input type="text" id="unifiedSearch" placeholder="규격정제(모델규격), 인증번호(전파법/전안법)를 입력하세요...">
                             <button onclick="performUnifiedSearch()"><i class="fas fa-search"></i> 조회</button>
+                            <button type="button" onclick="clearUnifiedSearch()"><i class="fas fa-rotate-left"></i> 초기화</button>
                         </div>
                         <div id="unifiedSearchResult" class="unified-result"></div>
 
@@ -223,6 +224,7 @@
                     <div class="search-bar">
                         <input type="text" id="chemicalSearch" placeholder="규격정제, 제품명, 모델명으로 검색...">
                         <button onclick="searchData('chemical')"><i class="fas fa-search"></i> 검색</button>
+                        <button type="button" onclick="clearSectionSearch('chemical')"><i class="fas fa-rotate-left"></i> 초기화</button>
                     </div>
                     <div class="table-container">
                         <table id="chemicalTable">
@@ -273,6 +275,7 @@
                     <div class="search-bar">
                         <input type="text" id="msdsSearch" placeholder="규격정제, 물질명으로 검색...">
                         <button onclick="searchData('msds')"><i class="fas fa-search"></i> 검색</button>
+                        <button type="button" onclick="clearSectionSearch('msds')"><i class="fas fa-rotate-left"></i> 초기화</button>
                     </div>
                     <div class="table-container">
                         <table id="msdsTable">
@@ -323,6 +326,7 @@
                     <div class="search-bar">
                         <input type="text" id="radioSearch" placeholder="규격정제, 모델명, 제조사, 품목명, 인증번호로 검색...">
                         <button onclick="searchData('radio')"><i class="fas fa-search"></i> 검색</button>
+                        <button type="button" onclick="clearSectionSearch('radio')"><i class="fas fa-rotate-left"></i> 초기화</button>
                     </div>
                     <div class="table-container">
                         <table id="radioTable">
@@ -374,6 +378,7 @@
                     <div class="search-bar">
                         <input type="text" id="electricalSearch" placeholder="규격정제, 모델명, 제조사, 품목명, 인증번호로 검색...">
                         <button onclick="searchData('electrical')"><i class="fas fa-search"></i> 검색</button>
+                        <button type="button" onclick="clearSectionSearch('electrical')"><i class="fas fa-rotate-left"></i> 초기화</button>
                     </div>
                     <div class="table-container">
                         <table id="electricalTable">
@@ -426,6 +431,7 @@
                     <div class="search-bar">
                         <input type="text" id="medicalSearch" placeholder="규격정제, 수입자, 모델명, 허가번호로 검색...">
                         <button onclick="searchData('medical')"><i class="fas fa-search"></i> 검색</button>
+                        <button type="button" onclick="clearSectionSearch('medical')"><i class="fas fa-rotate-left"></i> 초기화</button>
                     </div>
                     <div class="table-container">
                         <table id="medicalTable">
@@ -473,6 +479,7 @@
                     <div class="search-bar">
                         <input type="text" id="non_targetSearch" placeholder="규격정제, 법령으로 검색...">
                         <button onclick="searchData('non_target')"><i class="fas fa-search"></i> 검색</button>
+                        <button type="button" onclick="clearSectionSearch('non_target')"><i class="fas fa-rotate-left"></i> 초기화</button>
                     </div>
                     <div class="table-container">
                         <table id="nonTargetTable">
@@ -548,6 +555,7 @@
                     <div class="search-bar">
                         <input type="text" id="reviewNeededSearch" placeholder="규격정제, Description, 수입자상호로 검색...">
                         <button onclick="searchReviewNeeded()"><i class="fas fa-search"></i> 검색</button>
+                        <button type="button" onclick="clearSectionSearch('review_needed')"><i class="fas fa-rotate-left"></i> 초기화</button>
                     </div>
                     <div class="table-container">
                         <table id="reviewNeededTable">
@@ -740,11 +748,11 @@
     <script src="js/auth.js?v=6.0.2"></script>
     <script src="js/parser.js?v=6.0.0"></script>
     <script src="js/file-handler.js?v=6.0.2"></script>
-    <script src="js/unified-search.js?v=6.0.6"></script>
+    <script src="js/unified-search.js?v=6.0.7"></script>
     <script src="js/review-needed.js?v=6.0.6"></script>
     <script src="js/selection-delete.js?v=6.0.2"></script>
     <script src="js/duplicate-checker.js?v=6.0.4"></script>
     <script src="js/edit-request.js?v=6.0.0"></script>
-    <script src="js/app.js?v=6.0.6"></script>
+    <script src="js/app.js?v=6.0.7"></script>
 </body>
 </html>

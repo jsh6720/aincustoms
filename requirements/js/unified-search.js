@@ -46,6 +46,22 @@ function getLawCode(lawName) {
 // 통합 검색 중복 실행 방지 플래그
 let isUnifiedSearching = false;
 
+function clearUnifiedSearch() {
+    beginRequirementsViewRequest('unified-search');
+    isUnifiedSearching = false;
+
+    const searchInput = document.getElementById('unifiedSearch');
+    const resultDiv = document.getElementById('unifiedSearchResult');
+    if (searchInput) {
+        searchInput.value = '';
+        searchInput.focus();
+    }
+    if (resultDiv) {
+        resultDiv.innerHTML = '';
+        delete resultDiv.dataset.renderedQuery;
+    }
+}
+
 // 통합 검색 실행
 async function performUnifiedSearch() {
     const viewRequest = beginRequirementsViewRequest('unified-search');

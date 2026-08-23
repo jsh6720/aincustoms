@@ -60,9 +60,9 @@ function harness(fetchImpl) {
   context.addEventListener = (type, listener) => windowListeners.set(type, listener);
   context.dispatchEvent = (event) => windowListeners.get(event.type)?.(event);
   vm.createContext(context);
-  vm.runInContext(appSource + "\nthis.__reliability = { loadCurrentSection, loadDashboard, viewDetail, deleteCurrentRecord, navigateToDashboardSection, setCurrentSection: (section) => { currentSection = section; }, getCurrentSection: () => currentSection, getCurrentDetailRecord: () => currentDetailRecord };", context);
+  vm.runInContext(appSource + "\nthis.__reliability = { loadCurrentSection, loadDashboard, viewDetail, deleteCurrentRecord, navigateToDashboardSection, clearSectionSearch: typeof clearSectionSearch === 'function' ? clearSectionSearch : undefined, setCurrentSection: (section) => { currentSection = section; }, getCurrentSection: () => currentSection, getCurrentDetailRecord: () => currentDetailRecord };", context);
   vm.runInContext(reviewSource, context);
-  vm.runInContext(unifiedSource + "\nthis.__navigateToSection = navigateToSection; this.__performUnifiedSearch = performUnifiedSearch;", context);
+  vm.runInContext(unifiedSource + "\nthis.__navigateToSection = navigateToSection; this.__performUnifiedSearch = performUnifiedSearch; this.__clearUnifiedSearch = typeof clearUnifiedSearch === 'function' ? clearUnifiedSearch : undefined;", context);
   ready.forEach((listener) => listener());
   return { context, elements, menuBySection, selectorCalls, filterButtons };
 }
@@ -249,6 +249,52 @@ test("a production unified card retains the query that rendered it when the inpu
   assert.equal(elements.get("chemicalSearch").value, "STD85000-01");
   assert.match(elements.get("chemicalTableBody").innerHTML, /STD 85000 01/);
 });
+
+test("clearing unified search cancels a pending result and removes its rendered query", async () => {
+  const releases = [];
+  const { context, elements } = harness(() => new Promise((resolve) => releases.push(resolve)));
+  elements.get("unifiedSearch").value = "OLD-QUERY";
+
+  const pendingSearch = context.__performUnifiedSearch();
+  context.__clearUnifiedSearch();
+
+  assert.equal(elements.get("unifiedSearch").value, "");
+  assert.equal(elements.get("unifiedSearchResult").innerHTML, "");
+  assert.equal(elements.get("unifiedSearchResult").dataset.renderedQuery, undefined);
+
+  for (const release of releases) release(response(200, { data: [{ spec_no: "OLD-QUERY" }] }));
+  await pendingSearch;
+
+  assert.equal(elements.get("unifiedSearchResult").innerHTML, "");
+  assert.equal(elements.get("unifiedSearchResult").dataset.renderedQuery, undefined);
+});
+
+for (const [section, loader, inputId] of [
+  ["chemical", "loadChemicalData", "chemicalSearch"],
+  ["msds", "loadMsdsData", "msdsSearch"],
+  ["radio", "loadRadioData", "radioSearch"],
+  ["electrical", "loadElectricalData", "electricalSearch"],
+  ["medical", "loadMedicalData", "medicalSearch"],
+  ["non_target", "loadNonTargetData", "non_targetSearch"],
+  ["review_needed", "loadReviewNeededData", "reviewNeededSearch"],
+]) {
+  test("clearing " + section + " search reloads its complete list", async () => {
+    const { context, elements, filterButtons } = harness();
+    const calls = [];
+    context[loader] = async (query) => calls.push(query);
+    elements.get(inputId).value = "filtered-value";
+    if (section === "review_needed") filterButtons[1].classList.add("active");
+
+    await context.__reliability.clearSectionSearch(section);
+
+    assert.equal(elements.get(inputId).value, "");
+    assert.deepEqual(calls, [""]);
+    if (section === "review_needed") {
+      assert.equal(filterButtons[0].classList.has("active"), true);
+      assert.equal(filterButtons[1].classList.has("active"), false);
+    }
+  });
+}
 
 test("a late earlier result click cannot reactivate its section over the latest click", async () => {
   const { context, elements, menuBySection } = harness();

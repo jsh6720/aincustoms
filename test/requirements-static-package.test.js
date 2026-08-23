@@ -63,17 +63,37 @@ test("requirements scripts use their current cache epochs", () => {
     "google-sheets-api": "6.0.2",
     auth: "6.0.2",
     "file-handler": "6.0.2",
-    "unified-search": "6.0.6",
+    "unified-search": "6.0.7",
     "review-needed": "6.0.6",
     "selection-delete": "6.0.2",
     "duplicate-checker": "6.0.4",
-    app: "6.0.6",
+    app: "6.0.7",
   };
 
   for (const [script, version] of Object.entries(expectedVersions)) {
     assert.equal(html.includes(`src="js/${script}.js?v=${version}"`), true, script);
   }
 });
+
+test("every requirements search bar exposes its reset action", () => {
+  const html = fs.readFileSync(path.join(appRoot, "index.html"), "utf8");
+  const actions = Array.from(
+    html.matchAll(/<button[^>]+onclick="(clear(?:Unified|Section)Search\([^"]*\))"[^>]*>[\s\S]*?초기화<\/button>/g),
+    ([, action]) => action
+  );
+
+  assert.deepEqual(actions, [
+    "clearUnifiedSearch()",
+    "clearSectionSearch('chemical')",
+    "clearSectionSearch('msds')",
+    "clearSectionSearch('radio')",
+    "clearSectionSearch('electrical')",
+    "clearSectionSearch('medical')",
+    "clearSectionSearch('non_target')",
+    "clearSectionSearch('review_needed')",
+  ]);
+});
+
 test("requirements package excludes source, runtime, and secret-bearing artifacts", () => {
   const allowed = new Set([
     "index.html",
