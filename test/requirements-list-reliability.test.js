@@ -188,6 +188,68 @@ test("a unified result without data does not navigate", async () => {
   assert.deepEqual(calls, []);
 });
 
+const normalizedDestinationCases = [
+  ["chemical", "loadChemicalData", "chemicalTableBody"],
+  ["msds", "loadMsdsData", "msdsTableBody"],
+  ["radio", "loadRadioData", "radioTableBody"],
+  ["electrical", "loadElectricalData", "electricalTableBody"],
+  ["medical", "loadMedicalData", "medicalTableBody"],
+  ["non_target", "loadNonTargetData", "nonTargetTableBody"],
+  ["review_needed", "loadReviewNeededData", "reviewNeededTableBody"],
+];
+
+for (const [section, loader, bodyId] of normalizedDestinationCases) {
+  test("the real " + section + " loader uses the same punctuation-insensitive search as unified results", async () => {
+    const record = {
+      id: section + "-1",
+      spec_no: "STD 85000 01",
+      product_name: "Matched product",
+      model_spec: "Matched model",
+      company: "Matched company",
+      importer: "Matched importer",
+      consignee: "Matched consignee",
+      substance: "Matched substance",
+      description: "Matched description",
+      created_at: 1,
+    };
+    const { context, elements } = harness(async () => response(200, { data: [record] }));
+
+    await context[loader]("STD85000-01");
+
+    assert.match(elements.get(bodyId).innerHTML, /STD 85000 01/);
+  });
+}
+
+test("a production unified card retains the query that rendered it when the input changes", async () => {
+  const record = {
+    id: "chemical-1",
+    spec_no: "STD 85000 01",
+    product_name: "Matched product",
+    model_spec: "Matched model",
+    company: "Matched company",
+    created_at: 1,
+  };
+  const { context, elements } = harness(async (url) => {
+    const data = String(url).includes("chemical_confirmation") ? [record] : [];
+    return response(200, { data });
+  });
+
+  elements.get("unifiedSearch").value = "STD85000-01";
+  await context.__performUnifiedSearch();
+  const renderedHtml = elements.get("unifiedSearchResult").innerHTML;
+  const sectionMatch = renderedHtml.match(/result-item[^>]*data-section="([^"]+)"/);
+  assert.ok(sectionMatch, "production result markup must contain a clickable result card");
+  const card = { dataset: { section: sectionMatch[1] } };
+  card.closest = () => card;
+
+  elements.get("unifiedSearch").value = "CHANGED-AFTER-RENDER";
+  await elements.get("unifiedSearchResult").dispatchEvent({ type: "click", target: card });
+
+  assert.equal(sectionMatch[1], "chemical");
+  assert.equal(elements.get("chemicalSearch").value, "STD85000-01");
+  assert.match(elements.get("chemicalTableBody").innerHTML, /STD 85000 01/);
+});
+
 test("a late earlier result click cannot reactivate its section over the latest click", async () => {
   const { context, elements, menuBySection } = harness();
   let releaseRadio;

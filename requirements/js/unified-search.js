@@ -136,6 +136,7 @@ async function searchInTable(tableName, searchValue) {
 // 통합 검색 결과 표시
 function displayUnifiedSearchResult(results, searchValue) {
     const resultDiv = document.getElementById('unifiedSearchResult');
+    resultDiv.dataset.renderedQuery = String(searchValue || '');
 
     const totalCount = results.chemical.length + results.msds.length +
                       results.radio.length + results.electrical.length + results.medical.length +
@@ -297,8 +298,10 @@ function generateResultItem(title, icon, hasData, details, dataType) {
 }
 
 // 통합검색에서 섹션으로 이동
-async function navigateToSection(dataType) {
-    const searchValue = document.getElementById('unifiedSearch').value.trim();
+async function navigateToSection(dataType, renderedQuery = null) {
+    const searchValue = renderedQuery === null
+        ? document.getElementById('unifiedSearch').value.trim()
+        : String(renderedQuery).trim();
     return activateRequirementsSection(dataType, searchValue);
 }
 
@@ -317,7 +320,7 @@ document.addEventListener('DOMContentLoaded', () => {
         unifiedSearchResult.addEventListener('click', async (event) => {
             const resultItem = event.target.closest('.result-item[data-section]');
             if (!resultItem) return;
-            await navigateToSection(resultItem.dataset.section);
+            await navigateToSection(resultItem.dataset.section, unifiedSearchResult.dataset.renderedQuery);
         });
     }
 });

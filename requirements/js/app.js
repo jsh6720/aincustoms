@@ -68,7 +68,10 @@ function resetRequirementsSessionUI() {
         'unifiedSearchResult'
     ].forEach(id => {
         const element = document.getElementById(id);
-        if (element) element.innerHTML = '';
+        if (element) {
+            element.innerHTML = '';
+            if (id === 'unifiedSearchResult') delete element.dataset.renderedQuery;
+        }
     });
 
     ['statChemical', 'statMsds', 'statRadio', 'statElectrical', 'statMedical', 'statNonTarget']
@@ -286,12 +289,12 @@ async function loadChemicalData(searchQuery = '') {
 
         // 검색 필터링
         if (searchQuery) {
-            const query = searchQuery.toLowerCase();
+            const query = normalizeForSearch(searchQuery);
             records = records.filter(item =>
-                String(item.spec_no || '').toLowerCase().includes(query) ||
-                String(item.product_name || '').toLowerCase().includes(query) ||
-                String(item.model_spec || '').toLowerCase().includes(query) ||
-                String(item.company || '').toLowerCase().includes(query)
+                normalizeForSearch(item.spec_no).includes(query) ||
+                normalizeForSearch(item.product_name).includes(query) ||
+                normalizeForSearch(item.model_spec).includes(query) ||
+                normalizeForSearch(item.company).includes(query)
             );
         }
 
@@ -438,11 +441,11 @@ async function loadMsdsData(searchQuery = '') {
 
         // 검색 필터링
         if (searchQuery) {
-            const query = searchQuery.toLowerCase();
+            const query = normalizeForSearch(searchQuery);
             records = records.filter(item =>
-                String(item.spec_no || '').toLowerCase().includes(query) ||
-                String(item.substance || '').toLowerCase().includes(query) ||
-                String(item.importer || '').toLowerCase().includes(query)
+                normalizeForSearch(item.spec_no).includes(query) ||
+                normalizeForSearch(item.substance).includes(query) ||
+                normalizeForSearch(item.importer).includes(query)
             );
         }
 
@@ -519,14 +522,14 @@ async function loadRadioData(searchQuery = '') {
 
         // 검색 필터링
         if (searchQuery) {
-            const query = searchQuery.toLowerCase();
+            const query = normalizeForSearch(searchQuery);
             records = records.filter(item =>
-                String(item.spec_no || '').toLowerCase().includes(query) ||
-                String(item.model_name || '').toLowerCase().includes(query) ||
-                String(item.manufacturer || '').toLowerCase().includes(query) ||
-                String(item.item_name || '').toLowerCase().includes(query) ||
-                String(item.derived_model_name || '').toLowerCase().includes(query) ||
-                String(item.certification_no || '').toLowerCase().includes(query)
+                normalizeForSearch(item.spec_no).includes(query) ||
+                normalizeForSearch(item.model_name).includes(query) ||
+                normalizeForSearch(item.manufacturer).includes(query) ||
+                normalizeForSearch(item.item_name).includes(query) ||
+                normalizeForSearch(item.derived_model_name).includes(query) ||
+                normalizeForSearch(item.certification_no).includes(query)
             );
         }
 
@@ -604,15 +607,15 @@ async function loadElectricalData(searchQuery = '') {
 
         // 검색 필터링
         if (searchQuery) {
-            const query = searchQuery.toLowerCase();
+            const query = normalizeForSearch(searchQuery);
             records = records.filter(item =>
-                String(item.spec_no || '').toLowerCase().includes(query) ||
-                String(item.model_name || '').toLowerCase().includes(query) ||
-                String(item.manufacturer || '').toLowerCase().includes(query) ||
-                String(item.item_name || '').toLowerCase().includes(query) ||
-                String(item.consignee || '').toLowerCase().includes(query) ||
-                String(item.derived_model_name || '').toLowerCase().includes(query) ||
-                String(item.certification_no || '').toLowerCase().includes(query)
+                normalizeForSearch(item.spec_no).includes(query) ||
+                normalizeForSearch(item.model_name).includes(query) ||
+                normalizeForSearch(item.manufacturer).includes(query) ||
+                normalizeForSearch(item.item_name).includes(query) ||
+                normalizeForSearch(item.consignee).includes(query) ||
+                normalizeForSearch(item.derived_model_name).includes(query) ||
+                normalizeForSearch(item.certification_no).includes(query)
             );
         }
 
@@ -691,13 +694,13 @@ async function loadMedicalData(searchQuery = '') {
 
         // 검색 필터링
         if (searchQuery) {
-            const query = searchQuery.toLowerCase();
+            const query = normalizeForSearch(searchQuery);
             records = records.filter(item =>
-                String(item.spec_no || '').toLowerCase().includes(query) ||
-                String(item.importer || '').toLowerCase().includes(query) ||
-                String(item.model_name || '').toLowerCase().includes(query) ||
-                String(item.permit_no || '').toLowerCase().includes(query) ||
-                String(item.item_name_eng || '').toLowerCase().includes(query)
+                normalizeForSearch(item.spec_no).includes(query) ||
+                normalizeForSearch(item.importer).includes(query) ||
+                normalizeForSearch(item.model_name).includes(query) ||
+                normalizeForSearch(item.permit_no).includes(query) ||
+                normalizeForSearch(item.item_name_eng).includes(query)
             );
         }
 
@@ -816,13 +819,13 @@ async function loadNonTargetData(searchQuery = '') {
 
         // 검색 필터링
         if (searchQuery) {
-            const query = searchQuery.toLowerCase();
+            const query = normalizeForSearch(searchQuery);
             records = records.filter(item =>
-                String(item.spec_no || '').toLowerCase().includes(query) ||
-                String(item.law || '').toLowerCase().includes(query) ||
-                String(item.importer || '').toLowerCase().includes(query) ||
-                String(item.exporter || '').toLowerCase().includes(query) ||
-                String(item.non_target_reason || '').toLowerCase().includes(query)
+                normalizeForSearch(item.spec_no).includes(query) ||
+                normalizeForSearch(item.law).includes(query) ||
+                normalizeForSearch(item.importer).includes(query) ||
+                normalizeForSearch(item.exporter).includes(query) ||
+                normalizeForSearch(item.non_target_reason).includes(query)
             );
         }
 
