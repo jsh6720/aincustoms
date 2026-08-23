@@ -46,6 +46,22 @@ function getLawCode(lawName) {
 // 통합 검색 중복 실행 방지 플래그
 let isUnifiedSearching = false;
 
+function clearUnifiedSearch() {
+    beginRequirementsViewRequest('unified-search');
+    isUnifiedSearching = false;
+
+    const searchInput = document.getElementById('unifiedSearch');
+    const resultDiv = document.getElementById('unifiedSearchResult');
+    if (searchInput) {
+        searchInput.value = '';
+        searchInput.focus();
+    }
+    if (resultDiv) {
+        resultDiv.innerHTML = '';
+        delete resultDiv.dataset.renderedQuery;
+    }
+}
+
 // 통합 검색 실행
 async function performUnifiedSearch() {
     const viewRequest = beginRequirementsViewRequest('unified-search');
@@ -136,6 +152,7 @@ async function searchInTable(tableName, searchValue) {
 // 통합 검색 결과 표시
 function displayUnifiedSearchResult(results, searchValue) {
     const resultDiv = document.getElementById('unifiedSearchResult');
+    resultDiv.dataset.renderedQuery = String(searchValue || '');
 
     const totalCount = results.chemical.length + results.msds.length +
                       results.radio.length + results.electrical.length + results.medical.length +
@@ -268,10 +285,10 @@ function displayUnifiedSearchResult(results, searchValue) {
 // 개별 결과 아이템 생성
 function generateResultItem(title, icon, hasData, details, dataType) {
     const clickableClass = hasData ? 'clickable' : '';
-    const onclickAttr = hasData ? `onclick="navigateToSection('${dataType}')"` : '';
+    const sectionAttr = hasData ? `data-section="${dataType}"` : '';
 
     let html = `
-        <div class="result-item ${hasData ? 'has-data' : ''} ${clickableClass}" ${onclickAttr}>
+        <div class="result-item ${hasData ? 'has-data' : ''} ${clickableClass}" ${sectionAttr}>
             <div class="result-item-header">
                 <div class="result-item-title">
                     <i class="${icon}"></i> ${title}
@@ -297,33 +314,29 @@ function generateResultItem(title, icon, hasData, details, dataType) {
 }
 
 // 통합검색에서 섹션으로 이동
-async function navigateToSection(dataType) {
-    const searchValue = document.getElementById('unifiedSearch').value.trim();
-    const searchInputMap = {
-        'chemical': 'chemicalSearch', 'msds': 'msdsSearch', 'radio': 'radioSearch',
-        'electrical': 'electricalSearch', 'medical': 'medicalSearch',
-        'non_target': 'non_targetSearch', 'review_needed': 'reviewNeededSearch'
-    };
-    const searchInput = document.getElementById(searchInputMap[dataType]);
-    const menuItem = document.querySelector('.menu-item[data-section="' + dataType + '"]');
-    if (!menuItem || !searchInput) return;
-    searchInput.value = searchValue;
-    searchInput.focus();
-    window.__ainRequirementsPendingSectionSearch = { section: dataType, query: searchValue };
-    const clickResult = menuItem.click();
-    const loadPromise = window.__ainRequirementsMenuLoadPromise;
-    if (loadPromise) await loadPromise;
-    else await clickResult;
+async function navigateToSection(dataType, renderedQuery = null) {
+    const searchValue = renderedQuery === null
+        ? document.getElementById('unifiedSearch').value.trim()
+        : String(renderedQuery).trim();
+    return activateRequirementsSection(dataType, searchValue);
 }
 
 // 엔터키로 통합 검색
 document.addEventListener('DOMContentLoaded', () => {
     const unifiedSearchInput = document.getElementById('unifiedSearch');
+    const unifiedSearchResult = document.getElementById('unifiedSearchResult');
     if (unifiedSearchInput) {
         unifiedSearchInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
                 performUnifiedSearch();
             }
+        });
+    }
+    if (unifiedSearchResult) {
+        unifiedSearchResult.addEventListener('click', async (event) => {
+            const resultItem = event.target.closest('.result-item[data-section]');
+            if (!resultItem) return;
+            await navigateToSection(resultItem.dataset.section, unifiedSearchResult.dataset.renderedQuery);
         });
     }
 });

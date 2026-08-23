@@ -26,12 +26,12 @@ async function loadReviewNeededData(searchQuery = '') {
 
         // 검색 필터링
         if (searchQuery) {
-            const query = searchQuery.toLowerCase();
+            const query = normalizeForSearch(searchQuery);
             records = records.filter(item =>
-                String(item.spec_no || '').toLowerCase().includes(query) ||
-                String(item.description || '').toLowerCase().includes(query) ||
-                String(item.importer || '').toLowerCase().includes(query) ||
-                String(item.exporter || '').toLowerCase().includes(query)
+                normalizeForSearch(item.spec_no).includes(query) ||
+                normalizeForSearch(item.description).includes(query) ||
+                normalizeForSearch(item.importer).includes(query) ||
+                normalizeForSearch(item.exporter).includes(query)
             );
         }
 
@@ -176,7 +176,7 @@ function searchReviewNeeded() {
     filterButtons.forEach(btn => btn.classList.remove('active'));
     if (filterButtons.length > 0) filterButtons[0].classList.add('active'); // 첫 번째 = 전체
 
-    loadReviewNeededData(searchQuery);
+    return loadReviewNeededData(searchQuery);
 }
 
 // 엔터키 검색

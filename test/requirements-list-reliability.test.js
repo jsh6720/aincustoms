@@ -16,7 +16,11 @@ function makeElement(id, dataset = {}) {
     id, dataset: { ...dataset }, innerHTML: "", textContent: "", value: "", style: {},
     classList: { add: (...names) => names.forEach((name) => values.add(name)), remove: (...names) => names.forEach((name) => values.delete(name)), has: (name) => values.has(name) },
     addEventListener: (type, listener) => listeners.set(type, listener),
-    click: async () => listeners.get("click")?.({ currentTarget: this }),
+    click() {
+      listeners.get("click")?.({ type: "click", currentTarget: this, target: this });
+      return undefined;
+    },
+    dispatchEvent(event) { return listeners.get(event.type)?.(event); },
     getAttribute(name) {
       const key = name.slice(5).replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
       return name.startsWith("data-") ? this.dataset[key] ?? null : null;
@@ -30,6 +34,7 @@ function harness(fetchImpl) {
   const menus = sections.map((section) => makeElement(section + "Menu", { section }));
   const menuBySection = new Map(menus.map((item) => [item.dataset.section, item]));
   const content = sections.map((section) => makeElement(section + "Section"));
+  const filterButtons = [makeElement("allFilter"), makeElement("radioFilter")];
   for (const item of [...menus, ...content]) elements.set(item.id, item);
   elements.set("nonTargetSection", elements.get("non_targetSection"));
   for (const id of ["databaseRefreshBtn", "detailContent", "detailModalTitle", "detailModal", "detailDeleteButton", "unifiedSearch", "unifiedSearchResult", "chemicalSearch", "msdsSearch", "radioSearch", "electricalSearch", "medicalSearch", "non_targetSearch", "reviewNeededSearch", "chemicalTableBody", "msdsTableBody", "radioTableBody", "electricalTableBody", "medicalTableBody", "nonTargetTableBody", "reviewNeededTableBody", "statChemical", "statMsds", "statRadio", "statElectrical", "statMedical", "statNonTarget"]) elements.set(id, makeElement(id));
@@ -37,7 +42,7 @@ function harness(fetchImpl) {
     getElementById: (id) => elements.get(id) || null,
     createElement: (id) => makeElement(id),
     addEventListener: (type, listener) => { if (type === "DOMContentLoaded") ready.push(listener); },
-    querySelectorAll: (selector) => selector === ".menu-item" ? menus : selector === ".content-section" ? content : [],
+    querySelectorAll: (selector) => selector === ".menu-item" ? menus : selector === ".content-section" ? content : selector === ".btn-filter" ? filterButtons : [],
     querySelector: (selector) => {
       selectorCalls.push(selector);
       if (selector === "#detailModal .btn-danger") return elements.get("detailDeleteButton");
@@ -55,11 +60,11 @@ function harness(fetchImpl) {
   context.addEventListener = (type, listener) => windowListeners.set(type, listener);
   context.dispatchEvent = (event) => windowListeners.get(event.type)?.(event);
   vm.createContext(context);
-  vm.runInContext(appSource + "\nthis.__reliability = { loadCurrentSection, loadDashboard, viewDetail, deleteCurrentRecord, navigateToDashboardSection, setCurrentSection: (section) => { currentSection = section; }, getCurrentSection: () => currentSection, getCurrentDetailRecord: () => currentDetailRecord };", context);
+  vm.runInContext(appSource + "\nthis.__reliability = { loadCurrentSection, loadDashboard, viewDetail, deleteCurrentRecord, navigateToDashboardSection, clearSectionSearch: typeof clearSectionSearch === 'function' ? clearSectionSearch : undefined, setCurrentSection: (section) => { currentSection = section; }, getCurrentSection: () => currentSection, getCurrentDetailRecord: () => currentDetailRecord };", context);
   vm.runInContext(reviewSource, context);
-  vm.runInContext(unifiedSource + "\nthis.__navigateToSection = navigateToSection; this.__performUnifiedSearch = performUnifiedSearch;", context);
+  vm.runInContext(unifiedSource + "\nthis.__navigateToSection = navigateToSection; this.__performUnifiedSearch = performUnifiedSearch; this.__clearUnifiedSearch = typeof clearUnifiedSearch === 'function' ? clearUnifiedSearch : undefined;", context);
   ready.forEach((listener) => listener());
-  return { context, elements, menuBySection, selectorCalls };
+  return { context, elements, menuBySection, selectorCalls, filterButtons };
 }
 
 const loaderCases = [
@@ -80,6 +85,22 @@ for (const [section, loader] of loaderCases) {
     await menuBySection.get(section).click();
     assert.deepEqual(calls, [section, section]);
     assert.equal(context.__reliability.getCurrentSection(), section);
+  });
+}
+
+
+for (const section of ["overview", "editRequests"]) {
+  test("selecting non-search section " + section + " still activates it", async () => {
+    const { context, elements, menuBySection } = harness();
+    const calls = [];
+    context.loadEditRequests = async () => calls.push("editRequests");
+    await menuBySection.get(section).click();
+    await context.__ainRequirementsMenuLoadPromise;
+
+    assert.equal(menuBySection.get(section).classList.has("active"), true);
+    assert.equal(elements.get(section + "Section").classList.has("active"), true);
+    assert.equal(context.__reliability.getCurrentSection(), section);
+    assert.deepEqual(calls, section === "editRequests" ? ["editRequests"] : []);
   });
 }
 
@@ -104,6 +125,198 @@ test("a unified radio result activates and reloads the filtered radio tab once",
   assert.equal(elements.get("radioSearch").value, "hmt130");
   assert.deepEqual(calls, ["hmt130"]);
   assert.ok(selectorCalls.includes('.menu-item[data-section="radio"]'));
+});
+
+for (const [section, loader, inputId] of [
+  ["chemical", "loadChemicalData", "chemicalSearch"],
+  ["msds", "loadMsdsData", "msdsSearch"],
+  ["radio", "loadRadioData", "radioSearch"],
+  ["electrical", "loadElectricalData", "electricalSearch"],
+  ["medical", "loadMedicalData", "medicalSearch"],
+  ["non_target", "loadNonTargetData", "non_targetSearch"],
+  ["review_needed", "loadReviewNeededData", "reviewNeededSearch"],
+]) {
+  test("clicking a unified " + section + " result directly opens and searches its section", async () => {
+    const { context, elements, menuBySection } = harness();
+    const calls = [];
+    context[loader] = async (query) => calls.push(query);
+    menuBySection.get(section).click = () => {
+      throw new Error("unified result navigation must not depend on HTMLElement.click()");
+    };
+    elements.get("unifiedSearch").value = "hmt130";
+    const card = {
+      dataset: { section },
+      closest: (selector) => selector === ".result-item[data-section]" ? card : null,
+    };
+
+    await elements.get("unifiedSearchResult").dispatchEvent({ type: "click", target: card });
+
+    assert.equal(menuBySection.get(section).classList.has("active"), true);
+    assert.equal(elements.get(section + "Section").classList.has("active"), true);
+    assert.equal(context.__reliability.getCurrentSection(), section);
+    assert.equal(elements.get(inputId).value, "hmt130");
+    assert.deepEqual(calls, ["hmt130"]);
+  });
+}
+
+
+
+test("clicking a unified review_needed result resets its special filter before searching", async () => {
+  const { context, elements, filterButtons } = harness();
+  const calls = [];
+  context.loadReviewNeededData = async (query) => calls.push(query);
+  filterButtons[1].classList.add("active");
+  elements.get("unifiedSearch").value = "review-query";
+  const card = { dataset: { section: "review_needed" } };
+  card.closest = () => card;
+
+  await elements.get("unifiedSearchResult").dispatchEvent({ type: "click", target: card });
+
+  assert.equal(filterButtons[0].classList.has("active"), true);
+  assert.equal(filterButtons[1].classList.has("active"), false);
+  assert.deepEqual(calls, ["review-query"]);
+});
+
+test("a unified result without data does not navigate", async () => {
+  const { context, elements } = harness();
+  const calls = [];
+  for (const [, loader] of loaderCases) context[loader] = async () => calls.push(loader);
+  await elements.get("unifiedSearchResult").dispatchEvent({
+    type: "click",
+    target: { closest: () => null },
+  });
+  assert.deepEqual(calls, []);
+});
+
+const normalizedDestinationCases = [
+  ["chemical", "loadChemicalData", "chemicalTableBody"],
+  ["msds", "loadMsdsData", "msdsTableBody"],
+  ["radio", "loadRadioData", "radioTableBody"],
+  ["electrical", "loadElectricalData", "electricalTableBody"],
+  ["medical", "loadMedicalData", "medicalTableBody"],
+  ["non_target", "loadNonTargetData", "nonTargetTableBody"],
+  ["review_needed", "loadReviewNeededData", "reviewNeededTableBody"],
+];
+
+for (const [section, loader, bodyId] of normalizedDestinationCases) {
+  test("the real " + section + " loader uses the same punctuation-insensitive search as unified results", async () => {
+    const record = {
+      id: section + "-1",
+      spec_no: "STD 85000 01",
+      product_name: "Matched product",
+      model_spec: "Matched model",
+      company: "Matched company",
+      importer: "Matched importer",
+      consignee: "Matched consignee",
+      substance: "Matched substance",
+      description: "Matched description",
+      created_at: 1,
+    };
+    const { context, elements } = harness(async () => response(200, { data: [record] }));
+
+    await context[loader]("STD85000-01");
+
+    assert.match(elements.get(bodyId).innerHTML, /STD 85000 01/);
+  });
+}
+
+test("a production unified card retains the query that rendered it when the input changes", async () => {
+  const record = {
+    id: "chemical-1",
+    spec_no: "STD 85000 01",
+    product_name: "Matched product",
+    model_spec: "Matched model",
+    company: "Matched company",
+    created_at: 1,
+  };
+  const { context, elements } = harness(async (url) => {
+    const data = String(url).includes("chemical_confirmation") ? [record] : [];
+    return response(200, { data });
+  });
+
+  elements.get("unifiedSearch").value = "STD85000-01";
+  await context.__performUnifiedSearch();
+  const renderedHtml = elements.get("unifiedSearchResult").innerHTML;
+  const sectionMatch = renderedHtml.match(/result-item[^>]*data-section="([^"]+)"/);
+  assert.ok(sectionMatch, "production result markup must contain a clickable result card");
+  const card = { dataset: { section: sectionMatch[1] } };
+  card.closest = () => card;
+
+  elements.get("unifiedSearch").value = "CHANGED-AFTER-RENDER";
+  await elements.get("unifiedSearchResult").dispatchEvent({ type: "click", target: card });
+
+  assert.equal(sectionMatch[1], "chemical");
+  assert.equal(elements.get("chemicalSearch").value, "STD85000-01");
+  assert.match(elements.get("chemicalTableBody").innerHTML, /STD 85000 01/);
+});
+
+test("clearing unified search cancels a pending result and removes its rendered query", async () => {
+  const releases = [];
+  const { context, elements } = harness(() => new Promise((resolve) => releases.push(resolve)));
+  elements.get("unifiedSearch").value = "OLD-QUERY";
+
+  const pendingSearch = context.__performUnifiedSearch();
+  context.__clearUnifiedSearch();
+
+  assert.equal(elements.get("unifiedSearch").value, "");
+  assert.equal(elements.get("unifiedSearchResult").innerHTML, "");
+  assert.equal(elements.get("unifiedSearchResult").dataset.renderedQuery, undefined);
+
+  for (const release of releases) release(response(200, { data: [{ spec_no: "OLD-QUERY" }] }));
+  await pendingSearch;
+
+  assert.equal(elements.get("unifiedSearchResult").innerHTML, "");
+  assert.equal(elements.get("unifiedSearchResult").dataset.renderedQuery, undefined);
+});
+
+for (const [section, loader, inputId] of [
+  ["chemical", "loadChemicalData", "chemicalSearch"],
+  ["msds", "loadMsdsData", "msdsSearch"],
+  ["radio", "loadRadioData", "radioSearch"],
+  ["electrical", "loadElectricalData", "electricalSearch"],
+  ["medical", "loadMedicalData", "medicalSearch"],
+  ["non_target", "loadNonTargetData", "non_targetSearch"],
+  ["review_needed", "loadReviewNeededData", "reviewNeededSearch"],
+]) {
+  test("clearing " + section + " search reloads its complete list", async () => {
+    const { context, elements, filterButtons } = harness();
+    const calls = [];
+    context[loader] = async (query) => calls.push(query);
+    elements.get(inputId).value = "filtered-value";
+    if (section === "review_needed") filterButtons[1].classList.add("active");
+
+    await context.__reliability.clearSectionSearch(section);
+
+    assert.equal(elements.get(inputId).value, "");
+    assert.deepEqual(calls, [""]);
+    if (section === "review_needed") {
+      assert.equal(filterButtons[0].classList.has("active"), true);
+      assert.equal(filterButtons[1].classList.has("active"), false);
+    }
+  });
+}
+
+test("a late earlier result click cannot reactivate its section over the latest click", async () => {
+  const { context, elements, menuBySection } = harness();
+  let releaseRadio;
+  context.loadRadioData = () => new Promise((resolve) => { releaseRadio = resolve; });
+  context.loadReviewNeededData = async () => {};
+  elements.get("unifiedSearch").value = "first";
+  const radioCard = { dataset: { section: "radio" } };
+  radioCard.closest = () => radioCard;
+  const radioNavigation = elements.get("unifiedSearchResult").dispatchEvent({ type: "click", target: radioCard });
+
+  elements.get("unifiedSearch").value = "latest";
+  const reviewCard = { dataset: { section: "review_needed" } };
+  reviewCard.closest = () => reviewCard;
+  await elements.get("unifiedSearchResult").dispatchEvent({ type: "click", target: reviewCard });
+  releaseRadio();
+  await radioNavigation;
+
+  assert.equal(menuBySection.get("review_needed").classList.has("active"), true);
+  assert.equal(elements.get("review_neededSection").classList.has("active"), true);
+  assert.equal(context.__reliability.getCurrentSection(), "review_needed");
+  assert.equal(elements.get("reviewNeededSearch").value, "latest");
 });
 
 async function detail(status, body) {
