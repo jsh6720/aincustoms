@@ -311,3 +311,41 @@ test("uses 미정 when the warehouse expected date has not been entered", () => 
   assert.match(mail.text, /^반입예정일: 미정$/m);
   assert.doesNotMatch(mail.text, /^반입예정일: 미입력$/m);
 });
+
+test("keeps a customs arrival as plain reference when only warehouse plans change", () => {
+  const mail = buildWarehouseChangeMail(
+    {
+      bl_number: "AEL2078309",
+      consignee: "\uD604\uB300\uCF54\uD37C\uB808\uC774\uC158H",
+      destination: "\uCE90\uD2C0\uD31C_\uC6B0\uC721_\uD638\uC8FC",
+    },
+    { login_id: "aincustoms", display_name: "AIN" },
+    {
+      eta_date: "2026-08-21",
+      free_time_days: 3,
+      storage_yard: "\uAC15\uB3D9\uB0C9\uC7A5(\uC8FC)\uBCF4\uC138\uCC3D\uACE0 (02111182/A50101)",
+      warehouse_expected_date: "2026-08-26",
+      arrival_confirmed_by_customs: true,
+    },
+    {
+      eta_date: "2026-08-21",
+      free_time_days: 3,
+      storage_yard: "\uAC15\uB3D9\uB0C9\uC7A5(\uC8FC)\uBCF4\uC138\uCC3D\uACE0 (02111182/A50101)",
+      warehouse_expected_date: "2026-08-27",
+      arrival_confirmed_by_customs: true,
+    }
+  );
+
+  assert.equal(mail.subject, "[\uBC18\uC785\uC608\uC815\uC815\uBCF4 \uBCC0\uACBD] \uD604\uB300\uCF54\uD37C\uB808\uC774\uC158H / AEL2078309");
+  assert.match(mail.text, /\uBC18\uC785\uC608\uC815\uC815\uBCF4\uAC00 \uBCC0\uACBD\uB418\uC5B4 \uC544\uB798\uC640 \uAC19\uC774 \uC548\uB0B4\uB4DC\uB9BD\uB2C8\uB2E4\./);
+  assert.doesNotMatch(mail.text, /\uC2E4\uC81C \uC785\uD56D\uC774 \uD655\uC778/);
+  assert.match(mail.text, /^\uC785\uD56D\uC77C: 2026-08-21 \(\uAD00\uC138\uCCAD \uD655\uC778\)$/m);
+  assert.doesNotMatch(
+    mail.html,
+    /\uC785\uD56D\uC77C: <strong style="color:#b42318;font-weight:700;">/
+  );
+  assert.match(
+    mail.html,
+    /\uBC18\uC785\uC608\uC815\uC77C: 2026-08-26 <strong style="color:#b42318;font-weight:700;">\u2192 2026-08-27<\/strong>/
+  );
+});

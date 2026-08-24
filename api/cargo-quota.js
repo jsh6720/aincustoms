@@ -143,14 +143,14 @@ async function resolveTransportRecipients(featureKey, recipientOverride = null, 
   return await resolveDirectoryNoticeRecipients({ supabaseFetch, settings, card });
 }
 
-function applyMailContentOverride(mail, contentOverride = null) {
+function applyMailContentOverride(mail, contentOverride = null, htmlOptions = {}) {
   if (!contentOverride) return mail;
   return {
     subject: String(contentOverride.subject || "").trim() || mail.subject,
     text: String(contentOverride.text || "").trim() || mail.text,
     html: mailTextToHtml(
       String(contentOverride.text || "").trim() || mail.text,
-      { highlightChanges: true }
+      { highlightChanges: true, ...htmlOptions }
     ),
   };
 }
@@ -169,7 +169,8 @@ async function prepareWarehouseChangeMail(
   }
   const mail = applyMailContentOverride(
     buildWarehouseChangeMail(card, session, previous, next),
-    contentOverride
+    contentOverride,
+    { highlightCustomsArrival: false }
   );
   return { recipients, mail };
 }

@@ -424,6 +424,7 @@ test("admin can save and email a warehouse schedule change", { concurrency: fals
       bl_number: "BL-1",
       consignee: "현대코퍼레이션H",
       destination: "캐틀팜*우육*호주",
+      entry_date: "20260801",
     }],
     mailSettings: {
       warehouse_change: {
@@ -449,6 +450,12 @@ test("admin can save and email a warehouse schedule change", { concurrency: fals
         storage_yard: "Next yard",
         warehouse_expected_date: "2026-08-06",
         send_notification: true,
+        notification_text: [
+          "반입예정정보가 변경되어 아래와 같이 안내드립니다.",
+          "반입예정구역: Previous yard -> Next yard",
+          "입항일: 2026-08-01 (관세청 확인)",
+          "반입예정일: 2026-08-05 -> 2026-08-06",
+        ].join("\n"),
       },
     }, response)
   );
@@ -461,6 +468,15 @@ test("admin can save and email a warehouse schedule change", { concurrency: fals
   assert.equal(calls.mail[0].cc, "ain@example.com");
   assert.match(calls.mail[0].text, /Next yard/);
   assert.match(calls.mail[0].text, /2026-08-06/);
+  assert.match(calls.mail[0].text, /반입예정정보가 변경되어/);
+  assert.doesNotMatch(
+    calls.mail[0].html,
+    /입항일: <strong style="color:#b42318;font-weight:700;">/
+  );
+  assert.match(
+    calls.mail[0].html,
+    /반입예정일: 2026-08-05 <strong style="color:#b42318;font-weight:700;">→ 2026-08-06<\/strong>/
+  );
 });
 
 test("admin can explicitly email one arrival schedule change to configured shipper and destination", { concurrency: false }, async () => {
