@@ -288,9 +288,9 @@ function sessionDomHarness() {
     "statChemical", "statMsds", "statRadio", "statElectrical", "statMedical", "statNonTarget",
   ];
   ids.forEach((id) => elements.set(id, domElement(id)));
-  const menus = ["overview", "chemical", "msds", "radio", "electrical", "medical", "non_target", "review_needed"]
+  const menus = ["unified", "overview", "chemical", "msds", "radio", "electrical", "medical", "non_target", "review_needed"]
     .map((section) => domElement(`${section}Menu`, { section }));
-  const sections = ["overview", "chemical", "msds", "radio", "electrical", "medical", "non_target", "review_needed"]
+  const sections = ["unified", "overview", "chemical", "msds", "radio", "electrical", "medical", "non_target", "review_needed"]
     .map((section) => domElement(`${section}Section`));
   const storage = new Map();
   document = {
@@ -376,10 +376,30 @@ function sessionDomHarness() {
     editRecord, showDuplicateCheckDialog, startDuplicateCheck, findDuplicates, confirmAndRemoveDuplicates,
     showCompanyDownloadDialog, loadCompanyList, downloadSelectedCompanies,
     detail: () => currentDetailRecord, edit: () => currentEditRecord,
+    section: () => currentSection,
     dataType: () => currentDataType
   };`, context);
-  return { context, elements, storage, dynamicModals };
+  return { context, elements, storage, dynamicModals, menus, sections };
 }
+
+test("requirements app opens unified search before and after a successful login", async () => {
+  const harness = sessionDomHarness();
+  const unifiedMenu = harness.menus.find((item) => item.dataset.section === "unified");
+  const overviewMenu = harness.menus.find((item) => item.dataset.section === "overview");
+  const unifiedSection = harness.sections.find((section) => section.id === "unifiedSection");
+  const overviewSection = harness.sections.find((section) => section.id === "overviewSection");
+
+  assert.equal(harness.context.sessionUI.section(), "unified");
+
+  await harness.context.sessionUI.login("USER-A", "secret");
+
+  assert.equal(harness.context.sessionUI.section(), "unified");
+  assert.equal(unifiedMenu.classList.has("active"), true);
+  assert.equal(overviewMenu.classList.has("active"), false);
+  assert.equal(unifiedSection.classList.has("active"), true);
+  assert.equal(overviewSection.classList.has("active"), false);
+});
+
 async function renderPriorUserData(harness) {
   const { context, elements } = harness;
   await context.sessionUI.login("USER-A", "secret");

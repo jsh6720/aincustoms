@@ -1,6 +1,6 @@
 // 메인 애플리케이션 로직
 
-let currentSection = 'overview';
+let currentSection = 'unified';
 let currentDataType = '';
 let currentDetailRecord = null;
 let currentDetailRequestId = 0;
@@ -27,7 +27,7 @@ function invalidateRequirementsViewRequests() {
 function resetRequirementsSessionUI() {
     invalidateRequirementsViewRequests();
     clearCurrentDetailState();
-    currentSection = 'overview';
+    currentSection = 'unified';
     currentDataType = '';
 
     const detailModal = document.getElementById('detailModal');
@@ -90,11 +90,11 @@ function resetRequirementsSessionUI() {
 
     document.querySelectorAll('.menu-item').forEach(item => {
         item.classList.remove('active');
-        if (item.dataset.section === 'overview') item.classList.add('active');
+        if (item.dataset.section === 'unified') item.classList.add('active');
     });
     document.querySelectorAll('.content-section').forEach(section => {
         section.classList.remove('active');
-        if (section.id === 'overviewSection') section.classList.add('active');
+        if (section.id === 'unifiedSection') section.classList.add('active');
     });
     document.body?.classList?.remove('master-user');
 
