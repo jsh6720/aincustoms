@@ -1446,6 +1446,13 @@ test("mobile OBL mail defaults only an empty submission date to Korea today", ()
   assert.doesNotMatch(mobile, /new Date\(\)\.toISOString\(\)/);
 });
 
+test("mobile OBL carrier input defaults only an empty saved date to Korea today", () => {
+  assert.match(
+    mobile,
+    /value="\$\{esc\(shortDate\(card\.obl_carrier_submitted_date\)\s*\|\|\s*koreaTodayDate\(\)\)\}"/,
+  );
+});
+
 test("mobile mail buttons are non-submit controls and lock while sending", () => {
   assert.match(mobile, /type="button"[^>]*onclick="submitReceiptMail\(\)"/);
   assert.match(mobile, /type="button"[^>]*onclick="submitOblCarrierMail\(\)"/);

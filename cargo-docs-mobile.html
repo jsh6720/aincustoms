@@ -336,7 +336,7 @@
             </div>
             <div class="carrier-box">
               <label>OBL 선사 접수일
-                <input id="oblCarrier${index}" type="text" inputmode="numeric" placeholder="0621 또는 260621" value="${esc(shortDate(card.obl_carrier_submitted_date))}">
+                <input id="oblCarrier${index}" type="text" inputmode="numeric" placeholder="0621 또는 260621" value="${esc(shortDate(card.obl_carrier_submitted_date) || koreaTodayDate())}">
               </label>
               <div class="carrier-actions">
                 <button type="button" class="btn gray" onclick="saveOblCarrier(${index}, false)">접수 저장</button>
