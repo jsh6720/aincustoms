@@ -531,3 +531,24 @@
   검증된 `website_integration/vercel_package` 미러를 사용한다.
 - 검증 결과 홈페이지 394개, 로컬 Python 133개 테스트가 모두 통과했다.
   운영 DB·운영 소스·SMTP에는 아직 변경을 가하지 않았다.
+
+### 2026-08-28 운영 안정화 10~12단계: 원자적 메일, 보호 런타임, 롤백
+
+- Supabase에는 기존 행을 삭제하거나 재작성하지 않는 additive migration만
+  적용했다. 적용 전후 `cargo_cards 61`, `shipper_accounts 6`,
+  `cargo_status_notifications 55`, `sent=55`가 동일함을 확인했다.
+- 자동·수동 메일은 DB 원자적 claim과 claim token을 획득한 한 요청만 SMTP를
+  실행한다. SMTP 일부 수락 또는 발송 후 상태 확정 실패는 자동 재발송하지 않고
+  `delivery_uncertain`으로 남겨 중복 발송을 막는다.
+- 로그인 실패 횟수 제한과 서버 스키마 버전 확인을 추가했다. 스키마 불일치 시
+  조회는 유지하되 로그인·저장·메일 등 쓰기 기능만 차단한다.
+- NEWMAIN 코드는 `C:\ProgramData\AIN\HyundaiDashboard\releases\<fingerprint>`
+  아래 불변 릴리스로 설치하고, 상태·비밀설정·로그·백업은 릴리스 밖의 보호
+  경로에 유지한다.
+- `complete_newmain_cutover.ps1`은 기존 롤백 번들을 먼저 만들고 5분 동기화
+  작업을 정지한 뒤 설치만 수행한다. 설치 중 상태 해시가 바뀌거나 무메일
+  동기화가 실패하면 활성화하지 않고 기존 작업을 복원한다.
+- 임시 런타임에서 이전 릴리스 → 신규 릴리스 → 이전 → 신규 순서의 롤백을
+  검증했으며, 모든 단계에서 보호 상태 SHA-256이 동일했다.
+- 검증 결과 홈페이지 395개, 로컬 Python 149개, NEWMAIN 전환 집중 16개
+  테스트가 통과했다. 실제 고객 대상 SMTP 시험 발송은 하지 않았다.

@@ -38,7 +38,9 @@ history, local state, or credentials.
 ## Verification
 
 - Homepage Node suite: 395 passed, 0 failed.
-- Dashboard Python suite: 144 passed, 0 failed.
+- Dashboard Python suite: 149 passed, 0 failed.
+- Current legacy production HTML remains HTTP 200 with the unchanged baseline
+  SHA-256 after the additive migration.
 - No real SMTP test was sent.
 - Supabase security advisors report no remaining executable
   security-definer warning. Service-role-only tables intentionally have RLS
