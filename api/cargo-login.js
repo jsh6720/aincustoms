@@ -1,4 +1,9 @@
-const { createSession, supabaseFetch } = require("../lib/cargo-auth");
+const {
+  createSession,
+  deriveLoginClientKey,
+  supabaseFetch,
+} = require("../lib/cargo-auth");
+const { cargoSchemaErrorPayload } = require("../lib/cargo-schema");
 const { normalizeCalendarPreferences } = require("../lib/cargo-calendar-preferences");
 
 module.exports = async function handler(req, res) {
@@ -14,12 +19,21 @@ module.exports = async function handler(req, res) {
       return res.status(400).json({ success: false, message: "아이디와 비밀번호를 입력해주세요." });
     }
 
-    const accounts = await supabaseFetch("/rest/v1/rpc/verify_shipper_login", {
+    const accounts = await supabaseFetch("/rest/v1/rpc/verify_shipper_login_guarded", {
       method: "POST",
-      body: JSON.stringify({ p_login_id: loginId, p_password: password }),
+      body: JSON.stringify({
+        p_login_id: loginId,
+        p_password: password,
+        p_client_key: deriveLoginClientKey(req, loginId),
+      }),
     });
 
-    if (!accounts || accounts.length === 0) {
+    if (
+      !accounts
+      || accounts.length === 0
+      || accounts[0]?.login_allowed !== true
+      || !accounts[0]?.id
+    ) {
       return res.status(401).json({ success: false, message: "로그인 정보가 일치하지 않습니다." });
     }
 
@@ -59,6 +73,9 @@ module.exports = async function handler(req, res) {
       },
     });
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
+    if (error.httpStatus === 503) {
+      return res.status(503).json(cargoSchemaErrorPayload(error));
+    }
+    return res.status(error.httpStatus || 500).json({ success: false, message: error.message });
   }
 };

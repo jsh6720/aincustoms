@@ -12,7 +12,7 @@
 
 - Preserve all existing accounts, cargo cards, and mail settings.
 - Never return or display stored passwords in plaintext.
-- Dawoorin settings are `DWR`, `dwr1234`, `shipper`, `destination`, `다우린`, `다우린`, `ocm3800@hyundaicorp.com`, active.
+- Dawoorin settings are `DWR`, an administrator-set password, `shipper`, `destination`, `다우린`, `다우린`, `ocm3800@hyundaicorp.com`, active.
 - Reuse the existing company-name mail recipient matching logic.
 
 ---
@@ -84,7 +84,7 @@ Expected: FAIL because the migration file does not exist.
 
 - [ ] **Step 3: Implement the idempotent migration**
 
-Use a `DO $$` block to find `lower(login_id) = lower('DWR')`. Insert when missing; otherwise update the same row. Hash `dwr1234` with `extensions.crypt(..., extensions.gen_salt('bf'))` and set the approved account fields without touching unrelated accounts.
+Use a `DO $$` block to find `lower(login_id) = lower('DWR')`. Insert a disabled row with an unusable random hash when missing; otherwise update the same row without changing its password. Set a real password only through the administrator UI.
 
 - [ ] **Step 4: Run the focused test and verify GREEN**
 

@@ -25,13 +25,13 @@ begin
     )
     values (
       'DWR',
-      extensions.crypt('dwr1234', extensions.gen_salt('bf')),
+      extensions.crypt(pg_catalog.gen_random_uuid()::text, extensions.gen_salt('bf')),
       '다우린',
       '다우린',
       'ocm3800@hyundaicorp.com',
       'shipper',
       'destination',
-      true
+      false
     );
   else
     update public.shipper_accounts

@@ -194,7 +194,7 @@ Tests must require:
 assert.match(sql, /calendar_preferences jsonb/);
 assert.match(sql, /'CTF'/);
 assert.match(sql, /'캐틀팜'/);
-assert.match(sql, /extensions\.crypt\('ctf1234'/);
+assert.match(sql, /extensions\.crypt\(pg_catalog\.gen_random_uuid\(\)::text/);
 ```
 
 - [ ] **Step 2: Run migration tests and verify RED**
@@ -214,7 +214,7 @@ The migration must:
 - Add the JSONB column with both optional flags true by default.
 - Drop and recreate `verify_shipper_login(text,text)` with the additional return field.
 - Upsert `CTF` case-insensitively by the existing unique login ID rule.
-- Hash `ctf1234` with `extensions.crypt(..., extensions.gen_salt('bf'))`.
+- Create new bootstrap rows with an unusable random hash; set a real password only through the administrator UI.
 - Set display name and consignee filter to `캐틀팜`, role to `shipper`, and active to true.
 
 - [ ] **Step 4: Run migration tests and verify GREEN**
@@ -284,7 +284,7 @@ Verify:
 - Existing accounts open on the milestone board.
 - `BL 진행` opens the progress table.
 - Calendar optional selections persist after reload.
-- `CTF / ctf1234` logs in and every visible cargo item contains the `캐틀팜` filter.
+- A CTF account whose password was set through the administrator UI logs in and every visible cargo item contains the `캐틀팜` filter.
 - CTF cannot access administrator controls.
 - Viewer remains read-only while seeing the milestone board.
 

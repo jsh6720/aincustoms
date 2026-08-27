@@ -1210,6 +1210,54 @@ test("mail failure rolls back transport fields and previous provenance", { concu
   });
 });
 
+test("delivery-uncertain mail preserves the saved transport change without rollback", { concurrency: false }, async () => {
+  const uncertainError = new Error("timeout for recipient@example.com");
+  uncertainError.deliveryUncertain = true;
+  uncertainError.publicMessage = "메일 전달 결과를 자동 확정할 수 없어 재발송을 중단했습니다.";
+  const { calls, handler } = createQuotaFixture({
+    session: {
+      account_id: "account-1",
+      role: "shipper",
+      login_id: "SHIPPER-1",
+    },
+    previousInput: {
+      account_id: "account-1",
+      bl_number: "BL-1",
+      storage_yard: "Previous yard",
+    },
+    deliverManualMailOnce: async () => {
+      throw uncertainError;
+    },
+  });
+  const response = createResponse();
+
+  await withEnvironment(
+    {
+      SMTP_HOST: "smtp.example.com",
+      SMTP_USER: "mailer@example.com",
+      SMTP_PASS: "secret",
+    },
+    () => handler({
+      method: "POST",
+      body: {
+        action: "manual_fields",
+        bl_number: "BL-1",
+        storage_yard: "Next yard",
+        send_notification: true,
+      },
+    }, response)
+  );
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.body.success, true);
+  assert.equal(response.body.delivery_uncertain, true);
+  assert.equal(response.body.email_sent, false);
+  assert.equal(response.body.input.storage_yard, "Next yard");
+  assert.equal(calls.savedPayload.storage_yard, "Next yard");
+  assert.equal(calls.rollbackUrl, null);
+  assert.doesNotMatch(response.body.email_message, /example\.com/);
+});
+
 test("mail failure with a conflicting rollback never returns success", { concurrency: false }, async () => {
   const currentInput = {
     account_id: "account-1",
@@ -1261,7 +1309,7 @@ test("mail failure with a conflicting rollback never returns success", { concurr
   assert.equal(response.body.success, false);
   assert.match(response.body.message, /저장 취소를 확인할 수 없습니다.*새로고침/);
   assert.equal(response.body.email_sent, false);
-  assert.equal(response.body.email_message, "SMTP rejected the message");
+  assert.equal(response.body.email_message, "메일 발송에 실패했습니다.");
   assert.deepEqual(response.body.input, currentInput);
   assert.equal(calls.inputReads, 2);
   assert.match(calls.rollbackUrl, /updated_at=eq\.2026-07-23T02%3A03%3A04\.000Z/);
@@ -1314,7 +1362,7 @@ test("mail failure without saved updated_at never returns success", { concurrenc
   assert.equal(response.body.success, false);
   assert.match(response.body.message, /저장 취소를 확인할 수 없습니다.*새로고침/);
   assert.equal(response.body.email_sent, false);
-  assert.equal(response.body.email_message, "SMTP rejected the message");
+  assert.equal(response.body.email_message, "메일 발송에 실패했습니다.");
   assert.deepEqual(response.body.input, currentInput);
   assert.equal(calls.rollbackUrl, null);
   assert.equal(calls.inputReads, 2);
@@ -1359,7 +1407,7 @@ test("mail failure with a rollback error never returns success", { concurrency: 
   assert.equal(response.statusCode, 409);
   assert.equal(response.body.success, false);
   assert.match(response.body.message, /저장 취소를 확인할 수 없습니다.*새로고침/);
-  assert.equal(response.body.email_message, "SMTP rejected the message");
+  assert.equal(response.body.email_message, "메일 발송에 실패했습니다.");
   assert.equal(calls.inputReads, 2);
 });
 

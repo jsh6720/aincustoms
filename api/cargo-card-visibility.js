@@ -108,6 +108,6 @@ module.exports = async function handler(req, res) {
         message: "Supabase에서 add_cargo_card_visibility.sql을 먼저 실행해 주세요.",
       });
     }
-    return res.status(500).json({ success: false, message: error.message });
+    return res.status(error.httpStatus || 500).json({ success: false, message: error.message });
   }
 };

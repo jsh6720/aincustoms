@@ -492,7 +492,7 @@ async function saveCalendarPreferences(req, res) {
         message: "Run 20260724_add_calendar_preferences_and_ctf.sql in Supabase first.",
       });
     }
-    return res.status(500).json({ success: false, message: error.message });
+    return res.status(error.httpStatus || 500).json({ success: false, message: error.message });
   }
 }
 
@@ -592,6 +592,6 @@ module.exports = async function handler(req, res) {
         message: "Run 20260724_add_calendar_preferences_and_ctf.sql in Supabase first.",
       });
     }
-    return res.status(500).json({ success: false, message: error.message });
+    return res.status(error.httpStatus || 500).json({ success: false, message: error.message });
   }
 };

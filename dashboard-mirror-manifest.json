@@ -1,0 +1,206 @@
+{
+  "version": 1,
+  "authority": "homepage_aincustoms",
+  "files": [
+    {
+      "source": "cargo-dashboard.html",
+      "target": "website_integration/cargo-dashboard.html",
+      "sha256": "89510e2e4abbcd3a6b8f4ed87d14bacacc531495a6a982a11ebdffe3674c22fd"
+    },
+    {
+      "source": "cargo-docs-mobile.html",
+      "target": "website_integration/cargo-docs-mobile.html",
+      "sha256": "543982360ce904c2f0c29f75ceeff9e7716f4d5138b8ef786d3e3d6115460021"
+    },
+    {
+      "source": "package-lock.json",
+      "target": "website_integration/package-lock.json",
+      "sha256": "a9a00828048aeed9a2e3710aa5eb9ecfd1ccab0261583e76289ab4020a87a2d3"
+    },
+    {
+      "source": "package.json",
+      "target": "website_integration/package.json",
+      "sha256": "cf56f45e4ab5d711d698de21a4bac078653855bfb07109588bad0a6c0a7f3ef4"
+    },
+    {
+      "source": "api/cargo-admin.js",
+      "target": "website_integration/vercel_package/api/cargo-admin.js",
+      "sha256": "434e76963a4788aefc9513587b82f5ce2c6caa730c876c610c4e1bfaaf1ab187"
+    },
+    {
+      "source": "api/cargo-card-visibility.js",
+      "target": "website_integration/vercel_package/api/cargo-card-visibility.js",
+      "sha256": "5e88ce9bb1014698aefc58f331b3be9cb46ac88acaf1fc06c3b63ba943704446"
+    },
+    {
+      "source": "api/cargo-data.js",
+      "target": "website_integration/vercel_package/api/cargo-data.js",
+      "sha256": "1c7b0170c9758372afe492974be376a6f1ba8cc402eefc256a00a741e1c9fae0"
+    },
+    {
+      "source": "api/cargo-import-request.js",
+      "target": "website_integration/vercel_package/api/cargo-import-request.js",
+      "sha256": "d53db023cc44d62b8c2e25dde3fd630291a863e6507c09a7e06263b5b318fc11"
+    },
+    {
+      "source": "api/cargo-login.js",
+      "target": "website_integration/vercel_package/api/cargo-login.js",
+      "sha256": "28e8af159657265990c0d41810e306b422ad5dccb7363ee7f6b9c8c9b967255f"
+    },
+    {
+      "source": "api/cargo-logout.js",
+      "target": "website_integration/vercel_package/api/cargo-logout.js",
+      "sha256": "b6d029baaa121a1efff2899a89a588ef32bfa18bbd3f3b854b155f9f684f68eb"
+    },
+    {
+      "source": "api/cargo-original-doc-receipt-mail.js",
+      "target": "website_integration/vercel_package/api/cargo-original-doc-receipt-mail.js",
+      "sha256": "18b0896b66bd4f4ce72276bf1d018d80a050e8b97ea8c5515104517ca03925f7"
+    },
+    {
+      "source": "api/cargo-original-doc-request.js",
+      "target": "website_integration/vercel_package/api/cargo-original-doc-request.js",
+      "sha256": "c14d96616a49914f17111389eeeb6e27f4eead0ac733a275074b6bea64e90068"
+    },
+    {
+      "source": "api/cargo-original-docs.js",
+      "target": "website_integration/vercel_package/api/cargo-original-docs.js",
+      "sha256": "f6e83bcab85b0c4427e7b9c2a68d2f03e0bec57da3ac42c541208f3a0d29cf17"
+    },
+    {
+      "source": "api/cargo-quota.js",
+      "target": "website_integration/vercel_package/api/cargo-quota.js",
+      "sha256": "7cea885c362737a27d683d3228ae68b7a4eb19a875e8349fa57e641b4094622e"
+    },
+    {
+      "source": "api/cargo-release-request.js",
+      "target": "website_integration/vercel_package/api/cargo-release-request.js",
+      "sha256": "306eeb4197f42268dba33f7bd0d4fc00c20ccb2052915f1167f69c690cd1263a"
+    },
+    {
+      "source": "api/cargo-revision.js",
+      "target": "website_integration/vercel_package/api/cargo-revision.js",
+      "sha256": "df1a2563e8ce999a6e154f70bc0d4743fa0af61666ff22e5dd3e0097bf6380c6"
+    },
+    {
+      "source": "cargo-dashboard.html",
+      "target": "website_integration/vercel_package/cargo-dashboard.html",
+      "sha256": "89510e2e4abbcd3a6b8f4ed87d14bacacc531495a6a982a11ebdffe3674c22fd"
+    },
+    {
+      "source": "cargo-docs-mobile.html",
+      "target": "website_integration/vercel_package/cargo-docs-mobile.html",
+      "sha256": "543982360ce904c2f0c29f75ceeff9e7716f4d5138b8ef786d3e3d6115460021"
+    },
+    {
+      "source": "lib/cargo-auth.js",
+      "target": "website_integration/vercel_package/lib/cargo-auth.js",
+      "sha256": "4e50cd7838fbfcce13639da6be42a20c5ec43978041790f5b1093e8b5032d21c"
+    },
+    {
+      "source": "lib/cargo-automatic-mail-dedupe.js",
+      "target": "website_integration/vercel_package/lib/cargo-automatic-mail-dedupe.js",
+      "sha256": "42da56a398e1f05737cd88b9507df1ffedb97094a448820272f4e97ea5b3a761"
+    },
+    {
+      "source": "lib/cargo-calendar-preferences.js",
+      "target": "website_integration/vercel_package/lib/cargo-calendar-preferences.js",
+      "sha256": "e52c9b954232b40b79673422fd6ae371f2123d08c396e89c5e7202570e79c016"
+    },
+    {
+      "source": "lib/cargo-card-merge.js",
+      "target": "website_integration/vercel_package/lib/cargo-card-merge.js",
+      "sha256": "a7d75e4a62147197383cb47567858f8e8f5652db816e1169b0d435be0046b0ff"
+    },
+    {
+      "source": "lib/cargo-date-input.js",
+      "target": "website_integration/vercel_package/lib/cargo-date-input.js",
+      "sha256": "5d8edfa4e9123393349b53c42b45c5bae78860f19490672f81379c1a14ed6cb2"
+    },
+    {
+      "source": "lib/cargo-doc-status.js",
+      "target": "website_integration/vercel_package/lib/cargo-doc-status.js",
+      "sha256": "40966de26e6f6e28b654d035bbd6bb069ad13c5dc87eb36120d390a84d22827c"
+    },
+    {
+      "source": "lib/cargo-import-progress-notification.js",
+      "target": "website_integration/vercel_package/lib/cargo-import-progress-notification.js",
+      "sha256": "016c059d6df921768ba594e7bab6f95c9359016dc0b4711dc7754accd7c5c74f"
+    },
+    {
+      "source": "lib/cargo-linked-records.js",
+      "target": "website_integration/vercel_package/lib/cargo-linked-records.js",
+      "sha256": "4a3cace18070dd59517b610bd8e171a144e0131ae87946bf9d84370fbb69b37f"
+    },
+    {
+      "source": "lib/cargo-mail-dedupe.js",
+      "target": "website_integration/vercel_package/lib/cargo-mail-dedupe.js",
+      "sha256": "99913d0c477bf45f3b018da85a0a575bc75aa9ffc9b6dcc9653ab0d8a9d8e336"
+    },
+    {
+      "source": "lib/cargo-mail-settings.js",
+      "target": "website_integration/vercel_package/lib/cargo-mail-settings.js",
+      "sha256": "9a760b10d886000db34cdb25f64c88219d141fe25b7c34eecd9a0700cdc18b17"
+    },
+    {
+      "source": "lib/cargo-mail-utils.js",
+      "target": "website_integration/vercel_package/lib/cargo-mail-utils.js",
+      "sha256": "b9ee04f13addaa86f8524ec685e4fdc2d08f2660ca243f3ed381881f2c4e2501"
+    },
+    {
+      "source": "lib/cargo-missing-warehouse-plan-notification.js",
+      "target": "website_integration/vercel_package/lib/cargo-missing-warehouse-plan-notification.js",
+      "sha256": "32cc9eb8a6bfcbd1b8b6f33b9fe7896637d8be833507b5ea12da3ce753f3b9fe"
+    },
+    {
+      "source": "lib/cargo-original-doc-receipt.js",
+      "target": "website_integration/vercel_package/lib/cargo-original-doc-receipt.js",
+      "sha256": "2c4d9b146c783e9d324968dcb8cfdd7743fce18307c690c378afc5feeb600b76"
+    },
+    {
+      "source": "lib/cargo-original-doc-utils.js",
+      "target": "website_integration/vercel_package/lib/cargo-original-doc-utils.js",
+      "sha256": "419fc374ef3ed53514bb4730f55634e46d8caf09b9f9b8a34ecdc95828e7e5cf"
+    },
+    {
+      "source": "lib/cargo-progress-utils.js",
+      "target": "website_integration/vercel_package/lib/cargo-progress-utils.js",
+      "sha256": "de09524969e81c4c8354ecfc2d155456cd70c8588724a486c60f33c098d1485b"
+    },
+    {
+      "source": "lib/cargo-request-utils.js",
+      "target": "website_integration/vercel_package/lib/cargo-request-utils.js",
+      "sha256": "c4b327a59d32497f7529e262cc348b81c4361ba5b03a3734eecffa15ba9a0a3d"
+    },
+    {
+      "source": "lib/cargo-schema.js",
+      "target": "website_integration/vercel_package/lib/cargo-schema.js",
+      "sha256": "643e9230819f5f8e9ecaaaa8865522ed0e60021028fb1267730835b96781c4d7"
+    },
+    {
+      "source": "lib/cargo-user-input-query.js",
+      "target": "website_integration/vercel_package/lib/cargo-user-input-query.js",
+      "sha256": "2fa29c7f4af0b7acd9a12c8a016e1978fe841fae9e07045114465c92e8deea41"
+    },
+    {
+      "source": "lib/cargo-warehouse-schedule-notification.js",
+      "target": "website_integration/vercel_package/lib/cargo-warehouse-schedule-notification.js",
+      "sha256": "62bd419d4d1eea96a2ce2ee36378d599d723f6001c2af20b4eff6d107c3f13c6"
+    },
+    {
+      "source": "lib/cargo-warehouse-utils.js",
+      "target": "website_integration/vercel_package/lib/cargo-warehouse-utils.js",
+      "sha256": "acac296a1db2b798727133693cd89bc46df0456324c01c199d59302db119baf5"
+    },
+    {
+      "source": "package-lock.json",
+      "target": "website_integration/vercel_package/package-lock.json",
+      "sha256": "a9a00828048aeed9a2e3710aa5eb9ecfd1ccab0261583e76289ab4020a87a2d3"
+    },
+    {
+      "source": "package.json",
+      "target": "website_integration/vercel_package/package.json",
+      "sha256": "cf56f45e4ab5d711d698de21a4bac078653855bfb07109588bad0a6c0a7f3ef4"
+    }
+  ]
+}

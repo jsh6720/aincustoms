@@ -696,6 +696,7 @@ module.exports = async function handler(req, res) {
             changed_fields: [],
             email_sent: !!delivery?.sent,
             deduplicated: !!delivery?.deduplicated,
+            delivery_uncertain: !!delivery?.deliveryUncertain,
             email_message: delivery?.message || "",
           });
         } catch (mailError) {
@@ -705,8 +706,9 @@ module.exports = async function handler(req, res) {
             changed_fields: [],
             email_sent: false,
             deduplicated: false,
-            email_message: mailError.message,
-            message: `메일 발송에 실패했습니다: ${mailError.message}`,
+            delivery_uncertain: !!mailError.deliveryUncertain,
+            email_message: mailError.publicMessage || "메일 발송에 실패했습니다.",
+            message: mailError.publicMessage || "메일 발송에 실패했습니다.",
           });
         }
       }
@@ -736,6 +738,7 @@ module.exports = async function handler(req, res) {
         );
         let emailSent = false;
         let emailDeduplicated = false;
+        let emailDeliveryUncertain = false;
         let emailMessage = "";
         if (sendNotification && changedFields.length) {
           try {
@@ -774,9 +777,11 @@ module.exports = async function handler(req, res) {
             }
             emailSent = !!delivery?.sent;
             emailDeduplicated = !!delivery?.deduplicated;
+            emailDeliveryUncertain = !!delivery?.deliveryUncertain;
             emailMessage = delivery?.message || "";
           } catch (mailError) {
-            emailMessage = mailError.message;
+            emailDeliveryUncertain = !!mailError.deliveryUncertain;
+            emailMessage = mailError.publicMessage || "메일 발송에 실패했습니다.";
           }
         }
         return res.status(200).json({
@@ -786,6 +791,7 @@ module.exports = async function handler(req, res) {
           changed_fields: changedFields,
           email_sent: emailSent,
           deduplicated: emailDeduplicated,
+          delivery_uncertain: emailDeliveryUncertain,
           email_message: emailMessage,
         });
       }
@@ -821,6 +827,7 @@ module.exports = async function handler(req, res) {
       }
       let emailSent = false;
       let emailDeduplicated = false;
+      let emailDeliveryUncertain = false;
       let emailMessage = "";
       if (!isAdmin && sendNotification && changedFields.length) {
         try {
@@ -837,9 +844,22 @@ module.exports = async function handler(req, res) {
           }
           emailSent = !!delivery?.sent;
           emailDeduplicated = !!delivery?.deduplicated;
+          emailDeliveryUncertain = !!delivery?.deliveryUncertain;
           emailMessage = delivery?.message || "";
         } catch (mailError) {
-          emailMessage = mailError.message;
+          emailDeliveryUncertain = !!mailError.deliveryUncertain;
+          emailMessage = mailError.publicMessage || "메일 발송에 실패했습니다.";
+          if (emailDeliveryUncertain) {
+            return res.status(200).json({
+              success: true,
+              input,
+              changed_fields: changedFields,
+              email_sent: false,
+              deduplicated: false,
+              delivery_uncertain: true,
+              email_message: emailMessage,
+            });
+          }
           const savedUpdatedAt = input?.updated_at;
           const rollbackPayload = buildTransportRollbackPayload(previousInput, nextPayload);
           let rolledBack = false;
@@ -890,6 +910,7 @@ module.exports = async function handler(req, res) {
         changed_fields: changedFields,
         email_sent: emailSent,
         deduplicated: emailDeduplicated,
+        delivery_uncertain: emailDeliveryUncertain,
         email_message: emailMessage,
       });
     }
@@ -953,6 +974,6 @@ module.exports = async function handler(req, res) {
         message: "Supabase에 cargo_card_user_inputs 테이블을 먼저 생성해야 합니다.",
       });
     }
-    return res.status(500).json({ success: false, message: error.message });
+    return res.status(error.httpStatus || 500).json({ success: false, message: error.message });
   }
 };

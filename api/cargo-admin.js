@@ -132,6 +132,6 @@ module.exports = async function handler(req, res) {
         message: "Supabase에서 20260724_add_document_delivery_status.sql을 먼저 실행해 주세요.",
       });
     }
-    return res.status(500).json({ success: false, message: error.message });
+    return res.status(error.httpStatus || 500).json({ success: false, message: error.message });
   }
 };
