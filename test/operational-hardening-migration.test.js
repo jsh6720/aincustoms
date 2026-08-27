@@ -89,6 +89,58 @@ test("every privileged RPC has an empty search path and service-role-only execut
   }
 });
 
+test("migration closes legacy privileged function access and mutable search paths", () => {
+  const normalized = sql
+    .replace(/\s+/g, " ")
+    .replace(/\s*([(),])\s*/g, "$1")
+    .toLowerCase();
+  const legacyFunctions = [
+    {
+      name: "admin_upsert_shipper_account",
+      args: "uuid,text,text,text,text,text,boolean,text,text",
+    },
+    {
+      name: "verify_shipper_login",
+      args: "text,text",
+    },
+    {
+      name: "touch_cargo_card_lifecycle_updated_at",
+      args: "",
+    },
+    {
+      name: "rls_auto_enable",
+      args: "",
+    },
+    {
+      name: "touch_updated_at",
+      args: "",
+    },
+  ];
+
+  for (const { name, args } of legacyFunctions) {
+    const signature = `public.` + name + `(` + args + `)`;
+    const searchPath = name === "rls_auto_enable" ? "pg_catalog" : "";
+    assert.ok(
+      normalized.includes(
+        `alter function ` +
+          signature +
+          `set search_path = '` +
+          searchPath +
+          `';`,
+      ),
+      "missing fixed search path for " + signature,
+    );
+    assert.ok(
+      normalized.includes(
+        `revoke all on function ` +
+          signature +
+          `from public,anon,authenticated;`,
+      ),
+      "missing execute revoke for " + signature,
+    );
+  }
+});
+
 test("schema metadata is protected and records the exact version", () => {
   assert.match(sql, /create\s+table\s+if\s+not\s+exists\s+public\.cargo_system_metadata/i);
   assert.match(

@@ -511,6 +511,41 @@ revoke all on function public.verify_shipper_login_guarded(text, text, text)
 grant execute on function public.verify_shipper_login_guarded(text, text, text)
   to service_role;
 
+-- Close execute privileges that were inherited from legacy migrations.
+-- Existing function bodies already schema-qualify protected tables, so fixing
+-- the search path does not change their business behavior.
+alter function public.admin_upsert_shipper_account(
+  uuid, text, text, text, text, text, boolean, text, text
+) set search_path = '';
+revoke all on function public.admin_upsert_shipper_account(
+  uuid, text, text, text, text, text, boolean, text, text
+) from public, anon, authenticated;
+grant execute on function public.admin_upsert_shipper_account(
+  uuid, text, text, text, text, text, boolean, text, text
+) to service_role;
+
+alter function public.verify_shipper_login(text, text)
+  set search_path = '';
+revoke all on function public.verify_shipper_login(text, text)
+  from public, anon, authenticated;
+grant execute on function public.verify_shipper_login(text, text)
+  to service_role;
+
+alter function public.touch_cargo_card_lifecycle_updated_at()
+  set search_path = '';
+revoke all on function public.touch_cargo_card_lifecycle_updated_at()
+  from public, anon, authenticated;
+
+alter function public.rls_auto_enable()
+  set search_path = 'pg_catalog';
+revoke all on function public.rls_auto_enable()
+  from public, anon, authenticated;
+
+alter function public.touch_updated_at()
+  set search_path = '';
+revoke all on function public.touch_updated_at()
+  from public, anon, authenticated;
+
 create table if not exists public.cargo_system_metadata (
   component text primary key,
   schema_version text not null,
