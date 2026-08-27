@@ -221,6 +221,6 @@ module.exports = async function handler(req, res) {
       email_message: mailResult.message,
     });
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
+    return res.status(error.httpStatus || 500).json({ success: false, message: error.message });
   }
 };

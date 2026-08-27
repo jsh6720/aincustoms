@@ -250,7 +250,7 @@ module.exports = async function handler(req, res) {
       message: delivery.message,
     });
   } catch (error) {
-    return res.status(500).json({
+    return res.status(error.httpStatus || 500).json({
       success: false,
       delivery_uncertain: !!error.deliveryUncertain,
       message: error.publicMessage || error.message,

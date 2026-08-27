@@ -38,7 +38,10 @@ function loadHandler(handlerPath, cargoAuth) {
   delete require.cache[handlerPath];
   Module._load = function mockedLoad(request, parent, isMain) {
     if (parent?.filename === handlerPath && request === "../lib/cargo-auth") {
-      return cargoAuth;
+      return {
+        deriveLoginClientKey: () => "a".repeat(64),
+        ...cargoAuth,
+      };
     }
     return originalLoad.call(this, request, parent, isMain);
   };
@@ -260,6 +263,7 @@ test("login signs normalized calendar preferences into the session", async () =>
       display_name: "Shipper",
       role: "shipper",
       calendar_preferences: { import_request: false },
+      login_allowed: true,
     }],
   });
   const response = createResponse();

@@ -81,6 +81,13 @@ function automaticDeliveryResponse(res, delivery) {
 }
 
 function automaticDeliveryError(res, error) {
+  if (error?.httpStatus === 503) {
+    return res.status(503).json({
+      success: false,
+      code: error.code,
+      message: error.message,
+    });
+  }
   if (error?.code === "CARGO_MAIL_EVENT_NOT_FOUND") {
     return res.status(404).json({ success: false, message: "알림 이벤트를 찾을 수 없습니다." });
   }
@@ -529,6 +536,6 @@ module.exports = async function handler(req, res) {
         message: "Supabase에 cargo_import_requests 테이블을 먼저 생성해야 합니다.",
       });
     }
-    return res.status(500).json({ success: false, message: error.message });
+    return res.status(error.httpStatus || 500).json({ success: false, message: error.message });
   }
 };

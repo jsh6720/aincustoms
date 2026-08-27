@@ -974,6 +974,6 @@ module.exports = async function handler(req, res) {
         message: "Supabase에 cargo_card_user_inputs 테이블을 먼저 생성해야 합니다.",
       });
     }
-    return res.status(500).json({ success: false, message: error.message });
+    return res.status(error.httpStatus || 500).json({ success: false, message: error.message });
   }
 };

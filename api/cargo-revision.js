@@ -112,6 +112,6 @@ module.exports = async function handler(req, res) {
     const saved = await saveRevisions(card.accountId, card.blNumber, revisions);
     return res.status(200).json({ success: true, revisions: saved });
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
+    return res.status(error.httpStatus || 500).json({ success: false, message: error.message });
   }
 };

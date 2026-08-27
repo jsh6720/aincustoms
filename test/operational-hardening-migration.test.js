@@ -104,10 +104,10 @@ test("schema metadata is protected and records the exact version", () => {
   assert.match(sql, /'20260828090000_add_operational_hardening\.sql'/i);
 });
 
-test("migration is additive and contains no production password literal", () => {
+test("migration preserves production data and contains no password literal", () => {
   assert.doesNotMatch(sql, /\bdrop\s+(?:table|column)\b/i);
   assert.doesNotMatch(sql, /\btruncate\b/i);
   assert.doesNotMatch(sql, /\bdelete\s+from\b/i);
-  assert.doesNotMatch(sql, /\b(?:password_hash|p_password)\b/i);
-  assert.doesNotMatch(sql, /\bcrypt\s*\(/i);
+  assert.doesNotMatch(sql, /insert\s+into\s+public\.shipper_accounts/i);
+  assert.doesNotMatch(sql, /extensions\.crypt\s*\(\s*'(?!')/i);
 });

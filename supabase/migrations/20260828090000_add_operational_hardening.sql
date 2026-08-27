@@ -342,6 +342,175 @@ revoke all on function public.settle_cargo_mail(uuid, uuid, text, text)
 grant execute on function public.settle_cargo_mail(uuid, uuid, text, text)
   to service_role;
 
+create table if not exists public.cargo_login_rate_limits (
+  client_key text primary key,
+  failure_count integer not null default 0,
+  window_started_at timestamptz not null default pg_catalog.now(),
+  locked_until timestamptz,
+  updated_at timestamptz not null default pg_catalog.now(),
+  constraint cargo_login_rate_limits_client_key_check
+    check (client_key ~ '^[0-9a-f]{64}$'),
+  constraint cargo_login_rate_limits_failure_count_check
+    check (failure_count >= 0)
+);
+
+alter table public.cargo_login_rate_limits enable row level security;
+revoke all on table public.cargo_login_rate_limits
+  from public, anon, authenticated;
+grant select, insert, update, delete on table public.cargo_login_rate_limits
+  to service_role;
+
+drop function if exists public.verify_shipper_login_guarded(text, text, text);
+create function public.verify_shipper_login_guarded(
+  p_login_id text,
+  p_password text,
+  p_client_key text
+)
+returns table (
+  id uuid,
+  login_id text,
+  display_name text,
+  consignee_filter text,
+  release_request_to text,
+  role text,
+  calendar_preferences jsonb,
+  account_category text,
+  login_allowed boolean
+)
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_now timestamptz := pg_catalog.now();
+  v_client_key text := pg_catalog.lower(pg_catalog.btrim(p_client_key));
+  v_account public.shipper_accounts%rowtype;
+  v_rate public.cargo_login_rate_limits%rowtype;
+  v_compare_hash text;
+  v_password_matches boolean := false;
+  v_failure_count integer;
+  v_window_started_at timestamptz;
+  v_locked_until timestamptz;
+begin
+  if v_client_key !~ '^[0-9a-f]{64}$' then
+    raise exception 'invalid login client key';
+  end if;
+
+  insert into public.cargo_login_rate_limits as r (
+    client_key,
+    failure_count,
+    window_started_at,
+    locked_until,
+    updated_at
+  )
+  values (v_client_key, 0, v_now, null, v_now)
+  on conflict (client_key) do nothing;
+
+  select r.*
+  into v_rate
+  from public.cargo_login_rate_limits as r
+  where r.client_key = v_client_key
+  for update;
+
+  select a.*
+  into v_account
+  from public.shipper_accounts as a
+  where pg_catalog.lower(a.login_id) = pg_catalog.lower(pg_catalog.btrim(p_login_id))
+  order by a.updated_at desc nulls last, a.id
+  limit 1
+  for update;
+
+  if v_account.password_hash is null then
+    v_compare_hash := extensions.crypt(
+      pg_catalog.gen_random_uuid()::text,
+      extensions.gen_salt('bf', 10)
+    );
+  else
+    v_compare_hash := v_account.password_hash;
+  end if;
+  v_password_matches := (
+    extensions.crypt(coalesce(p_password, ''), v_compare_hash) = v_compare_hash
+    and v_account.id is not null
+    and v_account.is_active = true
+  );
+
+  if v_rate.locked_until is not null and v_rate.locked_until > v_now then
+    return query
+    select
+      null::uuid,
+      null::text,
+      null::text,
+      null::text,
+      null::text,
+      null::text,
+      null::pg_catalog.jsonb,
+      null::text,
+      false;
+    return;
+  end if;
+
+  if v_password_matches then
+    update public.cargo_login_rate_limits as r
+    set
+      failure_count = 0,
+      window_started_at = v_now,
+      locked_until = null,
+      updated_at = v_now
+    where r.client_key = v_client_key;
+
+    return query
+    select
+      v_account.id,
+      v_account.login_id,
+      v_account.display_name,
+      v_account.consignee_filter,
+      v_account.release_request_to,
+      v_account.role,
+      v_account.calendar_preferences,
+      v_account.account_category,
+      true;
+    return;
+  end if;
+
+  if v_rate.window_started_at < v_now - interval '15 minutes' then
+    v_failure_count := 1;
+    v_window_started_at := v_now;
+  else
+    v_failure_count := v_rate.failure_count + 1;
+    v_window_started_at := v_rate.window_started_at;
+  end if;
+  v_locked_until := case
+    when v_failure_count >= 5 then v_now + interval '15 minutes'
+    else null
+  end;
+
+  update public.cargo_login_rate_limits as r
+  set
+    failure_count = v_failure_count,
+    window_started_at = v_window_started_at,
+    locked_until = v_locked_until,
+    updated_at = v_now
+  where r.client_key = v_client_key;
+
+  return query
+  select
+    null::uuid,
+    null::text,
+    null::text,
+    null::text,
+    null::text,
+    null::text,
+    null::pg_catalog.jsonb,
+    null::text,
+    false;
+end;
+$$;
+
+revoke all on function public.verify_shipper_login_guarded(text, text, text)
+  from public, anon, authenticated;
+grant execute on function public.verify_shipper_login_guarded(text, text, text)
+  to service_role;
+
 create table if not exists public.cargo_system_metadata (
   component text primary key,
   schema_version text not null,
