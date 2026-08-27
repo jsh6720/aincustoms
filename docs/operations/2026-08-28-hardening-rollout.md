@@ -37,8 +37,8 @@ history, local state, or credentials.
 
 ## Verification
 
-- Homepage Node suite: 395 passed, 0 failed.
-- Dashboard Python suite: 149 passed, 0 failed.
+- Homepage Node suite: 396 passed, 0 failed.
+- Dashboard Python suite: 151 passed, 0 failed.
 - Current legacy production HTML remains HTTP 200 with the unchanged baseline
   SHA-256 after the additive migration.
 - No real SMTP test was sent.
@@ -68,6 +68,19 @@ history, local state, or credentials.
 ## Outstanding rollout gates
 
 - Vercel preview and production deployment.
-- NEWMAIN install-only, no-mail sync, activation, task verification, and local
-  rollback drill.
+- NEWMAIN install-only, no-mail sync, activation, task verification, and
+  production-host rollback drill.
 - Credential switch, verification, and old-key revocation.
+
+## Rehearsal evidence
+
+- A temporary worktree based on production commit `7a3a854` merged the
+  complete feature branch without conflicts and passed all 396 Node tests.
+- Reverting that local merge restored a tree exactly matching
+  `origin/main`; no customer traffic or Vercel deployment was changed.
+- The isolated local runtime completed candidate -> previous -> candidate with
+  health fingerprint checks and an unchanged state hash.
+- The final local candidate fingerprint is
+  `2c978cbcbc81804421b45f7b1f908faa11eebebd1355b4e8ed1cf918149465aa`.
+- The rehearsal found and fixed a Windows 260-character source path issue in
+  rollback staging before production cutover.
