@@ -67,7 +67,7 @@ returns the normalized saved value.
 Create or update this regular shipper account:
 
 - Login ID: `CTF`
-- Password: `ctf1234`
+- Password: set separately through the administrator UI; never store it in source.
 - Display name: `캐틀팜`
 - Consignee filter: `캐틀팜`
 - Active: true

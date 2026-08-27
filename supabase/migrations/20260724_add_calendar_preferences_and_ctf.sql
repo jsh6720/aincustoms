@@ -69,7 +69,6 @@ begin
 
     update public.shipper_accounts
     set login_id = 'CTF',
-        password_hash = extensions.crypt('ctf1234', extensions.gen_salt('bf')),
         display_name = '캐틀팜',
         consignee_filter = '캐틀팜',
         role = 'shipper',
@@ -87,11 +86,11 @@ begin
     )
     values (
       'CTF',
-      extensions.crypt('ctf1234', extensions.gen_salt('bf')),
+      extensions.crypt(pg_catalog.gen_random_uuid()::text, extensions.gen_salt('bf')),
       '캐틀팜',
       '캐틀팜',
       'shipper',
-      true
+      false
     );
   end if;
 end;

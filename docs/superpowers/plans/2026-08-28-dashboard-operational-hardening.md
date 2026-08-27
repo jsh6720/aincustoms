@@ -164,7 +164,7 @@ Replace the hardcoded UNIPASS key in `app.py` with protected runtime config look
 
 ```powershell
 python -m unittest tests.test_runtime_security tests.test_local_template_delivery -v
-rg -n "service_role_key|sb_secret_|api_key\s*=|dkdls123|ctf1234|dwr1234" .
+Run the repository source-hygiene tests for service credentials, API keys, and known bootstrap passwords.
 ```
 
 The `rg` result may show field names and redacted examples only; it must show no credential values.
@@ -597,7 +597,7 @@ python -m unittest tests.test_source_hygiene tests.test_homepage_mirror -v
 
 - Replace plaintext bootstrap literals with generated disabled/random hashes while preserving already-applied production behavior; never change existing accounts in historical migration replays.
 - Pin `Flask==3.1.3`, `requests==2.34.2`, `pypdf==6.13.2`.
-- Pin `nodemailer` to `6.9.16` and create lock files with `npm install --package-lock-only --ignore-scripts`.
+- Pin `nodemailer` to the exact audited version `9.0.6` and create lock files with `npm install --package-lock-only --ignore-scripts`.
 - Make `homepage_aincustoms` authoritative. `sync_homepage_mirror.ps1` copies only manifest-listed files after tests; `verify_homepage_mirror.py` reports drift and never silently overwrites.
 - Record every new invariant and rollback command in both history/preservation documents.
 

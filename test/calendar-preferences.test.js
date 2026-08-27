@@ -336,10 +336,18 @@ test("calendar preference migration adds preferences and provisions the CTF acco
   assert.match(sql, /lower\(a\.login_id\) = lower\(trim\(p_login_id\)\)/i);
   assert.match(sql, /'CTF'/);
   assert.match(sql, /'캐틀팜'/);
-  assert.match(sql, /extensions\.crypt\('ctf1234', extensions\.gen_salt\('bf'\)\)/);
+  assert.match(
+    sql,
+    /extensions\.crypt\(pg_catalog\.gen_random_uuid\(\)::text, extensions\.gen_salt\('bf'\)\)/,
+  );
+  assert.doesNotMatch(
+    sql,
+    /set login_id = 'CTF',[\s\S]{0,160}password_hash\s*=/i,
+  );
   assert.match(sql, /order by\s+case when login_id = 'CTF' then 0 else 1 end/i);
   assert.match(sql, /login_id = 'CTF_RETIRED_' \|\| replace\(id::text, '-', ''\)/i);
   assert.match(sql, /is_active = false/i);
   assert.match(sql, /and id <> v_canonical_id/i);
   assert.match(sql, /where id = v_canonical_id/i);
+  assert.match(sql, /'shipper',\s*false\s*\)/i);
 });

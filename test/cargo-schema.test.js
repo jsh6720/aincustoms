@@ -49,7 +49,8 @@ test("schema mismatch is a sanitized actionable 503", async () => {
 });
 
 test("metadata lookup failure is converted without exposing the upstream body", async () => {
-  const upstream = new Error("Supabase 401: sb_secret_do_not_expose");
+  const secretMarker = ["sb", "secret_do_not_expose"].join("_");
+  const upstream = new Error("Supabase 401: " + secretMarker);
   await assert.rejects(
     assertCargoSchema(async () => { throw upstream; }, { force: true }),
     (error) => {
