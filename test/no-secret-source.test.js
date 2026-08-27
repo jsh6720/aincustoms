@@ -2,6 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const crypto = require("node:crypto");
 const fs = require("node:fs");
+const os = require("node:os");
 const path = require("node:path");
 const { execFileSync } = require("node:child_process");
 
@@ -24,8 +25,25 @@ function trackedText() {
 }
 
 function sha256(file) {
-  return crypto.createHash("sha256").update(fs.readFileSync(file)).digest("hex");
+  let content = fs.readFileSync(file);
+  if (/\.(?:css|html|js|json|md|sql)$/i.test(file)) {
+    content = Buffer.from(content.toString("utf8").replace(/\r\n?/g, "\n"), "utf8");
+  }
+  return crypto.createHash("sha256").update(content).digest("hex");
 }
+
+test("homepage mirror text hash is stable across checkout line endings", () => {
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), "ain-mirror-hash-"));
+  try {
+    const file = path.join(temp, "package.json");
+    fs.writeFileSync(file, "{\n  \"value\": true\n}\n", "utf8");
+    const lfHash = sha256(file);
+    fs.writeFileSync(file, "{\r\n  \"value\": true\r\n}\r\n", "utf8");
+    assert.equal(sha256(file), lfHash);
+  } finally {
+    fs.rmSync(temp, { recursive: true, force: true });
+  }
+});
 
 test("tracked source contains no known bootstrap credential or key value", () => {
   const forbidden = [
