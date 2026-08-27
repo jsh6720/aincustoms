@@ -105,23 +105,26 @@ test("signed HCH warehouse schedule event uses notice role routing and marks sen
   const timestamp = String(Math.floor(Date.now() / 1000));
   const secret = "service-role-secret";
   const sentMail = [];
-  const patches = [];
+  const settlements = [];
   const handler = loadImportRequestHandler({
     sendMail: async (mail) => sentMail.push(mail),
     supabaseFetch: async (url, options = {}) => {
-      if (url.startsWith("/rest/v1/cargo_status_notifications?id=eq.event-warehouse")) {
-        patches.push(JSON.parse(options.body));
-        return [patches.at(-1)];
-      }
-      if (url.startsWith("/rest/v1/cargo_status_notifications?")) {
+      if (url.includes("/rpc/claim_cargo_automatic_mail")) {
         return [{
           id: "event-warehouse",
           event_type: "warehouse_arrival_eve",
-          account_id: "hch-id",
-          bl_number: "BL001",
-          status: "pending",
-          attempt_count: 0,
-          card_snapshot: snapshot,
+          status: "sending",
+          claim_token: "claim-warehouse",
+          claimed: true,
+          card_snapshot: { ...snapshot, account_id: "hch-id" },
+        }];
+      }
+      if (url.includes("/rpc/settle_cargo_mail")) {
+        settlements.push(JSON.parse(options.body));
+        return [{
+          id: "event-warehouse",
+          settled: true,
+          status: settlements.at(-1).p_status,
         }];
       }
       if (url.startsWith("/rest/v1/shipper_accounts?")) {
@@ -187,5 +190,7 @@ test("signed HCH warehouse schedule event uses notice role routing and marks sen
   assert.equal(sentMail[0].cc, "ops@example.com");
   assert.match(sentMail[0].html, /font-family:'Malgun Gothic','맑은 고딕',sans-serif/);
   assert.match(sentMail[0].html, /font-size:9pt/);
-  assert.equal(patches[0].status, "sent");
+  assert.equal(settlements.length, 1);
+  assert.equal(settlements[0].p_claim_token, "claim-warehouse");
+  assert.equal(settlements[0].p_status, "sent");
 });

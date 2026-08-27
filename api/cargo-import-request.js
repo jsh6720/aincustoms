@@ -21,6 +21,9 @@ const {
   buildMissingWarehousePlanMail,
 } = require("../lib/cargo-missing-warehouse-plan-notification");
 const { deliverManualMailOnce } = require("../lib/cargo-mail-dedupe");
+const {
+  deliverAutomaticMailOnce,
+} = require("../lib/cargo-automatic-mail-dedupe");
 
 const ALLOWED_STAGES = ["입항", "반입"];
 const MISSING_WAREHOUSE_PLAN_RECIPIENTS = [
@@ -29,6 +32,64 @@ const MISSING_WAREHOUSE_PLAN_RECIPIENTS = [
 
 function env(name) {
   return process.env[name] || "";
+}
+
+function preDeliveryError(message, code = "MAIL_PREFLIGHT_FAILED") {
+  const error = new Error(message);
+  error.code = code;
+  error.smtpDeliveryAttempted = false;
+  return error;
+}
+
+async function hchCardFromClaim(claim) {
+  const card = claim?.card_snapshot && typeof claim.card_snapshot === "object"
+    ? claim.card_snapshot
+    : {};
+  const accountId = String(card.account_id || "").trim();
+  if (!accountId) {
+    throw preDeliveryError("알림 이벤트의 화주 식별정보가 없습니다.", "CARGO_EVENT_ACCOUNT_MISSING");
+  }
+  const accounts = await supabaseFetch(
+    "/rest/v1/shipper_accounts?select=id,login_id,display_name&id=eq."
+      + encodeURIComponent(accountId)
+      + "&limit=1"
+  );
+  const account = accounts && accounts[0];
+  if (!account || String(account.login_id || "").trim().toUpperCase() !== "HCH") {
+    throw preDeliveryError("HCH 알림 이벤트가 아닙니다.", "CARGO_EVENT_NOT_HCH");
+  }
+  return card;
+}
+
+function automaticDeliveryResponse(res, delivery) {
+  if (delivery.deliveryUncertain && !delivery.deduplicated) {
+    return res.status(502).json({
+      success: false,
+      email_sent: false,
+      deduplicated: false,
+      delivery_uncertain: true,
+      message: delivery.message,
+    });
+  }
+  return res.status(200).json({
+    success: true,
+    email_sent: !!delivery.sent,
+    deduplicated: !!delivery.deduplicated,
+    delivery_uncertain: !!delivery.deliveryUncertain,
+    message: delivery.message,
+  });
+}
+
+function automaticDeliveryError(res, error) {
+  if (error?.code === "CARGO_MAIL_EVENT_NOT_FOUND") {
+    return res.status(404).json({ success: false, message: "알림 이벤트를 찾을 수 없습니다." });
+  }
+  return res.status(502).json({
+    success: false,
+    email_sent: false,
+    delivery_uncertain: !!error?.deliveryUncertain,
+    message: error?.publicMessage || "메일 발송에 실패했습니다.",
+  });
 }
 
 function numberOrNull(value) {
@@ -116,23 +177,12 @@ function buildAutomaticProgressMail(card) {
   };
 }
 
-async function updateNotification(eventId, payload) {
-  return supabaseFetch(
-    `/rest/v1/cargo_status_notifications?id=eq.${encodeURIComponent(eventId)}`,
-    {
-      method: "PATCH",
-      headers: { Prefer: "return=representation" },
-      body: JSON.stringify(payload),
-    }
-  );
-}
-
 async function sendAutomaticProgressMail(card) {
   const host = env("SMTP_HOST");
   const user = env("SMTP_USER");
   const pass = env("SMTP_PASS");
   if (!host || !user || !pass) {
-    throw new Error("메일 환경변수가 설정되지 않았습니다.");
+    throw preDeliveryError("메일 환경변수가 설정되지 않았습니다.");
   }
 
   const setting = await fetchMailSetting(supabaseFetch, "original_doc_receipt");
@@ -143,7 +193,7 @@ async function sendAutomaticProgressMail(card) {
     fallbackCc: fallback.cc,
   });
   if (!recipients.to.length) {
-    throw new Error("수입신고 진행 안내 수신처가 설정되지 않았습니다.");
+    throw preDeliveryError("수입신고 진행 안내 수신처가 설정되지 않았습니다.");
   }
 
   const transporter = nodemailer.createTransport({
@@ -153,7 +203,7 @@ async function sendAutomaticProgressMail(card) {
     auth: { user, pass },
   });
   const mail = buildAutomaticProgressMail(card);
-  await transporter.sendMail({
+  return transporter.sendMail({
     from: env("MAIL_FROM") || user,
     to: recipients.to.join(","),
     cc: recipients.cc.length ? recipients.cc.join(",") : undefined,
@@ -176,57 +226,25 @@ async function handleAutomaticProgressNotice(req, res, body) {
     return res.status(401).json({ success: false, message: "Invalid sync signature" });
   }
 
-  const events = await supabaseFetch(
-    `/rest/v1/cargo_status_notifications?select=*&id=eq.${encodeURIComponent(eventId)}&event_type=eq.import_progress_started&limit=1`
-  );
-  const event = events && events[0];
-  if (!event) {
-    return res.status(404).json({ success: false, message: "알림 이벤트를 찾을 수 없습니다." });
-  }
-  if (event.status === "sent") {
-    return res.status(200).json({ success: true, email_sent: false, deduplicated: true });
-  }
-
-  const accounts = await supabaseFetch(
-    `/rest/v1/shipper_accounts?select=id,login_id,display_name&id=eq.${encodeURIComponent(event.account_id)}&limit=1`
-  );
-  const account = accounts && accounts[0];
-  if (!account || String(account.login_id || "").trim().toUpperCase() !== "HCH") {
-    return res.status(403).json({ success: false, message: "HCH 알림 이벤트가 아닙니다." });
-  }
-
-  const cards = await supabaseFetch(
-    `/rest/v1/cargo_cards?select=*&account_id=eq.${encodeURIComponent(event.account_id)}&bl_number=eq.${encodeURIComponent(event.bl_number)}&limit=1`
-  );
-  const card = cards && cards[0];
-  if (!card || !isImportProgressStatus(card.prgs_stts)) {
-    return res.status(409).json({ success: false, message: "현재 수입신고 진행 상태를 확인할 수 없습니다." });
-  }
-
-  const attemptedAt = new Date().toISOString();
-  const attemptCount = Number(event.attempt_count || 0) + 1;
   try {
-    await sendAutomaticProgressMail(card);
-    await updateNotification(event.id, {
-      status: "sent",
-      attempt_count: attemptCount,
-      last_attempt_at: attemptedAt,
-      sent_at: attemptedAt,
-      error_message: null,
+    const delivery = await deliverAutomaticMailOnce({
+      supabaseFetch,
+      eventId,
+      allowedEventTypes: ["import_progress_started"],
+      sendMail: async (claim) => {
+        const card = await hchCardFromClaim(claim);
+        if (!isImportProgressStatus(card.prgs_stts)) {
+          throw preDeliveryError(
+            "알림 이벤트의 수입신고 진행 상태를 확인할 수 없습니다.",
+            "CARGO_EVENT_STATUS_INVALID"
+          );
+        }
+        return sendAutomaticProgressMail(card);
+      },
     });
-    return res.status(200).json({ success: true, email_sent: true, deduplicated: false });
+    return automaticDeliveryResponse(res, delivery);
   } catch (error) {
-    try {
-      await updateNotification(event.id, {
-        status: "failed",
-        attempt_count: attemptCount,
-        last_attempt_at: attemptedAt,
-        error_message: String(error.message || error).slice(0, 2000),
-      });
-    } catch {
-      // The caller will retry the pending event even if failure bookkeeping is unavailable.
-    }
-    return res.status(502).json({ success: false, email_sent: false, message: error.message });
+    return automaticDeliveryError(res, error);
   }
 }
 
@@ -235,7 +253,7 @@ async function sendWarehouseScheduleMail(eventType, snapshot) {
   const user = env("SMTP_USER");
   const pass = env("SMTP_PASS");
   if (!host || !user || !pass) {
-    throw new Error("메일 환경변수가 설정되지 않았습니다.");
+    throw preDeliveryError("메일 환경변수가 설정되지 않았습니다.");
   }
 
   const settings = await fetchEffectiveRoleMailSettings(
@@ -250,7 +268,7 @@ async function sendWarehouseScheduleMail(eventType, snapshot) {
     card: snapshot,
   });
   if (!recipients.to.length) {
-    throw new Error("입고 일정 안내 수신처가 설정되지 않았습니다.");
+    throw preDeliveryError("입고 일정 안내 수신처가 설정되지 않았습니다.");
   }
 
   const transporter = nodemailer.createTransport({
@@ -260,7 +278,7 @@ async function sendWarehouseScheduleMail(eventType, snapshot) {
     auth: { user, pass },
   });
   const mail = buildWarehouseScheduleMail(eventType, snapshot);
-  await transporter.sendMail({
+  return transporter.sendMail({
     from: env("MAIL_FROM") || user,
     to: recipients.to.join(","),
     cc: recipients.cc.length ? recipients.cc.join(",") : undefined,
@@ -283,50 +301,19 @@ async function handleAutomaticWarehouseScheduleNotice(req, res, body) {
     return res.status(401).json({ success: false, message: "Invalid sync signature" });
   }
 
-  const eventTypes = "warehouse_arrival_eve,warehouse_arrival_today";
-  const events = await supabaseFetch(
-    `/rest/v1/cargo_status_notifications?select=*&id=eq.${encodeURIComponent(eventId)}&event_type=in.(${eventTypes})&limit=1`
-  );
-  const event = events && events[0];
-  if (!event) {
-    return res.status(404).json({ success: false, message: "입고 일정 알림 이벤트를 찾을 수 없습니다." });
-  }
-  if (event.status === "sent") {
-    return res.status(200).json({ success: true, email_sent: false, deduplicated: true });
-  }
-
-  const accounts = await supabaseFetch(
-    `/rest/v1/shipper_accounts?select=id,login_id,display_name&id=eq.${encodeURIComponent(event.account_id)}&limit=1`
-  );
-  const account = accounts && accounts[0];
-  if (!account || String(account.login_id || "").trim().toUpperCase() !== "HCH") {
-    return res.status(403).json({ success: false, message: "HCH 입고 일정 이벤트가 아닙니다." });
-  }
-
-  const attemptedAt = new Date().toISOString();
-  const attemptCount = Number(event.attempt_count || 0) + 1;
   try {
-    await sendWarehouseScheduleMail(event.event_type, event.card_snapshot || {});
-    await updateNotification(event.id, {
-      status: "sent",
-      attempt_count: attemptCount,
-      last_attempt_at: attemptedAt,
-      sent_at: attemptedAt,
-      error_message: null,
+    const delivery = await deliverAutomaticMailOnce({
+      supabaseFetch,
+      eventId,
+      allowedEventTypes: ["warehouse_arrival_eve", "warehouse_arrival_today"],
+      sendMail: async (claim) => {
+        const card = await hchCardFromClaim(claim);
+        return sendWarehouseScheduleMail(claim.event_type, card);
+      },
     });
-    return res.status(200).json({ success: true, email_sent: true, deduplicated: false });
+    return automaticDeliveryResponse(res, delivery);
   } catch (error) {
-    try {
-      await updateNotification(event.id, {
-        status: "failed",
-        attempt_count: attemptCount,
-        last_attempt_at: attemptedAt,
-        error_message: String(error.message || error).slice(0, 2000),
-      });
-    } catch {
-      // The NEWMAIN sync will retry pending or failed events.
-    }
-    return res.status(502).json({ success: false, email_sent: false, message: error.message });
+    return automaticDeliveryError(res, error);
   }
 }
 
@@ -335,7 +322,7 @@ async function sendMissingWarehousePlanMail(snapshot) {
   const user = env("SMTP_USER");
   const pass = env("SMTP_PASS");
   if (!host || !user || !pass) {
-    throw new Error("메일 환경변수가 설정되지 않았습니다.");
+    throw preDeliveryError("메일 환경변수가 설정되지 않았습니다.");
   }
 
   const transporter = nodemailer.createTransport({
@@ -345,7 +332,7 @@ async function sendMissingWarehousePlanMail(snapshot) {
     auth: { user, pass },
   });
   const mail = buildMissingWarehousePlanMail(snapshot);
-  await transporter.sendMail({
+  return transporter.sendMail({
     from: env("MAIL_FROM") || user,
     to: MISSING_WAREHOUSE_PLAN_RECIPIENTS.join(","),
     subject: mail.subject,
@@ -367,67 +354,19 @@ async function handleAutomaticMissingWarehousePlanNotice(req, res, body) {
     return res.status(401).json({ success: false, message: "Invalid sync signature" });
   }
 
-  const events = await supabaseFetch(
-    `/rest/v1/cargo_status_notifications?select=*&id=eq.${encodeURIComponent(eventId)}&event_type=eq.warehouse_plan_missing&limit=1`
-  );
-  const event = events && events[0];
-  if (!event) {
-    return res.status(404).json({
-      success: false,
-      message: "반입예정정보 미입력 알림 이벤트를 찾을 수 없습니다.",
-    });
-  }
-  if (event.status === "sent") {
-    return res.status(200).json({
-      success: true,
-      email_sent: false,
-      deduplicated: true,
-    });
-  }
-
-  const accounts = await supabaseFetch(
-    `/rest/v1/shipper_accounts?select=id,login_id,display_name&id=eq.${encodeURIComponent(event.account_id)}&limit=1`
-  );
-  const account = accounts && accounts[0];
-  if (!account || String(account.login_id || "").trim().toUpperCase() !== "HCH") {
-    return res.status(403).json({
-      success: false,
-      message: "HCH 반입예정정보 미입력 이벤트가 아닙니다.",
-    });
-  }
-
-  const attemptedAt = new Date().toISOString();
-  const attemptCount = Number(event.attempt_count || 0) + 1;
   try {
-    await sendMissingWarehousePlanMail(event.card_snapshot || {});
-    await updateNotification(event.id, {
-      status: "sent",
-      attempt_count: attemptCount,
-      last_attempt_at: attemptedAt,
-      sent_at: attemptedAt,
-      error_message: null,
+    const delivery = await deliverAutomaticMailOnce({
+      supabaseFetch,
+      eventId,
+      allowedEventTypes: ["warehouse_plan_missing"],
+      sendMail: async (claim) => {
+        const card = await hchCardFromClaim(claim);
+        return sendMissingWarehousePlanMail(card);
+      },
     });
-    return res.status(200).json({
-      success: true,
-      email_sent: true,
-      deduplicated: false,
-    });
+    return automaticDeliveryResponse(res, delivery);
   } catch (error) {
-    try {
-      await updateNotification(event.id, {
-        status: "failed",
-        attempt_count: attemptCount,
-        last_attempt_at: attemptedAt,
-        error_message: String(error.message || error).slice(0, 2000),
-      });
-    } catch {
-      // The NEWMAIN sync retries only today's pending or failed event.
-    }
-    return res.status(502).json({
-      success: false,
-      email_sent: false,
-      message: error.message,
-    });
+    return automaticDeliveryError(res, error);
   }
 }
 
@@ -567,7 +506,12 @@ module.exports = async function handler(req, res) {
     try {
       mailResult = await sendMail(card, savedRequest, session, account);
     } catch (error) {
-      mailResult = { sent: false, skipped: false, message: error.message };
+      mailResult = {
+        sent: false,
+        skipped: false,
+        deliveryUncertain: !!error.deliveryUncertain,
+        message: error.publicMessage || "메일 발송에 실패했습니다.",
+      };
     }
 
     return res.status(200).json({
@@ -575,6 +519,7 @@ module.exports = async function handler(req, res) {
       request: savedRequest,
       email_sent: !!mailResult.sent,
       deduplicated: !!mailResult.deduplicated,
+      delivery_uncertain: !!mailResult.deliveryUncertain,
       email_message: mailResult.message,
     });
   } catch (error) {

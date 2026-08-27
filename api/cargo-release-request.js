@@ -216,7 +216,12 @@ module.exports = async function handler(req, res) {
     try {
       mailResult = await sendMail(card, savedRequest, session, account);
     } catch (error) {
-      mailResult = { sent: false, skipped: false, message: error.message };
+      mailResult = {
+        sent: false,
+        skipped: false,
+        deliveryUncertain: !!error.deliveryUncertain,
+        message: error.publicMessage || "메일 발송에 실패했습니다.",
+      };
     }
 
     return res.status(200).json({
@@ -224,6 +229,7 @@ module.exports = async function handler(req, res) {
       request: savedRequest,
       email_sent: !!mailResult.sent,
       deduplicated: !!mailResult.deduplicated,
+      delivery_uncertain: !!mailResult.deliveryUncertain,
       email_message: mailResult.message,
     });
   } catch (error) {

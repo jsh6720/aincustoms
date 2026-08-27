@@ -94,23 +94,26 @@ test("signed daily event sends to the three internal recipients and marks sent",
   const timestamp = String(Math.floor(Date.now() / 1000));
   const secret = "service-role-secret";
   const sentMail = [];
-  const patches = [];
+  const settlements = [];
   const handler = loadImportRequestHandler({
     sendMail: async (mail) => sentMail.push(mail),
     supabaseFetch: async (url, options = {}) => {
-      if (url.startsWith("/rest/v1/cargo_status_notifications?id=eq.event-missing-plan") && options.method === "PATCH") {
-        patches.push(JSON.parse(options.body));
-        return [patches.at(-1)];
-      }
-      if (url.startsWith("/rest/v1/cargo_status_notifications?")) {
+      if (url.includes("/rpc/claim_cargo_automatic_mail")) {
         return [{
           id: "event-missing-plan",
           event_type: "warehouse_plan_missing",
-          account_id: "hch-id",
-          bl_number: "BL001",
-          status: "pending",
-          attempt_count: 0,
-          card_snapshot: snapshot,
+          status: "sending",
+          claim_token: "claim-missing-plan",
+          claimed: true,
+          card_snapshot: { ...snapshot, account_id: "hch-id" },
+        }];
+      }
+      if (url.includes("/rpc/settle_cargo_mail")) {
+        settlements.push(JSON.parse(options.body));
+        return [{
+          id: "event-missing-plan",
+          settled: true,
+          status: settlements.at(-1).p_status,
         }];
       }
       if (url.startsWith("/rest/v1/shipper_accounts?")) {
@@ -143,5 +146,7 @@ test("signed daily event sends to the three internal recipients and marks sent",
     "jsh@aincustoms.com,jhcho@aincustoms.com,bill@aincustoms.com"
   );
   assert.equal(sentMail[0].cc, undefined);
-  assert.equal(patches[0].status, "sent");
+  assert.equal(settlements.length, 1);
+  assert.equal(settlements[0].p_claim_token, "claim-missing-plan");
+  assert.equal(settlements[0].p_status, "sent");
 });

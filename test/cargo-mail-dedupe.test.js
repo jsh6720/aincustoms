@@ -18,12 +18,20 @@ function notificationStore(initial = null) {
       calls.push({ path, options });
       if (path.includes("/rpc/claim_cargo_manual_mail")) {
         if (row) return [{ id: row.id, claimed: false, status: row.status }];
-        row = { id: "event-1", status: "pending" };
-        return [{ id: row.id, claimed: true, status: row.status }];
+        row = { id: "event-1", status: "sending", claim_token: "claim-1" };
+        return [{
+          id: row.id,
+          claimed: true,
+          status: row.status,
+          claim_token: row.claim_token,
+        }];
       }
-      if (options.method === "PATCH") {
-        row = { ...row, ...JSON.parse(options.body) };
-        return [row];
+      if (path.includes("/rpc/settle_cargo_mail")) {
+        const body = JSON.parse(options.body);
+        assert.equal(body.p_event_id, row.id);
+        assert.equal(body.p_claim_token, row.claim_token);
+        row = { ...row, status: body.p_status, error_message: body.p_error_message };
+        return [{ id: row.id, settled: true, status: row.status }];
       }
       if (path.includes("cargo_status_notifications")) return row ? [row] : [];
       throw new Error(`unexpected request: ${path}`);
@@ -63,7 +71,10 @@ test("manual mail sends once and marks the event sent", async () => {
   assert.equal(result.deduplicated, false);
   assert.equal(sent, 1);
   assert.equal(store.row.status, "sent");
-  assert.ok(store.row.sent_at);
+  assert.equal(
+    store.calls.filter((call) => call.path.includes("/rpc/settle_cargo_mail")).length,
+    1
+  );
 });
 
 test("manual mail skips an event that was already sent", async () => {
@@ -84,6 +95,28 @@ test("manual mail skips an event that was already sent", async () => {
   assert.equal(result.sent, false);
   assert.equal(result.deduplicated, true);
   assert.equal(sent, 0);
+});
+
+test("manual mail marks a timeout delivery uncertain using the claim token", async () => {
+  const store = notificationStore();
+  const timeout = Object.assign(new Error("timeout to recipient@example.com"), {
+    code: "ETIMEDOUT",
+  });
+
+  await assert.rejects(
+    deliverManualMailOnce({
+      supabaseFetch: store.fetch,
+      mailType: "original_doc_receipt",
+      accountId: "account-1",
+      blNumber: "BL-1",
+      businessPayload: { received_date: "2026-08-13", documents: ["obl"] },
+      send: async () => { throw timeout; },
+    }),
+    (error) => error.deliveryUncertain === true
+  );
+
+  assert.equal(store.row.status, "delivery_uncertain");
+  assert.doesNotMatch(store.row.error_message, /example\.com/);
 });
 
 test("manual mail migration adds an atomic service-role claim", () => {

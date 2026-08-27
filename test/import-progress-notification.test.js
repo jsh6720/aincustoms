@@ -127,36 +127,32 @@ test("signed HCH progress event sends once and marks the ledger sent", { concurr
   const secret = "service-role-secret";
   const signature = createSyncSignature(secret, timestamp, "event-1");
   const sentMail = [];
-  const patches = [];
+  const settlements = [];
   const handler = loadImportRequestHandler({
     sendMail: async (mail) => sentMail.push(mail),
     supabaseFetch: async (url, options = {}) => {
-      if (url.startsWith("/rest/v1/cargo_status_notifications?id=eq.event-1")) {
-        patches.push(JSON.parse(options.body));
-        return [patches.at(-1)];
-      }
-      if (url.startsWith("/rest/v1/cargo_status_notifications?")) {
+      if (url.includes("/rpc/claim_cargo_automatic_mail")) {
         return [{
           id: "event-1",
           event_type: "import_progress_started",
-          account_id: "hch-id",
-          bl_number: "BL001",
-          detected_status: "수입신고",
-          status: "pending",
-          attempt_count: 0,
+          status: "sending",
+          claim_token: "claim-1",
+          claimed: true,
+          card_snapshot: {
+            account_id: "hch-id",
+            bl_number: "BL001",
+            consignee: "현대코퍼레이션H",
+            destination: "캐틀팜",
+            prgs_stts: "수입(사용소비) 심사진행",
+          },
         }];
+      }
+      if (url.includes("/rpc/settle_cargo_mail")) {
+        settlements.push(JSON.parse(options.body));
+        return [{ id: "event-1", settled: true, status: settlements.at(-1).p_status }];
       }
       if (url.startsWith("/rest/v1/shipper_accounts?")) {
         return [{ id: "hch-id", login_id: "HCH", display_name: "현대코퍼레이션H" }];
-      }
-      if (url.startsWith("/rest/v1/cargo_cards?")) {
-        return [{
-          account_id: "hch-id",
-          bl_number: "BL001",
-          consignee: "현대코퍼레이션H",
-          destination: "캐틀팜",
-          prgs_stts: "수입(사용소비) 심사진행",
-        }];
       }
       if (url.startsWith("/rest/v1/cargo_mail_settings?")) {
         assert.match(url, /setting_key=eq\.original_doc_receipt/);
@@ -192,10 +188,10 @@ test("signed HCH progress event sends once and marks the ledger sent", { concurr
   assert.equal(sentMail[0].cc, "ops@example.com");
   assert.match(sentMail[0].subject, /수입신고 진행 안내.*BL001/);
   assert.match(sentMail[0].text, /수입\(사용소비\) 심사진행/);
-  assert.equal(patches.length, 1);
-  assert.equal(patches[0].status, "sent");
-  assert.equal(patches[0].attempt_count, 1);
-  assert.ok(patches[0].sent_at);
+  assert.equal(settlements.length, 1);
+  assert.equal(settlements[0].p_event_id, "event-1");
+  assert.equal(settlements[0].p_claim_token, "claim-1");
+  assert.equal(settlements[0].p_status, "sent");
 });
 
 test("already sent HCH progress event is idempotent", { concurrency: false }, async () => {
@@ -205,13 +201,14 @@ test("already sent HCH progress event is idempotent", { concurrency: false }, as
   const handler = loadImportRequestHandler({
     sendMail: async () => { sentMail = true; },
     supabaseFetch: async (url) => {
-      if (url.startsWith("/rest/v1/cargo_status_notifications?")) {
+      if (url.includes("/rpc/claim_cargo_automatic_mail")) {
         return [{
           id: "event-1",
           event_type: "import_progress_started",
-          account_id: "hch-id",
-          bl_number: "BL001",
           status: "sent",
+          claim_token: "old-claim",
+          claimed: false,
+          card_snapshot: {},
         }];
       }
       throw new Error(`Unexpected Supabase URL: ${url}`);

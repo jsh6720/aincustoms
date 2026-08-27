@@ -110,7 +110,9 @@ async function sendMail(mail, additionalRecipients, action) {
   const user = env("SMTP_USER");
   const pass = env("SMTP_PASS");
   if (!host || !user || !pass) {
-    throw new Error("메일 환경변수 SMTP_HOST, SMTP_USER, SMTP_PASS를 확인해 주세요.");
+    const error = new Error("메일 환경변수 SMTP_HOST, SMTP_USER, SMTP_PASS를 확인해 주세요.");
+    error.smtpDeliveryAttempted = false;
+    throw error;
   }
 
   const port = Number(env("SMTP_PORT") || 465);
@@ -132,7 +134,7 @@ async function sendMail(mail, additionalRecipients, action) {
     fallbackCc: fallback.cc,
     extraTo: additionalRecipients,
   });
-  await transporter.sendMail({
+  return transporter.sendMail({
     from: env("MAIL_FROM") || user,
     to: recipients.to.join(","),
     cc: recipients.cc.length ? recipients.cc.join(",") : undefined,
@@ -235,6 +237,7 @@ module.exports = async function handler(req, res) {
         success: true,
         email_sent: delivery.sent,
         deduplicated: delivery.deduplicated,
+        delivery_uncertain: !!delivery.deliveryUncertain,
         receipt_saved: true,
         received_date: receivedDate,
       });
@@ -243,9 +246,14 @@ module.exports = async function handler(req, res) {
       success: true,
       email_sent: delivery.sent,
       deduplicated: delivery.deduplicated,
+      delivery_uncertain: !!delivery.deliveryUncertain,
       message: delivery.message,
     });
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({
+      success: false,
+      delivery_uncertain: !!error.deliveryUncertain,
+      message: error.publicMessage || error.message,
+    });
   }
 };
