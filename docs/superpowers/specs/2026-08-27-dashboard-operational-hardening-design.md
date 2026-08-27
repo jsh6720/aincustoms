@@ -118,9 +118,13 @@ RPC atomically changes one eligible notification from `pending` or `failed` to
 `sending`, records a unique claim token and timestamp, and increments the
 attempt count. Only the claimant may mark it `sent` or `failed`.
 
-A `sending` claim older than ten minutes is recoverable. A fresh `sending` or
-`sent` event cannot be claimed. This prevents concurrent NEWMAIN or Vercel
-requests from sending the same event twice while retaining retry after a crash.
+A `sending` or `sent` event cannot be claimed again automatically. A `sending`
+claim older than ten minutes is moved to `delivery_uncertain` by reconciliation
+and remains excluded from automatic retry until an administrator checks the
+mailbox and explicitly resets it. This favors preventing duplicate customer
+mail over automatic recovery from the narrow crash window between SMTP success
+and database settlement. A failure confirmed before SMTP acceptance may return
+to `failed` and retry normally.
 
 Schedule eligibility becomes:
 
@@ -132,8 +136,9 @@ Schedule eligibility becomes:
   eligible;
 - after the applicable date: no stale event is newly created.
 
-Pending, failed, or expired-sending events remain retryable only while their
-business date is still eligible. HCH remains the sole canonical source, and
+Pending and confirmed-pre-delivery failed events remain retryable only while
+their business date is still eligible. `sending`, `delivery_uncertain`, and
+`sent` events do not retry automatically. HCH remains the sole canonical source, and
 hidden, source-missing, permanently excluded, and grace-expired fully released
 cards remain ineligible.
 
@@ -182,9 +187,10 @@ mandatory and makes those historical values unusable.
 - Server restart failure blocks synchronization and records a task failure.
 - Schema-version mismatch blocks writes and mail but permits an authenticated
   read-only status response.
-- SMTP failure returns the claimed automatic event to `failed`; a database
-  update failure after SMTP success records a distinct partial-success state and
-  must not invite a blind resend.
+- A failure confirmed before SMTP acceptance returns the claimed event to
+  `failed`. A database update failure after SMTP acceptance leaves the event in
+  `sending`; reconciliation changes stale claims to `delivery_uncertain`, which
+  requires mailbox review and an explicit administrator decision before resend.
 - Credential rotation is rolled back by restoring the previous environment
   values before the old credential is revoked.
 
@@ -202,7 +208,8 @@ mandatory and makes those historical values unusable.
 - Non-NEWMAIN task registration fails without the emergency override.
 - Two concurrent automatic-mail requests yield one claim and one mocked SMTP
   call.
-- Failed and expired claims retry; sent and fresh sending claims do not.
+- Confirmed-pre-delivery failures retry; sent, sending, and delivery-uncertain
+  claims do not retry automatically.
 - 08:59 creates no schedule event; 09:00 and a later same-day recovery create
   exactly one event; the following date creates no stale previous-day event.
 - Hidden and excluded cards never create or retry mail.
