@@ -130,6 +130,9 @@ async function loadCurrentSection(searchQuery = '') {
         case 'review_needed':
             if (typeof loadReviewNeededData === 'function') await loadReviewNeededData(searchQuery);
             break;
+        case 'radio_exemption':
+            if (typeof loadRadioExemptionData === 'function') await loadRadioExemptionData(searchQuery);
+            break;
         case 'editRequests':
             if (typeof loadEditRequests === 'function') await loadEditRequests();
             break;
@@ -143,7 +146,8 @@ const REQUIREMENTS_SECTION_SEARCH_INPUTS = {
     electrical: 'electricalSearch',
     medical: 'medicalSearch',
     non_target: 'non_targetSearch',
-    review_needed: 'reviewNeededSearch'
+    review_needed: 'reviewNeededSearch',
+    radio_exemption: 'radio_exemptionSearch'
 };
 
 async function activateRequirementsSection(section, searchQuery = null) {
@@ -909,6 +913,8 @@ function searchData(type) {
             return loadMedicalData(query);
         case 'non_target':
             return loadNonTargetData(query);
+        case 'radio_exemption':
+            return loadRadioExemptionData(query);
     }
 }
 
@@ -927,7 +933,7 @@ function clearSectionSearch(type) {
 
 // 엔터키로 검색
 document.addEventListener('DOMContentLoaded', () => {
-    ['chemical', 'msds', 'radio', 'electrical', 'medical', 'non_target'].forEach(type => {
+    ['chemical', 'msds', 'radio', 'electrical', 'medical', 'non_target', 'radio_exemption'].forEach(type => {
         const searchInput = document.getElementById(`${type}Search`);
         if (searchInput) {
             searchInput.addEventListener('keypress', (e) => {
@@ -1115,6 +1121,7 @@ async function deleteRecord(type, recordId) {
                 case 'medical': loadMedicalData(); break;
                 case 'non_target': loadNonTargetData(); break;
                 case 'review_needed': loadReviewNeededData(); break;
+                case 'radio_exemption': loadRadioExemptionData(); break;
             }
             loadDashboard();
         } else {
@@ -1559,6 +1566,7 @@ async function deleteAllData(type) {
             case 'medical': loadMedicalData(); break;
             case 'non_target': loadNonTargetData(); break;
             case 'review_needed': loadReviewNeededData(); break;
+                case 'radio_exemption': loadRadioExemptionData(); break;
         }
         loadDashboard();
 
@@ -2049,6 +2057,7 @@ async function saveTableData() {
             case 'medical': loadMedicalData(); break;
             case 'non_target': loadNonTargetData(); break;
             case 'review_needed': loadReviewNeededData(); break;
+                case 'radio_exemption': loadRadioExemptionData(); break;
         }
         loadDashboard();
 
@@ -2442,6 +2451,7 @@ async function saveManualData() {
                 case 'medical': loadMedicalData(); break;
                 case 'non_target': loadNonTargetData(); break;
                 case 'review_needed': loadReviewNeededData(); break;
+                case 'radio_exemption': loadRadioExemptionData(); break;
             }
             loadDashboard();
         } else {
@@ -2627,6 +2637,7 @@ async function handleCSVUpload(event) {
             case 'radio': loadRadioData(); break;
             case 'medical': loadMedicalData(); break;
             case 'review_needed': loadReviewNeededData(); break;
+                case 'radio_exemption': loadRadioExemptionData(); break;
         }
         loadDashboard();
 

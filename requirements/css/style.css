@@ -949,3 +949,41 @@ textarea:focus {
         grid-template-columns: 1fr;
     }
 }
+
+/* ── 전파 면제 관리 ────────────────────────────────────── */
+.exemption-notice {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin: 0 0 14px;
+    padding: 12px 14px;
+    background: #fff8e6;
+    border: 1px solid #f0d48a;
+    border-left: 4px solid #e0a800;
+    border-radius: 6px;
+    font-size: 13px;
+    line-height: 1.6;
+    color: #6b5200;
+}
+.exemption-notice i { margin-top: 2px; color: #e0a800; }
+
+#radioExemptionTable .mono {
+    font-family: Consolas, 'D2Coding', monospace;
+    font-size: 12px;
+}
+.report-badge {
+    display: inline-block;
+    min-width: 44px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 600;
+    text-align: center;
+}
+.report-badge.done { background: #e3f5e9; color: #1a7f42; }
+.report-badge.todo { background: #fdeaea; color: #c0392b; }
+.report-badge.none { background: #eef0f2; color: #7b848c; font-weight: 500; }
+
+.expiry.expired { color: #c0392b; font-weight: 600; }
+.expiry.soon    { color: #d68910; font-weight: 600; }
+#radioExemptionTable .derived { color: #98a2ab; font-size: 11px; }
