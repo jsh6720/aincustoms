@@ -3,6 +3,12 @@
 // 면제확인은 해당 수입 건에만 효력이 있는 건별 승인이다. 인증(적합등록·적합인증)과
 // 달리 다음 수입 건에 그대로 쓸 수 없으므로 요건보유 목록과 섞지 않고 따로 관리한다.
 // 이행보고 수행여부(report_done)는 담당자가 O/X 로 수기 관리한다.
+//
+// 이 파일의 함수는 IIFE 안에 가둔다. 예전에 여기서 formatDate 를 전역으로 선언해
+// date-formatter.js 의 동명 함수를 덮어썼고, 그 함수를 쓰던 전파법·전안법·화관법
+// 화면이 한꺼번에 깨진 적이 있다. 화면에서 호출하는 것만 window 에 붙인다.
+
+(function () {
 
 let allExemptionData = [];
 let exemptionReportFilter = 'all';
@@ -75,7 +81,7 @@ function exemptionDueDate(item) {
     return a;
 }
 
-function formatDate(d) {
+function toISODate(d) {
     if (!d) return '';
     const p = (n) => String(n).padStart(2, '0');
     return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
@@ -112,7 +118,7 @@ function renderRadioExemptionTable(records) {
                 : '<span class="report-badge none">미기재</span>');
 
         const due = exemptionDueDate(item);
-        const dueText = String(item.expiry || '').trim() || formatDate(due);
+        const dueText = String(item.expiry || '').trim() || toISODate(due);
         const derived = !String(item.expiry || '').trim() && due ? ' <span class="derived">(승인일+2년)</span>' : '';
         const state = exemptionExpiryState(due);
         const expiryCell = dueText
@@ -172,4 +178,10 @@ async function toggleExemptionReport(id) {
     }
 }
 
-console.log('✅ 전파 면제 관리 모듈 로드');
+    // 화면(onclick)과 app.js 에서 호출하는 진입점만 노출한다
+    window.loadRadioExemptionData = loadRadioExemptionData;
+    window.filterExemptionByReport = filterExemptionByReport;
+    window.toggleExemptionReport = toggleExemptionReport;
+
+    console.log('✅ 전파 면제 관리 모듈 로드');
+})();
