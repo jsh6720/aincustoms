@@ -143,8 +143,8 @@ function renderReviewNeededTable(records) {
             <td>${record.electrical_target || ''}</td>
             <td>${record.electrical_cert || ''}</td>
             <td>${record.electrical_non_target || ''}</td>
-            <td style="max-width: 200px; white-space: normal; word-break: break-word;">${record.note || '-'}</td>
-            <td style="max-width: 200px; white-space: normal; word-break: break-word;">${record.action_note || '-'}</td>
+            <td class="review-note-cell"><div class="review-note" title="${String(record.note || '').replace(/"/g, '&quot;')}">${record.note || '-'}</div></td>
+            <td class="review-note-cell"><div class="review-note" title="${String(record.action_note || '').replace(/"/g, '&quot;')}">${record.action_note || '-'}</div></td>
             <td style="white-space: nowrap;">
                 <button class="btn-icon" onclick="editActionNote('review_needed', '${record.id}')" title="조치사항 수정">
                     <i class="fas fa-edit"></i>
