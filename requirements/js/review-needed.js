@@ -112,9 +112,7 @@ function renderReviewNeededTable(records) {
         return;
     }
 
-    records.forEach(record => {
-        const row = document.createElement('tr');
-
+    renderPagedRows('review_needed', tbody, records, record => {
         // 화평법(MSDS) 열 처리
         let msdsDisplay = record.msds_register || '';
         if (currentReviewFilter === 'msds') {
@@ -125,7 +123,7 @@ function renderReviewNeededTable(records) {
             }
         }
 
-        row.innerHTML = `
+        return `
             <td class="checkbox-cell">
                 <input type="checkbox" class="row-checkbox" data-id="${record.id}" data-type="review_needed" onchange="updateSelectionCount('review_needed')">
             </td>
@@ -157,7 +155,6 @@ function renderReviewNeededTable(records) {
                 ${isMasterUser() ? `<button class="btn-icon btn-danger" onclick="deleteRecord('review_needed', '${record.id}')" title="삭제"><i class="fas fa-trash"></i></button>` : ''}
             </td>
         `;
-        tbody.appendChild(row);
     });
 }
 

@@ -314,9 +314,7 @@ async function loadChemicalData(searchQuery = '') {
             return;
         }
 
-        records.forEach(record => {
-            const row = document.createElement('tr');
-            row.innerHTML = `
+        renderPagedRows('chemical', tbody, records, record => `
                 <td class="checkbox-cell">
                     <input type="checkbox" class="row-checkbox" data-id="${record.id}" data-type="chemical" onchange="updateSelectionCount('chemical')">
                 </td>
@@ -338,9 +336,7 @@ async function loadChemicalData(searchQuery = '') {
                     </button>
                     ${isMasterUser() ? `<button class="action-btn btn-delete" onclick="deleteRecord('chemical', '${record.id}')"><i class="fas fa-trash"></i></button>` : ''}
                 </td>
-            `;
-            tbody.appendChild(row);
-        });
+            `);
 
     } catch (error) {
         if (!isCurrentRequirementsViewRequest(viewRequest)) return;
@@ -465,9 +461,7 @@ async function loadMsdsData(searchQuery = '') {
             return;
         }
 
-        records.forEach(record => {
-            const row = document.createElement('tr');
-            row.innerHTML = `
+        renderPagedRows('msds', tbody, records, record => `
                 <td class="checkbox-cell">
                     <input type="checkbox" class="row-checkbox" data-id="${record.id}" data-type="msds" onchange="updateSelectionCount('msds')">
                 </td>
@@ -489,9 +483,7 @@ async function loadMsdsData(searchQuery = '') {
                     </button>
                     ${isMasterUser() ? `<button class="action-btn btn-delete" onclick="deleteRecord('msds', '${record.id}')"><i class="fas fa-trash"></i></button>` : ''}
                 </td>
-            `;
-            tbody.appendChild(row);
-        });
+            `);
 
     } catch (error) {
         if (!isCurrentRequirementsViewRequest(viewRequest)) return;
@@ -549,9 +541,7 @@ async function loadRadioData(searchQuery = '') {
             return;
         }
 
-        records.forEach(record => {
-            const row = document.createElement('tr');
-            row.innerHTML = `
+        renderPagedRows('radio', tbody, records, record => `
                 <td class="checkbox-cell">
                     <input type="checkbox" class="row-checkbox" data-id="${record.id}" data-type="radio" onchange="updateSelectionCount('radio')">
                 </td>
@@ -574,9 +564,7 @@ async function loadRadioData(searchQuery = '') {
                     </button>
                     ${isMasterUser() ? `<button class="action-btn btn-delete" onclick="deleteRecord('radio', '${record.id}')"><i class="fas fa-trash"></i></button>` : ''}
                 </td>
-            `;
-            tbody.appendChild(row);
-        });
+            `);
 
     } catch (error) {
         if (!isCurrentRequirementsViewRequest(viewRequest)) return;
@@ -635,9 +623,7 @@ async function loadElectricalData(searchQuery = '') {
             return;
         }
 
-        records.forEach(record => {
-            const row = document.createElement('tr');
-            row.innerHTML = `
+        renderPagedRows('electrical', tbody, records, record => `
                 <td class="checkbox-cell">
                     <input type="checkbox" class="row-checkbox" data-id="${record.id}" data-type="electrical" onchange="updateSelectionCount('electrical')">
                 </td>
@@ -661,9 +647,7 @@ async function loadElectricalData(searchQuery = '') {
                     </button>
                     ${isMasterUser() ? `<button class="action-btn btn-delete" onclick="deleteRecord('electrical', '${record.id}')"><i class="fas fa-trash"></i></button>` : ''}
                 </td>
-            `;
-            tbody.appendChild(row);
-        });
+            `);
 
     } catch (error) {
         if (!isCurrentRequirementsViewRequest(viewRequest)) return;
@@ -720,12 +704,9 @@ async function loadMedicalData(searchQuery = '') {
             return;
         }
 
-        records.forEach(record => {
-            // 법령부호 자동 계산
+        renderPagedRows('medical', tbody, records, record => {
             const lawCode = record.law_code || getLawCode(record.law);
-
-            const row = document.createElement('tr');
-            row.innerHTML = `
+            return `
                 <td class="checkbox-cell">
                     <input type="checkbox" class="row-checkbox" data-id="${record.id}" data-type="medical" onchange="updateSelectionCount('medical')">
                 </td>
@@ -745,7 +726,6 @@ async function loadMedicalData(searchQuery = '') {
                     ${isMasterUser() ? `<button class="action-btn btn-delete" onclick="deleteRecord('medical', '${record.id}')"><i class="fas fa-trash"></i></button>` : ''}
                 </td>
             `;
-            tbody.appendChild(row);
         });
 
     } catch (error) {
@@ -845,12 +825,9 @@ async function loadNonTargetData(searchQuery = '') {
             return;
         }
 
-        records.forEach(record => {
-            // 법령부호 자동 계산
+        renderPagedRows('non_target', tbody, records, record => {
             const lawCode = record.law_code || getLawCode(record.law);
-
-            const row = document.createElement('tr');
-            row.innerHTML = `
+            return `
                 <td class="checkbox-cell">
                     <input type="checkbox" class="row-checkbox" data-id="${record.id}" data-type="non_target" onchange="updateSelectionCount('non_target')">
                 </td>
@@ -870,7 +847,6 @@ async function loadNonTargetData(searchQuery = '') {
                     ${isMasterUser() ? `<button class="action-btn btn-delete" onclick="deleteRecord('non_target', '${record.id}')"><i class="fas fa-trash"></i></button>` : ''}
                 </td>
             `;
-            tbody.appendChild(row);
         });
 
     } catch (error) {

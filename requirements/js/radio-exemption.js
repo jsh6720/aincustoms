@@ -109,7 +109,7 @@ function renderRadioExemptionTable(records) {
     const esc = (v) => String(v == null ? '' : v)
         .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
-    tbody.innerHTML = records.map(item => {
+    renderPagedRows('radio_exemption', tbody, records, item => {
         const done = String(item.report_done || '').trim().toUpperCase();
         const badge = done === 'O'
             ? '<span class="report-badge done">O</span>'
@@ -152,7 +152,7 @@ function renderRadioExemptionTable(records) {
                 </button>
             </td>
         </tr>`;
-    }).join('');
+    });
 }
 
 // 이행보고 여부를 O → X → 미기재 순으로 돌린다

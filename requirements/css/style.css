@@ -987,3 +987,36 @@ textarea:focus {
 .expiry.expired { color: #c0392b; font-weight: 600; }
 .expiry.soon    { color: #d68910; font-weight: 600; }
 #radioExemptionTable .derived { color: #98a2ab; font-size: 11px; }
+
+/* ── 목록 페이지네이션 ────────────────────────────────── */
+.table-pager {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 12px 2px 4px;
+    font-size: 13px;
+    color: #5b636b;
+}
+.table-pager .pager-info { white-space: nowrap; }
+.table-pager .pager-buttons { display: flex; gap: 4px; flex-wrap: wrap; }
+.table-pager .pager-btn {
+    min-width: 32px;
+    height: 30px;
+    padding: 0 8px;
+    border: 1px solid #d8dde2;
+    border-radius: 5px;
+    background: #fff;
+    color: #37414a;
+    font-size: 13px;
+    cursor: pointer;
+}
+.table-pager .pager-btn:hover:not(:disabled) { background: #f1f5f9; border-color: #b9c2cb; }
+.table-pager .pager-btn.active {
+    background: #2563eb;
+    border-color: #2563eb;
+    color: #fff;
+    font-weight: 600;
+}
+.table-pager .pager-btn:disabled { opacity: .4; cursor: default; }
