@@ -180,7 +180,7 @@
     {
       "source": "lib/cargo-schema.js",
       "target": "website_integration/vercel_package/lib/cargo-schema.js",
-      "sha256": "643e9230819f5f8e9ecaaaa8865522ed0e60021028fb1267730835b96781c4d7"
+      "sha256": "d4c3b10fecc76a95b1371061984067fe7484fe548c0b256af96a2c98d1e5f200"
     },
     {
       "source": "lib/cargo-user-input-query.js",
