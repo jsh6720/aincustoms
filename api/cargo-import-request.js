@@ -20,6 +20,9 @@ const {
 const {
   buildMissingWarehousePlanMail,
 } = require("../lib/cargo-missing-warehouse-plan-notification");
+const {
+  buildMissingStickerMail,
+} = require("../lib/cargo-missing-sticker-notification");
 const { deliverManualMailOnce } = require("../lib/cargo-mail-dedupe");
 const {
   deliverAutomaticMailOnce,
@@ -28,6 +31,10 @@ const {
 const ALLOWED_STAGES = ["입항", "반입"];
 const MISSING_WAREHOUSE_PLAN_RECIPIENTS = [
   "jsh@aincustoms.com", "jhcho@aincustoms.com", "bill@aincustoms.com",
+];
+const MISSING_STICKER_RECIPIENTS = [
+  "jsh@aincustoms.com", "jhcho@aincustoms.com",
+  "bill@aincustoms.com", "ain@aincustoms.com",
 ];
 
 function env(name) {
@@ -377,6 +384,59 @@ async function handleAutomaticMissingWarehousePlanNotice(req, res, body) {
   }
 }
 
+async function sendMissingStickerMail(snapshot) {
+  const host = env("SMTP_HOST");
+  const user = env("SMTP_USER");
+  const pass = env("SMTP_PASS");
+  if (!host || !user || !pass) {
+    throw preDeliveryError("메일 환경변수가 설정되지 않았습니다.");
+  }
+
+  const transporter = nodemailer.createTransport({
+    host,
+    port: Number(env("SMTP_PORT") || 465),
+    secure: String(env("SMTP_SECURE") || "true").toLowerCase() !== "false",
+    auth: { user, pass },
+  });
+  const mail = buildMissingStickerMail(snapshot);
+  return transporter.sendMail({
+    from: env("MAIL_FROM") || user,
+    to: MISSING_STICKER_RECIPIENTS.join(","),
+    subject: mail.subject,
+    text: mail.text,
+    html: mail.html || mailTextToHtml(mail.text),
+  });
+}
+
+async function handleAutomaticMissingStickerNotice(req, res, body) {
+  const eventId = String(body.event_id || "").trim();
+  const timestamp = String(req.headers?.["x-cargo-sync-timestamp"] || "").trim();
+  const signature = String(req.headers?.["x-cargo-sync-signature"] || "").trim();
+  if (!verifySyncSignature({
+    secret: env("SUPABASE_SERVICE_ROLE_KEY"),
+    timestamp,
+    eventId,
+    signature,
+  })) {
+    return res.status(401).json({ success: false, message: "Invalid sync signature" });
+  }
+
+  try {
+    const delivery = await deliverAutomaticMailOnce({
+      supabaseFetch,
+      eventId,
+      allowedEventTypes: ["sticker_action_missing"],
+      sendMail: async (claim) => {
+        const card = await hchCardFromClaim(claim);
+        return sendMissingStickerMail(card);
+      },
+    });
+    return automaticDeliveryResponse(res, delivery);
+  } catch (error) {
+    return automaticDeliveryError(res, error);
+  }
+}
+
 async function sendMail(card, request, session, account) {
   const host = env("SMTP_HOST");
   const user = env("SMTP_USER");
@@ -447,6 +507,9 @@ module.exports = async function handler(req, res) {
     }
     if (body.action === "auto_missing_warehouse_plan_notice") {
       return await handleAutomaticMissingWarehousePlanNotice(req, res, body);
+    }
+    if (body.action === "auto_missing_sticker_notice") {
+      return await handleAutomaticMissingStickerNotice(req, res, body);
     }
 
     const session = requireWritableSession(req, res);

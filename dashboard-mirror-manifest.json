@@ -40,7 +40,7 @@
     {
       "source": "api/cargo-import-request.js",
       "target": "website_integration/vercel_package/api/cargo-import-request.js",
-      "sha256": "d53db023cc44d62b8c2e25dde3fd630291a863e6507c09a7e06263b5b318fc11"
+      "sha256": "84abda1b8a048a360cfcf55b3e18d67435673b4a9d1fcdda1dbb97ba9374f84b"
     },
     {
       "source": "api/cargo-login.js",
@@ -153,6 +153,11 @@
       "sha256": "32cc9eb8a6bfcbd1b8b6f33b9fe7896637d8be833507b5ea12da3ce753f3b9fe"
     },
     {
+      "source": "lib/cargo-missing-sticker-notification.js",
+      "target": "website_integration/vercel_package/lib/cargo-missing-sticker-notification.js",
+      "sha256": "7eb624fdcb4bd607fa06a4cc229a59a156a3d905b134fa2a4f4b99450344437c"
+    },
+    {
       "source": "lib/cargo-original-doc-receipt.js",
       "target": "website_integration/vercel_package/lib/cargo-original-doc-receipt.js",
       "sha256": "2c4d9b146c783e9d324968dcb8cfdd7743fce18307c690c378afc5feeb600b76"
@@ -175,7 +180,7 @@
     {
       "source": "lib/cargo-schema.js",
       "target": "website_integration/vercel_package/lib/cargo-schema.js",
-      "sha256": "643e9230819f5f8e9ecaaaa8865522ed0e60021028fb1267730835b96781c4d7"
+      "sha256": "d4c3b10fecc76a95b1371061984067fe7484fe548c0b256af96a2c98d1e5f200"
     },
     {
       "source": "lib/cargo-user-input-query.js",
