@@ -567,7 +567,7 @@
                 <a href="#contact"
                     class="text-gray-700 hover:text-blue-600 font-medium text-base transition-colors">연락처</a>
                 <a href="#" onclick="showDutyLogin()"
-                    class="text-red-600 hover:text-red-800 font-bold text-base transition-colors">관세성실신고 조회</a>
+                    class="text-red-600 hover:text-red-800 font-bold text-base transition-colors">과세가격 일괄제출 관리</a>
                 <a href="/requirements/" target="_blank" rel="noopener noreferrer"
                     class="text-blue-600 hover:text-blue-800 font-bold text-base transition-colors">AIN 요건관리</a>
                 <a href="./cargo-dashboard.html"
@@ -696,7 +696,7 @@
                 <p class="text-xl text-gray-600">4대 회계법인 출신 관세사들의 전문적인 서비스</p>
             </div>
 
-            <div class="perfect-grid grid-4">
+            <div class="perfect-grid grid-3">
                 <!-- 조재호 관세사 -->
                 <div class="team-member text-center fade-in">
                     <img src="./images/cho-jaeho.jpg" alt="조재호 관세사" class="mx-auto mb-4">
@@ -721,13 +721,6 @@
                     <p class="text-gray-600 text-sm">수출입통관, 품목분류, 외국환거래, FTA</p>
                 </div>
 
-                <!-- 김로언 관세사 -->
-                <div class="team-member text-center fade-in">
-                    <img src="./images/kim-roeun.jpg" alt="김로언 관세사" class="mx-auto mb-4">
-                    <h3 class="text-lg font-bold text-gray-800 mb-2">김로언 관세사</h3>
-                    <p class="text-blue-600 font-semibold text-sm mb-2">관세 전문가</p>
-                    <p class="text-gray-600 text-sm">수출입통관, 수출입요건, 품목분류, 관세감면</p>
-                </div>
             </div>
         </div>
     </section>
@@ -883,10 +876,11 @@
     </section>
 
     <!-- 로그인 모달 -->
-    <div id="loginModal" class="modal">
+    <div id="loginModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="loginModalTitle">
         <div class="login-modal-content">
-            <button class="close-button" onclick="closeModal('loginModal')">&times;</button>
-            <h2 class="text-2xl font-bold text-center mb-6 text-gray-800">관세성실신고 조회</h2>
+            <button type="button" class="close-button" aria-label="로그인 창 닫기"
+                onclick="closeModal('loginModal')">&times;</button>
+            <h2 id="loginModalTitle" class="text-2xl font-bold text-center mb-6 text-gray-800">과세가격 일괄제출 관리</h2>
             <form id="loginForm" onsubmit="handleLogin(event)">
                 <div class="mb-4">
                     <label for="username" class="block text-sm font-medium text-gray-700 mb-2">아이디</label>
@@ -908,10 +902,11 @@
     </div>
 
     <!-- 관세신고 조회 모달 -->
-    <div id="dutyModal" class="modal">
+    <div id="dutyModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="dutyModalTitle">
         <div class="duty-modal-content">
-            <button class="close-button" onclick="closeModal('dutyModal')">&times;</button>
-            <h2 class="text-3xl font-bold text-center mb-6 text-gray-800">관세성실신고 조회 시스템</h2>
+            <button type="button" class="close-button" aria-label="과세가격 관리 창 닫기"
+                onclick="closeModal('dutyModal')">&times;</button>
+            <h2 id="dutyModalTitle" class="text-3xl font-bold text-center mb-6 text-gray-800">과세가격 일괄제출 관리</h2>
 
             <!-- 사용자 정보 -->
             <div class="bg-blue-50 p-4 rounded-lg mb-6">
@@ -932,10 +927,10 @@
             <!-- 마스터 전용 탭 -->
             <div id="masterTabs" class="tab-container" style="display: none;">
                 <div class="tab-buttons">
-                    <button class="tab-button active" onclick="switchTab('duty-management')">
+                    <button type="button" class="tab-button active" onclick="switchTab('duty-management', this)">
                         <i class="fas fa-clipboard-list mr-2"></i>신고내역 관리
                     </button>
-                    <button class="tab-button" onclick="switchTab('account-management')">
+                    <button type="button" class="tab-button" onclick="switchTab('account-management', this)">
                         <i class="fas fa-users-cog mr-2"></i>계정 관리
                     </button>
                 </div>
@@ -946,6 +941,15 @@
                 <!-- 조회 필터 -->
                 <div class="bg-gray-50 p-6 rounded-lg mb-6">
                     <h3 class="text-lg font-semibold mb-4 text-gray-800">조회 조건</h3>
+                    <div class="mb-4">
+                        <label for="filterKeyword" class="block text-sm font-medium text-gray-700 mb-1">
+                            통합검색
+                        </label>
+                        <input type="search" id="filterKeyword"
+                            placeholder="화주명, 거래처, 결제·거래·인도조건, 신고번호 검색"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            onkeydown="handleFilterKeydown(event)">
+                    </div>
                     <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
                         <div class="autocomplete-container">
                             <label class="block text-sm font-medium text-gray-700 mb-1">화주명</label>
@@ -984,11 +988,11 @@
                         </div>
                     </div>
                     <div class="mt-4">
-                        <button onclick="clearFilters()"
+                        <button type="button" onclick="clearFilters()"
                             class="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600 mr-2">
                             필터 초기화
                         </button>
-                        <button onclick="applyFilters()"
+                        <button type="button" onclick="applyFilters()"
                             class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
                             조회
                         </button>
@@ -1046,7 +1050,7 @@
                             </div>
                         </div>
                         <div class="mt-4">
-                            <button onclick="addNewDutyRecord()"
+                            <button type="button" data-valuation-mutation="duty" onclick="addNewDutyRecord()"
                                 class="bg-green-600 text-white px-6 py-2 rounded-md hover:bg-green-700">
                                 <i class="fas fa-plus mr-2"></i>신고내역 추가
                             </button>
@@ -1056,14 +1060,56 @@
 
                 <!-- 조회 결과 -->
                 <div class="bg-white rounded-lg">
-                    <div class="flex justify-between items-center mb-4">
-                        <h3 class="text-lg font-semibold text-gray-800">조회 결과</h3>
-                        <span id="resultCount" class="text-sm text-gray-600"></span>
+                    <div class="flex flex-col xl:flex-row xl:justify-between xl:items-center gap-3 mb-4">
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-800">조회 결과</h3>
+                            <span id="resultCount" class="text-sm text-gray-600" aria-live="polite"></span>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <button type="button" id="valuationRefreshButton" onclick="loadDutyData()"
+                                class="bg-gray-600 text-white px-3 py-2 rounded-md hover:bg-gray-700 text-sm">
+                                <i class="fas fa-refresh mr-1"></i>새로고침
+                            </button>
+                            <button type="button" id="valuationCsvButton" onclick="downloadFilteredCsv()"
+                                class="bg-green-600 text-white px-3 py-2 rounded-md hover:bg-green-700 text-sm">
+                                <i class="fas fa-file-csv mr-1"></i>CSV 다운로드
+                            </button>
+                            <button type="button" id="copySelectedButton" onclick="copySelectedDeclarations()" disabled
+                                class="bg-blue-600 text-white px-3 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50 text-sm">
+                                <i class="fas fa-copy mr-1"></i>선택 신고번호 복사
+                            </button>
+                            <label for="sortColumn" class="text-sm text-gray-700">정렬</label>
+                            <select id="sortColumn" onchange="updateDutyViewOptions()"
+                                class="px-2 py-2 border border-gray-300 rounded-md text-sm">
+                                <option value="0">화주명</option>
+                                <option value="1">해외거래처명</option>
+                                <option value="2">결제방법</option>
+                                <option value="3">거래구분</option>
+                                <option value="4">인도조건</option>
+                                <option value="5">신고번호</option>
+                            </select>
+                            <button type="button" id="sortDirection" data-direction="asc"
+                                onclick="toggleSortDirection()"
+                                class="bg-gray-100 border border-gray-300 px-3 py-2 rounded-md text-sm"
+                                aria-label="정렬 방향 바꾸기">오름차순</button>
+                            <label for="pageSize" class="text-sm text-gray-700">표시</label>
+                            <select id="pageSize" onchange="updateDutyViewOptions()"
+                                class="px-2 py-2 border border-gray-300 rounded-md text-sm">
+                                <option value="25">25건</option>
+                                <option value="50">50건</option>
+                                <option value="100">100건</option>
+                            </select>
+                        </div>
                     </div>
                     <div class="overflow-x-auto" style="max-height: 600px; overflow-y: auto;">
                         <table class="results-table">
                             <thead>
                                 <tr>
+                                    <th>
+                                        <input type="checkbox" id="selectVisibleRows"
+                                            onchange="toggleVisibleSelection(this.checked)"
+                                            aria-label="현재 페이지 전체 선택">
+                                    </th>
                                     <th>화주명</th>
                                     <th>해외거래처명</th>
                                     <th>결제방법</th>
@@ -1075,13 +1121,24 @@
                             </thead>
                             <tbody id="dutyResultsBody">
                                 <tr>
-                                    <td colspan="7" class="text-center text-gray-500 py-8">
+                                    <td colspan="8" class="text-center text-gray-500 py-8">
                                         <div class="loading-spinner mx-auto mb-2"></div>
                                         로딩 중...
                                     </td>
                                 </tr>
                             </tbody>
                         </table>
+                    </div>
+                    <div class="flex justify-center items-center gap-3 mt-4">
+                        <button type="button" id="previousPageButton" onclick="changeDutyPage(-1)"
+                            class="bg-gray-100 border border-gray-300 px-3 py-2 rounded-md disabled:opacity-50">
+                            이전
+                        </button>
+                        <span id="pageIndicator" class="text-sm text-gray-700">1 / 1</span>
+                        <button type="button" id="nextPageButton" onclick="changeDutyPage(1)"
+                            class="bg-gray-100 border border-gray-300 px-3 py-2 rounded-md disabled:opacity-50">
+                            다음
+                        </button>
                     </div>
                 </div>
             </div>
@@ -1111,7 +1168,7 @@
                         </div>
                     </div>
                     <div class="mt-4">
-                        <button onclick="addNewAccount()"
+                            <button type="button" data-valuation-mutation="account" onclick="addNewAccount()"
                             class="bg-purple-600 text-white px-6 py-2 rounded-md hover:bg-purple-700">
                             <i class="fas fa-user-plus mr-2"></i>계정 추가
                         </button>
@@ -1132,14 +1189,13 @@
                             <thead>
                                 <tr>
                                     <th>아이디</th>
-                                    <th>비밀번호</th>
                                     <th>화주명</th>
                                     <th>관리</th>
                                 </tr>
                             </thead>
                             <tbody id="accountResultsBody">
                                 <tr>
-                                    <td colspan="4" class="text-center text-gray-500 py-8">
+                                    <td colspan="3" class="text-center text-gray-500 py-8">
                                         계정 정보를 불러오는 중...
                                     </td>
                                 </tr>
@@ -1152,9 +1208,10 @@
     </div>
 
     <!-- 토스트 메시지 -->
-    <div id="toast" class="toast"></div>
+    <div id="toast" class="toast" role="status" aria-live="polite" aria-atomic="true"></div>
 
     <!-- JavaScript -->
+    <script src="./lib/valuation-ui.js"></script>
     <script>
         // Google Apps Script API 엔드포인트
         const API_ENDPOINT = 'https://script.google.com/macros/s/AKfycbykEtTCbdsjk_7aj31gDT5UW8zolDphnasd7bNEzFL5zOEB-KblBJLCpgCIaL8_duwrDQ/exec';
@@ -1173,6 +1230,20 @@
         };
         let editingRowIndex = -1;
         let editingOriginalData = null;
+        let currentPage = 1;
+        let pageSize = 25;
+        let sortColumn = 0;
+        let sortDirection = 'asc';
+        let visibleDutyPageItems = [];
+        let selectedDutyRows = new Set();
+        let dutyLoadGeneration = 0;
+        let accountLoadGeneration = 0;
+        let loginAttemptGeneration = 0;
+        let valuationSessionGeneration = 0;
+        let dutyMutationGeneration = 0;
+        let accountMutationGeneration = 0;
+        let dutyMutationInFlight = false;
+        let accountMutationInFlight = false;
 
         // 페이지 로드 시 초기화
         document.addEventListener('DOMContentLoaded', function () {
@@ -1216,6 +1287,9 @@
 
         // API 호출 헬퍼 함수
         async function callAPI(action, data = {}) {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 20000);
+
             try {
                 const formData = new FormData();
                 formData.append('action', action);
@@ -1227,19 +1301,99 @@
 
                 const response = await fetch(API_ENDPOINT, {
                     method: 'POST',
-                    body: formData
+                    body: formData,
+                    signal: controller.signal
                 });
 
-                return await response.json();
+                const responseBody = await response.text();
+                return ValuationUI.parseApiResponse(response.status, responseBody, action);
             } catch (error) {
-                console.error('API call error:', error);
+                if (error && error.name === 'AbortError') {
+                    return { success: false, message: '서버 응답 시간이 초과되었습니다. 다시 시도해주세요.' };
+                }
+
+                console.error('API call error');
                 return { success: false, message: 'API 호출 중 오류가 발생했습니다.' };
+            } finally {
+                clearTimeout(timeoutId);
             }
         }
 
         // 관세신고 조회 로그인 모달 표시
         function showDutyLogin() {
+            setLoginLoading(false);
             document.getElementById('loginModal').style.display = 'flex';
+        }
+
+        function setLoginLoading(isLoading) {
+            const loginButton = document.querySelector('#loginForm button[type="submit"]');
+            document.getElementById('loginButtonText').style.display = isLoading ? 'none' : 'inline';
+            document.getElementById('loginSpinner').style.display = isLoading ? 'inline-block' : 'none';
+            loginButton.disabled = isLoading;
+        }
+
+        function clearDutyFilterInputs() {
+            ['filterKeyword', 'filterCompany', 'filterSupplier', 'filterPayment', 'filterTrade', 'filterDelivery']
+                .forEach(id => {
+                    const input = document.getElementById(id);
+                    if (input) input.value = '';
+                });
+        }
+
+        function isValuationSessionCurrent(sessionGeneration, sessionUser) {
+            return sessionGeneration === valuationSessionGeneration
+                && sessionUser === currentUserData
+                && document.getElementById('dutyModal').style.display !== 'none';
+        }
+
+        function setValuationMutationControls(scope, disabled) {
+            document.querySelectorAll(`[data-valuation-mutation="${scope}"]`).forEach(button => {
+                button.disabled = disabled;
+                button.setAttribute('aria-busy', disabled ? 'true' : 'false');
+            });
+        }
+
+        function beginValuationMutation(scope) {
+            const isDuty = scope === 'duty';
+            const isInFlight = isDuty ? dutyMutationInFlight : accountMutationInFlight;
+            if (isInFlight || !currentUserData) {
+                if (isInFlight) showToast('요청을 처리 중입니다. 잠시만 기다려주세요.', 'error');
+                return null;
+            }
+
+            const generation = isDuty
+                ? ++dutyMutationGeneration
+                : ++accountMutationGeneration;
+            if (isDuty) dutyMutationInFlight = true;
+            else accountMutationInFlight = true;
+            setValuationMutationControls(scope, true);
+
+            return {
+                scope,
+                generation,
+                sessionGeneration: valuationSessionGeneration,
+                user: currentUserData
+            };
+        }
+
+        function isValuationMutationCurrent(mutation) {
+            if (!mutation || !isValuationSessionCurrent(mutation.sessionGeneration, mutation.user)) return false;
+            const generation = mutation.scope === 'duty'
+                ? dutyMutationGeneration
+                : accountMutationGeneration;
+            return generation === mutation.generation;
+        }
+
+        function finishValuationMutation(mutation) {
+            if (!mutation) return;
+            const currentGeneration = mutation.scope === 'duty'
+                ? dutyMutationGeneration
+                : accountMutationGeneration;
+            if (currentGeneration !== mutation.generation) return;
+
+            if (mutation.scope === 'duty') dutyMutationInFlight = false;
+            else accountMutationInFlight = false;
+            setValuationMutationControls(mutation.scope, false);
         }
 
         // 모달 닫기 (X 버튼으로만)
@@ -1248,45 +1402,58 @@
 
             // 로그인 모달 닫을 때 폼 리셋
             if (modalId === 'loginModal') {
+                loginAttemptGeneration += 1;
+                setLoginLoading(false);
                 document.getElementById('loginForm').reset();
             }
 
             // 관세신고 모달 닫을 때 상태 초기화
             if (modalId === 'dutyModal') {
+                valuationSessionGeneration += 1;
+                dutyLoadGeneration += 1;
+                accountLoadGeneration += 1;
+                dutyMutationGeneration += 1;
+                accountMutationGeneration += 1;
+                dutyMutationInFlight = false;
+                accountMutationInFlight = false;
+                setValuationMutationControls('duty', false);
+                setValuationMutationControls('account', false);
                 currentUserData = null;
                 allDutyData = [];
                 allAccountData = [];
                 filteredData = [];
+                visibleDutyPageItems = [];
+                selectedDutyRows.clear();
+                currentPage = 1;
                 editingRowIndex = -1;
                 editingOriginalData = null;
+                clearDutyFilterInputs();
             }
         }
 
         // 로그인 처리
         async function handleLogin(event) {
             event.preventDefault();
-
-            const loginButton = document.querySelector('#loginForm button[type="submit"]');
-            const loginText = document.getElementById('loginButtonText');
-            const loginSpinner = document.getElementById('loginSpinner');
-
-            // 로딩 상태 표시
-            loginButton.disabled = true;
-            loginText.style.display = 'none';
-            loginSpinner.style.display = 'inline-block';
+            const loginAttempt = ++loginAttemptGeneration;
+            setLoginLoading(true);
 
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
 
             const result = await callAPI('login', { username, password });
 
-            // 로딩 상태 해제
-            loginButton.disabled = false;
-            loginText.style.display = 'inline';
-            loginSpinner.style.display = 'none';
+            if (loginAttempt !== loginAttemptGeneration
+                || document.getElementById('loginModal').style.display === 'none') return;
+            setLoginLoading(false);
 
             if (result.success) {
-                currentUserData = result.user;
+                const normalizedUser = ValuationUI.normalizeUser(result.user);
+                if (!normalizedUser) {
+                    showToast('로그인 응답 형식이 올바르지 않습니다. 다시 시도해주세요.', 'error');
+                    return;
+                }
+                valuationSessionGeneration += 1;
+                currentUserData = normalizedUser;
                 closeModal('loginModal');
                 showDutyModal();
             } else {
@@ -1296,6 +1463,9 @@
 
         // 관세신고 조회 모달 표시
         async function showDutyModal() {
+            if (!currentUserData) return;
+            const sessionGeneration = valuationSessionGeneration;
+            const sessionUser = currentUserData;
             document.getElementById('currentUser').textContent = currentUserData.username;
             document.getElementById('currentCompany').textContent = currentUserData.company;
 
@@ -1313,44 +1483,79 @@
             document.getElementById('dutyModal').style.display = 'flex';
 
             // 데이터 로드 (로딩 완료 후 표시)
-            await loadDutyData();
-            if (currentUserData.isMaster) {
-                await loadAccountData();
+            await loadDutyData(sessionGeneration, sessionUser);
+            if (!isValuationSessionCurrent(sessionGeneration, sessionUser)) return;
+            if (sessionUser.isMaster) {
+                await loadAccountData(sessionGeneration, sessionUser);
             }
         }
 
         // 탭 전환
-        function switchTab(tabName) {
+        function switchTab(tabName, button) {
             // 모든 탭 버튼과 내용 비활성화
             document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
 
             // 선택된 탭 활성화
-            event.target.classList.add('active');
+            if (button) button.classList.add('active');
             document.getElementById(tabName).classList.add('active');
         }
 
-        // 관세신고 데이터 로드
-        async function loadDutyData() {
+        function dutyTableColspan() {
+            return currentUserData && currentUserData.isMaster ? 8 : 7;
+        }
+
+        function showDutyTableMessage(message, type = 'loading', allowRetry = false) {
+            const color = type === 'error' ? 'text-red-500' : 'text-gray-500';
+            const spinner = type === 'loading'
+                ? '<div class="loading-spinner mx-auto mb-2"></div>'
+                : '';
+            const retry = allowRetry
+                ? '<div class="mt-3"><button type="button" onclick="loadDutyData()" class="bg-blue-600 text-white px-3 py-2 rounded-md">다시 시도</button></div>'
+                : '';
+            document.getElementById('dutyResultsBody').innerHTML =
+                `<tr><td colspan="${dutyTableColspan()}" class="text-center ${color} py-8">${spinner}${ValuationUI.escapeHtml(message)}${retry}</td></tr>`;
+        }
+
+        // 과세가격 데이터 로드
+        async function loadDutyData(
+            sessionGeneration = valuationSessionGeneration,
+            requestingUser = currentUserData
+        ) {
+            if (!requestingUser || !isValuationSessionCurrent(sessionGeneration, requestingUser)) return;
+            const loadGeneration = ++dutyLoadGeneration;
+            showDutyTableMessage('데이터를 불러오는 중입니다.');
+
             const result = await callAPI('getDutyData', {
-                isMaster: currentUserData.isMaster,
-                company: currentUserData.company
+                isMaster: requestingUser.isMaster,
+                company: requestingUser.company
             });
 
+            if (loadGeneration !== dutyLoadGeneration
+                || !isValuationSessionCurrent(sessionGeneration, requestingUser)) {
+                return;
+            }
+
             if (result.success) {
+                const normalizedRows = ValuationUI.normalizeDutyRows(result.data);
+                if (!normalizedRows) {
+                    const message = '신고내역 데이터 형식이 올바르지 않습니다. 관리자에게 확인해주세요.';
+                    showToast(message, 'error');
+                    showDutyTableMessage(message, 'error', true);
+                    return;
+                }
                 // 원본 인덱스를 포함하도록 데이터 구조화
-                allDutyData = result.data.map((row, index) => ({
+                allDutyData = normalizedRows.map((row, index) => ({
                     data: row,
                     originalIndex: index
                 }));
                 updateAutocompleteCache();
-                filteredData = [...allDutyData];
-                displayDutyResults();
+                applyFilters();
                 populateFilterOptions();
             } else {
-                showToast(result.message, 'error');
-                document.getElementById('dutyResultsBody').innerHTML =
-                    '<tr><td colspan="7" class="text-center text-red-500 py-8">데이터를 불러오는데 실패했습니다.</td></tr>';
+                const message = result.message || '데이터를 불러오지 못했습니다.';
+                showToast(message, 'error');
+                showDutyTableMessage(message, 'error', true);
             }
         }
 
@@ -1402,11 +1607,11 @@
                 item.toLowerCase().includes(value)
             ).slice(0, 10);
 
-            showAutocomplete(input, suggestions, value);
+            showAutocomplete(input, suggestions);
         }, 300);
 
         // 자동완성 드롭다운 표시
-        function showAutocomplete(input, suggestions, searchValue) {
+        function showAutocomplete(input, suggestions) {
             const dropdown = input.nextElementSibling;
 
             if (suggestions.length === 0) {
@@ -1414,13 +1619,15 @@
                 return;
             }
 
-            dropdown.innerHTML = suggestions.map(suggestion => {
-                const highlighted = suggestion.replace(
-                    new RegExp(searchValue, 'gi'),
-                    match => `<span class="highlight">${match}</span>`
-                );
-                return `<div class="autocomplete-item" onclick="selectAutocomplete('${input.id}', '${suggestion.replace(/'/g, "\\\'")}')">${highlighted}</div>`;
-            }).join('');
+            dropdown.replaceChildren();
+            suggestions.forEach(suggestion => {
+                const item = document.createElement('button');
+                item.type = 'button';
+                item.className = 'autocomplete-item';
+                item.textContent = suggestion;
+                item.addEventListener('click', () => selectAutocomplete(input.id, suggestion));
+                dropdown.appendChild(item);
+            });
 
             dropdown.style.display = 'block';
         }
@@ -1493,20 +1700,36 @@
         }
 
         // 계정 데이터 로드 (마스터 전용)
-        async function loadAccountData() {
-            if (!currentUserData.isMaster) return;
+        async function loadAccountData(
+            sessionGeneration = valuationSessionGeneration,
+            requestingUser = currentUserData
+        ) {
+            if (!requestingUser || !requestingUser.isMaster
+                || !isValuationSessionCurrent(sessionGeneration, requestingUser)) return;
+            const loadGeneration = ++accountLoadGeneration;
 
             const result = await callAPI('getAccountData', {
-                isMaster: currentUserData.isMaster
+                isMaster: requestingUser.isMaster
             });
 
+            if (loadGeneration !== accountLoadGeneration
+                || !isValuationSessionCurrent(sessionGeneration, requestingUser)) return;
+
             if (result.success) {
-                allAccountData = result.data;
+                const sanitizedRows = ValuationUI.sanitizeAccountRows(result.data);
+                if (!sanitizedRows) {
+                    allAccountData = [];
+                    showToast('계정 데이터 형식이 올바르지 않습니다. 관리자에게 확인해주세요.', 'error');
+                    document.getElementById('accountResultsBody').innerHTML =
+                        '<tr><td colspan="3" class="text-center text-red-500 py-8">계정 데이터 형식이 올바르지 않습니다.</td></tr>';
+                    return;
+                }
+                allAccountData = sanitizedRows;
                 displayAccountResults();
             } else {
                 showToast(result.message, 'error');
                 document.getElementById('accountResultsBody').innerHTML =
-                    '<tr><td colspan="4" class="text-center text-red-500 py-8">계정 데이터를 불러오는데 실패했습니다.</td></tr>';
+                    '<tr><td colspan="3" class="text-center text-red-500 py-8">계정 데이터를 불러오는데 실패했습니다.</td></tr>';
             }
         }
 
@@ -1514,34 +1737,50 @@
         function displayDutyResults() {
             const tbody = document.getElementById('dutyResultsBody');
             const resultCount = document.getElementById('resultCount');
+            const sorted = ValuationUI.sortRecords(filteredData, sortColumn, sortDirection);
+            const page = ValuationUI.paginateRecords(sorted, currentPage, pageSize);
+            currentPage = page.page;
+            visibleDutyPageItems = page.items;
 
-            if (filteredData.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" class="text-center text-gray-500 py-8">조회된 내역이 없습니다.</td></tr>';
-                resultCount.textContent = '';
+            resultCount.textContent =
+                `전체 ${allDutyData.length}건 · 필터 ${filteredData.length}건 · 선택 ${selectedDutyRows.size}건`;
+            updateDutyControls(page);
+
+            if (page.items.length === 0) {
+                tbody.innerHTML =
+                    `<tr><td colspan="${dutyTableColspan()}" class="text-center text-gray-500 py-8">조회된 내역이 없습니다.</td></tr>`;
                 return;
             }
 
-            resultCount.textContent = `총 ${filteredData.length}건`;
-
-            tbody.innerHTML = filteredData.map((item) => {
+            tbody.innerHTML = page.items.map((item) => {
                 const row = item.data;
                 const index = item.originalIndex;
+                const checked = selectedDutyRows.has(index) ? 'checked' : '';
                 return `
                     <tr id="row-${index}">
-                        <td>${row[0] || ''}</td>
-                        <td>${row[1] || ''}</td>
-                        <td>${row[2] || ''}</td>
-                        <td>${row[3] || ''}</td>
-                        <td>${row[4] || ''}</td>
-                        <td class="copyable-cell" onclick="copyToClipboard('${row[5] || ''}')">
-                            <i class="fas fa-copy mr-1"></i>${row[5] || ''}
+                        <td>
+                            <input type="checkbox" ${checked}
+                                onchange="toggleDutySelection(${index}, this.checked)"
+                                aria-label="신고내역 선택">
+                        </td>
+                        <td>${ValuationUI.escapeHtml(row[0])}</td>
+                        <td>${ValuationUI.escapeHtml(row[1])}</td>
+                        <td>${ValuationUI.escapeHtml(row[2])}</td>
+                        <td>${ValuationUI.escapeHtml(row[3])}</td>
+                        <td>${ValuationUI.escapeHtml(row[4])}</td>
+                        <td>
+                            <button type="button" class="copyable-cell"
+                                data-declaration="${ValuationUI.escapeHtml(row[5])}"
+                                onclick="copyToClipboard(this.dataset.declaration)">
+                                <i class="fas fa-copy mr-1"></i>${ValuationUI.escapeHtml(row[5])}
+                            </button>
                         </td>
                         ${currentUserData.isMaster ? `
                             <td>
-                                <button class="edit-button" onclick="editRow(${index})">
+                                <button type="button" class="edit-button" onclick="editRow(${index})">
                                     <i class="fas fa-edit"></i> 편집
                                 </button>
-                                <button class="delete-button" onclick="deleteRow(${index})">
+                                <button type="button" data-valuation-mutation="duty" class="delete-button" onclick="deleteRow(${index})">
                                     <i class="fas fa-trash"></i> 삭제
                                 </button>
                             </td>
@@ -1549,6 +1788,7 @@
                     </tr>
                 `;
             }).join('');
+            updateDutyControls(page);
         }
 
         // 계정 결과 표시 (마스터 전용)
@@ -1556,25 +1796,19 @@
             const tbody = document.getElementById('accountResultsBody');
 
             if (allAccountData.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="4" class="text-center text-gray-500 py-8">계정이 없습니다.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="3" class="text-center text-gray-500 py-8">계정이 없습니다.</td></tr>';
                 return;
             }
 
-            tbody.innerHTML = allAccountData.map((row, index) => `
-                <tr id="account-row-${index}">
-                    <td>${row[0] || ''}</td>
+            tbody.innerHTML = allAccountData.map((account) => `
+                <tr id="account-row-${account.originalIndex}">
+                    <td>${ValuationUI.escapeHtml(account.id)}</td>
+                    <td>${ValuationUI.escapeHtml(account.company)}</td>
                     <td>
-                        <span class="password-hidden">••••••••</span>
-                        <button onclick="togglePassword(${index})" class="ml-2 text-blue-600 hover:text-blue-800">
-                            <i class="fas fa-eye"></i>
-                        </button>
-                    </td>
-                    <td>${row[2] || ''}</td>
-                    <td>
-                        <button class="edit-button" onclick="editAccount(${index})" ${row[0] === 'aincustoms' ? 'disabled style="opacity: 0.5;"' : ''}>
+                        <button type="button" class="edit-button" onclick="editAccount(${account.originalIndex})" ${account.id === 'aincustoms' ? 'disabled style="opacity: 0.5;"' : ''}>
                             <i class="fas fa-edit"></i> 편집
                         </button>
-                        <button class="delete-button" onclick="deleteAccount(${index})" ${row[0] === 'aincustoms' ? 'disabled style="opacity: 0.5;"' : ''}>
+                        <button type="button" ${account.id === 'aincustoms' ? '' : 'data-valuation-mutation="account"'} class="delete-button" onclick="deleteAccount(${account.originalIndex})" ${account.id === 'aincustoms' ? 'disabled style="opacity: 0.5;"' : ''}>
                             <i class="fas fa-trash"></i> 삭제
                         </button>
                     </td>
@@ -1589,28 +1823,22 @@
 
         // 필터 적용
         function applyFilters() {
-            const company = document.getElementById('filterCompany').value.toLowerCase();
-            const supplier = document.getElementById('filterSupplier').value.toLowerCase();
-            const payment = document.getElementById('filterPayment').value.toLowerCase();
-            const trade = document.getElementById('filterTrade').value.toLowerCase();
-            const delivery = document.getElementById('filterDelivery').value.toLowerCase();
-
-            filteredData = allDutyData.filter(item => {
-                const row = item.data;
-                return (
-                    (!company || (row[0] && row[0].toLowerCase().includes(company))) &&
-                    (!supplier || (row[1] && row[1].toLowerCase().includes(supplier))) &&
-                    (!payment || (row[2] && row[2].toLowerCase().includes(payment))) &&
-                    (!trade || (row[3] && row[3].toLowerCase().includes(trade))) &&
-                    (!delivery || (row[4] && row[4].toLowerCase().includes(delivery)))
-                );
+            filteredData = ValuationUI.filterRecords(allDutyData, {
+                keyword: document.getElementById('filterKeyword').value,
+                company: document.getElementById('filterCompany').value,
+                supplier: document.getElementById('filterSupplier').value,
+                payment: document.getElementById('filterPayment').value,
+                trade: document.getElementById('filterTrade').value,
+                delivery: document.getElementById('filterDelivery').value
             });
-
+            selectedDutyRows.clear();
+            currentPage = 1;
             displayDutyResults();
         }
 
         // 필터 초기화
         function clearFilters() {
+            document.getElementById('filterKeyword').value = '';
             document.getElementById('filterCompany').value = '';
             document.getElementById('filterSupplier').value = '';
             document.getElementById('filterPayment').value = '';
@@ -1618,12 +1846,120 @@
             document.getElementById('filterDelivery').value = '';
 
             filteredData = [...allDutyData];
+            selectedDutyRows.clear();
+            currentPage = 1;
             displayDutyResults();
+        }
+
+        function handleFilterKeydown(event) {
+            if (event.key !== 'Enter') return;
+            event.preventDefault();
+            applyFilters();
+        }
+
+        function updateDutyViewOptions() {
+            sortColumn = Number(document.getElementById('sortColumn').value);
+            pageSize = Number(document.getElementById('pageSize').value);
+            currentPage = 1;
+            displayDutyResults();
+        }
+
+        function toggleSortDirection() {
+            sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+            const button = document.getElementById('sortDirection');
+            button.dataset.direction = sortDirection;
+            button.textContent = sortDirection === 'asc' ? '오름차순' : '내림차순';
+            currentPage = 1;
+            displayDutyResults();
+        }
+
+        function changeDutyPage(delta) {
+            currentPage += Number(delta) || 0;
+            displayDutyResults();
+        }
+
+        function updateDutyControls(page) {
+            document.getElementById('pageIndicator').textContent =
+                `${page.page} / ${page.totalPages} (${page.start}-${page.end})`;
+            document.getElementById('previousPageButton').disabled = page.page <= 1;
+            document.getElementById('nextPageButton').disabled = page.page >= page.totalPages;
+            document.getElementById('copySelectedButton').disabled = selectedDutyRows.size === 0;
+
+            const selectVisible = document.getElementById('selectVisibleRows');
+            const selectedOnPage = visibleDutyPageItems
+                .filter(item => selectedDutyRows.has(item.originalIndex)).length;
+            selectVisible.checked = visibleDutyPageItems.length > 0
+                && selectedOnPage === visibleDutyPageItems.length;
+            selectVisible.indeterminate = selectedOnPage > 0
+                && selectedOnPage < visibleDutyPageItems.length;
+        }
+
+        function toggleDutySelection(index, checked) {
+            if (checked) {
+                selectedDutyRows.add(index);
+            } else {
+                selectedDutyRows.delete(index);
+            }
+            displayDutyResults();
+        }
+
+        function toggleVisibleSelection(checked) {
+            visibleDutyPageItems.forEach(item => {
+                if (checked) {
+                    selectedDutyRows.add(item.originalIndex);
+                } else {
+                    selectedDutyRows.delete(item.originalIndex);
+                }
+            });
+            displayDutyResults();
+        }
+
+        function copySelectedDeclarations() {
+            const declarations = [...new Set(allDutyData
+                .filter(item => selectedDutyRows.has(item.originalIndex))
+                .map(item => String(item.data[5] || '').trim())
+                .filter(Boolean))];
+
+            if (declarations.length === 0) {
+                showToast('복사할 신고번호를 선택해주세요.', 'error');
+                return;
+            }
+            copyToClipboard(
+                declarations.join('\n'),
+                `선택한 신고번호 ${declarations.length}건을 복사했습니다.`
+            );
+        }
+
+        function downloadFilteredCsv() {
+            if (filteredData.length === 0) {
+                showToast('다운로드할 조회 결과가 없습니다.', 'error');
+                return;
+            }
+
+            const sorted = ValuationUI.sortRecords(filteredData, sortColumn, sortDirection);
+            const blob = new Blob([ValuationUI.buildCsv(sorted)], {
+                type: 'text/csv;charset=utf-8'
+            });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            const today = new Date();
+            const dateStamp = [
+                today.getFullYear(),
+                String(today.getMonth() + 1).padStart(2, '0'),
+                String(today.getDate()).padStart(2, '0')
+            ].join('');
+            link.href = url;
+            link.download = `과세가격_조회결과_${dateStamp}.csv`;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            URL.revokeObjectURL(url);
+            showToast(`조회 결과 ${filteredData.length}건을 다운로드했습니다.`, 'success');
         }
 
         // 신규 신고내역 추가 (마스터 전용)
         async function addNewDutyRecord() {
-            if (!currentUserData.isMaster) return;
+            if (!currentUserData || !currentUserData.isMaster) return;
 
             const company = document.getElementById('newCompany').value.trim();
             const supplier = document.getElementById('newSupplier').value.trim();
@@ -1631,38 +1967,39 @@
             const trade = document.getElementById('newTrade').value.trim();
             const delivery = document.getElementById('newDelivery').value.trim();
             const declaration = document.getElementById('newDeclaration').value.trim();
+            const newData = [company, supplier, payment, trade, delivery, declaration];
+            const validation = ValuationUI.validateDutyRecord(newData, allDutyData);
 
-            if (!company || !supplier || !payment || !trade || !delivery || !declaration) {
-                showToast('모든 필드를 입력해주세요.', 'error');
+            if (!validation.valid) {
+                showToast(validation.message, 'error');
                 return;
             }
 
-            const result = await callAPI('addDutyRecord', {
-                isMaster: currentUserData.isMaster,
-                company, supplier, payment, trade, delivery, declaration
-            });
+            const mutation = beginValuationMutation('duty');
+            if (!mutation) return;
+            try {
+                const result = await callAPI('addDutyRecord', {
+                    isMaster: mutation.user.isMaster,
+                    company, supplier, payment, trade, delivery, declaration
+                });
+                if (!isValuationMutationCurrent(mutation)) return;
 
-            if (result.success) {
-                showToast(result.message, 'success');
-
-                // 입력 필드 초기화
-                document.getElementById('newCompany').value = '';
-                document.getElementById('newSupplier').value = '';
-                document.getElementById('newPayment').value = '';
-                document.getElementById('newTrade').value = '';
-                document.getElementById('newDelivery').value = '';
-                document.getElementById('newDeclaration').value = '';
-
-                // 데이터 재로드
-                await loadDutyData();
-            } else {
-                showToast(result.message, 'error');
+                if (result.success) {
+                    showToast('신고내역을 추가했습니다.', 'success');
+                    ['newCompany', 'newSupplier', 'newPayment', 'newTrade', 'newDelivery', 'newDeclaration']
+                        .forEach(id => { document.getElementById(id).value = ''; });
+                    await loadDutyData(mutation.sessionGeneration, mutation.user);
+                } else {
+                    showToast(result.message, 'error');
+                }
+            } finally {
+                finishValuationMutation(mutation);
             }
         }
 
         // 신규 계정 추가 (마스터 전용)
         async function addNewAccount() {
-            if (!currentUserData.isMaster) return;
+            if (!currentUserData || !currentUserData.isMaster) return;
 
             const id = document.getElementById('newAccountId').value.trim();
             const password = document.getElementById('newAccountPw').value.trim();
@@ -1673,23 +2010,26 @@
                 return;
             }
 
-            const result = await callAPI('addAccount', {
-                isMaster: currentUserData.isMaster,
-                id, password, company
-            });
+            const mutation = beginValuationMutation('account');
+            if (!mutation) return;
+            try {
+                const result = await callAPI('addAccount', {
+                    isMaster: mutation.user.isMaster,
+                    id, password, company
+                });
+                if (!isValuationMutationCurrent(mutation)) return;
 
-            if (result.success) {
-                showToast(result.message, 'success');
-
-                // 입력 필드 초기화
-                document.getElementById('newAccountId').value = '';
-                document.getElementById('newAccountPw').value = '';
-                document.getElementById('newAccountCompany').value = '';
-
-                // 데이터 재로드
-                await loadAccountData();
-            } else {
-                showToast(result.message, 'error');
+                if (result.success) {
+                    showToast('계정을 추가했습니다.', 'success');
+                    document.getElementById('newAccountId').value = '';
+                    document.getElementById('newAccountPw').value = '';
+                    document.getElementById('newAccountCompany').value = '';
+                    await loadAccountData(mutation.sessionGeneration, mutation.user);
+                } else {
+                    showToast(result.message, 'error');
+                }
+            } finally {
+                finishValuationMutation(mutation);
             }
         }
 
@@ -1709,17 +2049,18 @@
             // 모든 필드를 편집 가능하게 변경 (신고번호 포함)
             for (let i = 0; i < 6; i++) {
                 const originalValue = editingOriginalData[i] || '';
-                cells[i].classList.add('editing-cell');
-                cells[i].innerHTML = `<input type="text" value="${originalValue}" class="editing-input" id="edit-${index}-${i}">`;
+                const cell = cells[i + 1];
+                cell.classList.add('editing-cell');
+                cell.innerHTML = `<input type="text" value="${ValuationUI.escapeHtml(originalValue)}" class="editing-input" id="edit-${index}-${i}">`;
             }
 
             // 관리 버튼을 저장/취소로 변경
-            if (cells[6]) {
-                cells[6].innerHTML = `
-                    <button class="save-button" onclick="saveRow(${index})">
+            if (cells[7]) {
+                cells[7].innerHTML = `
+                    <button type="button" data-valuation-mutation="duty" class="save-button" onclick="saveRow(${index})">
                         <i class="fas fa-save"></i> 저장
                     </button>
-                    <button class="cancel-button" onclick="cancelEdit(${index})">
+                    <button type="button" class="cancel-button" onclick="cancelEdit(${index})">
                         <i class="fas fa-times"></i> 취소
                     </button>
                 `;
@@ -1728,37 +2069,50 @@
 
         // 편집 저장 (마스터 전용)
         async function saveRow(index) {
-            if (!currentUserData.isMaster || editingRowIndex !== index) return;
+            if (!currentUserData || !currentUserData.isMaster || editingRowIndex !== index) return;
 
             const newData = [];
             for (let i = 0; i < 6; i++) {
                 const input = document.getElementById(`edit-${index}-${i}`);
                 newData[i] = input ? input.value.trim() : '';
             }
+            const validation = ValuationUI.validateDutyRecord(
+                newData,
+                allDutyData.filter(item => item.originalIndex !== index)
+            );
+            if (!validation.valid) {
+                showToast(validation.message, 'error');
+                return;
+            }
+            const mutation = beginValuationMutation('duty');
+            if (!mutation) return;
+            try {
+                const result = await callAPI('updateDutyRecord', {
+                    isMaster: mutation.user.isMaster,
+                    rowIndex: index,
+                    company: newData[0],
+                    supplier: newData[1],
+                    payment: newData[2],
+                    trade: newData[3],
+                    delivery: newData[4],
+                    declaration: newData[5]
+                });
+                if (!isValuationMutationCurrent(mutation)) return;
 
-            const result = await callAPI('updateDutyRecord', {
-                isMaster: currentUserData.isMaster,
-                rowIndex: index,
-                company: newData[0],
-                supplier: newData[1],
-                payment: newData[2],
-                trade: newData[3],
-                delivery: newData[4],
-                declaration: newData[5]
-            });
-
-            if (result.success) {
-                // 로컬 데이터 업데이트
-                allDutyData[index].data = newData;
-
-                editingRowIndex = -1;
-                editingOriginalData = null;
-
-                showToast(result.message, 'success');
-                displayDutyResults();
-                updateAutocompleteCache();
-            } else {
-                showToast(result.message, 'error');
+                if (result.success) {
+                    const updatedItem = allDutyData.find(item => item.originalIndex === index);
+                    if (updatedItem) updatedItem.data = newData;
+                    editingRowIndex = -1;
+                    editingOriginalData = null;
+                    updateAutocompleteCache();
+                    applyFilters();
+                    showToast('신고내역을 저장했습니다.', 'success');
+                    await loadDutyData(mutation.sessionGeneration, mutation.user);
+                } else {
+                    showToast(result.message, 'error');
+                }
+            } finally {
+                finishValuationMutation(mutation);
             }
         }
 
@@ -1773,26 +2127,38 @@
 
         // 행 삭제 (마스터 전용)
         async function deleteRow(index) {
-            if (!currentUserData.isMaster) return;
+            if (!currentUserData || !currentUserData.isMaster) return;
+            const item = allDutyData.find(record => record.originalIndex === index);
+            if (!item) return;
 
-            if (!confirm('정말로 이 데이터를 삭제하시겠습니까?')) return;
+            if (!confirm(
+                `화주 "${item.data[0] || ''}", 신고번호 "${item.data[5] || ''}" 내역을 삭제하시겠습니까?`
+            )) return;
 
-            const result = await callAPI('deleteDutyRecord', {
-                isMaster: currentUserData.isMaster,
-                rowIndex: index
-            });
+            const mutation = beginValuationMutation('duty');
+            if (!mutation) return;
+            try {
+                const result = await callAPI('deleteDutyRecord', {
+                    isMaster: mutation.user.isMaster,
+                    rowIndex: index
+                });
+                if (!isValuationMutationCurrent(mutation)) return;
 
-            if (result.success) {
-                showToast(result.message, 'success');
-                await loadDutyData(); // 전체 데이터 재로드
-            } else {
-                showToast(result.message, 'error');
+                if (result.success) {
+                    showToast('신고내역을 삭제했습니다.', 'success');
+                    await loadDutyData(mutation.sessionGeneration, mutation.user);
+                } else {
+                    showToast(result.message, 'error');
+                }
+            } finally {
+                finishValuationMutation(mutation);
             }
         }
 
         // 계정 편집 (마스터 전용)
         function editAccount(index) {
-            if (!currentUserData.isMaster || allAccountData[index][0] === 'aincustoms') return;
+            const account = allAccountData.find(item => item.originalIndex === index);
+            if (!currentUserData.isMaster || !account || account.id === 'aincustoms') return;
 
             // 계정 편집 구현 (생략 - 필요시 추가)
             showToast('계정 편집 기능은 추후 구현 예정입니다.', 'error');
@@ -1800,69 +2166,60 @@
 
         // 계정 삭제 (마스터 전용)
         async function deleteAccount(index) {
-            if (!currentUserData.isMaster || allAccountData[index][0] === 'aincustoms') return;
+            const account = allAccountData.find(item => item.originalIndex === index);
+            if (!currentUserData || !currentUserData.isMaster || !account || account.id === 'aincustoms') return;
 
-            if (!confirm('정말로 이 계정을 삭제하시겠습니까?')) return;
+            if (!confirm(`계정 "${account.id}"을(를) 삭제하시겠습니까?`)) return;
 
-            const result = await callAPI('deleteAccount', {
-                isMaster: currentUserData.isMaster,
-                rowIndex: index,
-                id: allAccountData[index][0]
-            });
+            const mutation = beginValuationMutation('account');
+            if (!mutation) return;
+            try {
+                const result = await callAPI('deleteAccount', {
+                    isMaster: mutation.user.isMaster,
+                    rowIndex: index,
+                    id: account.id
+                });
+                if (!isValuationMutationCurrent(mutation)) return;
 
-            if (result.success) {
-                showToast(result.message, 'success');
-                await loadAccountData();
-            } else {
-                showToast(result.message, 'error');
-            }
-        }
-
-        // 비밀번호 표시/숨김 토글
-        function togglePassword(index) {
-            const row = document.getElementById(`account-row-${index}`);
-            const passwordCell = row.cells[1];
-            const isHidden = passwordCell.innerHTML.includes('••••••••');
-
-            if (isHidden) {
-                passwordCell.innerHTML = `
-                    <span>${allAccountData[index][1]}</span>
-                    <button onclick="togglePassword(${index})" class="ml-2 text-blue-600 hover:text-blue-800">
-                        <i class="fas fa-eye-slash"></i>
-                    </button>
-                `;
-            } else {
-                passwordCell.innerHTML = `
-                    <span class="password-hidden">••••••••</span>
-                    <button onclick="togglePassword(${index})" class="ml-2 text-blue-600 hover:text-blue-800">
-                        <i class="fas fa-eye"></i>
-                    </button>
-                `;
+                if (result.success) {
+                    showToast('계정을 삭제했습니다.', 'success');
+                    await loadAccountData(mutation.sessionGeneration, mutation.user);
+                } else {
+                    showToast(result.message, 'error');
+                }
+            } finally {
+                finishValuationMutation(mutation);
             }
         }
 
         // 클립보드에 복사
-        function copyToClipboard(text) {
+        function copyToClipboard(text, successMessage = '') {
             if (!text) return;
 
-            navigator.clipboard.writeText(text).then(() => {
-                showToast(`신고번호 "${text}"가 복사되었습니다!`, 'success');
-            }).catch(err => {
-                console.error('Copy failed:', err);
+            if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+                navigator.clipboard.writeText(text).then(() => {
+                    showToast(successMessage || `신고번호 "${text}"가 복사되었습니다!`, 'success');
+                }).catch(() => fallbackCopyToClipboard(text, successMessage));
+                return;
+            }
+            fallbackCopyToClipboard(text, successMessage);
+        }
 
-                // 폴백 방식
-                const textArea = document.createElement('textarea');
-                textArea.value = text;
-                document.body.appendChild(textArea);
-                textArea.select();
-                try {
-                    document.execCommand('copy');
-                    showToast(`신고번호 "${text}"가 복사되었습니다!`, 'success');
-                } catch (fallbackErr) {
-                    showToast('복사에 실패했습니다.', 'error');
-                }
-                document.body.removeChild(textArea);
-            });
+        function fallbackCopyToClipboard(text, successMessage = '') {
+            const textArea = document.createElement('textarea');
+            textArea.value = text;
+            textArea.style.position = 'fixed';
+            textArea.style.opacity = '0';
+            document.body.appendChild(textArea);
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                showToast(successMessage || `신고번호 "${text}"가 복사되었습니다!`, 'success');
+            } catch {
+                showToast('복사에 실패했습니다.', 'error');
+            } finally {
+                textArea.remove();
+            }
         }
 
         // 토스트 메시지 표시
