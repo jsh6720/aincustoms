@@ -69,8 +69,14 @@
             return `<button class="${cls.join(' ')}"${dis} onclick="goToTablePage('${section}', ${target})">${label}</button>`;
         };
 
+        // 체크박스가 있는 화면은 '전체 선택'이 현재 페이지 20건만 고른다.
+        // 500건을 지우려다 20건만 지우는 일이 없도록 표에 그 사실을 적는다.
+        const hasCheckbox = !!st.tbody.querySelector('.row-checkbox');
+        const scopeNote = hasCheckbox
+            ? ' <span class="pager-warn">· 전체 선택은 현재 페이지만</span>' : '';
+
         el.innerHTML =
-            `<span class="pager-info">전체 ${total.toLocaleString()}건 중 ${from.toLocaleString()}–${to.toLocaleString()}</span>` +
+            `<span class="pager-info">전체 ${total.toLocaleString()}건 중 ${from.toLocaleString()}–${to.toLocaleString()}${scopeNote}</span>` +
             '<span class="pager-buttons">' +
             btn('«', 1, { disabled: st.page === 1 }) +
             btn('‹', st.page - 1, { disabled: st.page === 1 }) +
@@ -97,17 +103,28 @@
         st.tbody.appendChild(frag);
     }
 
+    // 같은 목록인지 판별하는 지문. 건수만 보면 필터를 바꿨는데 결과 수가 우연히
+    // 같을 때 이전 페이지 번호를 물려받아, 사용자가 1페이지를 못 보고 중간부터 본다.
+    // 첫·끝 레코드의 id 까지 섞어 데이터셋이 바뀌면 1페이지로 돌아가게 한다.
+    function signatureOf(records) {
+        const list = records || [];
+        if (!list.length) return '0';
+        const idOf = (r) => String((r && (r.id ?? r.spec_no)) ?? '');
+        return `${list.length}|${idOf(list[0])}|${idOf(list[list.length - 1])}`;
+    }
+
     // 목록 렌더링 진입점. buildRow 는 record 를 받아 <td>...</td> 문자열을 돌려준다.
     function renderPagedRows(section, tbody, records, buildRow) {
         if (!tbody) return;
         const prev = state[section];
-        const keepPage = prev && prev.signature === records.length ? prev.page : 1;
+        const sig = signatureOf(records);
+        const keepPage = prev && prev.signature === sig ? prev.page : 1;
         state[section] = {
             records: records || [],
             buildRow,
             tbody,
             page: keepPage,
-            signature: (records || []).length
+            signature: sig
         };
         const last = totalPages(section);
         if (state[section].page > last) state[section].page = last;
@@ -124,6 +141,11 @@
         st.page = target;
         drawRows(section);
         drawPager(section);
+        // 페이지를 넘기면 tbody 가 새로 그려져 체크가 전부 풀린다.
+        // 선택 개수 배지와 '선택 삭제' 버튼도 같이 되돌려야 옛 값이 남지 않는다.
+        if (typeof updateSelectionCount === 'function') {
+            try { updateSelectionCount(section); } catch (e) { /* 체크박스 없는 화면 */ }
+        }
         const table = st.tbody.closest('table');
         if (table) table.scrollIntoView({ block: 'nearest' });
     }

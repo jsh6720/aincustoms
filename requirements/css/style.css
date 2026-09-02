@@ -1027,7 +1027,8 @@ textarea:focus {
     vertical-align: middle;
     padding: 8px 10px;
 }
-#reviewNeededTable td { white-space: nowrap; }
+/* 전역 nowrap 은 Description 열까지 한 줄로 펴 표 가로폭을 키운다.
+   행 높이는 아래 .review-note 클램프가 잡으므로 여기서는 줄바꿈을 막지 않는다. */
 
 /* td 에 직접 -webkit-box 를 주면 표 셀이 아니게 되어 레이아웃이 깨진다.
    안쪽 div 를 접고, 전체 내용은 title 툴팁으로 본다. */
@@ -1045,3 +1046,6 @@ textarea:focus {
     max-height: 2.9em;
     cursor: help;
 }
+
+#reviewNeededTable .pager-warn { color: #b45309; }
+.table-pager .pager-warn { font-weight: 500; }

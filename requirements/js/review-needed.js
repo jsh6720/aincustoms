@@ -46,6 +46,7 @@ async function loadReviewNeededData(searchQuery = '') {
         console.error('확인 필요 데이터 로드 오류:', error);
         const tbody = document.getElementById('reviewNeededTableBody');
         if (tbody) {
+            if (typeof clearTablePager === 'function') clearTablePager('review_needed');
             tbody.innerHTML = '<tr><td colspan="20" class="empty-state" style="color: red;"><i class="fas fa-exclamation-triangle"></i><p>데이터를 불러올 수 없습니다.</p><p style="font-size: 12px;">테이블이 존재하지 않거나 네트워크 오류가 발생했습니다.</p></td></tr>';
         }
     }
@@ -108,6 +109,7 @@ function renderReviewNeededTable(records) {
     tbody.innerHTML = '';
 
     if (records.length === 0) {
+        if (typeof clearTablePager === 'function') clearTablePager('review_needed');
         tbody.innerHTML = '<tr><td colspan="20" class="empty-state"><i class="fas fa-inbox"></i><p>데이터가 없습니다.</p></td></tr>';
         return;
     }

@@ -15,11 +15,20 @@ let exemptionReportFilter = 'all';
 
 async function loadRadioExemptionData(searchQuery = '') {
     const tbody = document.getElementById('radioExemptionTableBody');
+    // 검색어를 빠르게 두 번 넣으면 먼저 보낸 응답이 나중에 도착해 화면을 덮어쓴다.
+    // 다른 목록 로더와 같은 장치로 늦게 온 응답을 버린다.
+    const viewRequest = typeof beginRequirementsViewRequest === 'function'
+        ? beginRequirementsViewRequest('list:radio_exemption') : null;
+    const stale = () => viewRequest !== null
+        && typeof isCurrentRequirementsViewRequest === 'function'
+        && !isCurrentRequirementsViewRequest(viewRequest);
     try {
         const response = await fetch('tables/radio_exemption?limit=2000');
+        if (stale() || response.status === 409) return;
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
         const data = await response.json();
+        if (stale()) return;
         let records = data.data || [];
 
         // 권한 필터링 — 마스터가 아니면 자기 회사 건만
@@ -45,7 +54,9 @@ async function loadRadioExemptionData(searchQuery = '') {
         allExemptionData = records;
         renderRadioExemptionTable(applyExemptionReportFilter(records));
     } catch (error) {
+        if (stale()) return;
         console.error('면제 데이터 로드 오류:', error);
+        if (typeof clearTablePager === 'function') clearTablePager('radio_exemption');
         if (tbody) {
             tbody.innerHTML = '<tr><td colspan="11" class="empty-state" style="color:red;">' +
                 '<i class="fas fa-exclamation-triangle"></i><p>데이터를 불러올 수 없습니다.</p>' +
@@ -101,13 +112,17 @@ function renderRadioExemptionTable(records) {
     if (!tbody) return;
 
     if (!records.length) {
+        if (typeof clearTablePager === 'function') clearTablePager('radio_exemption');
         tbody.innerHTML = '<tr><td colspan="11" class="empty-state">' +
             '<i class="fas fa-inbox"></i><p>표시할 면제 내역이 없습니다.</p></td></tr>';
         return;
     }
 
+    // onclick 안의 작은따옴표 문자열에도 값이 들어가므로 ' 와 ` 까지 막는다.
+    // 시트 값은 담당자·CSV 업로드로 들어오는 신뢰할 수 없는 입력이다.
     const esc = (v) => String(v == null ? '' : v)
-        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/`/g, '&#96;');
 
     renderPagedRows('radio_exemption', tbody, records, item => {
         const done = String(item.report_done || '').trim().toUpperCase();
@@ -130,7 +145,7 @@ function renderRadioExemptionTable(records) {
             ? `${Number(item.amount).toLocaleString()} ${esc(item.currency || '')}`
             : '-';
 
-        return `<tr>
+        return `
             <td class="mono">${esc(item.approval_no)}</td>
             <td>${esc(item.consignee)}</td>
             <td title="${esc(item.product_name)}">${esc(String(item.product_name || '').slice(0, 40))}</td>
@@ -146,12 +161,11 @@ function renderRadioExemptionTable(records) {
                         onclick="toggleExemptionReport('${esc(item.id)}')">
                     <i class="fas fa-toggle-on"></i>
                 </button>
-                <button class="btn-icon btn-master-only" title="수정"
-                        onclick="editRecord('radio_exemption', '${esc(item.id)}')">
-                    <i class="fas fa-edit"></i>
-                </button>
+                ${typeof isMasterUser === 'function' && isMasterUser()
+                    ? `<button class="btn-icon" title="수정" onclick="editRecord('radio_exemption', '${esc(item.id)}')"><i class="fas fa-edit"></i></button>`
+                    : ''}
             </td>
-        </tr>`;
+        `;
     });
 }
 

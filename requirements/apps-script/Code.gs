@@ -683,14 +683,17 @@ var HEARTBEAT_FRESHNESS_MS = 15 * 60 * 1000;
 
 function backupIsoString_(value) { return new Date(Number(value)).toISOString(); }
 
-function backupWorkbookManifest_(workbook) {
+// 시트 집합을 인자로 받는다. 매일 백업은 현재 필수 목록으로 검증하지만,
+// 복원은 그 백업이 만들어질 당시의 시트 집합(기록된 매니페스트)으로 검증해야 한다.
+// 그러지 않으면 시트를 하나 추가한 순간 예전 백업으로 되돌릴 길이 막힌다.
+function workbookManifestFor_(workbook, sheetNames) {
   if (!workbook || typeof workbook.getSheets !== "function") throw new Error("Workbook cannot be inspected");
   var names = workbook.getSheets().map(function(sheet) { return sheet.getName(); }).sort();
-  if (JSON.stringify(names) !== JSON.stringify(BACKUP_REQUIRED_SHEET_NAMES.slice().sort())) {
+  if (JSON.stringify(names) !== JSON.stringify(sheetNames.slice().sort())) {
     throw new Error("Workbook sheet names do not exactly match the required " +
-      BACKUP_REQUIRED_SHEET_NAMES.length + " sheets");
+      sheetNames.length + " sheets");
   }
-  return BACKUP_REQUIRED_SHEET_NAMES.map(function(name) {
+  return sheetNames.map(function(name) {
     var sheet = workbook.getSheetByName(name);
     var lastRow = Number(sheet.getLastRow());
     var lastColumn = Number(sheet.getLastColumn());
@@ -702,6 +705,10 @@ function backupWorkbookManifest_(workbook) {
     if (!headers || headers.length !== lastColumn) throw new Error(name + " header array cannot be verified");
     return { name: name, headers: headers.slice(), last_row: lastRow, last_column: lastColumn };
   });
+}
+
+function backupWorkbookManifest_(workbook) {
+  return workbookManifestFor_(workbook, BACKUP_REQUIRED_SHEET_NAMES);
 }
 
 function manifestMismatch_(expected, actual) {
@@ -905,10 +912,11 @@ function recordWeeklyBackup(requestData) {
   }
 }
 
+// 기록된 매니페스트는 만들어질 당시의 시트 수를 그대로 인정한다.
+// 현재 필수 목록의 길이를 강요하면 시트를 추가한 뒤 예전 백업 복원이 전부 막힌다.
 function normalizeRecordedManifest_(manifest) {
-  if (!Array.isArray(manifest) || manifest.length !== BACKUP_REQUIRED_SHEET_NAMES.length) {
-    throw new Error("Restore manifest must contain exactly " +
-      BACKUP_REQUIRED_SHEET_NAMES.length + " sheets");
+  if (!Array.isArray(manifest) || manifest.length < 1) {
+    throw new Error("Restore manifest must list at least one sheet");
   }
   var byName = {};
   manifest.forEach(function(tab) {
@@ -920,10 +928,7 @@ function normalizeRecordedManifest_(manifest) {
         tab.headers.length !== tab.last_column || byName[tab.name]) throw new Error("Restore manifest is malformed");
     byName[tab.name] = { name: tab.name, headers: tab.headers.slice(), last_row: tab.last_row, last_column: tab.last_column };
   });
-  return BACKUP_REQUIRED_SHEET_NAMES.map(function(name) {
-    if (!byName[name]) throw new Error("Restore manifest is missing " + name);
-    return byName[name];
-  });
+  return Object.keys(byName).sort().map(function(name) { return byName[name]; });
 }
 
 function findRecordedManifest_(fileId) {
@@ -933,7 +938,10 @@ function findRecordedManifest_(fileId) {
   for (var index = rows.length - 1; index >= 1; index -= 1) {
     if (String(rows[index][3]) === String(fileId) && rows[index][5] === "SUCCESS") {
       try { return normalizeRecordedManifest_(JSON.parse(rows[index][4])); }
-      catch (error) { throw new Error("Recorded restore manifest is invalid"); }
+      catch (error) {
+        throw new Error("Recorded restore manifest is invalid: " +
+          String(error && error.message ? error.message : error));
+      }
     }
   }
   throw new Error("No successful recorded manifest for restore candidate");
@@ -944,7 +952,8 @@ function setActiveSpreadsheetIdForRestore(id, suppliedManifest) {
   if (!candidateId || candidateId.length > 200) throw new Error("Restore candidate ID is invalid");
   var expected = suppliedManifest === undefined || suppliedManifest === null ? findRecordedManifest_(candidateId) :
     normalizeRecordedManifest_(suppliedManifest);
-  var actual = backupWorkbookManifest_(SpreadsheetApp.openById(candidateId));
+  var expectedNames = expected.map(function(tab) { return tab.name; });
+  var actual = workbookManifestFor_(SpreadsheetApp.openById(candidateId), expectedNames);
   var mismatch = manifestMismatch_(expected, actual);
   if (mismatch) throw new Error(mismatch + " restore manifest mismatch");
   var properties = PropertiesService.getScriptProperties();

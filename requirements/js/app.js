@@ -82,7 +82,7 @@ function resetRequirementsSessionUI() {
 
     [
         'unifiedSearch', 'chemicalSearch', 'msdsSearch', 'radioSearch', 'electricalSearch',
-        'medicalSearch', 'non_targetSearch', 'reviewNeededSearch'
+        'medicalSearch', 'non_targetSearch', 'reviewNeededSearch', 'radio_exemptionSearch'
     ].forEach(id => {
         const input = document.getElementById(id);
         if (input) input.value = '';
@@ -310,6 +310,7 @@ async function loadChemicalData(searchQuery = '') {
         tbody.innerHTML = '';
 
         if (records.length === 0) {
+            if (typeof clearTablePager === 'function') clearTablePager('chemical');
             tbody.innerHTML = '<tr><td colspan="11" class="empty-state"><i class="fas fa-inbox"></i><p>데이터가 없습니다.</p></td></tr>';
             return;
         }
@@ -343,6 +344,7 @@ async function loadChemicalData(searchQuery = '') {
         console.error('화학물질확인 데이터 로드 오류:', error);
         const tbody = document.getElementById('chemicalTableBody');
         if (tbody) {
+            if (typeof clearTablePager === 'function') clearTablePager('chemical');
             tbody.innerHTML = '<tr><td colspan="11" class="empty-state" style="color: red;"><i class="fas fa-exclamation-triangle"></i><p>데이터를 불러올 수 없습니다.</p><p style="font-size: 12px;">테이블이 존재하지 않거나 네트워크 오류가 발생했습니다.</p></td></tr>';
         }
     }
@@ -457,6 +459,7 @@ async function loadMsdsData(searchQuery = '') {
         tbody.innerHTML = '';
 
         if (records.length === 0) {
+            if (typeof clearTablePager === 'function') clearTablePager('msds');
             tbody.innerHTML = '<tr><td colspan="11" class="empty-state"><i class="fas fa-inbox"></i><p>데이터가 없습니다.</p></td></tr>';
             return;
         }
@@ -490,6 +493,7 @@ async function loadMsdsData(searchQuery = '') {
         console.error('MSDS 데이터 로드 오류:', error);
         const tbody = document.getElementById('msdsTableBody');
         if (tbody) {
+            if (typeof clearTablePager === 'function') clearTablePager('msds');
             tbody.innerHTML = '<tr><td colspan="11" class="empty-state" style="color: red;"><i class="fas fa-exclamation-triangle"></i><p>데이터를 불러올 수 없습니다.</p><p style="font-size: 12px;">테이블이 존재하지 않거나 네트워크 오류가 발생했습니다.</p></td></tr>';
         }
     }
@@ -537,6 +541,7 @@ async function loadRadioData(searchQuery = '') {
         tbody.innerHTML = '';
 
         if (records.length === 0) {
+            if (typeof clearTablePager === 'function') clearTablePager('radio');
             tbody.innerHTML = '<tr><td colspan="12" class="empty-state"><i class="fas fa-inbox"></i><p>데이터가 없습니다.</p></td></tr>';
             return;
         }
@@ -571,6 +576,7 @@ async function loadRadioData(searchQuery = '') {
         console.error('전파법 데이터 로드 오류:', error);
         const tbody = document.getElementById('radioTableBody');
         if (tbody) {
+            if (typeof clearTablePager === 'function') clearTablePager('radio');
             tbody.innerHTML = '<tr><td colspan="12" class="empty-state" style="color: red;"><i class="fas fa-exclamation-triangle"></i><p>데이터를 불러올 수 없습니다.</p><p style="font-size: 12px;">테이블이 존재하지 않거나 네트워크 오류가 발생했습니다.</p></td></tr>';
         }
     }
@@ -619,6 +625,7 @@ async function loadElectricalData(searchQuery = '') {
         tbody.innerHTML = '';
 
         if (records.length === 0) {
+            if (typeof clearTablePager === 'function') clearTablePager('electrical');
             tbody.innerHTML = '<tr><td colspan="13" class="empty-state"><i class="fas fa-inbox"></i><p>데이터가 없습니다.</p></td></tr>';
             return;
         }
@@ -654,6 +661,7 @@ async function loadElectricalData(searchQuery = '') {
         console.error('전안법 데이터 로드 오류:', error);
         const tbody = document.getElementById('electricalTableBody');
         if (tbody) {
+            if (typeof clearTablePager === 'function') clearTablePager('electrical');
             tbody.innerHTML = '<tr><td colspan="13" class="empty-state" style="color: red;"><i class="fas fa-exclamation-triangle"></i><p>데이터를 불러올 수 없습니다.</p><p style="font-size: 12px;">테이블이 존재하지 않거나 네트워크 오류가 발생했습니다.</p></td></tr>';
         }
     }
@@ -700,6 +708,7 @@ async function loadMedicalData(searchQuery = '') {
         tbody.innerHTML = '';
 
         if (records.length === 0) {
+            if (typeof clearTablePager === 'function') clearTablePager('medical');
             tbody.innerHTML = '<tr><td colspan="8" class="empty-state"><i class="fas fa-inbox"></i><p>데이터가 없습니다.</p></td></tr>';
             return;
         }
@@ -733,6 +742,7 @@ async function loadMedicalData(searchQuery = '') {
         console.error('의료기기 데이터 로드 오류:', error);
         const tbody = document.getElementById('medicalTableBody');
         if (tbody) {
+            if (typeof clearTablePager === 'function') clearTablePager('medical');
             tbody.innerHTML = '<tr><td colspan="8" class="empty-state" style="color: red;"><i class="fas fa-exclamation-triangle"></i><p>데이터를 불러올 수 없습니다.</p><p style="font-size: 12px;">테이블이 존재하지 않거나 네트워크 오류가 발생했습니다.</p></td></tr>';
         }
     }
@@ -821,6 +831,7 @@ async function loadNonTargetData(searchQuery = '') {
         tbody.innerHTML = '';
 
         if (records.length === 0) {
+            if (typeof clearTablePager === 'function') clearTablePager('non_target');
             tbody.innerHTML = '<tr><td colspan="8" class="empty-state"><i class="fas fa-inbox"></i><p>데이터가 없습니다.</p></td></tr>';
             return;
         }
@@ -854,6 +865,7 @@ async function loadNonTargetData(searchQuery = '') {
         console.error('비대상 데이터 로드 오류:', error);
         const tbody = document.getElementById('nonTargetTableBody');
         if (tbody) {
+            if (typeof clearTablePager === 'function') clearTablePager('non_target');
             tbody.innerHTML = '<tr><td colspan="8" class="empty-state" style="color: red;"><i class="fas fa-exclamation-triangle"></i><p>데이터를 불러올 수 없습니다.</p><p style="font-size: 12px;">테이블이 존재하지 않거나 네트워크 오류가 발생했습니다.</p></td></tr>';
         }
     }
@@ -935,7 +947,8 @@ async function viewDetail(type, recordId) {
             'electrical': 'electrical_law',
             'medical': 'medical_device',
             'non_target': 'non_target',
-            'review_needed': 'review_needed'
+            'review_needed': 'review_needed',
+            'radio_exemption': 'radio_exemption'
         };
 
         const response = await fetch('tables/' + tableMap[type] + '/' + recordId);
@@ -1054,7 +1067,8 @@ function getTypeLabel(type) {
         'electrical': '전안법',
         'medical': '의료기기/원안법 등',
         'non_target': '비대상',
-        'review_needed': '확인 필요 List'
+        'review_needed': '확인 필요 List',
+        'radio_exemption': '전파 면제 관리'
     };
     return labels[type] || type;
 }
@@ -1079,7 +1093,8 @@ async function deleteRecord(type, recordId) {
             'electrical': 'electrical_law',
             'medical': 'medical_device',
             'non_target': 'non_target',
-            'review_needed': 'review_needed'
+            'review_needed': 'review_needed',
+            'radio_exemption': 'radio_exemption'
         };
 
         const response = await fetch(`tables/${tableMap[type]}/${recordId}`, {
@@ -1239,7 +1254,8 @@ async function parseAndSaveData() {
             'electrical': 'electrical_law',
             'medical': 'medical_device',
             'non_target': 'non_target',
-            'review_needed': 'review_needed'
+            'review_needed': 'review_needed',
+            'radio_exemption': 'radio_exemption'
         };
 
         const tableName = tableMap[result.type];
@@ -1351,7 +1367,8 @@ async function deleteAllData(type) {
             'electrical': 'electrical_law',
             'medical': 'medical_device',
             'non_target': 'non_target',
-            'review_needed': 'review_needed'
+            'review_needed': 'review_needed',
+            'radio_exemption': 'radio_exemption'
         };
 
         const tableName = tableMap[type];
@@ -1857,7 +1874,8 @@ async function saveTableData() {
             'electrical': 'electrical_law',
             'medical': 'medical_device',
             'non_target': 'non_target',
-            'review_needed': 'review_needed'
+            'review_needed': 'review_needed',
+            'radio_exemption': 'radio_exemption'
         };
 
         const tableName = tableMap[currentDataType];
@@ -2262,6 +2280,27 @@ function generateManualForm(type) {
             { name: 'note', label: '비고', type: 'textarea' },
             { name: 'action_note', label: '조치사항', type: 'textarea' }
         ];
+    } else if (type === 'radio_exemption') {
+        fields = [
+            { name: 'approval_no', label: '면제승인번호', type: 'text', required: true },
+            { name: 'consignee', label: '화주', type: 'text', required: true },
+            { name: 'product_name', label: '물품', type: 'text', required: true },
+            { name: 'spec_no', label: '규격정제', type: 'text', required: true },
+            { name: 'model_spec', label: '모델규격', type: 'text' },
+            { name: 'quantity', label: '개수', type: 'text' },
+            { name: 'unit', label: '단위', type: 'text' },
+            { name: 'amount', label: '금액', type: 'text' },
+            { name: 'currency', label: '통화', type: 'text' },
+            { name: 'approval_date', label: '면제승인일자', type: 'text', placeholder: 'YYYY-MM-DD' },
+            { name: 'expiry', label: '면제기한 (비우면 승인일+2년)', type: 'text', placeholder: 'YYYY-MM-DD' },
+            { name: 'report_done', label: '이행보고', type: 'select', options: ['', 'O', 'X'] },
+            { name: 'bl_no', label: 'B/L', type: 'text' },
+            { name: 'decl_no', label: '신고번호', type: 'text' },
+            { name: 'hs_code', label: 'HS부호', type: 'text' },
+            { name: 'manufacturer', label: '제조자', type: 'text' },
+            { name: 'origin', label: '제조국', type: 'text' },
+            { name: 'note', label: '비고', type: 'textarea' }
+        ];
     }
 
     fields.forEach(field => {
@@ -2397,7 +2436,8 @@ async function saveManualData() {
             'electrical': 'electrical_law',
             'medical': 'medical_device',
             'non_target': 'non_target',
-            'review_needed': 'review_needed'
+            'review_needed': 'review_needed',
+            'radio_exemption': 'radio_exemption'
         };
 
         // 중복 체크
@@ -2520,7 +2560,8 @@ async function handleCSVUpload(event) {
             'electrical': 'electrical_law',
             'medical': 'medical_device',
             'non_target': 'non_target',
-            'review_needed': 'review_needed'
+            'review_needed': 'review_needed',
+            'radio_exemption': 'radio_exemption'
         };
 
         const tableName = tableMap[currentDataType];
@@ -2644,7 +2685,8 @@ async function downloadCSV(type) {
             'electrical': 'electrical_law',
             'medical': 'medical_device',
             'non_target': 'non_target',
-            'review_needed': 'review_needed'
+            'review_needed': 'review_needed',
+            'radio_exemption': 'radio_exemption'
         };
 
         const response = await fetch(`tables/${tableMap[type]}?limit=1000`);
@@ -2768,7 +2810,8 @@ async function editRecord(type, recordId) {
             'electrical': 'electrical_law',
             'medical': 'medical_device',
             'non_target': 'non_target',
-            'review_needed': 'review_needed'
+            'review_needed': 'review_needed',
+            'radio_exemption': 'radio_exemption'
         };
 
         const response = await fetch(`tables/${tableMap[type]}/${recordId}`);
@@ -2791,7 +2834,8 @@ async function editRecord(type, recordId) {
             'electrical': '전안법',
             'medical': '의료기기/원안법 등',
             'non_target': '비대상',
-            'review_needed': '확인 필요 List'
+            'review_needed': '확인 필요 List',
+        'radio_exemption': '전파 면제 관리'
         };
         document.getElementById('editModalTitle').textContent = `${typeLabels[type] || type} 수정`;
         editModal.style.display = '';
@@ -2903,6 +2947,28 @@ function generateEditForm(type, record) {
             { name: 'note', label: '비고', type: 'text' },
             { name: 'action_note', label: '조치사항', type: 'text' }
         ];
+    } else if (type === 'radio_exemption') {
+        // 수기 등록 폼(generateManualForm)과 같은 항목이어야 저장 시 열이 어긋나지 않는다
+        fields = [
+            { name: 'approval_no', label: '면제승인번호', type: 'text', required: true },
+            { name: 'consignee', label: '화주', type: 'text', required: true },
+            { name: 'product_name', label: '물품', type: 'text', required: true },
+            { name: 'spec_no', label: '규격정제', type: 'text', required: true },
+            { name: 'model_spec', label: '모델규격', type: 'text' },
+            { name: 'quantity', label: '개수', type: 'text' },
+            { name: 'unit', label: '단위', type: 'text' },
+            { name: 'amount', label: '금액', type: 'text' },
+            { name: 'currency', label: '통화', type: 'text' },
+            { name: 'approval_date', label: '면제승인일자', type: 'text' },
+            { name: 'expiry', label: '면제기한 (비우면 승인일+2년)', type: 'text' },
+            { name: 'report_done', label: '이행보고', type: 'select', options: ['', 'O', 'X'] },
+            { name: 'bl_no', label: 'B/L', type: 'text' },
+            { name: 'decl_no', label: '신고번호', type: 'text' },
+            { name: 'hs_code', label: 'HS부호', type: 'text' },
+            { name: 'manufacturer', label: '제조자', type: 'text' },
+            { name: 'origin', label: '제조국', type: 'text' },
+            { name: 'note', label: '비고', type: 'textarea' }
+        ];
     }
 
     let html = '<div class="form-grid">';
@@ -2915,10 +2981,25 @@ function generateEditForm(type, record) {
         }
 
         const readonlyAttr = field.readonly ? 'readonly' : '';
+        // 값에 따옴표가 들어가면 value 속성이 끊겨 폼이 깨진다
+        const attrEsc = (v) => String(v == null ? '' : v)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        let control;
+        if (field.type === 'select') {
+            const opts = (field.options || []).map(o =>
+                `<option value="${attrEsc(o)}"${String(o) === String(value) ? ' selected' : ''}>${attrEsc(o) || '-'}</option>`
+            ).join('');
+            control = `<select id="edit_${field.name}" name="${field.name}" ${readonlyAttr}>${opts}</select>`;
+        } else if (field.type === 'textarea') {
+            control = `<textarea id="edit_${field.name}" name="${field.name}" rows="3" ${readonlyAttr}>${attrEsc(value)}</textarea>`;
+        } else {
+            control = `<input type="${field.type}" id="edit_${field.name}" name="${field.name}" value="${attrEsc(value)}" ${readonlyAttr}>`;
+        }
         html += `
             <div class="form-group">
                 <label for="edit_${field.name}">${field.label}</label>
-                <input type="${field.type}" id="edit_${field.name}" name="${field.name}" value="${value}" ${readonlyAttr}>
+                ${control}
             </div>
         `;
     });
@@ -2968,7 +3049,8 @@ async function saveEditedData() {
             'electrical': 'electrical_law',
             'medical': 'medical_device',
             'non_target': 'non_target',
-            'review_needed': 'review_needed'
+            'review_needed': 'review_needed',
+            'radio_exemption': 'radio_exemption'
         };
         const tableName = tableMap[editTarget.type];
         const cleanedData = { ...updatedData };

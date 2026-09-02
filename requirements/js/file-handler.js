@@ -420,7 +420,8 @@ function showFileUploadDialog(dataType) {
                 'electrical': 'electrical_law',
                 'medical': 'medical_device',
                 'non_target': 'non_target',
-                'review_needed': 'review_needed'
+                'review_needed': 'review_needed',
+                'radio_exemption': 'radio_exemption'
             };
 
             let successCount = 0;
@@ -589,7 +590,8 @@ async function showDownloadDialog(dataType) {
             'electrical': 'electrical_law',
             'medical': 'medical_device',
             'non_target': 'non_target',
-            'review_needed': 'review_needed'
+            'review_needed': 'review_needed',
+                'radio_exemption': 'radio_exemption'
         };
 
         const response = await fetch(`tables/${tableMap[dataType]}?limit=1000`);
