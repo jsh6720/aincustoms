@@ -389,6 +389,7 @@ var TABLE_SHEET_NAME_MAP = {
   non_target: "AIN_Non_Target",
   review_needed: "AIN_Review_Needed",
   radio_exemption: "AIN_Radio_Exemption",
+  review_resolved: "AIN_Review_Resolved",
   edit_requests: "AIN_Edit_Requests",
 };
 
@@ -672,7 +673,8 @@ function handleDeleteData(user, tableName, id) {
 var BACKUP_REQUIRED_SHEET_NAMES = [
   "AIN_Users", "AIN_Chemical_Confirmation", "AIN_MSDS", "AIN_Radio_Law",
   "AIN_Electrical_Law", "AIN_Medical_Device", "AIN_Non_Target",
-  "AIN_Review_Needed", "AIN_Radio_Exemption", "AIN_Edit_Requests",
+  "AIN_Review_Needed", "AIN_Review_Resolved", "AIN_Radio_Exemption",
+  "AIN_Edit_Requests",
 ];
 var BACKUP_LOG_SHEET_NAME = "AIN_Backup_Log";
 var BACKUP_LOG_HEADERS = ["STARTED_AT", "ENDED_AT", "BACKUP_TYPE", "FILE_ID_OR_PATH", "TAB_MANIFEST_JSON", "RESULT", "ERROR_SUMMARY"];
