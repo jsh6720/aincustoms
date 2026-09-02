@@ -40,7 +40,7 @@
     {
       "source": "api/cargo-import-request.js",
       "target": "website_integration/vercel_package/api/cargo-import-request.js",
-      "sha256": "d53db023cc44d62b8c2e25dde3fd630291a863e6507c09a7e06263b5b318fc11"
+      "sha256": "84abda1b8a048a360cfcf55b3e18d67435673b4a9d1fcdda1dbb97ba9374f84b"
     },
     {
       "source": "api/cargo-login.js",
@@ -151,6 +151,11 @@
       "source": "lib/cargo-missing-warehouse-plan-notification.js",
       "target": "website_integration/vercel_package/lib/cargo-missing-warehouse-plan-notification.js",
       "sha256": "32cc9eb8a6bfcbd1b8b6f33b9fe7896637d8be833507b5ea12da3ce753f3b9fe"
+    },
+    {
+      "source": "lib/cargo-missing-sticker-notification.js",
+      "target": "website_integration/vercel_package/lib/cargo-missing-sticker-notification.js",
+      "sha256": "7eb624fdcb4bd607fa06a4cc229a59a156a3d905b134fa2a4f4b99450344437c"
     },
     {
       "source": "lib/cargo-original-doc-receipt.js",
