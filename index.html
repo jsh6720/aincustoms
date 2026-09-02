@@ -186,14 +186,31 @@
         .duty-modal-content {
             background: white;
             border-radius: 16px;
-            width: 90%;
-            max-width: 1200px;
-            min-height: 600px;
-            max-height: 90vh;
+            width: calc(100vw - 24px);
+            max-width: 1680px;
+            min-height: min(600px, calc(100vh - 24px));
+            max-height: calc(100vh - 24px);
+            padding: 28px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            position: relative;
+            overflow-y: auto;
+            box-sizing: border-box;
+        }
+
+        .account-edit-modal {
+            z-index: 2100;
+        }
+
+        .account-edit-modal-content {
+            background: white;
+            border-radius: 16px;
+            width: min(520px, calc(100vw - 32px));
+            max-height: calc(100vh - 32px);
             padding: 32px;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
             position: relative;
             overflow-y: auto;
+            box-sizing: border-box;
         }
 
         .close-button {
@@ -244,11 +261,63 @@
             background-color: #f3f4f6;
         }
 
+        .valuation-table-shell {
+            max-height: 600px;
+            overflow-x: auto;
+            overflow-y: auto;
+        }
+
+        .valuation-results-table {
+            min-width: 1120px;
+            margin-top: 0;
+            table-layout: auto;
+        }
+
+        .valuation-results-table th,
+        .valuation-results-table td {
+            white-space: nowrap;
+            word-break: keep-all;
+            vertical-align: middle;
+        }
+
+        .valuation-results-table th:nth-child(1),
+        .valuation-results-table td:nth-child(1) {
+            width: 44px;
+            text-align: center;
+        }
+
+        .valuation-results-table th:nth-child(2) {
+            min-width: 150px;
+        }
+
+        .valuation-results-table th:nth-child(3) {
+            min-width: 280px;
+        }
+
+        .valuation-results-table th:nth-child(4),
+        .valuation-results-table th:nth-child(5),
+        .valuation-results-table th:nth-child(6) {
+            min-width: 88px;
+        }
+
+        .valuation-results-table th:nth-child(7) {
+            min-width: 190px;
+        }
+
+        .valuation-results-table th:nth-child(8) {
+            min-width: 112px;
+        }
+
         .copyable-cell {
             cursor: pointer;
             color: #3b82f6;
             font-weight: 500;
             transition: color 0.2s;
+            display: inline-flex;
+            align-items: center;
+            white-space: nowrap;
+            background: transparent;
+            border: 0;
         }
 
         .copyable-cell:hover {
@@ -513,8 +582,9 @@
             }
 
             .duty-modal-content {
-                width: 95%;
-                padding: 20px;
+                width: calc(100vw - 16px);
+                max-height: calc(100vh - 16px);
+                padding: 18px;
             }
         }
 
@@ -903,7 +973,7 @@
 
     <!-- 관세신고 조회 모달 -->
     <div id="dutyModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="dutyModalTitle">
-        <div class="duty-modal-content">
+        <div id="dutyModalContent" class="duty-modal-content">
             <button type="button" class="close-button" aria-label="과세가격 관리 창 닫기"
                 onclick="closeModal('dutyModal')">&times;</button>
             <h2 id="dutyModalTitle" class="text-3xl font-bold text-center mb-6 text-gray-800">과세가격 일괄제출 관리</h2>
@@ -1101,8 +1171,8 @@
                             </select>
                         </div>
                     </div>
-                    <div class="overflow-x-auto" style="max-height: 600px; overflow-y: auto;">
-                        <table class="results-table">
+                    <div class="valuation-table-shell">
+                        <table class="results-table valuation-results-table">
                             <thead>
                                 <tr>
                                     <th>
@@ -1179,7 +1249,7 @@
                 <div class="bg-white rounded-lg">
                     <div class="flex justify-between items-center mb-4">
                         <h3 class="text-lg font-semibold text-gray-800">계정 목록</h3>
-                        <button onclick="loadAccountData()"
+                        <button id="accountRefreshButton" onclick="loadAccountData()"
                             class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
                             <i class="fas fa-refresh mr-2"></i>새로고침
                         </button>
@@ -1207,6 +1277,45 @@
         </div>
     </div>
 
+    <!-- 계정 편집 모달 -->
+    <div id="accountEditModal" class="modal account-edit-modal" role="dialog" aria-modal="true"
+        aria-hidden="true" aria-labelledby="accountEditModalTitle" onkeydown="handleAccountEditKeydown(event)">
+        <div class="account-edit-modal-content">
+            <button type="button" class="close-button" aria-label="계정 편집 창 닫기"
+                onclick="closeAccountEditModal()">&times;</button>
+            <h2 id="accountEditModalTitle" class="text-2xl font-bold text-gray-800 mb-6">계정 편집</h2>
+            <form id="accountEditForm" onsubmit="saveAccountEdit(event)">
+                <div class="mb-4">
+                    <label for="editAccountId" class="block text-sm font-medium text-gray-700 mb-2">아이디</label>
+                    <input id="editAccountId" type="text" readonly
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-600">
+                </div>
+                <div class="mb-4">
+                    <label for="editAccountCompany" class="block text-sm font-medium text-gray-700 mb-2">화주명</label>
+                    <input id="editAccountCompany" type="text" required
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div class="mb-2">
+                    <label for="editAccountPassword" class="block text-sm font-medium text-gray-700 mb-2">
+                        새 비밀번호
+                    </label>
+                    <input id="editAccountPassword" type="password" autocomplete="new-password"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="변경할 때만 입력">
+                    <p class="text-xs text-gray-500 mt-2">비워두면 현재 비밀번호를 유지합니다.</p>
+                </div>
+                <div class="flex justify-end gap-3 mt-6">
+                    <button type="button" onclick="closeAccountEditModal()"
+                        class="bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-300">취소</button>
+                    <button type="submit" data-valuation-mutation="account"
+                        class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
+                        <i class="fas fa-save mr-2"></i>저장
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- 토스트 메시지 -->
     <div id="toast" class="toast" role="status" aria-live="polite" aria-atomic="true"></div>
 
@@ -1230,6 +1339,8 @@
         };
         let editingRowIndex = -1;
         let editingOriginalData = null;
+        let editingAccountIndex = -1;
+        let accountEditReturnFocus = null;
         let currentPage = 1;
         let pageSize = 25;
         let sortColumn = 0;
@@ -1244,6 +1355,11 @@
         let accountMutationGeneration = 0;
         let dutyMutationInFlight = false;
         let accountMutationInFlight = false;
+        let dutyRevision = '';
+        let accountRevision = '';
+        let editingDutyRevision = '';
+        let editingAccountRevision = '';
+        let valuationExpiryTimer = null;
 
         // 페이지 로드 시 초기화
         document.addEventListener('DOMContentLoaded', function () {
@@ -1287,6 +1403,19 @@
 
         // API 호출 헬퍼 함수
         async function callAPI(action, data = {}) {
+            const sessionUser = currentUserData;
+            const sessionGeneration = valuationSessionGeneration;
+            const isLogin = action === 'login';
+            if (!isLogin && (!sessionUser || sessionUser.expiresAt <= Date.now())) {
+                expireValuationSession(sessionUser, sessionGeneration);
+                return { success: false, code: 'UNAUTHORIZED', message: '다시 로그인해주세요.' };
+            }
+            const mutationScope = /^(add|update|delete)Account$/.test(action) ? 'account'
+                : /^(add|update|delete)DutyRecord$/.test(action) ? 'duty' : '';
+            const revision = data.revision ?? (mutationScope === 'account' ? accountRevision : dutyRevision);
+            if (mutationScope && !revision) {
+                return { success: false, code: 'CONFLICT', message: 'DB 새로고침 후 다시 시도해주세요.' };
+            }
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 20000);
 
@@ -1294,10 +1423,14 @@
                 const formData = new FormData();
                 formData.append('action', action);
 
-                // 데이터 추가
+                // 호출자가 서버 인증 필드를 덮어쓸 수 없게 합니다.
                 Object.keys(data).forEach(key => {
+                    if (['action', 'token', 'isMaster', 'revision'].includes(key)) return;
+                    if (isLogin && !['username', 'password'].includes(key)) return;
                     formData.append(key, data[key]);
                 });
+                if (!isLogin) formData.append('token', sessionUser.token);
+                if (mutationScope) formData.append('revision', revision);
 
                 const response = await fetch(API_ENDPOINT, {
                     method: 'POST',
@@ -1306,10 +1439,14 @@
                 });
 
                 const responseBody = await response.text();
-                return ValuationUI.parseApiResponse(response.status, responseBody, action);
+                const result = ValuationUI.parseApiResponse(response.status, responseBody, action);
+                if (!isLogin && result.code === 'UNAUTHORIZED') {
+                    expireValuationSession(sessionUser, sessionGeneration);
+                }
+                return result;
             } catch (error) {
                 if (error && error.name === 'AbortError') {
-                    return { success: false, message: '서버 응답 시간이 초과되었습니다. 다시 시도해주세요.' };
+                    return { success: false, message: '서버 응답 시간이 초과되었습니다. DB 새로고침 후 처리 여부를 먼저 확인해주세요.' };
                 }
 
                 console.error('API call error');
@@ -1318,6 +1455,29 @@
                 clearTimeout(timeoutId);
             }
         }
+
+        function expireValuationSession(sessionUser, sessionGeneration) {
+            if (sessionUser !== currentUserData || sessionGeneration !== valuationSessionGeneration) return;
+            closeModal('dutyModal');
+            showDutyLogin();
+            showToast('로그인이 만료되었습니다. 다시 로그인해주세요.', 'error');
+        }
+
+        function scheduleValuationExpiry() {
+            clearTimeout(valuationExpiryTimer);
+            const sessionUser = currentUserData;
+            const sessionGeneration = valuationSessionGeneration;
+            valuationExpiryTimer = setTimeout(() => {
+                expireValuationSession(sessionUser, sessionGeneration);
+            }, Math.max(0, sessionUser.expiresAt - Date.now()));
+        }
+
+        // Suspended tabs may delay timers; re-check when the page is visible again.
+        document.addEventListener('visibilitychange', () => {
+            if (currentUserData && currentUserData.expiresAt <= Date.now()) {
+                expireValuationSession(currentUserData, valuationSessionGeneration);
+            }
+        });
 
         // 관세신고 조회 로그인 모달 표시
         function showDutyLogin() {
@@ -1396,6 +1556,69 @@
             setValuationMutationControls(mutation.scope, false);
         }
 
+        function resetAccountEditModal() {
+            editingAccountIndex = -1;
+            editingAccountRevision = '';
+            const form = document.getElementById('accountEditForm');
+            if (form) form.reset();
+        }
+
+        function setAccountEditBackgroundState(isOpen) {
+            const dutyModal = document.getElementById('dutyModal');
+            const dutyModalContent = document.getElementById('dutyModalContent');
+            dutyModalContent.inert = isOpen;
+            if (isOpen) {
+                dutyModal.setAttribute('aria-hidden', 'true');
+                dutyModal.setAttribute('aria-modal', 'false');
+            } else {
+                dutyModal.removeAttribute('aria-hidden');
+                dutyModal.setAttribute('aria-modal', 'true');
+            }
+        }
+
+        function handleAccountEditKeydown(event) {
+            const modal = document.getElementById('accountEditModal');
+            if (modal.style.display !== 'flex') return;
+
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                closeAccountEditModal();
+                return;
+            }
+            if (event.key !== 'Tab') return;
+
+            const focusable = [...modal.querySelectorAll(
+                'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [href], [tabindex]:not([tabindex="-1"])'
+            )].filter(element => element.offsetParent !== null);
+            if (!focusable.length) return;
+
+            const first = focusable[0];
+            const last = focusable[focusable.length - 1];
+            if (event.shiftKey && document.activeElement === first) {
+                event.preventDefault();
+                last.focus();
+            } else if (!event.shiftKey && document.activeElement === last) {
+                event.preventDefault();
+                first.focus();
+            }
+        }
+
+        function closeAccountEditModal(force = false, restoreFocus = true) {
+            if (accountMutationInFlight && !force) {
+                showToast('계정 저장을 처리 중입니다. 잠시만 기다려주세요.', 'error');
+                return;
+            }
+
+            const modal = document.getElementById('accountEditModal');
+            modal.style.display = 'none';
+            modal.setAttribute('aria-hidden', 'true');
+            setAccountEditBackgroundState(false);
+            resetAccountEditModal();
+            const returnFocus = accountEditReturnFocus;
+            accountEditReturnFocus = null;
+            if (restoreFocus && returnFocus && document.contains(returnFocus)) returnFocus.focus();
+        }
+
         // 모달 닫기 (X 버튼으로만)
         function closeModal(modalId) {
             document.getElementById(modalId).style.display = 'none';
@@ -1409,6 +1632,7 @@
 
             // 관세신고 모달 닫을 때 상태 초기화
             if (modalId === 'dutyModal') {
+                closeAccountEditModal(true, false);
                 valuationSessionGeneration += 1;
                 dutyLoadGeneration += 1;
                 accountLoadGeneration += 1;
@@ -1419,6 +1643,11 @@
                 setValuationMutationControls('duty', false);
                 setValuationMutationControls('account', false);
                 currentUserData = null;
+                clearTimeout(valuationExpiryTimer);
+                valuationExpiryTimer = null;
+                dutyRevision = '';
+                accountRevision = '';
+                editingDutyRevision = '';
                 allDutyData = [];
                 allAccountData = [];
                 filteredData = [];
@@ -1428,6 +1657,21 @@
                 editingRowIndex = -1;
                 editingOriginalData = null;
                 clearDutyFilterInputs();
+                autocompleteCache = { companies: [], suppliers: [], payments: [], trades: [], deliveries: [] };
+                ['dutyResultsBody', 'accountResultsBody'].forEach(id => {
+                    document.getElementById(id).innerHTML = '';
+                });
+                ['currentUser', 'currentCompany', 'resultCount', 'pageIndicator'].forEach(id => {
+                    document.getElementById(id).textContent = '';
+                });
+                ['newAccountId', 'newAccountPw', 'newAccountCompany',
+                    'newCompany', 'newSupplier', 'newPayment', 'newTrade', 'newDelivery', 'newDeclaration']
+                    .forEach(id => { document.getElementById(id).value = ''; });
+                document.querySelectorAll('.autocomplete-dropdown').forEach(dropdown => {
+                    dropdown.innerHTML = '';
+                    dropdown.style.display = 'none';
+                });
+                document.getElementById('loginForm').reset();
             }
         }
 
@@ -1454,6 +1698,7 @@
                 }
                 valuationSessionGeneration += 1;
                 currentUserData = normalizedUser;
+                scheduleValuationExpiry();
                 closeModal('loginModal');
                 showDutyModal();
             } else {
@@ -1481,6 +1726,7 @@
             }
 
             document.getElementById('dutyModal').style.display = 'flex';
+            switchTab('duty-management', document.querySelector('#masterTabs .tab-button'));
 
             // 데이터 로드 (로딩 완료 후 표시)
             await loadDutyData(sessionGeneration, sessionUser);
@@ -1505,7 +1751,17 @@
             return currentUserData && currentUserData.isMaster ? 8 : 7;
         }
 
+        function endDutyEditingForRender() {
+            if (editingRowIndex !== -1) {
+                showToast('조회 화면 변경으로 편집이 취소되었습니다. 다시 편집해주세요.', 'error');
+            }
+            editingRowIndex = -1;
+            editingOriginalData = null;
+            editingDutyRevision = '';
+        }
+
         function showDutyTableMessage(message, type = 'loading', allowRetry = false) {
+            endDutyEditingForRender();
             const color = type === 'error' ? 'text-red-500' : 'text-gray-500';
             const spinner = type === 'loading'
                 ? '<div class="loading-spinner mx-auto mb-2"></div>'
@@ -1524,12 +1780,10 @@
         ) {
             if (!requestingUser || !isValuationSessionCurrent(sessionGeneration, requestingUser)) return;
             const loadGeneration = ++dutyLoadGeneration;
+            dutyRevision = '';
             showDutyTableMessage('데이터를 불러오는 중입니다.');
 
-            const result = await callAPI('getDutyData', {
-                isMaster: requestingUser.isMaster,
-                company: requestingUser.company
-            });
+            const result = await callAPI('getDutyData');
 
             if (loadGeneration !== dutyLoadGeneration
                 || !isValuationSessionCurrent(sessionGeneration, requestingUser)) {
@@ -1538,13 +1792,14 @@
 
             if (result.success) {
                 const normalizedRows = ValuationUI.normalizeDutyRows(result.data);
-                if (!normalizedRows) {
+                if (!normalizedRows || (requestingUser.isMaster && !result.revision)) {
                     const message = '신고내역 데이터 형식이 올바르지 않습니다. 관리자에게 확인해주세요.';
                     showToast(message, 'error');
                     showDutyTableMessage(message, 'error', true);
                     return;
                 }
                 // 원본 인덱스를 포함하도록 데이터 구조화
+                dutyRevision = result.revision || '';
                 allDutyData = normalizedRows.map((row, index) => ({
                     data: row,
                     originalIndex: index
@@ -1561,7 +1816,9 @@
 
         // 자동완성 캐시 업데이트
         function updateAutocompleteCache() {
-            autocompleteCache.companies = [...new Set(allDutyData.map(item => item.data[0]).filter(Boolean))];
+            autocompleteCache.companies = ValuationUI.dedupeCompanyNames(
+                allDutyData.map(item => item.data[0]).filter(Boolean)
+            );
             autocompleteCache.suppliers = [...new Set(allDutyData.map(item => item.data[1]).filter(Boolean))];
             autocompleteCache.payments = [...new Set(allDutyData.map(item => item.data[2]).filter(Boolean))];
             autocompleteCache.trades = [...new Set(allDutyData.map(item => item.data[3]).filter(Boolean))];
@@ -1578,7 +1835,9 @@
         };
 
         const handleAutocomplete = debounce((input, type) => {
-            const value = input.value.toLowerCase();
+            const value = type === 'company'
+                ? ValuationUI.companySearchKey(input.value)
+                : input.value.toLowerCase();
             if (value.length < 1) {
                 hideAutocomplete(input);
                 return;
@@ -1603,9 +1862,11 @@
                     break;
             }
 
-            suggestions = suggestions.filter(item =>
-                item.toLowerCase().includes(value)
-            ).slice(0, 10);
+            suggestions = suggestions.filter(item => (
+                type === 'company'
+                    ? ValuationUI.companySearchKey(item).includes(value)
+                    : item.toLowerCase().includes(value)
+            )).slice(0, 10);
 
             showAutocomplete(input, suggestions);
         }, 300);
@@ -1707,23 +1968,23 @@
             if (!requestingUser || !requestingUser.isMaster
                 || !isValuationSessionCurrent(sessionGeneration, requestingUser)) return;
             const loadGeneration = ++accountLoadGeneration;
+            accountRevision = '';
 
-            const result = await callAPI('getAccountData', {
-                isMaster: requestingUser.isMaster
-            });
+            const result = await callAPI('getAccountData');
 
             if (loadGeneration !== accountLoadGeneration
                 || !isValuationSessionCurrent(sessionGeneration, requestingUser)) return;
 
             if (result.success) {
                 const sanitizedRows = ValuationUI.sanitizeAccountRows(result.data);
-                if (!sanitizedRows) {
+                if (!sanitizedRows || !result.revision) {
                     allAccountData = [];
                     showToast('계정 데이터 형식이 올바르지 않습니다. 관리자에게 확인해주세요.', 'error');
                     document.getElementById('accountResultsBody').innerHTML =
                         '<tr><td colspan="3" class="text-center text-red-500 py-8">계정 데이터 형식이 올바르지 않습니다.</td></tr>';
                     return;
                 }
+                accountRevision = result.revision;
                 allAccountData = sanitizedRows;
                 displayAccountResults();
             } else {
@@ -1735,6 +1996,7 @@
 
         // 조회 결과 표시
         function displayDutyResults() {
+            endDutyEditingForRender();
             const tbody = document.getElementById('dutyResultsBody');
             const resultCount = document.getElementById('resultCount');
             const sorted = ValuationUI.sortRecords(filteredData, sortColumn, sortDirection);
@@ -1800,20 +2062,23 @@
                 return;
             }
 
-            tbody.innerHTML = allAccountData.map((account) => `
-                <tr id="account-row-${account.originalIndex}">
-                    <td>${ValuationUI.escapeHtml(account.id)}</td>
-                    <td>${ValuationUI.escapeHtml(account.company)}</td>
-                    <td>
-                        <button type="button" class="edit-button" onclick="editAccount(${account.originalIndex})" ${account.id === 'aincustoms' ? 'disabled style="opacity: 0.5;"' : ''}>
-                            <i class="fas fa-edit"></i> 편집
-                        </button>
-                        <button type="button" ${account.id === 'aincustoms' ? '' : 'data-valuation-mutation="account"'} class="delete-button" onclick="deleteAccount(${account.originalIndex})" ${account.id === 'aincustoms' ? 'disabled style="opacity: 0.5;"' : ''}>
-                            <i class="fas fa-trash"></i> 삭제
-                        </button>
-                    </td>
-                </tr>
-            `).join('');
+            tbody.innerHTML = allAccountData.map((account) => {
+                const isProtected = ValuationUI.isProtectedAccountId(account.id);
+                return `
+                    <tr id="account-row-${account.originalIndex}">
+                        <td>${ValuationUI.escapeHtml(account.id)}</td>
+                        <td>${ValuationUI.escapeHtml(account.company)}</td>
+                        <td>
+                            <button type="button" class="edit-button" onclick="editAccount(${account.originalIndex})" ${isProtected ? 'disabled style="opacity: 0.5;"' : ''}>
+                                <i class="fas fa-edit"></i> 편집
+                            </button>
+                            <button type="button" ${isProtected ? '' : 'data-valuation-mutation="account"'} class="delete-button" onclick="deleteAccount(${account.originalIndex})" ${isProtected ? 'disabled style="opacity: 0.5;"' : ''}>
+                                <i class="fas fa-trash"></i> 삭제
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
         }
 
         // 필터 옵션 채우기
@@ -1979,7 +2244,6 @@
             if (!mutation) return;
             try {
                 const result = await callAPI('addDutyRecord', {
-                    isMaster: mutation.user.isMaster,
                     company, supplier, payment, trade, delivery, declaration
                 });
                 if (!isValuationMutationCurrent(mutation)) return;
@@ -2002,10 +2266,10 @@
             if (!currentUserData || !currentUserData.isMaster) return;
 
             const id = document.getElementById('newAccountId').value.trim();
-            const password = document.getElementById('newAccountPw').value.trim();
+            const password = document.getElementById('newAccountPw').value;
             const company = document.getElementById('newAccountCompany').value.trim();
 
-            if (!id || !password || !company) {
+            if (!id || !password.trim() || !company) {
                 showToast('모든 필드를 입력해주세요.', 'error');
                 return;
             }
@@ -2014,7 +2278,6 @@
             if (!mutation) return;
             try {
                 const result = await callAPI('addAccount', {
-                    isMaster: mutation.user.isMaster,
                     id, password, company
                 });
                 if (!isValuationMutationCurrent(mutation)) return;
@@ -2035,9 +2298,10 @@
 
         // 행 편집 (마스터 전용)
         function editRow(index) {
-            if (!currentUserData.isMaster || editingRowIndex !== -1) return;
+            if (!currentUserData || !currentUserData.isMaster || editingRowIndex !== -1) return;
 
             editingRowIndex = index;
+            editingDutyRevision = dutyRevision;
             // originalIndex를 통해 전체 데이터에서 해당 항목 찾기
             const item = allDutyData[index];
             if (!item) return;
@@ -2088,7 +2352,7 @@
             if (!mutation) return;
             try {
                 const result = await callAPI('updateDutyRecord', {
-                    isMaster: mutation.user.isMaster,
+                    revision: editingDutyRevision,
                     rowIndex: index,
                     company: newData[0],
                     supplier: newData[1],
@@ -2139,7 +2403,6 @@
             if (!mutation) return;
             try {
                 const result = await callAPI('deleteDutyRecord', {
-                    isMaster: mutation.user.isMaster,
                     rowIndex: index
                 });
                 if (!isValuationMutationCurrent(mutation)) return;
@@ -2158,16 +2421,68 @@
         // 계정 편집 (마스터 전용)
         function editAccount(index) {
             const account = allAccountData.find(item => item.originalIndex === index);
-            if (!currentUserData.isMaster || !account || account.id === 'aincustoms') return;
+            if (!currentUserData || !currentUserData.isMaster
+                || !account || ValuationUI.isProtectedAccountId(account.id)) return;
 
-            // 계정 편집 구현 (생략 - 필요시 추가)
-            showToast('계정 편집 기능은 추후 구현 예정입니다.', 'error');
+            accountEditReturnFocus = document.activeElement;
+            editingAccountIndex = index;
+            editingAccountRevision = accountRevision;
+            document.getElementById('editAccountId').value = account.id;
+            document.getElementById('editAccountCompany').value = account.company;
+            document.getElementById('editAccountPassword').value = '';
+            const modal = document.getElementById('accountEditModal');
+            setAccountEditBackgroundState(true);
+            modal.style.display = 'flex';
+            modal.setAttribute('aria-hidden', 'false');
+            document.getElementById('editAccountCompany').focus();
+        }
+
+        async function saveAccountEdit(event) {
+            event.preventDefault();
+            if (!currentUserData || !currentUserData.isMaster || editingAccountIndex < 0) return;
+
+            const account = allAccountData.find(item => item.originalIndex === editingAccountIndex);
+            const accountPayload = ValuationUI.buildAccountUpdatePayload(
+                account,
+                document.getElementById('editAccountCompany').value,
+                document.getElementById('editAccountPassword').value
+            );
+            if (!accountPayload) {
+                showToast('화주명과 새 비밀번호를 다시 확인해주세요.', 'error');
+                return;
+            }
+
+            const mutation = beginValuationMutation('account');
+            if (!mutation) return;
+            const updatedAccountIndex = editingAccountIndex;
+            accountPayload.revision = editingAccountRevision;
+            try {
+                const result = await callAPI('updateAccount', accountPayload);
+                if (!isValuationMutationCurrent(mutation)) return;
+
+                if (result.success) {
+                    closeAccountEditModal(true, false);
+                    showToast('계정을 수정했습니다.', 'success');
+                    await loadAccountData(mutation.sessionGeneration, mutation.user);
+                    const refreshedEditButton = document.querySelector(
+                        `#account-row-${updatedAccountIndex} .edit-button:not([disabled])`
+                    );
+                    const accountFocusTarget = refreshedEditButton
+                        || document.getElementById('accountRefreshButton');
+                    if (accountFocusTarget) accountFocusTarget.focus();
+                } else {
+                    showToast(result.message, 'error');
+                }
+            } finally {
+                finishValuationMutation(mutation);
+            }
         }
 
         // 계정 삭제 (마스터 전용)
         async function deleteAccount(index) {
             const account = allAccountData.find(item => item.originalIndex === index);
-            if (!currentUserData || !currentUserData.isMaster || !account || account.id === 'aincustoms') return;
+            if (!currentUserData || !currentUserData.isMaster
+                || !account || ValuationUI.isProtectedAccountId(account.id)) return;
 
             if (!confirm(`계정 "${account.id}"을(를) 삭제하시겠습니까?`)) return;
 
@@ -2175,7 +2490,6 @@
             if (!mutation) return;
             try {
                 const result = await callAPI('deleteAccount', {
-                    isMaster: mutation.user.isMaster,
                     rowIndex: index,
                     id: account.id
                 });
