@@ -107,6 +107,29 @@ function exemptionExpiryState(due) {
     return '';
 }
 
+// onclick 안의 작은따옴표 문자열에도 값이 들어가므로 ' 와 ` 까지 막는다.
+// 시트 값은 담당자·CSV 업로드로 들어오는 신뢰할 수 없는 입력이다.
+const esc = (v) => String(v == null ? '' : v)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/`/g, '&#96;');
+
+// 면제확인과 수입신고는 1:1 이 아니다.
+// 한 면제확인이 분할신고로 여러 신고에 걸리기도 하고(승인 2건 확인),
+// 한 신고에 기자재별 면제확인이 여럿 붙기도 한다(신고 5건 확인).
+// 시트에는 쉼표로 이어 두고, 화면에서는 줄을 나눠 건수와 함께 보여 준다.
+function splitList(v) {
+    return String(v == null ? '' : v).split(',').map(x => x.trim()).filter(Boolean);
+}
+
+function declCell(v) {
+    const list = splitList(v);
+    if (!list.length) return '-';
+    if (list.length === 1) return esc(list[0]);
+    return `<span class="decl-multi" title="${esc(list.join(' / '))}">`
+        + list.map(d => `<span class="decl-item">${esc(d)}</span>`).join('')
+        + `<span class="decl-count">${list.length}건</span></span>`;
+}
+
 function renderRadioExemptionTable(records) {
     const tbody = document.getElementById('radioExemptionTableBody');
     if (!tbody) return;
@@ -117,12 +140,6 @@ function renderRadioExemptionTable(records) {
             '<i class="fas fa-inbox"></i><p>표시할 면제 내역이 없습니다.</p></td></tr>';
         return;
     }
-
-    // onclick 안의 작은따옴표 문자열에도 값이 들어가므로 ' 와 ` 까지 막는다.
-    // 시트 값은 담당자·CSV 업로드로 들어오는 신뢰할 수 없는 입력이다.
-    const esc = (v) => String(v == null ? '' : v)
-        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/`/g, '&#96;');
 
     renderPagedRows('radio_exemption', tbody, records, item => {
         const done = String(item.report_done || '').trim().toUpperCase();
@@ -155,7 +172,7 @@ function renderRadioExemptionTable(records) {
             <td>${esc(item.approval_date || '-')}</td>
             <td>${expiryCell}</td>
             <td>${badge}</td>
-            <td class="mono">${esc(item.decl_no || '-')}</td>
+            <td class="mono">${declCell(item.decl_no)}</td>
             <td>
                 <button class="btn-icon" title="이행보고 O/X 전환"
                         onclick="toggleExemptionReport('${esc(item.id)}')">

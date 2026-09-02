@@ -6,7 +6,7 @@
     <title>AIN 수입요건 관리 시스템</title>
 
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="css/style.css?v=6.1.0">
+    <link rel="stylesheet" href="css/style.css?v=6.1.1">
     <link rel="stylesheet" href="css/unified-search.css">
     <link rel="stylesheet" href="css/review-needed.css">
 </head>
@@ -79,7 +79,9 @@
                     <li class="menu-item" data-section="non_target">
                         <i class="fas fa-times-circle"></i> 비대상
                     </li>
-                    <li class="menu-item" data-section="radio_exemption">
+                    <!-- 전파 면제 관리: 내역 보완 검증 중이라 메뉴에서 감춘다.
+                         화면과 데이터는 그대로 있으므로 style 의 display 만 지우면 다시 보인다. -->
+                    <li class="menu-item" data-section="radio_exemption" style="display: none;">
                         <i class="fas fa-file-signature"></i> 전파 면제 관리
                     </li>
                     <li class="menu-item" data-section="review_needed">
@@ -797,16 +799,16 @@
     <script src="js/runtime-config.js"></script>
     <script src="js/google-sheets-api.js?v=6.0.2"></script>
     <script src="js/date-formatter.js?v=6.0.0"></script>
-    <script src="js/pagination.js?v=6.1.0"></script>
+    <script src="js/pagination.js?v=6.1.1"></script>
     <script src="js/auth.js?v=6.0.2"></script>
     <script src="js/parser.js?v=6.0.0"></script>
-    <script src="js/file-handler.js?v=6.1.0"></script>
+    <script src="js/file-handler.js?v=6.1.1"></script>
     <script src="js/unified-search.js?v=6.0.7"></script>
-    <script src="js/review-needed.js?v=6.1.0"></script>
-    <script src="js/radio-exemption.js?v=6.1.0"></script>
+    <script src="js/review-needed.js?v=6.1.1"></script>
+    <script src="js/radio-exemption.js?v=6.1.1"></script>
     <script src="js/selection-delete.js?v=6.0.2"></script>
     <script src="js/duplicate-checker.js?v=6.0.4"></script>
     <script src="js/edit-request.js?v=6.0.0"></script>
-    <script src="js/app.js?v=6.1.0"></script>
+    <script src="js/app.js?v=6.1.1"></script>
 </body>
 </html>
