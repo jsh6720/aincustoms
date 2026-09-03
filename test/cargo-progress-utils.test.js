@@ -9,6 +9,7 @@ const {
   freeTimeExpiry,
   progressStateText,
   normalizeInspectionStatus,
+  nextManualInspectionStatus,
   sortProgressCards,
 } = require("../lib/cargo-progress-utils");
 
@@ -87,6 +88,14 @@ test("inspection status accepts automatic, O, triangle, and X only", () => {
   assert.equal(normalizeInspectionStatus("△"), "△");
   assert.equal(normalizeInspectionStatus("x"), "X");
   assert.throws(() => normalizeInspectionStatus("pending"), /invalid inspection status/i);
+});
+
+test("manual inspection status can only alternate between X and triangle", () => {
+  assert.equal(typeof nextManualInspectionStatus, "function");
+  assert.equal(nextManualInspectionStatus(""), "△");
+  assert.equal(nextManualInspectionStatus("X"), "△");
+  assert.equal(nextManualInspectionStatus("△"), "X");
+  assert.equal(nextManualInspectionStatus("O"), "X");
 });
 
 test("Customs quarantine pass recognizes only the matching approved inspection text", () => {

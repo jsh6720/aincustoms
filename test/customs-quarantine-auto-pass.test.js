@@ -21,6 +21,10 @@ function inspectionToggle(card, type) {
     currentUserRole: "admin",
     currentCards: [card],
     esc: (value) => String(value ?? ""),
+    manualInspectionStatus: (value) => {
+      const status = String(value || "").trim().toUpperCase();
+      return status === "X" || status === "△" ? status : "";
+    },
   };
   vm.createContext(context);
   vm.runInContext(
@@ -66,6 +70,7 @@ test("manual inspection state remains editable when Customs has not approved it"
   const html = inspectionToggle(
     {
       animal_quarantine: "△",
+
       animal_quarantine_override: "△",
       animal_quarantine_customs_passed: false,
     },
@@ -75,6 +80,30 @@ test("manual inspection state remains editable when Customs has not approved it"
   assert.match(html, /<button/);
   assert.match(html, />△<\/button>/);
   assert.doesNotMatch(html, /관세청 확인/);
+});
+
+test("manual O never renders as approval without Customs evidence", () => {
+  const html = inspectionToggle(
+    {
+      animal_quarantine: "O",
+      animal_quarantine_override: "O",
+      animal_quarantine_customs_passed: false,
+    },
+    "animal"
+  );
+
+  assert.match(html, /<button/);
+  assert.match(html, />X<\/button>/);
+  assert.doesNotMatch(html, />O<\/button>/);
+  assert.doesNotMatch(html, /관세청 확인/);
+});
+
+test("admin inspection selector excludes manual approval", () => {
+  const start = dashboard.indexOf("function inspectionOptions");
+  const end = dashboard.indexOf("function distributionHistoryBadge", start);
+  const source = dashboard.slice(start, end);
+  assert.match(source, /△ \(신청서 작성\)/);
+  assert.doesNotMatch(source, /O \(합격\)/);
 });
 
 test("cargo data keeps raw Customs quarantine text and exposes approval flags", () => {

@@ -32,11 +32,11 @@ test("matching cargo schema version allows a write preflight", async () => {
 test("a newer additive cargo schema version remains compatible", async () => {
   const metadata = await assertCargoSchema(async () => [{
     component: "cargo_dashboard",
-    schema_version: "20260902090000",
-    migration_name: "20260902090000_add_missing_sticker_notifications.sql",
+    schema_version: "20260903090000",
+    migration_name: "20260903090000_add_missing_quarantine_notifications.sql",
   }], { force: true });
 
-  assert.equal(metadata.schema_version, "20260902090000");
+  assert.equal(metadata.schema_version, "20260903090000");
 });
 
 test("schema mismatch is a sanitized actionable 503", async () => {

@@ -1223,11 +1223,14 @@
         <option value="X" ${v === "X" ? "selected" : ""}>X</option>
       `;
     }
+    function manualInspectionStatus(value) {
+      const status = String(value || "").trim().toUpperCase();
+      return status === "X" || status === "△" ? status : "";
+    }
     function inspectionOptions(value) {
-      const v = value || "";
+      const v = manualInspectionStatus(value);
       return `
         <option value="" ${!v ? "selected" : ""}>자동</option>
-        <option value="O" ${v === "O" ? "selected" : ""}>O (합격)</option>
         <option value="△" ${v === "△" ? "selected" : ""}>△ (신청서 작성)</option>
         <option value="X" ${v === "X" ? "selected" : ""}>X</option>
       `;
@@ -1631,23 +1634,21 @@
     function progressManualStatusToggle(card, type) {
       const idx = currentCards.indexOf(card);
       if (type === "animal") {
-        if (card.animal_quarantine_customs_passed === true) {
-          return inspectionStatusLabel("O", "관세청 확인");
-        }
-        const lockedByApi = !card.animal_quarantine_override && inspectionPassed(card.animal_quarantine);
-        const status = card.animal_quarantine_override || (inspectionPassed(card.animal_quarantine) ? "O" : "X");
-        if (currentUserRole !== "admin" || lockedByApi) return inspectionStatusLabel(status);
-        const statusClass = status === "O" ? "doc-o" : (status === "△" ? "doc-triangle" : "doc-x");
+        const customsPassed = card.animal_quarantine_customs_passed === true
+          || (/합격/.test(String(card.animal_quarantine || "")) && !/불합격/.test(String(card.animal_quarantine || "")));
+        if (customsPassed) return inspectionStatusLabel("O", "관세청 확인");
+        const status = manualInspectionStatus(card.animal_quarantine_override) || "X";
+        if (currentUserRole !== "admin") return inspectionStatusLabel(status);
+        const statusClass = status === "△" ? "doc-triangle" : "doc-x";
         return `<button type="button" class="doc-toggle ${statusClass}" onclick="toggleProgressManualStatus(${idx}, 'animal')">${status}</button>`;
       }
       if (type === "food") {
-        if (card.food_quarantine_customs_passed === true) {
-          return inspectionStatusLabel("O", "관세청 확인");
-        }
-        const lockedByApi = !card.food_quarantine_override && inspectionPassed(card.food_quarantine);
-        const status = card.food_quarantine_override || (inspectionPassed(card.food_quarantine) ? "O" : "X");
-        if (currentUserRole !== "admin" || lockedByApi) return inspectionStatusLabel(status);
-        const statusClass = status === "O" ? "doc-o" : (status === "△" ? "doc-triangle" : "doc-x");
+        const customsPassed = card.food_quarantine_customs_passed === true
+          || (/합격/.test(String(card.food_quarantine || "")) && !/불합격/.test(String(card.food_quarantine || "")));
+        if (customsPassed) return inspectionStatusLabel("O", "관세청 확인");
+        const status = manualInspectionStatus(card.food_quarantine_override) || "X";
+        if (currentUserRole !== "admin") return inspectionStatusLabel(status);
+        const statusClass = status === "△" ? "doc-triangle" : "doc-x";
         return `<button type="button" class="doc-toggle ${statusClass}" onclick="toggleProgressManualStatus(${idx}, 'food')">${status}</button>`;
       }
       if (type === "sticker") {
@@ -3096,16 +3097,14 @@
 
       const labels = { animal: "동물검역", food: "식품검역", distribution: "유통이력", sticker: "스티커요청" };
       let currentOn = false;
-      if (type === "animal") currentOn = inspectionPassed(card.animal_quarantine);
-      if (type === "food") currentOn = inspectionPassed(card.food_quarantine);
       if (type === "distribution") currentOn = (card.distribution_history_override || (card.distribution_history_number ? "O" : "X")) === "O";
       if (type === "sticker") currentOn = card.sticker_requested === true;
 
       let next = currentOn ? "X" : "O";
       if (type === "animal" || type === "food") {
         const field = type === "animal" ? "animal_quarantine_override" : "food_quarantine_override";
-        const current = card[field] || (currentOn ? "O" : "X");
-        next = current === "X" ? "△" : (current === "△" ? "O" : "X");
+        const current = manualInspectionStatus(card[field]) || "X";
+        next = current === "△" ? "X" : "△";
       }
       let distributionNumber = card.distribution_history_number || "";
       if (type === "distribution" && next === "O") {

@@ -51,6 +51,39 @@ function responseFixture() {
   };
 }
 
+test("manual quarantine status rejects O before writing to Supabase", { concurrency: false }, async () => {
+  let writeAttempted = false;
+  const handler = loadHandler(async (url) => {
+    if (url.includes("cargo_cards?select=*&")) {
+      return [{
+        account_id: "hch-account",
+        bl_number: "MEDUUL976450",
+        folder_name: "현대코퍼레이션H_MEDUUL976450_CIF_캐틀팜_우육_호주",
+      }];
+    }
+    if (url.includes("cargo_card_user_inputs?on_conflict=")) {
+      writeAttempted = true;
+      return [];
+    }
+    throw new Error(`Unexpected Supabase call: ${url}`);
+  });
+  const response = responseFixture();
+
+  await handler({
+    method: "POST",
+    body: {
+      action: "admin_status",
+      account_id: "hch-account",
+      bl_number: "MEDUUL976450",
+      animal_quarantine_override: "O",
+    },
+  }, response);
+
+  assert.equal(response.statusCode, 400);
+  assert.match(response.body.message, /관세청/);
+  assert.equal(writeAttempted, false);
+});
+
 test("sticker status propagates only to linked account rows", { concurrency: false }, async () => {
   let savedPayload = null;
   const handler = loadHandler(async (url, options = {}) => {

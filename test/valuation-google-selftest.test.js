@@ -53,10 +53,12 @@ test("a broken runner check fails rather than reporting a pass", () => {
 });
 
 test("a duty-data isolation regression fails the generated runner instead of reporting a pass", () => {
-  const leakedRows = bundle().replace(
-    "data: auth.isMaster ? rows : rows.filter(function (row) {\n      return companyKey_(row[0]) === companyKey_(auth.row[2]);\n    }),",
+  const original = bundle();
+  const leakedRows = original.replace(
+    /data: auth\.isMaster \? rows : rows\.filter\(function \(row\) \{\r?\n\s*return companyKey_\(row\[0\]\) === companyKey_\(auth\.row\[2\]\);\r?\n\s*\}\),/,
     "data: rows,"
   );
+  assert.notEqual(leakedRows, original, "duty-data isolation guard was not found");
   const result = runSelfTestBundle(leakedRows);
   assert.match(result.error.message, /^VALUATION_SELFTEST_FAILED:VST_04$/);
   assert.equal(result.safeLog.includes("VALUATION_GOOGLE_SELFTEST_PASS"), false);

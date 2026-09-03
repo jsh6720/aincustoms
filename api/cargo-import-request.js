@@ -23,6 +23,9 @@ const {
 const {
   buildMissingStickerMail,
 } = require("../lib/cargo-missing-sticker-notification");
+const {
+  buildMissingQuarantineMail,
+} = require("../lib/cargo-missing-quarantine-notification");
 const { deliverManualMailOnce } = require("../lib/cargo-mail-dedupe");
 const {
   deliverAutomaticMailOnce,
@@ -33,6 +36,10 @@ const MISSING_WAREHOUSE_PLAN_RECIPIENTS = [
   "jsh@aincustoms.com", "jhcho@aincustoms.com", "bill@aincustoms.com",
 ];
 const MISSING_STICKER_RECIPIENTS = [
+  "jsh@aincustoms.com", "jhcho@aincustoms.com",
+  "bill@aincustoms.com", "ain@aincustoms.com",
+];
+const MISSING_QUARANTINE_RECIPIENTS = [
   "jsh@aincustoms.com", "jhcho@aincustoms.com",
   "bill@aincustoms.com", "ain@aincustoms.com",
 ];
@@ -437,6 +444,69 @@ async function handleAutomaticMissingStickerNotice(req, res, body) {
   }
 }
 
+
+async function sendMissingQuarantineMail(snapshot) {
+  const host = env("SMTP_HOST");
+  const user = env("SMTP_USER");
+  const pass = env("SMTP_PASS");
+  if (!host || !user || !pass) {
+    throw preDeliveryError("메일 환경변수가 설정되지 않았습니다.");
+  }
+
+  const setting = await fetchMailSetting(supabaseFetch, "ain_default");
+  const recipients = resolveMailRecipients({
+    setting,
+    fallbackTo: MISSING_QUARANTINE_RECIPIENTS,
+  });
+  if (!recipients.to.length) {
+    throw preDeliveryError("검역신고 확인 수신처가 설정되지 않았습니다.");
+  }
+
+  const transporter = nodemailer.createTransport({
+    host,
+    port: Number(env("SMTP_PORT") || 465),
+    secure: String(env("SMTP_SECURE") || "true").toLowerCase() !== "false",
+    auth: { user, pass },
+  });
+  const mail = buildMissingQuarantineMail(snapshot);
+  return transporter.sendMail({
+    from: env("MAIL_FROM") || user,
+    to: recipients.to.join(","),
+    cc: recipients.cc.length ? recipients.cc.join(",") : undefined,
+    subject: mail.subject,
+    text: mail.text,
+    html: mail.html || mailTextToHtml(mail.text),
+  });
+}
+
+async function handleAutomaticMissingQuarantineNotice(req, res, body) {
+  const eventId = String(body.event_id || "").trim();
+  const timestamp = String(req.headers?.["x-cargo-sync-timestamp"] || "").trim();
+  const signature = String(req.headers?.["x-cargo-sync-signature"] || "").trim();
+  if (!verifySyncSignature({
+    secret: env("SUPABASE_SERVICE_ROLE_KEY"),
+    timestamp,
+    eventId,
+    signature,
+  })) {
+    return res.status(401).json({ success: false, message: "Invalid sync signature" });
+  }
+
+  try {
+    const delivery = await deliverAutomaticMailOnce({
+      supabaseFetch,
+      eventId,
+      allowedEventTypes: ["quarantine_declaration_missing"],
+      sendMail: async (claim) => {
+        const card = await hchCardFromClaim(claim);
+        return sendMissingQuarantineMail(card);
+      },
+    });
+    return automaticDeliveryResponse(res, delivery);
+  } catch (error) {
+    return automaticDeliveryError(res, error);
+  }
+}
 async function sendMail(card, request, session, account) {
   const host = env("SMTP_HOST");
   const user = env("SMTP_USER");
@@ -510,6 +580,9 @@ module.exports = async function handler(req, res) {
     }
     if (body.action === "auto_missing_sticker_notice") {
       return await handleAutomaticMissingStickerNotice(req, res, body);
+    }
+    if (body.action === "auto_missing_quarantine_notice") {
+      return await handleAutomaticMissingQuarantineNotice(req, res, body);
     }
 
     const session = requireWritableSession(req, res);

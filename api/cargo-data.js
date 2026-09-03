@@ -8,6 +8,7 @@ const { mergeDuplicateCargoCards } = require("../lib/cargo-card-merge");
 const {
   customsArrivalConfirmed,
   customsQuarantineFlags,
+  manualInspectionStatus,
 } = require("../lib/cargo-progress-utils");
 const { cargoUserInputsQuery } = require("../lib/cargo-user-input-query");
 const { effectiveStorageYard } = require("../lib/cargo-warehouse-utils");
@@ -257,6 +258,7 @@ function applyUserInputs(cards, inputs, cardRefs = cards, deliveryInputs = input
   return (cards || []).map((card) => {
     const input = byBl.get(`${card.account_id || ""}|${card.bl_number}`) || byBl.get(`|${card.bl_number}`);
     const delivery = mergeLinkedDeliveryStatus(card, cardRefs, deliveryInputs);
+
     const customsQuarantine = customsQuarantineFlags(card);
     const customsQuarantineFields = {
       animal_quarantine_customs_text: customsQuarantine.animalPassed
@@ -268,12 +270,24 @@ function applyUserInputs(cards, inputs, cardRefs = cards, deliveryInputs = input
       animal_quarantine_customs_passed: customsQuarantine.animalPassed,
       food_quarantine_customs_passed: customsQuarantine.foodPassed,
     };
+    const animalManualStatus = manualInspectionStatus(input?.animal_quarantine_override);
+    const foodManualStatus = manualInspectionStatus(input?.food_quarantine_override);
+    const animalCustomsStatus = customsQuarantine.animalPassed
+      ? "합격"
+      : (String(card.animal_quarantine || "").trim() === "O" ? "" : card.animal_quarantine);
+    const foodCustomsStatus = customsQuarantine.foodPassed
+      ? "합격"
+      : (String(card.food_quarantine || "").trim() === "O" ? "" : card.food_quarantine);
     if (!input) {
       return {
         ...card,
         storage_yard: effectiveStorageYard(card.storage_yard, card.shed_name),
         ...delivery,
         ...customsQuarantineFields,
+        animal_quarantine_override: "",
+        food_quarantine_override: "",
+        animal_quarantine: animalCustomsStatus || "",
+        food_quarantine: foodCustomsStatus || "",
         free_time_days: 3,
         eta_date_user_entered: false,
       };
@@ -300,8 +314,8 @@ function applyUserInputs(cards, inputs, cardRefs = cards, deliveryInputs = input
       eta_date_confirmed: customsArrivalConfirmed(card) || input.eta_date_confirmed === true,
       storage_yard_confirmed: input.storage_yard_confirmed === true,
       warehouse_expected_date_confirmed: input.warehouse_expected_date_confirmed === true,
-      animal_quarantine_override: input.animal_quarantine_override || "",
-      food_quarantine_override: input.food_quarantine_override || "",
+      animal_quarantine_override: animalManualStatus || "",
+      food_quarantine_override: foodManualStatus || "",
       ...customsQuarantineFields,
       import_declaration_override: input.import_declaration_override || "",
       distribution_history_override: input.distribution_history_override || "",
@@ -314,8 +328,8 @@ function applyUserInputs(cards, inputs, cardRefs = cards, deliveryInputs = input
       transport_updated_by_role: input.transport_updated_by_role || "",
       transport_updated_by_login: input.transport_updated_by_login || "",
       transport_updated_at: input.transport_updated_at || null,
-      animal_quarantine: input.animal_quarantine_override || card.animal_quarantine || "",
-      food_quarantine: input.food_quarantine_override || card.food_quarantine || "",
+      animal_quarantine: animalCustomsStatus || animalManualStatus || "",
+      food_quarantine: foodCustomsStatus || foodManualStatus || "",
       import_declared: input.import_declaration_override === "O" ? true : (input.import_declaration_override === "X" ? false : card.import_declared),
       quota_input_updated_at: input.updated_at || null,
     });

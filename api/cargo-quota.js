@@ -14,7 +14,7 @@ const {
   resolveDirectoryNoticeRecipients,
   resolveMailRecipients,
 } = require("../lib/cargo-mail-settings");
-const { normalizeInspectionStatus } = require("../lib/cargo-progress-utils");
+const { manualInspectionStatus } = require("../lib/cargo-progress-utils");
 const { koreaDate } = require("../lib/cargo-request-utils");
 const { effectiveStorageYard } = require("../lib/cargo-warehouse-utils");
 
@@ -331,10 +331,26 @@ module.exports = async function handler(req, res) {
         bl_number: blNumber,
       };
       if (Object.prototype.hasOwnProperty.call(body, "animal_quarantine_override")) {
-        payload.animal_quarantine_override = normalizeInspectionStatus(body.animal_quarantine_override);
+        const rawStatus = String(body.animal_quarantine_override || "").trim();
+        const status = manualInspectionStatus(rawStatus);
+        if (rawStatus && !status) {
+          return res.status(400).json({
+            success: false,
+            message: "O는 관세청 합격 확인 시에만 자동 적용됩니다.",
+          });
+        }
+        payload.animal_quarantine_override = status;
       }
       if (Object.prototype.hasOwnProperty.call(body, "food_quarantine_override")) {
-        payload.food_quarantine_override = normalizeInspectionStatus(body.food_quarantine_override);
+        const rawStatus = String(body.food_quarantine_override || "").trim();
+        const status = manualInspectionStatus(rawStatus);
+        if (rawStatus && !status) {
+          return res.status(400).json({
+            success: false,
+            message: "O는 관세청 합격 확인 시에만 자동 적용됩니다.",
+          });
+        }
+        payload.food_quarantine_override = status;
       }
       if (Object.prototype.hasOwnProperty.call(body, "import_declaration_override")) {
         payload.import_declaration_override = cleanOX(body.import_declaration_override);
