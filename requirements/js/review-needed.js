@@ -46,6 +46,7 @@ async function loadReviewNeededData(searchQuery = '') {
         console.error('확인 필요 데이터 로드 오류:', error);
         const tbody = document.getElementById('reviewNeededTableBody');
         if (tbody) {
+            if (typeof clearTablePager === 'function') clearTablePager('review_needed');
             tbody.innerHTML = '<tr><td colspan="20" class="empty-state" style="color: red;"><i class="fas fa-exclamation-triangle"></i><p>데이터를 불러올 수 없습니다.</p><p style="font-size: 12px;">테이블이 존재하지 않거나 네트워크 오류가 발생했습니다.</p></td></tr>';
         }
     }
@@ -108,13 +109,12 @@ function renderReviewNeededTable(records) {
     tbody.innerHTML = '';
 
     if (records.length === 0) {
+        if (typeof clearTablePager === 'function') clearTablePager('review_needed');
         tbody.innerHTML = '<tr><td colspan="20" class="empty-state"><i class="fas fa-inbox"></i><p>데이터가 없습니다.</p></td></tr>';
         return;
     }
 
-    records.forEach(record => {
-        const row = document.createElement('tr');
-
+    renderPagedRows('review_needed', tbody, records, record => {
         // 화평법(MSDS) 열 처리
         let msdsDisplay = record.msds_register || '';
         if (currentReviewFilter === 'msds') {
@@ -125,7 +125,7 @@ function renderReviewNeededTable(records) {
             }
         }
 
-        row.innerHTML = `
+        return `
             <td class="checkbox-cell">
                 <input type="checkbox" class="row-checkbox" data-id="${record.id}" data-type="review_needed" onchange="updateSelectionCount('review_needed')">
             </td>
@@ -145,8 +145,8 @@ function renderReviewNeededTable(records) {
             <td>${record.electrical_target || ''}</td>
             <td>${record.electrical_cert || ''}</td>
             <td>${record.electrical_non_target || ''}</td>
-            <td style="max-width: 200px; white-space: normal; word-break: break-word;">${record.note || '-'}</td>
-            <td style="max-width: 200px; white-space: normal; word-break: break-word;">${record.action_note || '-'}</td>
+            <td class="review-note-cell"><div class="review-note" title="${String(record.note || '').replace(/"/g, '&quot;')}">${record.note || '-'}</div></td>
+            <td class="review-note-cell"><div class="review-note" title="${String(record.action_note || '').replace(/"/g, '&quot;')}">${record.action_note || '-'}</div></td>
             <td style="white-space: nowrap;">
                 <button class="btn-icon" onclick="editActionNote('review_needed', '${record.id}')" title="조치사항 수정">
                     <i class="fas fa-edit"></i>
@@ -157,7 +157,6 @@ function renderReviewNeededTable(records) {
                 ${isMasterUser() ? `<button class="btn-icon btn-danger" onclick="deleteRecord('review_needed', '${record.id}')" title="삭제"><i class="fas fa-trash"></i></button>` : ''}
             </td>
         `;
-        tbody.appendChild(row);
     });
 }
 

@@ -949,3 +949,124 @@ textarea:focus {
         grid-template-columns: 1fr;
     }
 }
+
+/* ── 전파 면제 관리 ────────────────────────────────────── */
+.exemption-notice {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin: 0 0 14px;
+    padding: 12px 14px;
+    background: #fff8e6;
+    border: 1px solid #f0d48a;
+    border-left: 4px solid #e0a800;
+    border-radius: 6px;
+    font-size: 13px;
+    line-height: 1.6;
+    color: #6b5200;
+}
+.exemption-notice i { margin-top: 2px; color: #e0a800; }
+
+#radioExemptionTable .mono {
+    font-family: Consolas, 'D2Coding', monospace;
+    font-size: 12px;
+}
+.report-badge {
+    display: inline-block;
+    min-width: 44px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 600;
+    text-align: center;
+}
+.report-badge.done { background: #e3f5e9; color: #1a7f42; }
+.report-badge.todo { background: #fdeaea; color: #c0392b; }
+.report-badge.none { background: #eef0f2; color: #7b848c; font-weight: 500; }
+
+.expiry.expired { color: #c0392b; font-weight: 600; }
+.expiry.soon    { color: #d68910; font-weight: 600; }
+#radioExemptionTable .derived { color: #98a2ab; font-size: 11px; }
+
+/* ── 목록 페이지네이션 ────────────────────────────────── */
+.table-pager {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 12px 2px 4px;
+    font-size: 13px;
+    color: #5b636b;
+}
+.table-pager .pager-info { white-space: nowrap; }
+.table-pager .pager-buttons { display: flex; gap: 4px; flex-wrap: wrap; }
+.table-pager .pager-btn {
+    min-width: 32px;
+    height: 30px;
+    padding: 0 8px;
+    border: 1px solid #d8dde2;
+    border-radius: 5px;
+    background: #fff;
+    color: #37414a;
+    font-size: 13px;
+    cursor: pointer;
+}
+.table-pager .pager-btn:hover:not(:disabled) { background: #f1f5f9; border-color: #b9c2cb; }
+.table-pager .pager-btn.active {
+    background: #2563eb;
+    border-color: #2563eb;
+    color: #fff;
+    font-weight: 600;
+}
+.table-pager .pager-btn:disabled { opacity: .4; cursor: default; }
+
+/* ── 확인 필요 List — 긴 비고 때문에 행이 세로로 늘어나는 것을 막는다 ── */
+#reviewNeededTable td,
+#reviewNeededTable th {
+    vertical-align: middle;
+    padding: 8px 10px;
+}
+/* 전역 nowrap 은 Description 열까지 한 줄로 펴 표 가로폭을 키운다.
+   행 높이는 아래 .review-note 클램프가 잡으므로 여기서는 줄바꿈을 막지 않는다. */
+
+/* td 에 직접 -webkit-box 를 주면 표 셀이 아니게 되어 레이아웃이 깨진다.
+   안쪽 div 를 접고, 전체 내용은 title 툴팁으로 본다. */
+#reviewNeededTable td.review-note-cell {
+    max-width: 280px;
+    white-space: normal;
+}
+#reviewNeededTable .review-note {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    word-break: break-word;
+    line-height: 1.45;
+    max-height: 2.9em;
+    cursor: help;
+}
+
+#reviewNeededTable .pager-warn { color: #b45309; }
+.table-pager .pager-warn { font-weight: 500; }
+
+/* 면제확인 : 수입신고가 1:1 이 아니어서 한 칸에 신고번호가 여러 개 들어간다 */
+.decl-multi { display: inline-block; line-height: 1.35; }
+.decl-multi .decl-item { display: block; white-space: nowrap; }
+.decl-multi .decl-count {
+    display: inline-block;
+    margin-top: 2px;
+    padding: 0 6px;
+    border-radius: 8px;
+    background: #eef2ff;
+    color: #4338ca;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+/* 관리자 전용 메뉴.
+   기존 .btn-master-only 는 `display:none !important` 라서 body.master-user 규칙이
+   !important 에 밀려 관리자에게도 끝내 보이지 않는다. 그 클래스를 손대면 전체
+   삭제 버튼 같은 것들이 한꺼번에 나타나므로, 메뉴 전용 클래스를 따로 둔다. */
+.menu-item.menu-master-only { display: none !important; }
+body.master-user .menu-item.menu-master-only { display: flex !important; }
