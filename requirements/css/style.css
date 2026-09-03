@@ -1063,3 +1063,10 @@ textarea:focus {
     font-size: 11px;
     font-weight: 600;
 }
+
+/* 관리자 전용 메뉴.
+   기존 .btn-master-only 는 `display:none !important` 라서 body.master-user 규칙이
+   !important 에 밀려 관리자에게도 끝내 보이지 않는다. 그 클래스를 손대면 전체
+   삭제 버튼 같은 것들이 한꺼번에 나타나므로, 메뉴 전용 클래스를 따로 둔다. */
+.menu-item.menu-master-only { display: none !important; }
+body.master-user .menu-item.menu-master-only { display: flex !important; }

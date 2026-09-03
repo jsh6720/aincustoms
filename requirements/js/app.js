@@ -160,6 +160,14 @@ async function activateRequirementsSection(section, searchQuery = null) {
         return false;
     }
 
+    // 관리자 전용 화면은 메뉴를 감추는 것만으로는 부족하다.
+    // 통합검색 결과나 북마크로도 진입할 수 있으므로 여기서 한 번 더 막는다.
+    if (menuItem.classList.contains('menu-master-only')
+        && typeof isMasterUser === 'function' && !isMasterUser()) {
+        console.warn('[App] 관리자 전용 화면 접근 차단:', section);
+        return false;
+    }
+
     const query = searchQuery === null ? '' : String(searchQuery).trim();
     if (searchInput) {
         searchInput.value = query;
