@@ -6,6 +6,7 @@ const {
   resolveRoleMailRecipients,
 } = require("../lib/cargo-mail-settings");
 const { deliverManualMailOnce } = require("../lib/cargo-mail-dedupe");
+const { validDate, queueCalendar, syncCalendar } = require("../lib/cargo-outlook-calendar");
 
 function canRequestOriginalDocuments(card) {
   return card?.obl_received !== true || card?.hc_received !== true;
@@ -149,7 +150,7 @@ module.exports = async function handler(req, res) {
     if (requesterEmail && !isValidEmail(requesterEmail)) {
       return res.status(400).json({ success: false, message: "요청인 메일을 정확히 입력해 주세요." });
     }
-    if (!requestedReceiptDate) {
+    if (!validDate(requestedReceiptDate)) {
       return res.status(400).json({ success: false, message: "수령요청일자를 입력해 주세요." });
     }
 
@@ -210,8 +211,18 @@ module.exports = async function handler(req, res) {
       };
     }
 
+    let calendarResult = { status: "not_requested" };
+    if (requestSaved && (mailResult.sent || (mailResult.deduplicated && mailResult.status === "sent")) && !mailResult.deliveryUncertain) {
+      try {
+        const key = await queueCalendar(supabaseFetch, card, savedRequest);
+        calendarResult = await syncCalendar(supabaseFetch, { key });
+      } catch {
+        calendarResult = { status: "error", message: "Outlook 일정 등록을 확인해 주세요." };
+      }
+    }
     return res.status(200).json({
       success: true,
+      calendar: calendarResult,
       request: savedRequest,
       request_saved: requestSaved,
       request_save_message: requestSaveMessage,
