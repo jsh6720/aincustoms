@@ -183,7 +183,7 @@ function displayUnifiedSearchResult(results, searchValue) {
         'fas fa-flask',
         results.chemical.length > 0,
         results.chemical.length > 0 ? {
-            수입자: results.chemical.map(r => r.company).filter((v, i, a) => a.indexOf(v) === i).join(', '),
+            수입자: summarizeWithTitle(results.chemical.map(r => r.company)),
             건수: `${results.chemical.length}건`
         } : null,
         'chemical'
@@ -195,7 +195,7 @@ function displayUnifiedSearchResult(results, searchValue) {
         'fas fa-file-medical',
         results.msds.length > 0,
         results.msds.length > 0 ? {
-            수입자: results.msds.map(r => r.importer).filter((v, i, a) => a.indexOf(v) === i).join(', '),
+            수입자: summarizeWithTitle(results.msds.map(r => r.importer)),
             건수: `${results.msds.length}건`
         } : null,
         'msds'
@@ -207,8 +207,8 @@ function displayUnifiedSearchResult(results, searchValue) {
         'fas fa-broadcast-tower',
         results.radio.length > 0,
         results.radio.length > 0 ? {
-            화주: results.radio.map(r => r.consignee).filter((v, i, a) => v && a.indexOf(v) === i).join(', '),
-            인증번호: results.radio.map(r => r.certification_no).filter(v => v).join(', '),
+            화주: summarizeWithTitle(results.radio.map(r => r.consignee)),
+            인증번호: summarizeWithTitle(results.radio.map(r => r.certification_no)),
             건수: `${results.radio.length}건`
         } : null,
         'radio'
@@ -220,10 +220,10 @@ function displayUnifiedSearchResult(results, searchValue) {
         'fas fa-plug',
         results.electrical.length > 0,
         results.electrical.length > 0 ? {
-            인증기관: results.electrical.map(r => r.certification_agency).filter((v, i, a) => v && a.indexOf(v) === i).join(', '),
-            화주: results.electrical.map(r => r.consignee).filter((v, i, a) => v && a.indexOf(v) === i).join(', '),
-            인증번호: results.electrical.map(r => r.certification_no).filter(v => v).join(', '),
-            '비고(정격전압)': results.electrical.map(r => r.note).filter(v => v).join(', '),
+            인증기관: summarizeWithTitle(results.electrical.map(r => r.certification_agency)),
+            화주: summarizeWithTitle(results.electrical.map(r => r.consignee)),
+            인증번호: summarizeWithTitle(results.electrical.map(r => r.certification_no)),
+            '비고(정격전압)': summarizeWithTitle(results.electrical.map(r => r.note)),
             건수: `${results.electrical.length}건`
         } : null,
         'electrical'
@@ -235,10 +235,10 @@ function displayUnifiedSearchResult(results, searchValue) {
         'fas fa-notes-medical',
         results.medical.length > 0,
         results.medical.length > 0 ? {
-            법령부호: results.medical.map(r => r.law_code || getLawCode(r.law)).filter((v, i, a) => v && a.indexOf(v) === i).join(', '),
-            법령: results.medical.map(r => r.law).filter((v, i, a) => v && a.indexOf(v) === i).join(', '),
-            수입자: results.medical.map(r => r.importer).filter((v, i, a) => v && a.indexOf(v) === i).join(', '),
-            '확인 여부': results.medical.map(r => r.confirmation_status).filter(v => v).join(', '),
+            법령부호: summarizeWithTitle(results.medical.map(r => r.law_code || getLawCode(r.law))),
+            법령: summarizeWithTitle(results.medical.map(r => r.law)),
+            수입자: summarizeWithTitle(results.medical.map(r => r.importer)),
+            '확인 여부': summarizeWithTitle(results.medical.map(r => r.confirmation_status)),
             건수: `${results.medical.length}건`
         } : null,
         'medical'
@@ -250,11 +250,11 @@ function displayUnifiedSearchResult(results, searchValue) {
         'fas fa-times-circle',
         results.nonTarget && results.nonTarget.length > 0,
         results.nonTarget && results.nonTarget.length > 0 ? {
-            법령부호: results.nonTarget.map(r => r.law_code || getLawCode(r.law)).filter((v, i, a) => v && a.indexOf(v) === i).join(', '),
-            법령: results.nonTarget.map(r => r.law).filter((v, i, a) => v && a.indexOf(v) === i).join(', '),
-            수입자: results.nonTarget.map(r => r.importer).filter((v, i, a) => v && a.indexOf(v) === i).join(', '),
-            수출자: results.nonTarget.map(r => r.exporter).filter((v, i, a) => v && a.indexOf(v) === i).join(', '),
-            '비대상 사유': results.nonTarget.map(r => r.non_target_reason).filter(v => v).join(', '),
+            법령부호: summarizeWithTitle(results.nonTarget.map(r => r.law_code || getLawCode(r.law))),
+            법령: summarizeWithTitle(results.nonTarget.map(r => r.law)),
+            수입자: summarizeWithTitle(results.nonTarget.map(r => r.importer)),
+            수출자: summarizeWithTitle(results.nonTarget.map(r => r.exporter)),
+            '비대상 사유': summarizeWithTitle(results.nonTarget.map(r => r.non_target_reason)),
             건수: `${results.nonTarget.length}건`
         } : null,
         'non_target'
@@ -266,9 +266,9 @@ function displayUnifiedSearchResult(results, searchValue) {
         'fas fa-exclamation-triangle',
         results.reviewNeeded && results.reviewNeeded.length > 0,
         results.reviewNeeded && results.reviewNeeded.length > 0 ? {
-            수입자상호: results.reviewNeeded.map(r => r.importer).filter((v, i, a) => v && a.indexOf(v) === i).join(', '),
-            해외공급처: results.reviewNeeded.map(r => r.exporter).filter((v, i, a) => v && a.indexOf(v) === i).join(', '),
-            비고: results.reviewNeeded.map(r => r.note).filter(v => v).join(', '),
+            수입자상호: summarizeWithTitle(results.reviewNeeded.map(r => r.importer)),
+            해외공급처: summarizeWithTitle(results.reviewNeeded.map(r => r.exporter)),
+            비고: summarizeWithTitle(results.reviewNeeded.map(r => r.note)),
             건수: `${results.reviewNeeded.length}건`
         } : null,
         'review_needed'
@@ -283,6 +283,51 @@ function displayUnifiedSearchResult(results, searchValue) {
 }
 
 // 개별 결과 아이템 생성
+// 여러 건이 걸리면 카드가 본문 전체를 이어 붙여 화면을 덮어 버린다.
+// (예: 3SIEK 검색 시 삼상유도전동기 13종의 신고확인서 문구가 통째로 나왔다)
+// 대시보드 카드는 요약만 보이고, 전체는 마우스를 올려 툴팁으로 본다.
+const UNIFIED_MAX_SHOWN = 2;   // 값이 짧을 때 카드에 그대로 보여 줄 개수
+const UNIFIED_LONG_CHARS = 40; // 이보다 길면 한 건만 보이고 나머지는 '외 N건'
+const UNIFIED_MAX_CHARS = 60;  // 값 하나의 길이 한도
+
+function escAttr(v) {
+    return String(v == null ? '' : v)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function clip(v) {
+    const t = String(v == null ? '' : v).trim();
+    return t.length > UNIFIED_MAX_CHARS ? t.slice(0, UNIFIED_MAX_CHARS - 1) + '…' : t;
+}
+
+// 값 목록을 '앞의 것 + 외 N건' 으로 줄인다. 중복은 없앤다.
+function summarizeValues(values) {
+    const list = (values || [])
+        .map(v => String(v == null ? '' : v).trim())
+        .filter(v => v)
+        .filter((v, i, a) => a.indexOf(v) === i);
+    if (!list.length) return '';
+    // 신고확인서 문구처럼 값 하나가 길면 두 건만 보여도 카드가 넘친다
+    const long = list.some(v => v.length > UNIFIED_LONG_CHARS);
+    const take = long ? 1 : UNIFIED_MAX_SHOWN;
+    const shown = list.slice(0, take).map(clip).join(', ');
+    if (list.length <= take) return shown;
+    return `${shown} 외 ${list.length - take}건`;
+}
+
+// 원본 전체를 툴팁으로 달아 둔다(값이 잘렸을 때만)
+function summarizeWithTitle(values) {
+    const list = (values || [])
+        .map(v => String(v == null ? '' : v).trim())
+        .filter(v => v)
+        .filter((v, i, a) => a.indexOf(v) === i);
+    const text = summarizeValues(list);
+    if (!text) return '';
+    const full = list.join(' / ');
+    return full === text ? text : `<span title="${escAttr(full)}">${text}</span>`;
+}
+
 function generateResultItem(title, icon, hasData, details, dataType) {
     const clickableClass = hasData ? 'clickable' : '';
     const sectionAttr = hasData ? `data-section="${dataType}"` : '';
