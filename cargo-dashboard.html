@@ -518,6 +518,10 @@
           <button class="btn green" type="button" onclick="saveAdminMailSettings()">메일 설정 저장</button>
         </div>
         <div id="adminMailError" class="error"></div>
+        <div class="admin-actions">
+          <button class="btn" type="button" onclick="loadReceiptCalendar()">Outlook 일정 등록 현황</button>
+        </div>
+        <div id="receiptCalendarStatus"></div>
       </div>
     </section>
     <section id="progressPanel" class="docs-panel">
@@ -3924,7 +3928,9 @@
         const successText = submittedMode === "docs" ? "원본서류 도착/수령 요청" : (submittedMode === "import" ? "수입신고요청" : "출고요청");
         await loadData();
         closeReleaseModal();
-        alert(result.email_sent ? `${successText}이 발송되었습니다.` : `${successText}은 저장되었습니다. 메일 발송 환경변수를 확인해 주세요.`);
+        const calendarNotice = result.calendar && !["synced", "unchanged", "not_requested"].includes(result.calendar.status)
+          ? "\nOutlook 일정은 등록 대기 또는 연결 확인이 필요합니다." : "";
+        alert((result.email_sent ? `${successText}이 발송되었습니다.` : `${successText}은 저장되었습니다. 메일 발송 환경변수를 확인해 주세요.`) + calendarNotice);
       } catch (error) {
         alert(error.message || "요청 처리 중 오류가 발생했습니다.");
       } finally {
@@ -4068,6 +4074,45 @@
         }).join("")}
       `;
       document.getElementById("adminMailError").textContent = "";
+    }
+    async function loadReceiptCalendar() {
+      const panel = document.getElementById("receiptCalendarStatus");
+      panel.textContent = "조회 중...";
+      try {
+        const response = await fetch("/api/cargo-admin?action=receipt_calendar");
+        const result = await response.json();
+        if (!response.ok || !result.success) throw new Error(result.message || "일정 조회 실패");
+        panel.replaceChildren();
+        const status = document.createElement("p");
+        status.textContent = result.configured ? "Microsoft 연결 설정됨" : "Microsoft 연결 필요";
+        panel.append(status);
+        for (const item of result.items || []) {
+          const row = document.createElement("div");
+          row.style.cssText = "display:flex;align-items:center;gap:8px;margin:4px 0";
+          const label = document.createElement("span");
+          label.textContent = (item.payload.subject || "") + " / " + (item.payload.start?.dateTime || "").slice(0,10) + " / " + (item.status === "synced" ? "등록 완료" : "등록 대기");
+          label.title = item.last_error || "";
+          row.append(label);
+          if (item.status !== "synced") {
+            const button = document.createElement("button");
+            button.type = "button";
+            button.className = "btn";
+            button.textContent = "재시도";
+            button.disabled = !result.configured;
+            button.onclick = async () => {
+              button.disabled = true;
+              try {
+                const retry = await fetch("/api/cargo-admin", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"receipt_calendar_retry",shipment_key:item.shipment_key})});
+                const data = await retry.json();
+                if (!retry.ok || !data.success) throw new Error(data.message || "일정 등록 실패");
+                await loadReceiptCalendar();
+              } catch (error) { alert(error.message); button.disabled = false; }
+            };
+            row.append(button);
+          }
+          panel.append(row);
+        }
+      } catch (error) { panel.textContent = error.message; }
     }
     async function saveAdminMailSettings() {
       const error = document.getElementById("adminMailError");

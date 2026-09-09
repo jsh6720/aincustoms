@@ -1,0 +1,9 @@
+{
+  "functions": {
+    "api/cargo-original-doc-request.js": { "maxDuration": 60 },
+    "api/cargo-admin.js": { "maxDuration": 60 }
+  },
+  "crons": [
+    { "path": "/api/cargo-admin?action=receipt_calendar_cron", "schedule": "0 0 * * *" }
+  ]
+}

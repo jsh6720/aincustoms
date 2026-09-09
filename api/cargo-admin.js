@@ -4,6 +4,8 @@ const {
   effectiveMailSettings,
 } = require("../lib/cargo-mail-settings");
 const { parseRecipientList } = require("../lib/cargo-mail-utils");
+const { configured, syncCalendar } = require("../lib/cargo-outlook-calendar");
+const { authorizedCron } = require("../lib/cargo-calendar-cron");
 
 function requireAdmin(req, res) {
   const session = verifySession(req);
@@ -28,10 +30,19 @@ function normalizeRecipientText(value) {
 
 module.exports = async function handler(req, res) {
   try {
+    if (req.method === "GET" && req.query?.action === "receipt_calendar_cron") {
+      if (!authorizedCron(req)) return res.status(401).json({ success: false });
+      const calendar = await syncCalendar(supabaseFetch);
+      return res.status(200).json({ success: true, calendar });
+    }
     const session = requireAdmin(req, res);
     if (!session) return;
 
     if (req.method === "GET") {
+      if (req.query?.action === "receipt_calendar") {
+        const rows = await supabaseFetch("/rest/v1/cargo_receipt_calendar?select=shipment_key,payload,status,last_error,updated_at&order=updated_at.desc&limit=100");
+        return res.status(200).json({ success: true, configured: configured(), items: rows });
+      }
       let accounts;
       try {
         accounts = await supabaseFetch(
@@ -60,6 +71,10 @@ module.exports = async function handler(req, res) {
 
     if (req.method === "POST") {
       const body = typeof req.body === "string" ? JSON.parse(req.body || "{}") : (req.body || {});
+      if (body.action === "receipt_calendar_retry") {
+        const result = await syncCalendar(supabaseFetch, { key: body.shipment_key || null });
+        return res.status(200).json({ success: true, calendar: result });
+      }
       if (body.action === "mail_settings") {
         const rawSettings = body.settings && typeof body.settings === "object" ? body.settings : {};
         const now = new Date().toISOString();

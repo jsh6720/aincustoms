@@ -5,7 +5,7 @@
     {
       "source": "cargo-dashboard.html",
       "target": "website_integration/cargo-dashboard.html",
-      "sha256": "f5456e84976fead2d79c6bfc029e29ffa06084d886cdd74222f9de0689fcedc5"
+      "sha256": "a7cf9577f20099e974171d1d68319bf15e6b1a8071343f028c86eddaa246de61"
     },
     {
       "source": "cargo-docs-mobile.html",
@@ -25,7 +25,7 @@
     {
       "source": "api/cargo-admin.js",
       "target": "website_integration/vercel_package/api/cargo-admin.js",
-      "sha256": "434e76963a4788aefc9513587b82f5ce2c6caa730c876c610c4e1bfaaf1ab187"
+      "sha256": "83afe469f17c30983b1ed840942dcefbb89d0240b5b160c686c7b48cb5c8cbcd"
     },
     {
       "source": "api/cargo-card-visibility.js",
@@ -60,7 +60,7 @@
     {
       "source": "api/cargo-original-doc-request.js",
       "target": "website_integration/vercel_package/api/cargo-original-doc-request.js",
-      "sha256": "c14d96616a49914f17111389eeeb6e27f4eead0ac733a275074b6bea64e90068"
+      "sha256": "ab944ffd2a286e595445018819ce40d0cca6a05c083e308c4e428b682ba84092"
     },
     {
       "source": "api/cargo-original-docs.js",
@@ -85,7 +85,7 @@
     {
       "source": "cargo-dashboard.html",
       "target": "website_integration/vercel_package/cargo-dashboard.html",
-      "sha256": "f5456e84976fead2d79c6bfc029e29ffa06084d886cdd74222f9de0689fcedc5"
+      "sha256": "a7cf9577f20099e974171d1d68319bf15e6b1a8071343f028c86eddaa246de61"
     },
     {
       "source": "cargo-docs-mobile.html",
@@ -216,6 +216,31 @@
       "source": "package.json",
       "target": "website_integration/vercel_package/package.json",
       "sha256": "cf56f45e4ab5d711d698de21a4bac078653855bfb07109588bad0a6c0a7f3ef4"
+    },
+    {
+      "source": "lib/cargo-outlook-calendar.js",
+      "target": "website_integration/vercel_package/lib/cargo-outlook-calendar.js",
+      "sha256": "1a25db91edc0cff7638584b7e94507ec57f4a7edfa645e7ecb6d1777052955dc"
+    },
+    {
+      "source": "lib/cargo-calendar-cron.js",
+      "target": "website_integration/vercel_package/lib/cargo-calendar-cron.js",
+      "sha256": "8150e1e6d2d822ff17f49f25a55e425478ee50fb0322fcbbdb87efab4c81c256"
+    },
+    {
+      "source": "supabase/migrations/20260909090000_add_receipt_calendar.sql",
+      "target": "website_integration/vercel_package/supabase/migrations/20260909090000_add_receipt_calendar.sql",
+      "sha256": "90fae60a00bb877d7d76b6b661f6b20e45c9d24b555f887a70e94ed35e7e9b42"
+    },
+    {
+      "source": "docs/20260909-outlook-receipt-calendar.md",
+      "target": "website_integration/vercel_package/docs/20260909-outlook-receipt-calendar.md",
+      "sha256": "d1e89e2809edbac832dd37beb2363bd612e9566122f59c73a102f3327f2cf214"
+    },
+    {
+      "source": "vercel.json",
+      "target": "website_integration/vercel_package/vercel.json",
+      "sha256": "ab03825eb5f08783460e787ab57b0f559dbc0f4c3cac0c6e07515a157e1bada4"
     }
   ]
 }
