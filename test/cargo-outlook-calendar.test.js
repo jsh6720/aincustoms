@@ -11,6 +11,8 @@ test('receipt date uses 09:00 Korea time and four attendees',()=>{
   assert.equal(p.end.dateTime,'2026-09-09T09:30:00');
   assert.equal(p.start.timeZone,'Korea Standard Time');
   assert.equal(p.attendees.length,4);
+  assert.equal(p.isReminderOn,true);
+  assert.equal(p.reminderMinutesBeforeStart,1140);
   assert.match(p.body.content,/납품처: 캐틀팜\n/);
   assert.equal(validDate('2026-02-30'),false);
   assert.throws(()=>eventPayload(card,{requested_receipt_date:'2026-13-01'}));

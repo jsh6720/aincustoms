@@ -220,7 +220,7 @@
     {
       "source": "lib/cargo-outlook-calendar.js",
       "target": "website_integration/vercel_package/lib/cargo-outlook-calendar.js",
-      "sha256": "8e76fbdfb58c9c0fced4d96036a121f8fe525770ff6c313c4110785d16c8df7b"
+      "sha256": "1a25db91edc0cff7638584b7e94507ec57f4a7edfa645e7ecb6d1777052955dc"
     },
     {
       "source": "lib/cargo-calendar-cron.js",
