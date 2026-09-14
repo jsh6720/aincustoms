@@ -532,6 +532,7 @@ async function loadRadioData(searchQuery = '') {
         if (searchQuery) {
             const query = normalizeForSearch(searchQuery);
             records = records.filter(item =>
+                normalizeForSearch(item.consignee).includes(query) ||
                 normalizeForSearch(item.spec_no).includes(query) ||
                 normalizeForSearch(item.model_name).includes(query) ||
                 normalizeForSearch(item.manufacturer).includes(query) ||
