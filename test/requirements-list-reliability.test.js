@@ -14,7 +14,7 @@ function makeElement(id, dataset = {}) {
   const values = new Set();
   return {
     id, dataset: { ...dataset }, innerHTML: "", textContent: "", value: "", style: {},
-    classList: { add: (...names) => names.forEach((name) => values.add(name)), remove: (...names) => names.forEach((name) => values.delete(name)), has: (name) => values.has(name) },
+    classList: { add: (...names) => names.forEach((name) => values.add(name)), remove: (...names) => names.forEach((name) => values.delete(name)), has: (name) => values.has(name), contains: (name) => values.has(name) },
     addEventListener: (type, listener) => listeners.set(type, listener),
     click() {
       listeners.get("click")?.({ type: "click", currentTarget: this, target: this });
@@ -54,6 +54,7 @@ function harness(fetchImpl) {
     document, console: { log() {}, warn() {}, error() {} }, alert() {}, confirm: () => false, prompt: () => null,
     fetch: fetchImpl || (async () => ({ ok: true, status: 200, json: async () => ({ data: [] }) })),
     isMasterUser: () => true, canAccessData: () => true, formatDate: (value) => value, isDateField: () => false,
+    renderPagedRows: (_key, tbody, records, renderRow) => { tbody.innerHTML = records.map(renderRow).join(''); },
     setTimeout: (callback) => { callback(); return 0; }, clearTimeout() {}, performance: { now: () => 0 },
   };
   context.window = context;
@@ -197,6 +198,34 @@ const normalizedDestinationCases = [
   ["non_target", "loadNonTargetData", "nonTargetTableBody"],
   ["review_needed", "loadReviewNeededData", "reviewNeededTableBody"],
 ];
+
+for (const query of ['엠텍', '영인엠텍', '영인 엠텍']) {
+  test('radio consignee search and unified card agree for ' + query, async () => {
+    const records = [
+      { id: 'radio-match', spec_no: 'RADIO-MATCH', consignee: '영인엠텍(주)', created_at: 1 },
+      { id: 'radio-other', spec_no: 'RADIO-OTHER', consignee: '다른화주', created_at: 2 },
+    ];
+    const { context, elements } = harness(async url => response(200, {
+      data: String(url).includes('radio_law') ? records : [],
+    }));
+    await context.loadRadioData(query);
+    assert.match(elements.get('radioTableBody').innerHTML, /RADIO-MATCH/);
+    assert.doesNotMatch(elements.get('radioTableBody').innerHTML, /RADIO-OTHER/);
+    elements.get('unifiedSearch').value = query;
+    await context.__performUnifiedSearch();
+    assert.match(elements.get('unifiedSearchResult').innerHTML, /영인엠텍/);
+    const card = { dataset: { section: 'radio' } };
+    card.closest = () => card;
+    await elements.get('unifiedSearchResult').dispatchEvent({ type: 'click', target: card });
+    assert.equal(elements.get('radioSearch').value, query);
+    assert.match(elements.get('radioTableBody').innerHTML, /RADIO-MATCH/);
+    assert.doesNotMatch(elements.get('radioTableBody').innerHTML, /RADIO-OTHER/);
+    context.isMasterUser = () => false;
+    context.canAccessData = company => company === '다른화주';
+    await context.loadRadioData(query);
+    assert.doesNotMatch(elements.get('radioTableBody').innerHTML, /RADIO-MATCH/);
+  });
+}
 
 for (const [section, loader, bodyId] of normalizedDestinationCases) {
   test("the real " + section + " loader uses the same punctuation-insensitive search as unified results", async () => {
