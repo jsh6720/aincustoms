@@ -5,7 +5,7 @@
     {
       "source": "cargo-dashboard.html",
       "target": "website_integration/cargo-dashboard.html",
-      "sha256": "2861f00c870cd034e4e20ce6fb3c427182a4cb738fc6be3a08d69acca4234189"
+      "sha256": "d254453f59c5a50f9dddfce7c60462679d877c5975e0d116a2d380c84698d758"
     },
     {
       "source": "cargo-docs-mobile.html",
@@ -85,7 +85,7 @@
     {
       "source": "cargo-dashboard.html",
       "target": "website_integration/vercel_package/cargo-dashboard.html",
-      "sha256": "2861f00c870cd034e4e20ce6fb3c427182a4cb738fc6be3a08d69acca4234189"
+      "sha256": "d254453f59c5a50f9dddfce7c60462679d877c5975e0d116a2d380c84698d758"
     },
     {
       "source": "cargo-docs-mobile.html",
