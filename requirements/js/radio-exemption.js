@@ -37,14 +37,14 @@ async function loadRadioExemptionData(searchQuery = '') {
         }
 
         if (searchQuery) {
-            const q = searchQuery.toLowerCase();
+            const q = normalizeForSearch(searchQuery);
             records = records.filter(item =>
-                String(item.approval_no || '').toLowerCase().includes(q) ||
-                String(item.consignee || '').toLowerCase().includes(q) ||
-                String(item.spec_no || '').toLowerCase().includes(q) ||
-                String(item.model_spec || '').toLowerCase().includes(q) ||
-                String(item.product_name || '').toLowerCase().includes(q) ||
-                String(item.decl_no || '').toLowerCase().includes(q)
+                normalizeForSearch(item.approval_no).includes(q) ||
+                normalizeForSearch(item.consignee).includes(q) ||
+                normalizeForSearch(item.spec_no).includes(q) ||
+                normalizeForSearch(item.model_spec).includes(q) ||
+                normalizeForSearch(item.product_name).includes(q) ||
+                normalizeForSearch(item.decl_no).includes(q)
             );
         }
 

@@ -122,8 +122,8 @@ function normalizeForSearch(value) {
 const UNIFIED_SEARCH_FIELDS = {
     'chemical_confirmation': ['spec_no', 'product_name', 'model_spec', 'company'],
     'msds':                  ['spec_no', 'substance', 'importer'],
-    'radio_law':             ['spec_no', 'model_name', 'derived_model_name', 'certification_no', 'consignee'],
-    'electrical_law':        ['spec_no', 'model_name', 'derived_model_name', 'certification_no', 'consignee'],
+    'radio_law':             ['spec_no', 'model_name', 'derived_model_name', 'certification_no', 'consignee', 'manufacturer', 'item_name'],
+    'electrical_law':        ['spec_no', 'model_name', 'derived_model_name', 'certification_no', 'consignee', 'manufacturer', 'item_name'],
     'medical_device':        ['spec_no', 'importer', 'model_name', 'permit_no', 'item_name_eng'],
     'non_target':            ['spec_no', 'law', 'importer', 'exporter', 'non_target_reason'],
     'review_needed':         ['spec_no', 'description', 'importer', 'exporter']

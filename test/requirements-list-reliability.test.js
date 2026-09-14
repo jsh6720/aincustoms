@@ -189,6 +189,73 @@ test("a unified result without data does not navigate", async () => {
   assert.deepEqual(calls, []);
 });
 
+const searchParityCases = [
+  ['chemical', 'chemical_confirmation', 'loadChemicalData', ['spec_no', 'product_name', 'model_spec', 'company']],
+  ['msds', 'msds', 'loadMsdsData', ['spec_no', 'substance', 'importer']],
+  ['radio', 'radio_law', 'loadRadioData', ['spec_no', 'model_name', 'derived_model_name', 'certification_no', 'consignee', 'manufacturer', 'item_name']],
+  ['electrical', 'electrical_law', 'loadElectricalData', ['spec_no', 'model_name', 'derived_model_name', 'certification_no', 'consignee', 'manufacturer', 'item_name']],
+  ['medical', 'medical_device', 'loadMedicalData', ['spec_no', 'importer', 'model_name', 'permit_no', 'item_name_eng']],
+  ['non_target', 'non_target', 'loadNonTargetData', ['spec_no', 'law', 'importer', 'exporter', 'non_target_reason']],
+  ['review_needed', 'review_needed', 'loadReviewNeededData', ['spec_no', 'description', 'importer', 'exporter']],
+];
+
+for (const [section, table, loader, fields] of searchParityCases) {
+  for (const field of fields) {
+    test('search and result-card parity: ' + section + '.' + field, async () => {
+      const record = { id: 'audit-match', spec_no: 'BASE', [field]: 'Audit Target-93' };
+      const unrelated = { id: 'other', spec_no: 'UNRELATED' };
+      const { context, elements } = harness(async url => response(200, {
+        data: String(url).includes('tables/' + table + '?') ? [record, unrelated] : [],
+      }));
+      let rendered = [];
+      context.renderPagedRows = (_key, _tbody, rows) => { rendered = Array.from(rows, row => row.id); };
+      await context[loader]('audittarget93');
+      assert.deepEqual(rendered, ['audit-match']);
+      assert.deepEqual(Array.from(await context.searchInTable(table, 'audittarget93'), row => row.id), ['audit-match']);
+      elements.get('unifiedSearch').value = 'audittarget93';
+      await context.__performUnifiedSearch();
+      rendered = [];
+      const card = { dataset: { section } };
+      card.closest = () => card;
+      await elements.get('unifiedSearchResult').dispatchEvent({ type: 'click', target: card });
+      assert.deepEqual(rendered, ['audit-match']);
+      assert.equal(context.__reliability.getCurrentSection(), section);
+    });
+  }
+}
+
+function exemptionHarness(records) {
+  const result = harness(async () => response(200, { data: records }));
+  result.elements.set('radioExemptionTableBody', makeElement('radioExemptionTableBody'));
+  vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'requirements', 'js', 'radio-exemption.js'), 'utf8'), result.context);
+  result.rows = [];
+  result.context.renderPagedRows = (_key, _tbody, rows) => { result.rows = Array.from(rows, row => row.id); };
+  return result;
+}
+
+for (const field of ['approval_no', 'consignee', 'spec_no', 'model_spec', 'product_name', 'decl_no']) {
+  test('radio exemption normalizes search field ' + field, async () => {
+    const h = exemptionHarness([{ id: 'match', [field]: 'Audit Target-93' }, { id: 'other' }]);
+    for (const query of ['audittarget93', 'AUDIT TARGET-93', 'Audit-Target 93']) {
+      await h.context.loadRadioExemptionData(query);
+      assert.deepEqual(h.rows, ['match']);
+    }
+  });
+}
+
+test('radio exemption consignee spacing preserves access control and empty search', async () => {
+  const h = exemptionHarness([
+    { id: 'allowed', consignee: '영인엠텍(주)' },
+    { id: 'denied', consignee: '영인엠텍 타계정' },
+  ]);
+  h.context.isMasterUser = () => false;
+  h.context.canAccessData = name => name === '영인엠텍(주)';
+  for (const query of ['영인 엠텍', '엠텍', '']) {
+    await h.context.loadRadioExemptionData(query);
+    assert.deepEqual(h.rows, ['allowed']);
+  }
+});
+
 const normalizedDestinationCases = [
   ["chemical", "loadChemicalData", "chemicalTableBody"],
   ["msds", "loadMsdsData", "msdsTableBody"],
