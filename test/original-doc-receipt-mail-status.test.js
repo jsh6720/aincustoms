@@ -119,6 +119,7 @@ test("receipt mail status propagates OBL and H/C receipt to every linked account
         { ...sourceCard, account_id: "ctf-account" },
       ];
     }
+    if (url.includes("cargo_original_docs?select=")) return [];
     if (url.includes("cargo_original_docs?on_conflict=")) {
       const payload = JSON.parse(options.body);
       writes.push(payload);
@@ -132,6 +133,7 @@ test("receipt mail status propagates OBL and H/C receipt to every linked account
     card: sourceCard,
     receivedDate: "2026-07-28",
     updatedBy: "aincustoms",
+    receivedDocuments: ["obl", "hc"],
   });
 
   assert.deepEqual(result.accountIds, [
@@ -150,7 +152,7 @@ test("receipt mail status propagates OBL and H/C receipt to every linked account
   }
 });
 
-test("successful H/C receipt mail marks linked OBL and H/C received on the mail date", { concurrency: false }, async () => {
+test("explicit OBL and H/C receipt mail marks only the selected documents", { concurrency: false }, async () => {
   const writes = [];
   let mailCount = 0;
   let sentMail = null;
@@ -171,7 +173,8 @@ test("successful H/C receipt mail marks linked OBL and H/C received on the mail 
       if (url.includes("cargo_cards?select=account_id,bl_number,folder_name")) {
         return [card, { ...card, account_id: "ctf-account" }];
       }
-      if (url.includes("cargo_original_docs?on_conflict=")) {
+      if (url.includes("cargo_original_docs?select=")) return [];
+    if (url.includes("cargo_original_docs?on_conflict=")) {
         const payload = JSON.parse(options.body);
         writes.push(payload);
         return [payload];
@@ -188,6 +191,7 @@ test("successful H/C receipt mail marks linked OBL and H/C received on the mail 
       account_id: "admin-account",
       bl_number: "ONEYBNEG04197300",
       total_pages: "4",
+      received_documents: ["obl", "hc"],
     },
   }, response));
 
@@ -209,7 +213,7 @@ test("successful H/C receipt mail marks linked OBL and H/C received on the mail 
   });
 });
 
-test("receipt mail names every selected original document", { concurrency: false }, async () => {
+test("receipt mail names explicit OBL and HC documents without transfer", { concurrency: false }, async () => {
   let sentMail = null;
   const card = {
     account_id: "admin-account",
@@ -223,7 +227,8 @@ test("receipt mail names every selected original document", { concurrency: false
     supabaseFetch: async (url, options = {}) => {
       if (url.includes("cargo_cards?select=*&")) return [card];
       if (url.includes("cargo_cards?select=account_id,bl_number,folder_name")) return [card];
-      if (url.includes("cargo_original_docs?on_conflict=")) {
+      if (url.includes("cargo_original_docs?select=")) return [];
+    if (url.includes("cargo_original_docs?on_conflict=")) {
         return [JSON.parse(options.body)];
       }
       throw new Error(`Unexpected Supabase call: ${url}`);
@@ -238,13 +243,13 @@ test("receipt mail names every selected original document", { concurrency: false
       account_id: "admin-account",
       bl_number: "MEDUUL962799",
       total_pages: "11",
-      received_documents: ["obl", "hc", "transfer"],
+      received_documents: ["obl", "hc"],
     },
   }, response));
 
   assert.equal(response.statusCode, 200);
-  assert.match(sentMail.subject, /OBL·H\/C·양도증 원본서류 수령 확인/);
-  assert.match(sentMail.text, /OBL, H\/C\(위생증, 검역증\), 양도증 원본 서류를 수령하였습니다/);
+  assert.match(sentMail.subject, /OBL·H\/C 원본서류 수령 확인/);
+  assert.match(sentMail.text, /OBL, H\/C\(위생증, 검역증\) 원본 서류를 수령하였습니다/);
   assert.match(sentMail.text, /수령한 원본 서류 전체 페이지: 11 page/);
 });
 
@@ -352,4 +357,12 @@ test("OBL carrier mail does not mark OBL or H/C received", { concurrency: false 
   assert.equal(response.body.email_sent, true);
   assert.notEqual(response.body.receipt_saved, true);
   assert.equal(statusWriteCount, 0);
+});
+
+test("legacy transfer-only input is rejected rather than changed into OBL", {concurrency:false}, async()=>{
+ let sent=0,writes=0;
+ const handler=loadReceiptHandler({sendMail:async()=>{sent++;},supabaseFetch:async()=>{writes++;return[];}});
+ const response=responseFixture();
+ await handler({method:"POST",body:{account_id:"TEST",bl_number:"TEST",total_pages:"1",received_documents:["transfer"]}},response);
+ assert.equal(response.statusCode,400);assert.equal(sent,0);assert.equal(writes,0);
 });

@@ -3965,8 +3965,8 @@
       const documents = [];
       if (card?.obl_received === true) documents.push("obl");
       if (card?.hc_received === true) documents.push("hc");
-      if (card?.doc_transfer_received === true) documents.push("transfer");
-      return documents.length ? documents : ["hc"];
+
+      return ["obl", ...documents.filter(key => key === "hc")];
     }
     function receiptMailDocumentLabels(card) {
       const labels = { obl: "OBL", hc: "H/C", transfer: "양도증" };
@@ -3994,14 +3994,14 @@
       const result = await response.json();
       if (!result.success) {
         if (result.email_sent === true) {
-          alert(result.message || "메일은 발송됐지만 OBL/H/C 수취상태 저장에 실패했습니다. 메일을 다시 보내지 마세요.");
+          alert(result.message || "메일은 발송됐지만 선택한 서류의 수취상태 저장에 실패했습니다. 메일을 다시 보내지 마세요.");
           return;
         }
         alert(result.message || "원본서류 수령 확인 메일 발송에 실패했습니다.");
         return;
       }
       closeReceiptMailModal();
-      alert(`원본서류 수령 확인 메일이 발송되었고 OBL/H/C가 수령 O로 저장되었습니다.${result.received_date ? ` (수령일 ${result.received_date})` : ""}`);
+      alert(`원본서류 수령 확인 메일이 발송되었고 선택한 서류의 수령 상태가 저장되었습니다.${result.received_date ? ` (수령일 ${result.received_date})` : ""}`);
       await loadData();
     }
     async function saveProgressTransferDoc(cardIndex) {

@@ -5,12 +5,12 @@
     {
       "source": "cargo-dashboard.html",
       "target": "website_integration/cargo-dashboard.html",
-      "sha256": "a7cf9577f20099e974171d1d68319bf15e6b1a8071343f028c86eddaa246de61"
+      "sha256": "2861f00c870cd034e4e20ce6fb3c427182a4cb738fc6be3a08d69acca4234189"
     },
     {
       "source": "cargo-docs-mobile.html",
       "target": "website_integration/cargo-docs-mobile.html",
-      "sha256": "543982360ce904c2f0c29f75ceeff9e7716f4d5138b8ef786d3e3d6115460021"
+      "sha256": "4933b47dbd37d038deaf7e66c53fe10c4f6720072b4dbbb3d76d61b570e01bfd"
     },
     {
       "source": "package-lock.json",
@@ -55,7 +55,7 @@
     {
       "source": "api/cargo-original-doc-receipt-mail.js",
       "target": "website_integration/vercel_package/api/cargo-original-doc-receipt-mail.js",
-      "sha256": "18b0896b66bd4f4ce72276bf1d018d80a050e8b97ea8c5515104517ca03925f7"
+      "sha256": "1123dda07a31e06f8056a6917a977bc51376785865b00e2d2275ac3b9b6976e2"
     },
     {
       "source": "api/cargo-original-doc-request.js",
@@ -85,12 +85,12 @@
     {
       "source": "cargo-dashboard.html",
       "target": "website_integration/vercel_package/cargo-dashboard.html",
-      "sha256": "a7cf9577f20099e974171d1d68319bf15e6b1a8071343f028c86eddaa246de61"
+      "sha256": "2861f00c870cd034e4e20ce6fb3c427182a4cb738fc6be3a08d69acca4234189"
     },
     {
       "source": "cargo-docs-mobile.html",
       "target": "website_integration/vercel_package/cargo-docs-mobile.html",
-      "sha256": "543982360ce904c2f0c29f75ceeff9e7716f4d5138b8ef786d3e3d6115460021"
+      "sha256": "4933b47dbd37d038deaf7e66c53fe10c4f6720072b4dbbb3d76d61b570e01bfd"
     },
     {
       "source": "lib/cargo-auth.js",
@@ -165,7 +165,7 @@
     {
       "source": "lib/cargo-original-doc-receipt.js",
       "target": "website_integration/vercel_package/lib/cargo-original-doc-receipt.js",
-      "sha256": "2c4d9b146c783e9d324968dcb8cfdd7743fce18307c690c378afc5feeb600b76"
+      "sha256": "1821cb1ab5444514f32c1920150178347bebf881f8bcf34d4333ba8eb0f7bbe9"
     },
     {
       "source": "lib/cargo-original-doc-utils.js",
@@ -240,7 +240,17 @@
     {
       "source": "vercel.json",
       "target": "website_integration/vercel_package/vercel.json",
-      "sha256": "ab03825eb5f08783460e787ab57b0f559dbc0f4c3cac0c6e07515a157e1bada4"
+      "sha256": "7dc4209c4a2e6e3bb4192d9e6c4e574c355fed885775d43152df53fb9a285be0"
+    },
+    {
+      "source": "lib/cargo-doc-mail-batch.js",
+      "target": "website_integration/vercel_package/lib/cargo-doc-mail-batch.js",
+      "sha256": "0db5c7d23d406f8650c03682a2e21dec1ba8368f1af32f607282146e1fa22f6c"
+    },
+    {
+      "source": "assets/cargo-doc-mail-mobile.js",
+      "target": "website_integration/vercel_package/assets/cargo-doc-mail-mobile.js",
+      "sha256": "4f2d608a86e27cc8fd9aadc52f3bdd65ef0cec60bebe156c2d5443ac76f6cf71"
     }
   ]
 }

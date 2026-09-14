@@ -15,6 +15,7 @@ const {
   markLinkedOriginalDocsReceived,
 } = require("../lib/cargo-original-doc-receipt");
 const { deliverManualMailOnce } = require("../lib/cargo-mail-dedupe");
+const { processBatch } = require("../lib/cargo-doc-mail-batch");
 
 function env(name) {
   return process.env[name] || "";
@@ -33,13 +34,17 @@ function formatWeight(value, unit) {
 const RECEIPT_DOCUMENTS = {
   obl: { subject: "OBL", body: "OBL" },
   hc: { subject: "H/C", body: "H/C(위생증, 검역증)" },
-  transfer: { subject: "양도증", body: "양도증" },
 };
 
 function normalizeReceivedDocuments(value) {
+  if (value !== undefined && (!Array.isArray(value) || !value.includes("obl") || value.some(item => !["obl", "hc"].includes(item)))) {
+    const error = new Error("OBL 접수는 필수입니다. 화면을 새로고침하고 OBL을 포함해 주세요.");
+    error.httpStatus = 400;
+    throw error;
+  }
   const requested = Array.isArray(value) ? value.map((item) => cleanText(item, 20)) : [];
   const selected = Object.keys(RECEIPT_DOCUMENTS).filter((key) => requested.includes(key));
-  return selected.length ? selected : ["hc"];
+  return selected.length ? selected : ["obl"];
 }
 
 function buildMail(card, totalPages, memo, receivedDocuments) {
@@ -105,7 +110,15 @@ function buildOblCarrierMail(card, submittedDate, memo) {
   };
 }
 
-async function sendMail(mail, additionalRecipients, action) {
+async function resolveReceiptRecipients(additionalRecipients, action) {
+  const settingKey = action === "obl_carrier_submission" || action === "obl_carrier_batch"
+    ? "obl_carrier_receipt" : "original_doc_receipt";
+  const setting = await fetchMailSetting(supabaseFetch, settingKey);
+  const fallback = defaultMailSettings(process.env)[settingKey];
+  return resolveMailRecipients({ setting, fallbackTo: fallback.to, fallbackCc: fallback.cc, extraTo: additionalRecipients });
+}
+
+async function sendMail(mail, additionalRecipients, action, preparedRecipients) {
   const host = env("SMTP_HOST");
   const user = env("SMTP_USER");
   const pass = env("SMTP_PASS");
@@ -123,17 +136,7 @@ async function sendMail(mail, additionalRecipients, action) {
     secure,
     auth: { user, pass },
   });
-  const settingKey = action === "obl_carrier_submission"
-    ? "obl_carrier_receipt"
-    : "original_doc_receipt";
-  const setting = await fetchMailSetting(supabaseFetch, settingKey);
-  const fallback = defaultMailSettings(process.env)[settingKey];
-  const recipients = resolveMailRecipients({
-    setting,
-    fallbackTo: fallback.to,
-    fallbackCc: fallback.cc,
-    extraTo: additionalRecipients,
-  });
+  const recipients = preparedRecipients || await resolveReceiptRecipients(additionalRecipients, action);
   return transporter.sendMail({
     from: env("MAIL_FROM") || user,
     to: recipients.to.join(","),
@@ -160,6 +163,13 @@ module.exports = async function handler(req, res) {
     }
 
     const body = typeof req.body === "string" ? JSON.parse(req.body || "{}") : (req.body || {});
+    if (["original_doc_batch", "obl_carrier_batch"].includes(body.action)) {
+      const extra = parseRecipientList(cleanText(body.additional_recipients, 1500));
+      const recipients = await resolveReceiptRecipients(extra, body.action);
+      const result = await processBatch(body, { supabaseFetch, recipients, loginId: session.login_id || "admin",
+        sendMail: mail => sendMail(mail, extra, body.action, recipients) });
+      return res.status(result.success ? 200 : 503).json(result);
+    }
     const accountId = cleanText(body.account_id, 80);
     const blNumber = cleanText(body.bl_number, 80);
     const totalPages = cleanText(body.total_pages, 20);
@@ -215,6 +225,10 @@ module.exports = async function handler(req, res) {
       cardSnapshot: card,
       send: () => sendMail(mail, additionalRecipients, action),
     });
+    if (!delivery.sent && delivery.status !== "sent") {
+      return res.status(409).json({ success: false, email_sent: false, deduplicated: !!delivery.deduplicated,
+        delivery_uncertain: !!delivery.deliveryUncertain, message: delivery.message || "이전 발송 결과를 확인해 주세요." });
+    }
     if (action === "hc_receipt") {
       try {
         await markLinkedOriginalDocsReceived({
@@ -222,6 +236,7 @@ module.exports = async function handler(req, res) {
           card,
           receivedDate,
           updatedBy: session.login_id || "admin",
+          receivedDocuments,
         });
       } catch (error) {
         return res.status(500).json({
@@ -229,7 +244,7 @@ module.exports = async function handler(req, res) {
           email_sent: delivery.sent,
           deduplicated: delivery.deduplicated,
           receipt_saved: false,
-          message: "수령메일은 발송됐지만 OBL/H/C 수취상태 저장에 실패했습니다. 메일을 다시 보내지 말고 관리자에게 상태 저장을 요청해 주세요.",
+          message: "수령메일은 발송됐지만 선택한 서류의 수취상태 저장에 실패했습니다. 메일을 다시 보내지 말고 관리자에게 상태 저장을 요청해 주세요.",
           detail: error.message,
         });
       }
@@ -253,6 +268,7 @@ module.exports = async function handler(req, res) {
     return res.status(error.httpStatus || 500).json({
       success: false,
       delivery_uncertain: !!error.deliveryUncertain,
+      blocked: error.blocked,
       message: error.publicMessage || error.message,
     });
   }
