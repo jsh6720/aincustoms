@@ -737,6 +737,7 @@
     let requestMode = "release";
     let receiptMailCard = null;
     let progressWarehouseCard = null;
+    let progressWarehouseOpenSequence = 0;
     let progressWarehouseFocusField = "";
     let progressWarehouseSaving = false;
     let adminAccounts = [];
@@ -2502,20 +2503,9 @@
       document.getElementById("progressFreeTimeExpiry").value = addDaysInclusive(eta, days);
     }
     async function populateProgressArrivalMailRecipients() {
-      const combine = (...groups) => [...new Set(groups.flat().filter(Boolean))];
-      const shipper = adminMailSettings.shipper_default || { to: [], cc: [] };
-      const destination = adminMailSettings.destination_default || { to: [], cc: [] };
-      const ain = adminMailSettings.ain_default || { to: [], cc: [] };
-      document.getElementById("progressArrivalMailTo").value = combine(
-        shipper.to || [], shipper.cc || [], destination.to || [], destination.cc || []
-      ).join(",");
-      document.getElementById("progressArrivalMailCc").value = combine(
-        ain.to || [], ain.cc || []
-      ).join(",");
-
+      const openSequence = progressWarehouseOpenSequence;
       const card = progressWarehouseCard;
-      if (!card || !card.bl_number) return;
-      const activeBl = card.bl_number;
+      if (!card || !card.bl_number) throw new Error("B/L 정보를 확인해 주세요.");
       const recipientPayload = {
         account_id: card.account_id,
         bl_number: card.bl_number,
@@ -2528,14 +2518,10 @@
         recipientPayload.warehouse_expected_date = document.getElementById("progressWarehouseDate").value || "";
       }
 
-      try {
-        const preview = await previewProgressTransportMail(recipientPayload);
-        if (!progressWarehouseCard || progressWarehouseCard.bl_number !== activeBl) return;
-        document.getElementById("progressArrivalMailTo").value = (preview.to || []).join(",");
-        document.getElementById("progressArrivalMailCc").value = (preview.cc || []).join(",");
-      } catch (error) {
-        console.warn("B/L별 메일 수신처를 불러오지 못했습니다.", error);
-      }
+      const preview = await previewProgressTransportMail(recipientPayload);
+      if (openSequence !== progressWarehouseOpenSequence) return;
+      document.getElementById("progressArrivalMailTo").value = (preview.to || []).join(",");
+      document.getElementById("progressArrivalMailCc").value = (preview.cc || []).join(",");
     }
     function openMailPreview(preview) {
       document.getElementById("mailPreviewTo").value = (preview.to || []).join(", ");
@@ -2598,10 +2584,15 @@
       adminMailSettingsLoaded = true;
       return true;
     }
-    function openProgressWarehouseEditor(cardIndex, focusField = "") {
+    async function openProgressWarehouseEditor(cardIndex, focusField = "") {
       if (currentUserRole === "viewer") return;
       progressWarehouseCard = currentCards[cardIndex];
       if (!progressWarehouseCard) return;
+      const openSequence = ++progressWarehouseOpenSequence;
+      document.getElementById("progressWarehouseModalBg").style.display = "none";
+      document.getElementById("progressArrivalMailTo").value = "";
+      document.getElementById("progressArrivalMailCc").value = "";
+      document.body.style.cursor = "";
       progressWarehouseFocusField = focusField;
       progressWarehouseSaving = false;
       document.getElementById("progressWarehouseModalCard").innerHTML = `
@@ -2623,11 +2614,18 @@
         && mailSupportedFields.includes(progressWarehouseFocusField);
       recipientGroup.style.display = reviewTransportRecipients ? "" : "none";
       if (reviewTransportRecipients) {
-        ensureAdminMailSettingsForReview().then((loaded) => {
-          if (loaded && mailSupportedFields.includes(progressWarehouseFocusField)) {
-            void populateProgressArrivalMailRecipients();
-          }
-        });
+        document.body.style.cursor = "progress";
+        try {
+          await populateProgressArrivalMailRecipients();
+        } catch (error) {
+          if (openSequence !== progressWarehouseOpenSequence) return;
+          closeProgressWarehouseEditor();
+          alert("전체 메일 수신처를 불러오지 못했습니다. 다시 시도해 주세요.\n" + error.message);
+          return;
+        } finally {
+          if (openSequence === progressWarehouseOpenSequence) document.body.style.cursor = "";
+        }
+        if (openSequence !== progressWarehouseOpenSequence) return;
       }
       const confirmation_action = progressWarehouseFocusField
         ? (progressFieldConfirmed(progressWarehouseCard, progressWarehouseFocusField) ? "unconfirm" : "confirm")
@@ -2665,6 +2663,8 @@
       if (fieldInput) document.getElementById(fieldInput)?.focus();
     }
     function closeProgressWarehouseEditor() {
+      ++progressWarehouseOpenSequence;
+      document.body.style.cursor = "";
       document.getElementById("progressWarehouseModalBg").style.display = "none";
       progressWarehouseCard = null;
       progressWarehouseFocusField = "";
