@@ -27,6 +27,7 @@ const {
   buildMissingQuarantineMail,
 } = require("../lib/cargo-missing-quarantine-notification");
 const { deliverManualMailOnce } = require("../lib/cargo-mail-dedupe");
+const { deliverWarehouseDigest } = require("../lib/cargo-warehouse-digest");
 const {
   deliverAutomaticMailOnce,
 } = require("../lib/cargo-automatic-mail-dedupe");
@@ -91,6 +92,8 @@ function automaticDeliveryResponse(res, delivery) {
     deduplicated: !!delivery.deduplicated,
     delivery_uncertain: !!delivery.deliveryUncertain,
     message: delivery.message,
+    grouped_count: delivery.count,
+    message_id: delivery.messageId,
   });
 }
 
@@ -269,7 +272,7 @@ async function handleAutomaticProgressNotice(req, res, body) {
   }
 }
 
-async function sendWarehouseScheduleMail(eventType, snapshot) {
+async function sendWarehouseScheduleMail(eventType, snapshots, recipients, testOnly = false) {
   const host = env("SMTP_HOST");
   const user = env("SMTP_USER");
   const pass = env("SMTP_PASS");
@@ -277,17 +280,6 @@ async function sendWarehouseScheduleMail(eventType, snapshot) {
     throw preDeliveryError("메일 환경변수가 설정되지 않았습니다.");
   }
 
-  const settings = await fetchEffectiveRoleMailSettings(
-    supabaseFetch,
-    "warehouse_change",
-    "notice",
-    process.env
-  );
-  const recipients = await resolveDirectoryNoticeRecipients({
-    supabaseFetch,
-    settings,
-    card: snapshot,
-  });
   if (!recipients.to.length) {
     throw preDeliveryError("입고 일정 안내 수신처가 설정되지 않았습니다.");
   }
@@ -298,7 +290,11 @@ async function sendWarehouseScheduleMail(eventType, snapshot) {
     secure: String(env("SMTP_SECURE") || "true").toLowerCase() !== "false",
     auth: { user, pass },
   });
-  const mail = buildWarehouseScheduleMail(eventType, snapshot);
+  const mail = buildWarehouseScheduleMail(eventType, snapshots);
+  if (testOnly) {
+    recipients = { to: ["jsh@aincustoms.com"], cc: [] };
+    mail.subject = "[테스트] " + mail.subject;
+  }
   return transporter.sendMail({
     from: env("MAIL_FROM") || user,
     to: recipients.to.join(","),
@@ -323,14 +319,18 @@ async function handleAutomaticWarehouseScheduleNotice(req, res, body) {
   }
 
   try {
-    const delivery = await deliverAutomaticMailOnce({
-      supabaseFetch,
-      eventId,
-      allowedEventTypes: ["warehouse_arrival_eve", "warehouse_arrival_today"],
-      sendMail: async (claim) => {
-        const card = await hchCardFromClaim(claim);
-        return sendWarehouseScheduleMail(claim.event_type, card);
+    const directoryCache = new Map();
+    const directoryDb = (path) => {
+      if (!directoryCache.has(path)) directoryCache.set(path, supabaseFetch(path));
+      return directoryCache.get(path);
+    };
+    const delivery = await deliverWarehouseDigest({
+      db: supabaseFetch, eventId,
+      resolveRecipients: async (snapshot) => {
+        const settings = await fetchEffectiveRoleMailSettings(directoryDb, "warehouse_change", "notice", process.env);
+        return resolveDirectoryNoticeRecipients({ supabaseFetch: directoryDb, settings, card: snapshot });
       },
+      sendMail: sendWarehouseScheduleMail,
     });
     return automaticDeliveryResponse(res, delivery);
   } catch (error) {
