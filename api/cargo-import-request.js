@@ -28,6 +28,7 @@ const {
 } = require("../lib/cargo-missing-quarantine-notification");
 const { deliverManualMailOnce } = require("../lib/cargo-mail-dedupe");
 const { deliverWarehouseDigest } = require("../lib/cargo-warehouse-digest");
+const { deliverMissingWarehousePlanDigest } = require("../lib/cargo-missing-warehouse-plan-digest");
 const {
   deliverAutomaticMailOnce,
 } = require("../lib/cargo-automatic-mail-dedupe");
@@ -376,14 +377,8 @@ async function handleAutomaticMissingWarehousePlanNotice(req, res, body) {
   }
 
   try {
-    const delivery = await deliverAutomaticMailOnce({
-      supabaseFetch,
-      eventId,
-      allowedEventTypes: ["warehouse_plan_missing"],
-      sendMail: async (claim) => {
-        const card = await hchCardFromClaim(claim);
-        return sendMissingWarehousePlanMail(card);
-      },
+    const delivery = await deliverMissingWarehousePlanDigest({
+      db: supabaseFetch, eventId, sendMail: sendMissingWarehousePlanMail,
     });
     return automaticDeliveryResponse(res, delivery);
   } catch (error) {
