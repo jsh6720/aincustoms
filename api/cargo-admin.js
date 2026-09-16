@@ -29,6 +29,10 @@ function normalizeRecipientText(value) {
 }
 
 module.exports = async function handler(req, res) {
+  // Separate authentication/storage; retain the existing function budget.
+  if (req.query?.workspace === "internal") {
+    return require("../lib/internal-share-handler")(req, res);
+  }
   try {
     if (req.method === "GET" && req.query?.action === "receipt_calendar_cron") {
       if (!authorizedCron(req)) return res.status(401).json({ success: false });

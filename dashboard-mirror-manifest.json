@@ -15,17 +15,17 @@
     {
       "source": "package-lock.json",
       "target": "website_integration/package-lock.json",
-      "sha256": "a9a00828048aeed9a2e3710aa5eb9ecfd1ccab0261583e76289ab4020a87a2d3"
+      "sha256": "c568172d65a80526608d2436e55237de2e4ab98e874725e0a5555152c73fb067"
     },
     {
       "source": "package.json",
       "target": "website_integration/package.json",
-      "sha256": "cf56f45e4ab5d711d698de21a4bac078653855bfb07109588bad0a6c0a7f3ef4"
+      "sha256": "37c553f81a7bf387e6abac4ba210253be02f7b09faa04f20c8e5e8d6fe0c3bd6"
     },
     {
       "source": "api/cargo-admin.js",
       "target": "website_integration/vercel_package/api/cargo-admin.js",
-      "sha256": "83afe469f17c30983b1ed840942dcefbb89d0240b5b160c686c7b48cb5c8cbcd"
+      "sha256": "a5470199f9883c93159e1158187798c7adcd00c00a5e55f10424a45537d221cf"
     },
     {
       "source": "api/cargo-card-visibility.js",
@@ -210,12 +210,12 @@
     {
       "source": "package-lock.json",
       "target": "website_integration/vercel_package/package-lock.json",
-      "sha256": "a9a00828048aeed9a2e3710aa5eb9ecfd1ccab0261583e76289ab4020a87a2d3"
+      "sha256": "c568172d65a80526608d2436e55237de2e4ab98e874725e0a5555152c73fb067"
     },
     {
       "source": "package.json",
       "target": "website_integration/vercel_package/package.json",
-      "sha256": "cf56f45e4ab5d711d698de21a4bac078653855bfb07109588bad0a6c0a7f3ef4"
+      "sha256": "37c553f81a7bf387e6abac4ba210253be02f7b09faa04f20c8e5e8d6fe0c3bd6"
     },
     {
       "source": "lib/cargo-outlook-calendar.js",
@@ -240,7 +240,7 @@
     {
       "source": "vercel.json",
       "target": "website_integration/vercel_package/vercel.json",
-      "sha256": "7dc4209c4a2e6e3bb4192d9e6c4e574c355fed885775d43152df53fb9a285be0"
+      "sha256": "6823e5e1de1fdc0ee9ed9f3816fd346a556aedcdd2364bb6980e7b0ab568f242"
     },
     {
       "source": "lib/cargo-doc-mail-batch.js",
@@ -266,6 +266,66 @@
       "source": "lib/cargo-missing-warehouse-plan-digest.js",
       "target": "website_integration/vercel_package/lib/cargo-missing-warehouse-plan-digest.js",
       "sha256": "76959cc91999defd94d1a18db2612fb57eb6c9cb83f92f6860b2ae62db06b4c0"
+    },
+    {
+      "source": "internal/index.html",
+      "target": "website_integration/vercel_package/internal/index.html",
+      "sha256": "d892d5d2d4a938f50ae6172939ef894b6cd34c6b1cd72a7d3dc7c6f34afe7cd3"
+    },
+    {
+      "source": "internal/style.css",
+      "target": "website_integration/vercel_package/internal/style.css",
+      "sha256": "29e58ef28398dc51692321ff6479b87e71c5dd4dac877c4ba627a9b1a093bbb1"
+    },
+    {
+      "source": "internal/ui.js",
+      "target": "website_integration/vercel_package/internal/ui.js",
+      "sha256": "9e4de412933b756154968477aca2656209efb9b713322031f5b9dcea5e480ff3"
+    },
+    {
+      "source": "internal/main.js",
+      "target": "website_integration/vercel_package/internal/main.js",
+      "sha256": "5f85ebc038bea28fdfd87eda1dee802c68075bf25a6b11b2a7ce3c419aaafe87"
+    },
+    {
+      "source": "internal/sync.mjs",
+      "target": "website_integration/vercel_package/internal/sync.mjs",
+      "sha256": "80445e28f66d971bb854468e1ed8a3bf66b95aff4d34d840c36f447512fd5981"
+    },
+    {
+      "source": "internal/preview.mjs",
+      "target": "website_integration/vercel_package/internal/preview.mjs",
+      "sha256": "6565ccc37ce47ed6c3d585655ab93e07dc0e4fb7b5674a24cbb8bc89d479c733"
+    },
+    {
+      "source": "internal/app.js",
+      "target": "website_integration/vercel_package/internal/app.js",
+      "sha256": "d0e953e8efc57ef7a3273d730fb3015066536de9342657fc4a63a800e101f48a"
+    },
+    {
+      "source": "lib/internal-share-server.js",
+      "target": "website_integration/vercel_package/lib/internal-share-server.js",
+      "sha256": "bda0c37b8c6631bcd317c6b769a33ea3c62e2dd2aa9f28ee06ac7461518becbb"
+    },
+    {
+      "source": "lib/internal-share-handler.js",
+      "target": "website_integration/vercel_package/lib/internal-share-handler.js",
+      "sha256": "b357713b4cd9609da0bf91eacac2fed3cfdb0a10f773f56701d273f7badc1a08"
+    },
+    {
+      "source": "supabase/migrations/20260916090000_internal_share.sql",
+      "target": "website_integration/vercel_package/supabase/migrations/20260916090000_internal_share.sql",
+      "sha256": "5c212f1d0aab4e8a08f374f1f15d4b0099da2a8e8ebcbce0212ab23608541a08"
+    },
+    {
+      "source": "docs/internal-share-setup.ko.md",
+      "target": "website_integration/vercel_package/docs/internal-share-setup.ko.md",
+      "sha256": "a34da47f8b3a95d8c1ad70cf9ec426539fd9654d1237367098395fbace4aa160"
+    },
+    {
+      "source": "scripts/create-internal-share-secret.cjs",
+      "target": "website_integration/vercel_package/scripts/create-internal-share-secret.cjs",
+      "sha256": "1b91d907fcccc97a9eb04386a5330b106cc34b96ae878269b5de456d99449600"
     }
   ]
 }

@@ -1,3 +1,7 @@
 .worktrees/
 .superpowers/sdd/
 .codex-mail-test.log
+node_modules/
+.artifacts/
+.env
+.env.*

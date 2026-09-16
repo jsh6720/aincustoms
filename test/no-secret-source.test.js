@@ -26,7 +26,7 @@ function trackedText() {
 
 function sha256(file) {
   let content = fs.readFileSync(file);
-  if (/\.(?:css|html|js|json|md|sql)$/i.test(file)) {
+  if (/\.(?:css|html|[cm]?js|json|md|sql)$/i.test(file)) {
     content = Buffer.from(content.toString("utf8").replace(/\r\n?/g, "\n"), "utf8");
   }
   return crypto.createHash("sha256").update(content).digest("hex");

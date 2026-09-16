@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow, noarchive">
+  <meta name="referrer" content="no-referrer">
+  <meta name="theme-color" content="#f5f6f3">
+  <title>팀 공유 문서 · AIN</title>
+  <link rel="stylesheet" href="/internal/style.css">
+  <script type="module" src="/internal/app.js"></script>
+</head>
+<body>
+  <main id="login-shell" class="login-shell">
+    <div class="login-brand" aria-label="AIN 아인합동관세사무소"><span class="brand-symbol" aria-hidden="true">a</span><span>AIN <span class="brand-muted">Workspace</span></span></div>
+    <section class="login-card" aria-labelledby="login-title">
+      <span class="eyebrow">INTERNAL WORKSPACE</span>
+      <h1 id="login-title">팀의 업무를<br>한 문서에서 이어가세요.</h1>
+      <p class="login-description">함께 확인할 내용과 업무 링크를 기록하는<br class="desktop-break"> 아인 내부 공유 공간입니다.</p>
+      <form id="login-form">
+        <label for="password">공유 비밀번호</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" required aria-describedby="login-error" placeholder="비밀번호를 입력해 주세요">
+        <p id="login-error" class="field-error" role="alert" hidden></p>
+        <button id="login-submit" class="button button-primary login-submit" type="submit"><span>문서 열기</span><span aria-hidden="true">↗</span></button>
+      </form>
+      <p class="login-footnote"><span aria-hidden="true">◈</span> 내부 구성원에게 공유된 비밀번호로 입장합니다.</p>
+    </section>
+    <footer class="login-footer">아인합동관세사무소 <span aria-hidden="true">·</span> INTERNAL USE ONLY</footer>
+  </main>
+  <div id="app-shell" class="app-shell" hidden>
+    <header class="app-header">
+      <div class="brand" aria-label="AIN Workspace"><span class="brand-symbol" aria-hidden="true">a</span><span>AIN <span class="brand-muted">Workspace</span></span></div>
+      <div class="header-divider" aria-hidden="true"></div>
+      <span class="header-context">팀 공유 문서</span>
+      <div class="header-actions">
+        <label class="name-control" for="writer-name"><span class="name-label">작성자 표시 이름</span><input id="writer-name" type="text" maxlength="24" autocomplete="off" placeholder="이름 (선택)" title="로그인 ID가 아닌 문서에 표시할 이름입니다."></label>
+        <button id="logout-button" class="button button-quiet" type="button">나가기</button>
+      </div>
+    </header>
+    <div class="workspace">
+      <aside class="sidebar" aria-label="문서 탐색 및 관리">
+        <div class="sidebar-top">
+          <span class="eyebrow">OUR WORKSPACE</span>
+          <div class="selected-document"><span class="document-icon" aria-hidden="true">▤</span><span>팀 업무 노트</span><span class="document-dot" aria-hidden="true"></span></div>
+          <div class="outline-heading">문서 개요</div>
+          <nav id="outline-host" class="outline" aria-label="문서 제목 탐색"><p class="outline-empty">제목을 추가하면<br>이곳에서 바로 이동할 수 있어요.</p></nav>
+        </div>
+        <div class="sidebar-bottom">
+          <p class="sidebar-note">함께 편집하는 한 문서<br><span>변경 내용이 자동으로 공유됩니다.</span></p>
+          <button id="download-button" class="sidebar-button" type="button"><span aria-hidden="true">↓</span> 문서 내려받기 <span class="file-extension">MD</span></button>
+          <button id="backup-button" class="sidebar-button" type="button"><span aria-hidden="true">◇</span> 복구용 백업 <span class="file-extension">JSON</span></button>
+        </div>
+      </aside>
+      <main class="document-workspace">
+        <div class="document-topline"><span>WORKING TOGETHER</span><span class="internal-label">내부 공유</span></div>
+        <div class="document-heading">
+          <div><h1>팀 업무 노트</h1><p>메모와 업무 링크를 함께 기록하고 이어서 편집하세요.</p></div>
+          <div class="view-switch" role="group" aria-label="문서 보기 방식">
+            <button id="edit-view-button" type="button" class="view-button is-active" aria-pressed="true" aria-controls="editor-panel">편집</button>
+            <button id="read-view-button" type="button" class="view-button" aria-pressed="false" aria-controls="preview-panel">읽기</button>
+          </div>
+        </div>
+        <div id="app-error" class="error-banner" role="alert" hidden><p id="app-error-message"></p><button id="retry-button" class="button button-small" type="button">다시 연결</button></div>
+        <section class="document-surface" aria-label="공유 문서">
+          <div class="document-toolbar">
+            <div id="editing-tools" class="editing-tools" role="group" aria-label="문서 서식">
+              <button type="button" data-insert="heading" title="제목 추가" aria-label="제목 추가"><span class="toolbar-heading" aria-hidden="true">H</span><span class="tool-label">제목</span></button>
+              <span class="toolbar-divider" aria-hidden="true"></span>
+              <button type="button" data-insert="list" title="목록 추가" aria-label="목록 추가"><span aria-hidden="true">≡</span><span class="tool-label">목록</span></button>
+              <button type="button" data-insert="checkbox" title="체크 목록 추가" aria-label="체크 목록 추가"><span aria-hidden="true">☑</span><span class="tool-label">할 일</span></button>
+              <button type="button" data-insert="link" title="링크 추가" aria-label="링크 추가"><span aria-hidden="true">↗</span><span class="tool-label">링크</span></button>
+            </div>
+            <span id="reading-label" class="reading-label" hidden>문서 읽기</span>
+            <span id="sync-status" class="sync-status" data-kind="syncing" role="status" aria-live="polite">문서 연결 중</span>
+          </div>
+          <div id="editor-panel" class="editor-panel"><div id="editor-host" class="editor-host" aria-label="공유 문서 편집기"></div></div>
+          <div id="preview-panel" class="preview-panel" hidden><article id="preview-host" class="preview-content" aria-label="공유 문서 읽기"></article></div>
+          <footer class="document-footer"><p id="view-hint">제목·목록은 위 도구로 추가할 수 있습니다. 링크는 읽기 화면에서 열립니다.</p><span>한 문서를 함께 편집합니다</span></footer>
+        </section>
+        <p class="connection-note">저장 상태를 확인해 주세요. 연결 실패 시 변경 내용이 서버에 저장되지 않을 수 있습니다.</p>
+      </main>
+    </div>
+  </div>
+</body>
+</html>
