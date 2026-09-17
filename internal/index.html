@@ -119,11 +119,11 @@
       <p id="password-change-notice" class="password-change-notice">변경하면 접속 중인 구성원 모두 새 비밀번호로 다시 로그인해야 합니다.</p>
       <label for="current-password">현재 공유 비밀번호</label>
       <input id="current-password" name="currentPassword" type="password" autocomplete="current-password" required aria-describedby="password-change-error">
-      <label for="new-password">새 공유 비밀번호 <span>8~128자</span></label>
-      <input id="new-password" name="newPassword" type="password" autocomplete="new-password" minlength="8" maxlength="128" required aria-describedby="new-password-help password-change-error">
+      <label for="new-password">새 공유 비밀번호 <span>6~128자</span></label>
+      <input id="new-password" name="newPassword" type="password" autocomplete="new-password" minlength="6" maxlength="128" required aria-describedby="new-password-help password-change-error">
       <p id="new-password-help" class="note-field-help">현재 비밀번호와 다른 비밀번호를 입력해 주세요.</p>
       <label for="confirm-password">새 공유 비밀번호 확인</label>
-      <input id="confirm-password" name="confirmPassword" type="password" autocomplete="new-password" minlength="8" maxlength="128" required aria-describedby="password-change-error">
+      <input id="confirm-password" name="confirmPassword" type="password" autocomplete="new-password" minlength="6" maxlength="128" required aria-describedby="password-change-error">
       <p id="password-change-error" class="field-error" role="alert" hidden></p>
       <p id="password-change-status" class="note-form-status" role="status" aria-live="polite" hidden></p>
       <div class="note-dialog-actions"><button id="password-change-cancel" class="button" type="button">취소</button><button id="password-change-submit" class="button button-primary" type="submit">비밀번호 변경</button></div>

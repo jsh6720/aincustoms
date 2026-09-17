@@ -270,7 +270,7 @@
     {
       "source": "internal/index.html",
       "target": "website_integration/vercel_package/internal/index.html",
-      "sha256": "45d080a58935d0a8d0de711fe8004df1eadddb305bd348da790d5498ae5ed5fe"
+      "sha256": "a6d76a73556fa8f49c1f2698e228837204a903583d1bdb7f0450807e45775092"
     },
     {
       "source": "internal/style.css",
@@ -280,7 +280,7 @@
     {
       "source": "internal/ui.js",
       "target": "website_integration/vercel_package/internal/ui.js",
-      "sha256": "e3b57293b694c5d81ad27ae828ef62bc6bc6f107a884988a1b0f23e389acb91e"
+      "sha256": "189673b54b903402531121e8c38fb24f8f5bf297569e7432b7e87db2b1133a8b"
     },
     {
       "source": "internal/main.js",
@@ -315,12 +315,12 @@
     {
       "source": "internal/app.js",
       "target": "website_integration/vercel_package/internal/app.js",
-      "sha256": "b2804fce0d193214a49dc3f206be24db6be2cc1cbcf70c86c81f5b0da46d8b77"
+      "sha256": "21b4c072c118ee430aa22f0d86f5289db5aa8114a174c832f04ac679386f3f3a"
     },
     {
       "source": "lib/internal-share-server.js",
       "target": "website_integration/vercel_package/lib/internal-share-server.js",
-      "sha256": "cdaab802075942645ce54d393f4b3ee39045116f83a8332daeb9dd4deb1f4ca9"
+      "sha256": "c004df470d9fecf7822ca29d9889ca3abc855ff5389e788673591e3895f6436a"
     },
     {
       "source": "lib/internal-share-handler.js",
@@ -335,7 +335,7 @@
     {
       "source": "docs/internal-share-setup.ko.md",
       "target": "website_integration/vercel_package/docs/internal-share-setup.ko.md",
-      "sha256": "181b50fdc61d998f4a2a83b4bb9bf60cf889f473ab5c2687c34521fb5a3708fb"
+      "sha256": "116a5caaee1a47db69c355338381834f072ffa3fd1e29f596cfd38b79d705f4a"
     },
     {
       "source": "scripts/create-internal-share-secret.cjs",

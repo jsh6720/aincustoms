@@ -242,10 +242,17 @@ const handler = createInternalShareHandler({ env, fetch: async (address, options
     // Credential rotation is confined to this handler's synthetic in-memory state.
     await a.setViewportSize({ width: 1440, height: 1000 });
     await login(a);
-    const newPassword = crypto.randomBytes(24).toString('base64url');
+    const newPassword = crypto.randomBytes(3).toString('hex'); // Synthetic six-character boundary.
     await a.locator('#settings-button').click();
     await a.locator('#password-dialog').waitFor({ state: 'visible' });
     assert.match(await a.locator('#password-dialog').innerText(), /접속 중인 구성원 모두/);
+    assert.equal(await a.locator('#new-password').getAttribute('minlength'), '6');
+    assert.equal(await a.locator('#confirm-password').getAttribute('minlength'), '6');
+    const beforeShortPassword = passwordChangeRequests;
+    await fillPasswordChange(a, password, 'abcde');
+    await a.locator('#password-change-submit').click();
+    assert.match(await a.locator('#password-change-error').innerText(), /6자 이상/);
+    assert.equal(passwordChangeRequests, beforeShortPassword);
     await fillPasswordChange(a, 'synthetic-wrong-current-password', newPassword);
     await a.locator('#password-change-submit').click();
     await a.locator('#password-change-error').waitFor({ state: 'visible' });

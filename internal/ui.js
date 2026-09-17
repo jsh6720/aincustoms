@@ -283,7 +283,7 @@ export function initUI(callbacks = {}) {
     setPasswordError();
     for (const input of [refs.currentPasswordInput, refs.newPasswordInput, refs.confirmPasswordInput]) input.removeAttribute('aria-invalid');
     const invalid = !currentPassword ? [refs.currentPasswordInput, '현재 공유 비밀번호를 입력해 주세요.']
-      : newPassword.length < 8 || newPassword.length > 128 ? [refs.newPasswordInput, '새 공유 비밀번호를 8자 이상 128자 이하로 입력해 주세요.']
+      : newPassword.length < 6 || newPassword.length > 128 ? [refs.newPasswordInput, '새 공유 비밀번호를 6자 이상 128자 이하로 입력해 주세요.']
       : newPassword === currentPassword ? [refs.newPasswordInput, '현재 비밀번호와 다른 새 비밀번호를 입력해 주세요.']
       : confirmPassword !== newPassword ? [refs.confirmPasswordInput, '새 공유 비밀번호와 확인 입력이 일치하지 않습니다.'] : null;
     if (invalid) {

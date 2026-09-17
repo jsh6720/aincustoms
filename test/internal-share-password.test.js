@@ -94,7 +94,7 @@ test("password change requires a valid cookie, matching HTTPS origin and session
 test("weak, mismatching, unchanged and malformed passwords never reach mutation or guard", async () => {
   const h = harness(), auth = h.auth();
   for (const patch of [
-    { newPassword: "short7!", confirmPassword: "short7!" },
+    { newPassword: "tiny5", confirmPassword: "tiny5" },
     { newPassword: "x".repeat(129), confirmPassword: "x".repeat(129) },
     { newPassword: "한".repeat(1025), confirmPassword: "한".repeat(1025) },
     { confirmPassword: NEW + "-different" }, { newPassword: OLD, confirmPassword: OLD },
@@ -107,6 +107,43 @@ test("weak, mismatching, unchanged and malformed passwords never reach mutation 
   }
   assert.equal(called(h, "login_guard").length, 0);
   assert.equal(called(h, "password_change").length, 0);
+});
+
+test("new passwords reject five characters and accept exactly six for change and login", async () => {
+  const h = harness(), auth = h.auth(), five = "tiny5", six = "new6!?";
+  const rejected = await h.run(change(auth, { newPassword: five, confirmPassword: five }));
+  assert.equal(rejected.statusCode, 400);
+  assert.equal(rejected.body.error, "INVALID_NEW_PASSWORD");
+  assert.equal(called(h, "login_guard").length, 0);
+  assert.equal(called(h, "password_change").length, 0);
+  assert.deepEqual(h.state, { revision: 0, password_hash: null });
+
+  const changed = await h.run(change(auth, { newPassword: six, confirmPassword: six }));
+  assert.equal(changed.statusCode, 200);
+  assert.equal(changed.body.passwordChanged, true);
+  assert.equal(h.state.revision, 1);
+  assert.equal(called(h, "password_change").length, 1);
+  assert.equal(await verifyPassword(six, parsePasswordHash(h.state.password_hash)), true);
+  const login = await h.run(request("POST", { action: "login", password: six }));
+  assert.equal(login.statusCode, 200);
+  assert.equal(login.body.authenticated, true);
+});
+
+test("existing five-character passwords remain valid for login and current-password confirmation", async () => {
+  const existing = "old5!", six = "new6!?";
+  const h = harness({ state: { revision: 1, password_hash: fixtureHash(existing, 23) } });
+  const login = await h.run(request("POST", { action: "login", password: existing }));
+  assert.equal(login.statusCode, 200);
+  assert.equal(login.body.authenticated, true);
+  const auth = { cookie: login.headers["set-cookie"].split(";")[0], csrf: login.body.csrf };
+  const changed = await h.run(change(auth, {
+    currentPassword: existing, newPassword: six, confirmPassword: six,
+  }));
+  assert.equal(changed.statusCode, 200);
+  assert.equal(changed.body.passwordChanged, true);
+  assert.equal(h.state.revision, 2);
+  assert.equal(called(h, "password_change").length, 1);
+  assert.equal(await verifyPassword(six, parsePasswordHash(h.state.password_hash)), true);
 });
 
 test("wrong current password consumes one durable attempt without completing it", async () => {
