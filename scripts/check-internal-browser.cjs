@@ -48,7 +48,8 @@ const handler = createInternalShareHandler({ env, fetch: async (address, options
           if (reply.code === 403 && JSON.parse(reply.body).error === 'CSRF_REJECTED') csrfRejections++;
           return route.fulfill({ status: reply.code, headers: { 'Content-Type': 'application/json', ...reply.headers }, body: reply.body });
         }
-        const name = url.pathname === '/internal/' ? 'index.html' : url.pathname.split('/').pop();
+        if (['/internal','/internal/','/note/'].includes(url.pathname)) return route.fulfill({status:307,headers:{location:'/note'},body:''});
+        const name = url.pathname === '/note' ? 'index.html' : url.pathname.split('/').pop();
         if (!['index.html', 'app.js', 'style.css'].includes(name)) return route.fulfill({ status: 404, body: '' });
         const type = name.endsWith('.js') ? 'text/javascript' : name.endsWith('.css') ? 'text/css' : 'text/html';
         return route.fulfill({ status: 200, contentType: type, body: fs.readFileSync(path.join(root, 'internal', name)) });
@@ -59,7 +60,7 @@ const handler = createInternalShareHandler({ env, fetch: async (address, options
     const a = await aContext.newPage(), b = await bContext.newPage();
     const errors = []; for (const page of [a,b]) page.on('pageerror', error => errors.push(error.message));
     async function login(page) {
-      await page.goto('https://ain.example.test/internal/');
+      await page.goto('https://ain.example.test/note');
       await page.locator('#password').fill(password); await page.locator('#login-submit').click();
       await page.locator('.cm-content[contenteditable=true]').waitFor();
     }
@@ -74,13 +75,56 @@ const handler = createInternalShareHandler({ env, fetch: async (address, options
     assert.equal(await a.locator('.cm-content').innerText(), await b.locator('.cm-content').innerText());
     // A sibling tab renews the shared cookie while this tab holds the old CSRF.
     const sibling = await aContext.newPage();
-    await sibling.goto('https://ain.example.test/internal/');
+    await sibling.goto('https://ain.example.test/note');
     assert.equal(await sibling.evaluate(async password => (await fetch('/api/internal-share', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'login', password }) })).status, password), 200);
     await sibling.close();
     await a.locator('.cm-content').click(); await a.keyboard.press('Control+End'); await a.keyboard.insertText(' / 세션갱신');
     await b.waitForFunction(() => document.querySelector('.cm-content')?.textContent.includes('세션갱신'));
     assert.ok(csrfRejections >= 1);
-    await a.keyboard.press('Control+End'); await a.keyboard.insertText('\nhttps://example.com/work\n[위험](javascript:alert(1))\n<img src=x onerror="window.__unsafe=1">');
+    // Switching editors shares one pending queue, including an offline new note.
+    blocked = true;
+    await a.locator('.cm-content').click(); await a.keyboard.press('Control+End'); await a.keyboard.insertText(' / 전환전입력');
+    const teamText = await a.locator('.cm-content').innerText();
+    await a.locator('#new-note-button').click();
+    await a.locator('#note-title-input').fill('통관 업무');
+    await a.locator('#note-category-input').fill('업무');
+    await a.locator('#note-form button[type=submit]').click();
+    await a.locator('#note-heading').filter({hasText:'통관 업무'}).waitFor();
+    const noteId = await a.locator('#notes-list [data-note-id][aria-current="page"]').getAttribute('data-note-id');
+    assert.notEqual(noteId,'team');
+    await a.locator('.cm-content').click(); await a.keyboard.insertText('# 새 노트\n분리된 업무 내용');
+    await a.locator('#notes-list [data-note-id="team"]').click();
+    assert.equal(await a.locator('.cm-content').innerText(),teamText);
+    blocked = false;
+    for (const page of [a,b]) await page.evaluate(() => dispatchEvent(new Event('online')));
+    await b.locator(`#notes-list [data-note-id="${noteId}"]`).waitFor();
+    await b.locator(`#notes-list [data-note-id="${noteId}"]`).click();
+    await b.waitForFunction(()=>document.querySelector('.cm-content')?.textContent.includes('분리된 업무 내용'));
+    assert.equal((await b.locator('.cm-content').innerText()).includes('오늘 업무'),false);
+    await b.locator('.cm-content').click(); await b.keyboard.press('Control+End'); await b.keyboard.insertText(' / 다른 구성원');
+    await a.locator(`#notes-list [data-note-id="${noteId}"]`).click();
+    await a.waitForFunction(()=>document.querySelector('.cm-content')?.textContent.includes('다른 구성원'));
+    await b.locator('#edit-note-button').click();
+    await b.locator('#note-title-input').fill('서류 진행');
+    await b.locator('#note-category-input').fill('통관');
+    await b.locator('#note-form button[type=submit]').click();
+    await a.waitForFunction(()=>document.querySelector('#note-heading')?.textContent==='서류 진행');
+    assert.match(await a.locator('#notes-list').innerText(),/통관/);
+    // Both dialogs start from the same values; unrelated changed fields must merge.
+    await a.locator('#edit-note-button').click(); await b.locator('#edit-note-button').click();
+    await a.locator('#note-title-input').fill('서류 진행 (팀)');
+    await b.locator('#note-category-input').fill('공동업무');
+    await a.locator('#note-form button[type=submit]').click();
+    await b.waitForFunction(()=>document.querySelector('#note-heading')?.textContent==='서류 진행 (팀)');
+    await b.locator('#note-form button[type=submit]').click();
+    await a.waitForFunction(()=>document.querySelector('#note-category')?.textContent==='공동업무');
+    assert.equal(await a.locator('#note-heading').textContent(),'서류 진행 (팀)');
+    await a.waitForFunction(()=>document.querySelector('#sync-status')?.dataset.kind==='saved');
+    await a.reload(); await a.locator('.cm-content[contenteditable=true]').waitFor();
+    assert.equal(await a.locator('.cm-content').innerText(),teamText);
+    await a.locator(`#notes-list [data-note-id="${noteId}"]`).click();
+    assert.match(await a.locator('.cm-content').innerText(),/분리된 업무 내용.*다른 구성원/s);
+    await a.locator('.cm-content').click(); await a.keyboard.press('Control+End'); await a.keyboard.insertText('\nhttps://example.com/work\n[위험](javascript:alert(1))\n<img src=x onerror="window.__unsafe=1">');
     await a.locator('#read-view-button').click();
     await a.locator('#preview-host a[href="https://example.com/work"]').waitFor();
     const safe = a.locator('#preview-host a[href="https://example.com/work"]');
@@ -90,10 +134,25 @@ const handler = createInternalShareHandler({ env, fetch: async (address, options
     assert.equal(await a.evaluate(() => window.__unsafe), undefined);
     const popupPromise = a.waitForEvent('popup'); await safe.click(); const popup = await popupPromise;
     await popup.waitForLoadState(); assert.equal(popup.url(), 'https://example.com/work'); await popup.close();
+    const downloadPromise = a.waitForEvent('download');
+    await a.locator('#backup-button').click();
+    const backup = await downloadPromise;
+    const exported = JSON.parse(fs.readFileSync(await backup.path(),'utf8'));
+    assert.equal(exported.format,'ain-internal-yjs-v2');
+    assert.equal(exported.activeNoteId,noteId);
+    assert.equal(exported.notes.find(note=>note.id==='team').text,teamText);
+    assert.equal(exported.notes.find(note=>note.id===noteId).category,'공동업무');
+    assert.match(exported.notes.find(note=>note.id===noteId).text,/분리된 업무 내용/);
     const artifacts = path.join(root, '.artifacts'); fs.mkdirSync(artifacts, { recursive: true });
     await a.screenshot({ path: path.join(artifacts, 'internal-desktop.png'), fullPage: true });
     await a.setViewportSize({ width: 390, height: 844 });
     assert.equal(await a.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+    await a.locator('#notes-toggle-button').click();
+    await a.locator('#notes-list [data-note-id="team"]').waitFor({state:'visible'});
+    await a.locator('#notes-list [data-note-id="team"]').click();
+    assert.equal((await a.locator('.cm-content .cm-line').allTextContents()).join('\n'),teamText);
+    await a.locator('#notes-toggle-button').click();
+    await a.locator(`#notes-list [data-note-id="${noteId}"]`).click();
     await a.screenshot({ path: path.join(artifacts, 'internal-mobile.png'), fullPage: true });
     await a.locator('#edit-view-button').click();
     failLogout = true;
@@ -113,6 +172,6 @@ const handler = createInternalShareHandler({ env, fetch: async (address, options
     assert.equal(await a.locator('#preview-host').textContent(), '');
     const unauthorized = await a.evaluate(async () => (await fetch('/api/internal-share?action=sync&after=0')).status);
     assert.equal(unauthorized, 401); assert.deepEqual(errors, []);
-    console.log('PASS: password gate, 2-browser concurrent Korean typing, cross-tab CSRF renewal, safe clickable links/new tab, XSS rejection, mobile overflow, failed logout recovery, delayed logout input lock and protected API. Storage is a synthetic mock; production DB NOT tested.');
+    console.log('PASS: password gate, 2-browser concurrent Korean typing, cross-tab CSRF renewal, multiple notes/categories, offline switch preservation, per-note separation, shared rename, refresh persistence, safe clickable links/new tab, XSS rejection, mobile overflow, failed logout recovery, delayed logout input lock and protected API. Storage is a synthetic mock; production DB NOT tested.');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode=1; });

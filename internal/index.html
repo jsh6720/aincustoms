@@ -6,7 +6,7 @@
   <meta name="robots" content="noindex, nofollow, noarchive">
   <meta name="referrer" content="no-referrer">
   <meta name="theme-color" content="#f5f6f3">
-  <title>팀 공유 문서 · AIN</title>
+  <title>팀 공유 노트 · AIN</title>
   <link rel="stylesheet" href="/internal/style.css">
   <script type="module" src="/internal/app.js"></script>
 </head>
@@ -15,13 +15,13 @@
     <div class="login-brand" aria-label="AIN 아인합동관세사무소"><span class="brand-symbol" aria-hidden="true">a</span><span>AIN <span class="brand-muted">Workspace</span></span></div>
     <section class="login-card" aria-labelledby="login-title">
       <span class="eyebrow">INTERNAL WORKSPACE</span>
-      <h1 id="login-title">팀의 업무를<br>한 문서에서 이어가세요.</h1>
+      <h1 id="login-title">팀의 업무를<br>노트 공간에서 이어가세요.</h1>
       <p class="login-description">함께 확인할 내용과 업무 링크를 기록하는<br class="desktop-break"> 아인 내부 공유 공간입니다.</p>
       <form id="login-form">
         <label for="password">공유 비밀번호</label>
         <input id="password" name="password" type="password" autocomplete="current-password" required aria-describedby="login-error" placeholder="비밀번호를 입력해 주세요">
         <p id="login-error" class="field-error" role="alert" hidden></p>
-        <button id="login-submit" class="button button-primary login-submit" type="submit"><span>문서 열기</span><span aria-hidden="true">↗</span></button>
+        <button id="login-submit" class="button button-primary login-submit" type="submit"><span>노트 공간 열기</span><span aria-hidden="true">↗</span></button>
       </form>
       <p class="login-footnote"><span aria-hidden="true">◈</span> 내부 구성원에게 공유된 비밀번호로 입장합니다.</p>
     </section>
@@ -31,30 +31,35 @@
     <header class="app-header">
       <div class="brand" aria-label="AIN Workspace"><span class="brand-symbol" aria-hidden="true">a</span><span>AIN <span class="brand-muted">Workspace</span></span></div>
       <div class="header-divider" aria-hidden="true"></div>
-      <span class="header-context">팀 공유 문서</span>
+      <span class="header-context">팀 공유 노트</span>
       <div class="header-actions">
         <label class="name-control" for="writer-name"><span class="name-label">작성자 표시 이름</span><input id="writer-name" type="text" maxlength="24" autocomplete="off" placeholder="이름 (선택)" title="로그인 ID가 아닌 문서에 표시할 이름입니다."></label>
         <button id="logout-button" class="button button-quiet" type="button">나가기</button>
       </div>
     </header>
     <div class="workspace">
-      <aside class="sidebar" aria-label="문서 탐색 및 관리">
+      <button id="notes-toggle-button" class="notes-toggle-button" type="button" aria-expanded="false" aria-controls="workspace-sidebar"><span aria-hidden="true">☰</span> 노트 목록 <span id="notes-toggle-label">열기</span></button>
+      <aside id="workspace-sidebar" class="sidebar" aria-label="노트 탐색 및 관리">
         <div class="sidebar-top">
           <span class="eyebrow">OUR WORKSPACE</span>
-          <div class="selected-document"><span class="document-icon" aria-hidden="true">▤</span><span>팀 업무 노트</span><span class="document-dot" aria-hidden="true"></span></div>
-          <div class="outline-heading">문서 개요</div>
+          <div class="notes-heading"><h2>업무 노트</h2><span id="notes-count" class="notes-count">0</span></div>
+          <button id="new-note-button" class="button new-note-button" type="button" disabled><span aria-hidden="true">＋</span> 새 노트</button>
+          <label class="notes-search-label" for="notes-search">노트 제목 검색</label>
+          <input id="notes-search" class="notes-search" type="search" placeholder="노트 제목 검색" autocomplete="off">
+          <nav id="notes-list" class="notes-list" aria-label="카테고리별 노트" aria-busy="true"><p class="notes-empty">노트를 불러오는 중입니다.</p></nav>
+          <div class="outline-heading">현재 노트 목차</div>
           <nav id="outline-host" class="outline" aria-label="문서 제목 탐색"><p class="outline-empty">제목을 추가하면<br>이곳에서 바로 이동할 수 있어요.</p></nav>
         </div>
         <div class="sidebar-bottom">
-          <p class="sidebar-note">함께 편집하는 한 문서<br><span>변경 내용이 자동으로 공유됩니다.</span></p>
-          <button id="download-button" class="sidebar-button" type="button"><span aria-hidden="true">↓</span> 문서 내려받기 <span class="file-extension">MD</span></button>
-          <button id="backup-button" class="sidebar-button" type="button"><span aria-hidden="true">◇</span> 복구용 백업 <span class="file-extension">JSON</span></button>
+          <p class="sidebar-note">업무별로 정리하는 공유 노트<br><span>변경 내용이 자동으로 공유됩니다.</span></p>
+          <button id="download-button" class="sidebar-button" type="button"><span aria-hidden="true">↓</span> 현재 노트 내려받기 <span class="file-extension">MD</span></button>
+          <button id="backup-button" class="sidebar-button" type="button"><span aria-hidden="true">◇</span> 전체 노트 복구용 백업 <span class="file-extension">JSON</span></button>
         </div>
       </aside>
       <main class="document-workspace">
         <div class="document-topline"><span>WORKING TOGETHER</span><span class="internal-label">내부 공유</span></div>
         <div class="document-heading">
-          <div><h1>팀 업무 노트</h1><p>메모와 업무 링크를 함께 기록하고 이어서 편집하세요.</p></div>
+          <div class="document-heading-copy"><span id="note-category" class="note-category">일반</span><div class="note-title-row"><h1 id="note-heading">팀 업무 노트</h1><button id="edit-note-button" class="button button-quiet note-edit-button" type="button" disabled>이름·분류</button></div><p>메모와 업무 링크를 함께 기록하고 이어서 편집하세요.</p></div>
           <div class="view-switch" role="group" aria-label="문서 보기 방식">
             <button id="edit-view-button" type="button" class="view-button is-active" aria-pressed="true" aria-controls="editor-panel">편집</button>
             <button id="read-view-button" type="button" class="view-button" aria-pressed="false" aria-controls="preview-panel">읽기</button>
@@ -75,11 +80,27 @@
           </div>
           <div id="editor-panel" class="editor-panel"><div id="editor-host" class="editor-host" aria-label="공유 문서 편집기"></div></div>
           <div id="preview-panel" class="preview-panel" hidden><article id="preview-host" class="preview-content" aria-label="공유 문서 읽기"></article></div>
-          <footer class="document-footer"><p id="view-hint">제목·목록은 위 도구로 추가할 수 있습니다. 링크는 읽기 화면에서 열립니다.</p><span>한 문서를 함께 편집합니다</span></footer>
+          <footer class="document-footer"><p id="view-hint">제목·목록은 위 도구로 추가할 수 있습니다. 링크는 읽기 화면에서 열립니다.</p><span>선택한 노트를 함께 편집합니다</span></footer>
         </section>
         <p class="connection-note">저장 상태를 확인해 주세요. 연결 실패 시 변경 내용이 서버에 저장되지 않을 수 있습니다.</p>
       </main>
     </div>
   </div>
+  <dialog id="note-dialog" class="note-dialog" aria-labelledby="note-dialog-title" aria-describedby="note-dialog-description">
+    <form id="note-form">
+      <span class="eyebrow">OUR WORKSPACE</span>
+      <h2 id="note-dialog-title">새 노트 만들기</h2>
+      <p id="note-dialog-description" class="note-dialog-description">제목과 카테고리를 정하면 왼쪽 목록에 노트가 추가됩니다.</p>
+      <label for="note-title-input">노트 제목 <span>필수 · 최대 80자</span></label>
+      <input id="note-title-input" name="title" type="text" required maxlength="80" autocomplete="off" placeholder="예: 수입 요건 검토" aria-describedby="note-form-error">
+      <label for="note-category-input">카테고리 <span>최대 40자</span></label>
+      <input id="note-category-input" name="category" type="text" maxlength="40" list="note-category-options" autocomplete="off" value="일반" placeholder="일반" aria-describedby="note-category-help note-form-error">
+      <datalist id="note-category-options"></datalist>
+      <p id="note-category-help" class="note-field-help">기존 카테고리를 선택하거나 새 이름을 입력하세요. 비워 두면 ‘일반’으로 분류됩니다.</p>
+      <p id="note-form-error" class="field-error" role="alert" hidden></p>
+      <p id="note-form-status" class="note-form-status" role="status" aria-live="polite" hidden></p>
+      <div class="note-dialog-actions"><button id="note-cancel-button" class="button" type="button">취소</button><button id="note-submit-button" class="button button-primary" type="submit">만들기</button></div>
+    </form>
+  </dialog>
 </body>
 </html>

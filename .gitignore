@@ -5,3 +5,7 @@ node_modules/
 .artifacts/
 .env
 .env.*
+
+.vercel
+.env*
+supabase/.temp/

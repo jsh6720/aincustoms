@@ -131,3 +131,52 @@ a{color:#376b55}
 @media(max-width:400px){.document-workspace{padding-left:12px;padding-right:12px}.document-heading p{max-width:180px}.document-heading h1{font-size:21px}.login-shell{padding:36px 18px 24px}.login-brand{margin-bottom:32px}.login-card{padding:30px 26px}.login-card h1{font-size:25px}.login-footer{font-size:9px}.login-footnote{font-size:9px}.app-header{padding:0 14px}.brand{font-size:15px}.brand-symbol{width:28px;height:28px;font-size:28px}.name-control input{width:89px}.button-quiet{padding-left:6px;padding-right:6px}}
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
 @media print{body{background:#fff}.app-header,.sidebar,.document-topline,.view-switch,.document-toolbar,.document-footer,.connection-note,.error-banner{display:none!important}.workspace{display:block}.document-workspace{padding:0;max-width:none}.document-surface{border:0;box-shadow:none}.preview-panel{padding:0}.document-heading p{display:none}}
+
+.workspace{grid-template-columns:260px minmax(0,1fr)}
+.notes-toggle-button{display:none}
+.notes-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:19px 9px 12px}
+.notes-heading h2{margin:0;font-size:14px;font-weight:650;letter-spacing:-.025em;color:#426042}
+.notes-count{font-size:10px;color:#8a9980;background:#edf1e7;padding:3px 7px;border-radius:20px}
+.new-note-button{width:100%;justify-content:flex-start;padding:10px 12px;background:#eaf0e5;color:#426042;border-color:#dbe5d5;font-size:12px}
+.new-note-button:hover{background:#e2ebdc}
+.new-note-button>span{font-size:17px;font-weight:400}
+.notes-search-label{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.notes-search{width:100%;margin:13px 0 3px;border:1px solid #e0e6d9;border-radius:6px;background:#fff;padding:9px 10px;font-size:11px;color:#53634b;min-width:0}
+.notes-search::placeholder{color:#9ba691}
+.notes-list{max-height:42vh;overflow:auto;padding:4px 0 2px;scrollbar-width:thin}
+.note-group+.note-group{margin-top:9px}
+.note-group-heading{display:flex;align-items:baseline;justify-content:space-between;gap:10px;overflow-wrap:anywhere;margin:9px 9px 6px;font-size:10px;font-weight:600;color:#87937b;line-height:1.5}
+.note-group-heading span{flex-shrink:0;color:#a1ab96;font-size:9px;font-weight:400}
+.note-list-button{display:flex;align-items:flex-start;gap:8px;width:100%;border:1px solid transparent;background:transparent;border-radius:6px;padding:10px 10px;text-align:left;font-size:11px;color:#718165;line-height:1.65;transition:background .15s}
+.note-list-button:hover{background:#edf1e7;color:#425e39}
+.note-list-button.is-active{background:#e8efdf;border-color:#dce7d1;color:#3c5f34;font-weight:600}
+.note-list-icon{font-size:15px;line-height:1.2;margin-top:1px;flex-shrink:0;color:#8a9c7b}
+.note-list-title{min-width:0;overflow-wrap:anywhere}
+.notes-empty{font-size:11px;color:#9aa58e;line-height:1.8;margin:13px 9px 7px}
+.outline-heading{padding-top:24px;border-top:1px solid #e7ecdf;margin-top:21px}
+.outline{max-height:24vh}
+.document-heading{align-items:flex-start}
+.document-heading-copy{min-width:0}
+.note-category{display:inline-block;max-width:100%;overflow-wrap:anywhere;color:#859276;font-size:10px;line-height:1.5;margin-bottom:8px}
+.note-title-row{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;margin-bottom:9px}
+.note-title-row h1{min-width:0;overflow-wrap:anywhere;margin:0}
+.note-edit-button{flex-shrink:0;font-size:10px;white-space:nowrap;padding:5px 8px;color:#8b987e;border-color:#e3e9da;background:#f9fbf6}
+.view-switch{margin-top:24px}
+.note-dialog{width:min(450px,calc(100vw - 32px));max-height:calc(100svh - 32px);overflow:auto;margin:auto;padding:31px;border:1px solid #dfe6d7;border-radius:13px;background:#fff;color:#354630;box-shadow:0 20px 80px #1e36252b}
+.note-dialog::backdrop{background:#26332973;backdrop-filter:blur(2px)}
+.note-dialog h2{font-size:21px;font-weight:650;letter-spacing:-.5px;margin:14px 0 10px}
+.note-dialog-description{font-size:12px;color:#8a9480;line-height:1.8;margin:0 0 24px}
+.note-dialog label{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin:18px 0 8px;font-size:12px;font-weight:600;color:#64725a}
+.note-dialog label span{font-size:10px;font-weight:400;color:#9ba591}
+.note-dialog input{width:100%;border:1px solid #dce3d4;border-radius:6px;padding:11px 12px;font-size:13px;color:#3e5035;background:#fcfdfb}
+.note-dialog input:disabled{background:#f3f5ef;color:#8e9982}
+.note-dialog input[aria-invalid="true"]{border-color:#bd8474}
+.note-dialog input::placeholder{color:#a0aa94}
+.note-field-help{font-size:10px;line-height:1.8;color:#9ba48f;margin:8px 0 0}
+.note-form-status{font-size:11px;line-height:1.7;color:#7f926e;margin:13px 0 0}
+.note-dialog-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:26px}
+.note-dialog-actions .button{min-width:75px}
+@media(max-width:1080px){.workspace{grid-template-columns:225px minmax(0,1fr)}}
+@media(max-width:760px){.notes-toggle-button{display:flex;align-items:center;gap:8px;margin:15px 18px 0;padding:10px 12px;border:1px solid #dfe6d6;border-radius:6px;background:#f9fbf5;color:#607352;font-size:11px;text-align:left}.notes-toggle-button>span:first-child{font-size:14px}.notes-toggle-button>span:last-child{margin-left:auto;font-size:10px;color:#92a083}.sidebar{order:0;display:none;margin-top:12px;border-top:0;border-bottom:1px solid var(--border);padding:18px 20px 15px}.is-notes-open .sidebar{display:block}.sidebar-top{display:block}.sidebar .eyebrow{display:none}.notes-heading{margin-top:0}.notes-list{max-height:40vh}.sidebar-bottom{margin-top:18px;gap:10px}.outline{max-height:20vh}.outline-heading{padding-top:16px;margin-top:15px}.document-heading{flex-wrap:wrap}.document-heading-copy{flex:1 1 220px}.view-switch{margin-top:4px;margin-left:auto}.note-title-row{gap:6px}.note-edit-button{font-size:9px}.note-category{font-size:9px;margin-bottom:6px}.document-heading p{max-width:none}.note-dialog{padding:26px 22px}.note-dialog h2{font-size:20px}}
+@media(max-width:400px){.notes-toggle-button{margin-left:12px;margin-right:12px}.document-heading-copy{flex-basis:205px}}
+@media print{.notes-toggle-button,.note-edit-button,.note-dialog{display:none!important}.note-category{color:#607352}}

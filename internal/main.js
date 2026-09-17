@@ -7,8 +7,11 @@ import { yCollab, yUndoManagerKeymap, ySyncAnnotation } from 'y-codemirror.next'
 import { initUI, setAuthenticated, setStatus, showError } from './ui.js';
 import { SharedDocumentSync, encode } from './sync.mjs';
 import { renderPreview } from './preview.mjs';
+import { listNotes, createNote, updateNote, getNoteText } from './notes.mjs';
 
 let csrf = '', doc = null, sync = null, editor = null, renderTimer, loggingOut = false;
+let activeNoteId = 'team';
+let editorUndo = null;
 const editAccess = new Compartment();
 const utf8 = new TextEncoder();
 
@@ -46,11 +49,39 @@ const accessExtensions = enabled => [EditorView.editable.of(enabled), EditorStat
 function setEditing(enabled) {
   editor?.dispatch({ effects: editAccess.reconfigure(accessExtensions(enabled)) });
   document.querySelectorAll('[data-insert]').forEach(button => { button.disabled = !enabled; });
+  ui.setNotesBusy(!enabled);
+}
+
+function activeNote() { return listNotes(doc).find(note => note.id === activeNoteId); }
+function bodyText() { return getNoteText(doc, activeNoteId); }
+function requireEditableNotes() {
+  if (!doc || !sync?.ready || sync.paused || loggingOut || ui.appShell.hidden) {
+    throw new Error('문서를 불러온 뒤 다시 시도해 주세요.');
+  }
+}
+function destroyEditor() {
+  editor?.destroy(); editor = null;
+  editorUndo?.destroy(); editorUndo = null;
+}
+function selectNote(id) {
+  requireEditableNotes();
+  if (!listNotes(doc).some(note => note.id === id)) throw new Error('노트를 찾을 수 없습니다.');
+  if (activeNoteId !== id) {
+    // Every note shares one CRDT sync queue, so switching editors never discards
+    // pending changes or assigns them to the newly selected note.
+    destroyEditor(); ui.editorHost.replaceChildren();
+    activeNoteId = id;
+    createEditor();
+  } else render();
+}
+function onDocumentUpdate() {
+  clearTimeout(renderTimer); renderTimer = setTimeout(render, 100);
 }
 
 function render() {
   if (!doc) return;
-  const text = doc.getText('body').toString();
+  ui.renderNotes(listNotes(doc), activeNoteId);
+  const text = bodyText().toString();
   renderPreview(ui.previewHost, text);
   ui.outlineHost.replaceChildren();
   let offset = 0, count = 0;
@@ -72,7 +103,8 @@ function render() {
 }
 
 function createEditor() {
-  const text = doc.getText('body');
+  const text = bodyText();
+  editorUndo = new Y.UndoManager(text);
   editor = new EditorView({
     parent: ui.editorHost,
     state: EditorState.create({ doc: text.toString(), extensions: [
@@ -82,7 +114,7 @@ function createEditor() {
       // y-codemirror also handles native historyUndo/historyRedo beforeinput.
       // Stop these before its handler when logout/expiry has locked editing.
       Prec.highest(EditorView.domEventHandlers({ beforeinput: (_event, view) => view.state.facet(EditorState.readOnly) })),
-      yCollab(text, null),
+      yCollab(text, null, { undoManager: editorUndo }),
       EditorView.contentAttributes.of({ 'aria-label': '공유 문서 편집', spellcheck: 'false' }),
       EditorState.transactionFilter.of(transaction => {
         if (!transaction.docChanged || transaction.annotation(ySyncAnnotation)) return transaction;
@@ -97,7 +129,6 @@ function createEditor() {
       }),
     ] }),
   });
-  doc.on('update', () => { clearTimeout(renderTimer); renderTimer = setTimeout(render, 100); });
   render();
 }
 
@@ -112,6 +143,7 @@ function onStatus(event) {
     showError('');
     // A failed first load may recover on the background retry, not only the button.
     if (!editor && sync?.ready && doc) createEditor();
+    if (editor && sync?.ready && !sync.paused && !ui.appShell.hidden) setEditing(!loggingOut);
   }
 }
 
@@ -119,14 +151,25 @@ async function openDocument() {
   setAuthenticated(true); setStatus('문서 불러오는 중…', 'syncing');
   if (!doc) {
     doc = new Y.Doc();
+    doc.on('update', onDocumentUpdate);
     sync = new SharedDocumentSync({ doc, request, author: () => ui.nameInput.value.trim().slice(0, 24), status: onStatus, hidden: () => document.hidden });
   }
+  ui.setNotesBusy(true);
   const connected = await sync.resume();
   if (connected && !editor) createEditor();
   if (connected && editor) setEditing(!loggingOut);
 }
 
 const ui = initUI({
+  createNote(fields) {
+    requireEditableNotes();
+    selectNote(createNote(doc, fields));
+  },
+  updateNote(id, fields) {
+    requireEditableNotes();
+    updateNote(doc, id, fields); render();
+  },
+  selectNote,
   async login(password) {
     const result = await request('login', { password }); csrf = result.csrf;
     await openDocument();
@@ -141,9 +184,11 @@ const ui = initUI({
         await sync.tick();
         if (sync.unsaved && !confirm('아직 저장되지 않은 변경사항이 있습니다. 백업하지 않고 로그아웃하면 잃을 수 있습니다. 로그아웃할까요?')) return;
       }
-      await request('logout'); csrf = ''; sync?.close(); editor?.destroy(); doc?.destroy();
+      await request('logout'); csrf = ''; sync?.close(); destroyEditor(); doc?.off('update', onDocumentUpdate); doc?.destroy();
       sync = null; editor = null; doc = null; clearTimeout(renderTimer);
+      activeNoteId = 'team';
       ui.editorHost.replaceChildren(); ui.previewHost.replaceChildren(); ui.outlineHost.replaceChildren();
+      ui.renderNotes([], 'team'); ui.setNotesBusy(true);
       setAuthenticated(false);
     } finally {
       loggingOut = false; button.disabled = false;
@@ -152,11 +197,12 @@ const ui = initUI({
   },
   download() {
     if (!doc || !sync?.ready) return;
-    saveFile(`아인_업무공유_${stamp()}.md`, doc.getText('body').toString(), 'text/markdown;charset=utf-8');
+    const title = activeNote().title.replace(/[\\/:*?"<>|]/g, '_');
+    saveFile(`아인_${title}_${stamp()}.md`, bodyText().toString(), 'text/markdown;charset=utf-8');
   },
   backup() {
     if (!doc || !sync?.ready) return;
-    saveFile(`아인_업무공유_복구본_${stamp()}.json`, JSON.stringify({ format: 'ain-internal-yjs-v1', createdAt: new Date().toISOString(), cursor: sync.cursor, hasUnsavedChanges: Boolean(sync.unsaved), update: encode(Y.encodeStateAsUpdate(doc)), text: doc.getText('body').toString() }, null, 2), 'application/json');
+    saveFile(`아인_전체노트_복구본_${stamp()}.json`, JSON.stringify({ format: 'ain-internal-yjs-v2', createdAt: new Date().toISOString(), cursor: sync.cursor, hasUnsavedChanges: Boolean(sync.unsaved), activeNoteId, update: encode(Y.encodeStateAsUpdate(doc)), notes: listNotes(doc).map(note => ({ ...note, text: getNoteText(doc, note.id).toString() })) }, null, 2), 'application/json');
   },
   async retry() {
     if (loggingOut) return;

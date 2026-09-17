@@ -1,0 +1,9 @@
+.git
+.vercel
+node_modules
+.artifacts
+.env
+.env.*
+.superpowers
+.worktrees
+supabase/.temp

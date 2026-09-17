@@ -240,7 +240,7 @@
     {
       "source": "vercel.json",
       "target": "website_integration/vercel_package/vercel.json",
-      "sha256": "6823e5e1de1fdc0ee9ed9f3816fd346a556aedcdd2364bb6980e7b0ab568f242"
+      "sha256": "351213df453c5b9809e0b950f9f68fa11a012fffc1f2bd9fbfb0c5412dbb9b63"
     },
     {
       "source": "lib/cargo-doc-mail-batch.js",
@@ -270,27 +270,32 @@
     {
       "source": "internal/index.html",
       "target": "website_integration/vercel_package/internal/index.html",
-      "sha256": "d892d5d2d4a938f50ae6172939ef894b6cd34c6b1cd72a7d3dc7c6f34afe7cd3"
+      "sha256": "f32514fbdfc159559aee485b23c48365b26675545335875d9e74d355940cbfda"
     },
     {
       "source": "internal/style.css",
       "target": "website_integration/vercel_package/internal/style.css",
-      "sha256": "29e58ef28398dc51692321ff6479b87e71c5dd4dac877c4ba627a9b1a093bbb1"
+      "sha256": "a07c035fd3db88ae7fc6833335fe075bf058f0054f86fcef47c83067a8d2b3cf"
     },
     {
       "source": "internal/ui.js",
       "target": "website_integration/vercel_package/internal/ui.js",
-      "sha256": "9e4de412933b756154968477aca2656209efb9b713322031f5b9dcea5e480ff3"
+      "sha256": "5ec818be83894096e489d2dc304ce323f0c0a271f2518bb01b235f6dbfe964b6"
     },
     {
       "source": "internal/main.js",
       "target": "website_integration/vercel_package/internal/main.js",
-      "sha256": "5f85ebc038bea28fdfd87eda1dee802c68075bf25a6b11b2a7ce3c419aaafe87"
+      "sha256": "2cdc01c2f473a91c4fa3bd41aa3b861037e9946c5b08126fa449adba5eb3eeab"
     },
     {
       "source": "internal/sync.mjs",
       "target": "website_integration/vercel_package/internal/sync.mjs",
       "sha256": "80445e28f66d971bb854468e1ed8a3bf66b95aff4d34d840c36f447512fd5981"
+    },
+    {
+      "source": "internal/notes.mjs",
+      "target": "website_integration/vercel_package/internal/notes.mjs",
+      "sha256": "3a700b2ac16e1b6d94f8edc973affc760a49b7acb75cdcaf83a7d19f9ff6290b"
     },
     {
       "source": "internal/preview.mjs",
@@ -300,7 +305,7 @@
     {
       "source": "internal/app.js",
       "target": "website_integration/vercel_package/internal/app.js",
-      "sha256": "d0e953e8efc57ef7a3273d730fb3015066536de9342657fc4a63a800e101f48a"
+      "sha256": "62949c8c7506a31e36cddb9fa77fd60ae32496787d9dad2fe1700e95d8dbfd78"
     },
     {
       "source": "lib/internal-share-server.js",
@@ -320,7 +325,7 @@
     {
       "source": "docs/internal-share-setup.ko.md",
       "target": "website_integration/vercel_package/docs/internal-share-setup.ko.md",
-      "sha256": "a34da47f8b3a95d8c1ad70cf9ec426539fd9654d1237367098395fbace4aa160"
+      "sha256": "a96d721b43cbfd8de7ae33bc3244134fdac0534fb91e3df6c399ece88df2ccc4"
     },
     {
       "source": "scripts/create-internal-share-secret.cjs",
