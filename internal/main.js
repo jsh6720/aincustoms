@@ -8,10 +8,12 @@ import { initUI, setAuthenticated, setStatus, showError } from './ui.js';
 import { SharedDocumentSync, encode } from './sync.mjs';
 import { renderPreview } from './preview.mjs';
 import { listNotes, createNote, updateNote, getNoteText } from './notes.mjs';
+import { documentSearchExtension, createDocumentSearchController } from './document-search.mjs';
 
-let csrf = '', doc = null, sync = null, editor = null, renderTimer, loggingOut = false;
+let csrf = '', doc = null, sync = null, editor = null, renderTimer, loggingOut = false, changingPassword = false;
 let activeNoteId = 'team';
 let editorUndo = null;
+let documentSearch = null;
 const editAccess = new Compartment();
 const utf8 = new TextEncoder();
 
@@ -34,7 +36,7 @@ async function request(action, data = {}, refreshed = false) {
     csrf = session.csrf;
     return request(action, data, true);
   }
-  if (!response.ok) throw Object.assign(new Error(result.message || '문서 서버에 연결할 수 없습니다.'), { status: response.status });
+  if (!response.ok) throw Object.assign(new Error(result.message || '문서 서버에 연결할 수 없습니다.'), { status: response.status, code: result.error });
   return result;
 }
 
@@ -55,11 +57,13 @@ function setEditing(enabled) {
 function activeNote() { return listNotes(doc).find(note => note.id === activeNoteId); }
 function bodyText() { return getNoteText(doc, activeNoteId); }
 function requireEditableNotes() {
-  if (!doc || !sync?.ready || sync.paused || loggingOut || ui.appShell.hidden) {
+  if (!doc || !sync?.ready || sync.paused || loggingOut || changingPassword || ui.appShell.hidden) {
     throw new Error('문서를 불러온 뒤 다시 시도해 주세요.');
   }
 }
 function destroyEditor() {
+  documentSearch?.destroy(); documentSearch = null;
+  ui.clearDocumentSearch();
   editor?.destroy(); editor = null;
   editorUndo?.destroy(); editorUndo = null;
 }
@@ -108,7 +112,7 @@ function createEditor() {
   editor = new EditorView({
     parent: ui.editorHost,
     state: EditorState.create({ doc: text.toString(), extensions: [
-      editAccess.of(accessExtensions(!loggingOut && !sync.paused)), EditorView.lineWrapping, drawSelection(), markdown(),
+      editAccess.of(accessExtensions(!loggingOut && !changingPassword && !sync.paused)), EditorView.lineWrapping, drawSelection(), markdown(), documentSearchExtension,
       keymap.of([...yUndoManagerKeymap.map(binding => ({ ...binding, run: view => view.state.facet(EditorState.readOnly) ? true : binding.run(view) })), ...defaultKeymap]),
       placeholder('공유할 업무 내용을 입력하세요.\n제목·목록을 사용해 정리하고, URL을 붙여 넣으면 읽기 화면에서 클릭할 수 있습니다.'),
       // y-codemirror also handles native historyUndo/historyRedo beforeinput.
@@ -129,21 +133,24 @@ function createEditor() {
       }),
     ] }),
   });
+  documentSearch = createDocumentSearchController(editor, result => ui.setSearchResult(result.current, result.count));
   render();
 }
 
 function onStatus(event) {
   setStatus(event.message, event.state);
   if (event.state === 'locked') {
+    if (sync) { sync.paused = true; clearTimeout(sync.timer); }
+    documentSearch?.clear();
     setEditing(false);
-    setAuthenticated(false); showError('접속 시간이 만료되었습니다. 다시 로그인하면 이 화면에 남은 변경사항을 이어서 저장합니다.');
+    setAuthenticated(false); showError('접속 시간이 만료되었거나 공유 비밀번호가 변경되었습니다. 현재 비밀번호로 다시 로그인하면 이 화면에 남은 변경사항을 이어서 저장합니다.');
   } else if (event.state === 'error') {
     showError(event.message + ' 화면을 닫기 전에 문서 또는 복구용 백업을 내려받으세요.');
   } else if (event.state === 'saved') {
     showError('');
     // A failed first load may recover on the background retry, not only the button.
     if (!editor && sync?.ready && doc) createEditor();
-    if (editor && sync?.ready && !sync.paused && !ui.appShell.hidden) setEditing(!loggingOut);
+    if (editor && sync?.ready && !sync.paused && !ui.appShell.hidden) setEditing(!loggingOut && !changingPassword);
   }
 }
 
@@ -157,10 +164,20 @@ async function openDocument() {
   ui.setNotesBusy(true);
   const connected = await sync.resume();
   if (connected && !editor) createEditor();
-  if (connected && editor) setEditing(!loggingOut);
+  if (connected && editor) setEditing(!loggingOut && !changingPassword);
+}
+
+function closeWorkspace() {
+  csrf = ''; sync?.close(); destroyEditor(); doc?.off('update', onDocumentUpdate); doc?.destroy();
+  sync = null; doc = null; clearTimeout(renderTimer); activeNoteId = 'team';
+  ui.editorHost.replaceChildren(); ui.previewHost.replaceChildren(); ui.outlineHost.replaceChildren();
+  ui.renderNotes([], 'team'); ui.setNotesBusy(true); setAuthenticated(false);
 }
 
 const ui = initUI({
+  findText(query) { if (!ui.appShell.hidden) documentSearch?.setQuery(query); },
+  findNext() { if (!ui.appShell.hidden) documentSearch?.next(); },
+  findPrevious() { if (!ui.appShell.hidden) documentSearch?.previous(); },
   createNote(fields) {
     requireEditableNotes();
     selectNote(createNote(doc, fields));
@@ -171,11 +188,49 @@ const ui = initUI({
   },
   selectNote,
   async login(password) {
+    document.getElementById('login-notice').hidden = true;
     const result = await request('login', { password }); csrf = result.csrf;
     await openDocument();
   },
+  async changePassword(fields) {
+    requireEditableNotes();
+    changingPassword = true;
+    const logoutButton = document.getElementById('logout-button');
+    logoutButton.disabled = true; setEditing(false); editor?.contentDOM.blur();
+    let submitted = false;
+    try {
+      // Freeze local input and require an acknowledged flush. Unlike logout,
+      // changing the shared credential must never discard pending edits.
+      for (let attempt = 0; sync?.unsaved && attempt < 4; attempt++) {
+        if (!await sync.tick()) break;
+      }
+      if (sync?.unsaved || sync?.paused) throw new Error('먼저 변경사항 저장을 완료해 주세요. 연결을 확인한 뒤 다시 시도하세요.');
+      submitted = true;
+      const result = await request('change_password', fields);
+      if (result.passwordChanged !== true) throw new Error('변경 결과를 확인할 수 없습니다.');
+      closeWorkspace();
+      const notice = document.getElementById('login-notice');
+      notice.textContent = '공유 비밀번호를 변경했습니다. 새 비밀번호로 다시 로그인해 주세요.';
+      notice.hidden = false;
+    } catch (error) {
+      if (error.code === 'INVALID_PASSWORD') throw new Error('현재 공유 비밀번호가 맞지 않습니다. 다시 확인해 주세요.');
+      if (error.code === 'PASSWORD_CHANGED' || error.code === 'AUTH_REQUIRED') {
+        onStatus({ state: 'locked', message: '공유 비밀번호가 변경되었습니다. 다시 로그인해 주세요.' });
+        throw new Error('공유 비밀번호가 변경되었습니다. 새 비밀번호로 다시 로그인해 주세요.');
+      }
+      if (submitted && (!error.status || error.status >= 500)) {
+        const message = '변경 결과를 확인하지 못했습니다. 이미 변경되었을 수 있으니 새 비밀번호로 먼저 다시 로그인해 주세요. 미저장 내용은 이 화면에 유지됩니다.';
+        onStatus({ state: 'locked', message }); showError(message);
+        throw new Error(message);
+      }
+      throw error;
+    } finally {
+      changingPassword = false; logoutButton.disabled = false;
+      if (editor && !sync?.paused && !ui.appShell.hidden) setEditing(true);
+    }
+  },
   async logout() {
-    if (loggingOut) return;
+    if (loggingOut || changingPassword) return;
     loggingOut = true;
     const button = document.getElementById('logout-button');
     button.disabled = true; setEditing(false); editor?.contentDOM.blur();
@@ -184,12 +239,7 @@ const ui = initUI({
         await sync.tick();
         if (sync.unsaved && !confirm('아직 저장되지 않은 변경사항이 있습니다. 백업하지 않고 로그아웃하면 잃을 수 있습니다. 로그아웃할까요?')) return;
       }
-      await request('logout'); csrf = ''; sync?.close(); destroyEditor(); doc?.off('update', onDocumentUpdate); doc?.destroy();
-      sync = null; editor = null; doc = null; clearTimeout(renderTimer);
-      activeNoteId = 'team';
-      ui.editorHost.replaceChildren(); ui.previewHost.replaceChildren(); ui.outlineHost.replaceChildren();
-      ui.renderNotes([], 'team'); ui.setNotesBusy(true);
-      setAuthenticated(false);
+      await request('logout'); closeWorkspace();
     } finally {
       loggingOut = false; button.disabled = false;
       if (editor && !sync?.paused && !ui.appShell.hidden) setEditing(true);
@@ -205,13 +255,13 @@ const ui = initUI({
     saveFile(`아인_전체노트_복구본_${stamp()}.json`, JSON.stringify({ format: 'ain-internal-yjs-v2', createdAt: new Date().toISOString(), cursor: sync.cursor, hasUnsavedChanges: Boolean(sync.unsaved), activeNoteId, update: encode(Y.encodeStateAsUpdate(doc)), notes: listNotes(doc).map(note => ({ ...note, text: getNoteText(doc, note.id).toString() })) }, null, 2), 'application/json');
   },
   async retry() {
-    if (loggingOut) return;
+    if (loggingOut || changingPassword) return;
     const session = await request('session');
     if (!session.authenticated) { onStatus({ state: 'locked', message: '다시 로그인해 주세요.' }); return; }
     csrf = session.csrf; await openDocument();
   },
   insert(kind) {
-    if (!editor || !sync?.ready || sync.paused || loggingOut) return;
+    if (!editor || !sync?.ready || sync.paused || loggingOut || changingPassword) return;
     const inserts = { heading: '\n## 제목\n', list: '\n- 내용\n', checkbox: '\n- [ ] 할 일\n', link: '[링크 이름](https://example.com)' };
     const selection = editor.state.selection.main;
     editor.dispatch({ changes: { from: selection.from, to: selection.to, insert: inserts[kind] || '' } }); editor.focus();

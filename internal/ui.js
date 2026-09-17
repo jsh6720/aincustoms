@@ -4,6 +4,7 @@ let currentView = 'edit';
 let notes = [], activeNoteId = '', notesSignature = '';
 let notesBusy = true, noteSubmitting = false, noteSelecting = false, editedNoteId = null;
 let editedNoteOriginal = null;
+let passwordSubmitting = false, searchResultCount = 0;
 
 function byId(id) {
   const element = document.getElementById(id);
@@ -30,9 +31,67 @@ function setNoteError(message = '') {
   byId('note-form-error').hidden = !message;
 }
 
+function setPasswordError(message = '') {
+  byId('password-change-error').textContent = message;
+  byId('password-change-error').hidden = !message;
+}
+
+function resetPasswordForm() {
+  for (const input of [refs.currentPasswordInput, refs.newPasswordInput, refs.confirmPasswordInput]) {
+    input.value = '';
+    input.removeAttribute('aria-invalid');
+  }
+  setPasswordError();
+}
+
+function closePasswordDialog() {
+  if (refs.passwordDialog.open) refs.passwordDialog.close();
+  resetPasswordForm();
+}
+
+function syncPasswordControls() {
+  if (!refs) return;
+  for (const input of [refs.currentPasswordInput, refs.newPasswordInput, refs.confirmPasswordInput]) input.disabled = passwordSubmitting;
+  byId('password-change-submit').disabled = passwordSubmitting;
+  byId('password-change-cancel').disabled = passwordSubmitting;
+  byId('password-change-submit').textContent = passwordSubmitting ? '변경 중…' : '비밀번호 변경';
+  byId('password-change-form').setAttribute('aria-busy', String(passwordSubmitting));
+  const status = byId('password-change-status');
+  status.textContent = passwordSubmitting ? '공유 비밀번호를 변경하고 있습니다. 잠시만 기다려 주세요.' : '';
+  status.hidden = !passwordSubmitting;
+}
+
+function openPasswordDialog() {
+  if (notesBusy || noteSubmitting || noteSelecting || passwordSubmitting || refs.appShell.hidden || refs.noteDialog.open || refs.passwordDialog.open) return;
+  resetPasswordForm();
+  syncPasswordControls();
+  refs.passwordDialog.showModal();
+  refs.currentPasswordInput.focus();
+}
+
+function syncSearchControls() {
+  byId('search-previous').disabled = searchResultCount === 0;
+  byId('search-next').disabled = searchResultCount === 0;
+  byId('search-clear').disabled = !refs.documentSearch.value;
+}
+
+function setSearchResult(index, total) {
+  searchResultCount = Number.isFinite(total) ? Math.max(0, Math.floor(total)) : 0;
+  const selected = Number.isFinite(index) ? Math.max(0, Math.min(searchResultCount, Math.floor(index))) : 0;
+  byId('search-count').textContent = selected + '/' + searchResultCount;
+  byId('search-count').setAttribute('aria-label', searchResultCount ? '검색 결과 ' + searchResultCount + '개 중 ' + selected + '번째' : '검색 결과 없음');
+  syncSearchControls();
+}
+
+function clearDocumentSearch() {
+  refs.documentSearch.value = '';
+  setSearchResult(0, 0);
+}
+
 function syncNoteControls() {
   if (!refs) return;
-  const busy = notesBusy || noteSubmitting || noteSelecting;
+  const busy = notesBusy || noteSubmitting || noteSelecting || passwordSubmitting;
+  byId('settings-button').disabled = busy;
   byId('new-note-button').disabled = busy;
   byId('edit-note-button').disabled = busy || !notes.some(note => note.id === activeNoteId);
   refs.notesList.setAttribute('aria-busy', String(busy));
@@ -82,7 +141,7 @@ function renderNoteList() {
       button.classList.toggle('is-active', selected);
       if (selected) button.setAttribute('aria-current', 'page');
       button.addEventListener('click', async () => {
-        if (notesBusy || noteSubmitting || noteSelecting) return;
+        if (notesBusy || noteSubmitting || noteSelecting || passwordSubmitting || refs.passwordDialog.open) return;
         noteSelecting = true;
         syncNoteControls();
         try {
@@ -140,7 +199,7 @@ export function setNotesBusy(busy) {
 }
 
 function openNoteDialog(id = null) {
-  if (notesBusy || noteSubmitting || noteSelecting) return;
+  if (notesBusy || noteSubmitting || noteSelecting || passwordSubmitting || refs.passwordDialog.open) return;
   const note = id === null ? null : notes.find(item => item.id === id);
   if (id !== null && !note) return;
   editedNoteId = id;
@@ -186,7 +245,10 @@ export function initUI(callbacks = {}) {
     nameInput: byId('writer-name'), outlineHost: byId('outline-host'),
     notesList: byId('notes-list'), noteDialog: byId('note-dialog'),
     noteTitleInput: byId('note-title-input'), noteCategoryInput: byId('note-category-input'),
-    renderNotes, setNotesBusy,
+    passwordDialog: byId('password-dialog'), currentPasswordInput: byId('current-password'),
+    newPasswordInput: byId('new-password'), confirmPasswordInput: byId('confirm-password'),
+    documentSearch: byId('document-search'),
+    renderNotes, setNotesBusy, setSearchResult, clearDocumentSearch,
   };
   refs.loginForm.addEventListener('submit', async (event) => {
     event.preventDefault();
@@ -208,6 +270,43 @@ export function initUI(callbacks = {}) {
     }
   });
   byId('logout-button').addEventListener('click', () => invoke('logout'));
+  byId('settings-button').addEventListener('click', openPasswordDialog);
+  byId('password-change-cancel').addEventListener('click', () => { if (!passwordSubmitting) closePasswordDialog(); });
+  refs.passwordDialog.addEventListener('cancel', event => { if (passwordSubmitting) event.preventDefault(); });
+  refs.passwordDialog.addEventListener('close', resetPasswordForm);
+  byId('password-change-form').addEventListener('submit', async event => {
+    event.preventDefault();
+    if (passwordSubmitting || !refs.passwordDialog.open || refs.appShell.hidden) return;
+    const currentPassword = refs.currentPasswordInput.value;
+    const newPassword = refs.newPasswordInput.value;
+    const confirmPassword = refs.confirmPasswordInput.value;
+    setPasswordError();
+    for (const input of [refs.currentPasswordInput, refs.newPasswordInput, refs.confirmPasswordInput]) input.removeAttribute('aria-invalid');
+    const invalid = !currentPassword ? [refs.currentPasswordInput, '현재 공유 비밀번호를 입력해 주세요.']
+      : newPassword.length < 8 || newPassword.length > 128 ? [refs.newPasswordInput, '새 공유 비밀번호를 8자 이상 128자 이하로 입력해 주세요.']
+      : newPassword === currentPassword ? [refs.newPasswordInput, '현재 비밀번호와 다른 새 비밀번호를 입력해 주세요.']
+      : confirmPassword !== newPassword ? [refs.confirmPasswordInput, '새 공유 비밀번호와 확인 입력이 일치하지 않습니다.'] : null;
+    if (invalid) {
+      invalid[0].setAttribute('aria-invalid', 'true');
+      setPasswordError(invalid[1]);
+      invalid[0].focus();
+      return;
+    }
+    passwordSubmitting = true;
+    syncPasswordControls();
+    syncNoteControls();
+    try {
+      if (!actions.changePassword) throw new Error('비밀번호를 변경할 수 없습니다. 화면을 새로고침해 주세요.');
+      await actions.changePassword({ currentPassword, newPassword, confirmPassword });
+      closePasswordDialog();
+    } catch (error) {
+      if (refs.passwordDialog.open) setPasswordError(error instanceof Error ? error.message : '비밀번호를 변경하지 못했습니다. 다시 시도해 주세요.');
+    } finally {
+      passwordSubmitting = false;
+      syncPasswordControls();
+      syncNoteControls();
+    }
+  });
   byId('download-button').addEventListener('click', () => invoke('download'));
   byId('backup-button').addEventListener('click', () => invoke('backup'));
   byId('retry-button').addEventListener('click', () => invoke('retry'));
@@ -219,6 +318,28 @@ export function initUI(callbacks = {}) {
   byId('read-view-button').addEventListener('click', () => setView('read'));
   document.querySelectorAll('[data-insert]').forEach((button) => {
     button.addEventListener('click', () => invoke('insert', button.dataset.insert));
+  });
+  refs.documentSearch.addEventListener('input', () => {
+    syncSearchControls();
+    invoke('findText', refs.documentSearch.value);
+  });
+  refs.documentSearch.addEventListener('keydown', event => {
+    if (event.isComposing) return;
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      if (searchResultCount) invoke(event.shiftKey ? 'findPrevious' : 'findNext');
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      clearDocumentSearch();
+      invoke('findText', '');
+    }
+  });
+  byId('search-previous').addEventListener('click', () => { if (searchResultCount) invoke('findPrevious'); });
+  byId('search-next').addEventListener('click', () => { if (searchResultCount) invoke('findNext'); });
+  byId('search-clear').addEventListener('click', () => {
+    clearDocumentSearch();
+    invoke('findText', '');
+    refs.documentSearch.focus();
   });
   byId('notes-toggle-button').addEventListener('click', () => setNotesOpen(!refs.appShell.classList.contains('is-notes-open')));
   byId('notes-search').addEventListener('input', renderNoteList);
@@ -266,6 +387,8 @@ export function initUI(callbacks = {}) {
     } finally { noteSubmitting = false; syncNoteControls(); }
   });
   syncNoteControls();
+  syncPasswordControls();
+  syncSearchControls();
   return refs;
 }
 
@@ -276,6 +399,8 @@ export function setAuthenticated(authenticated) {
   refs.passwordInput.value = '';
   showError('');
   if (!authenticated) {
+    closePasswordDialog();
+    clearDocumentSearch();
     if (refs.noteDialog.open) refs.noteDialog.close();
     setNotesBusy(true);
     editedNoteId = null;

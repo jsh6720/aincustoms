@@ -15,12 +15,12 @@
     {
       "source": "package-lock.json",
       "target": "website_integration/package-lock.json",
-      "sha256": "c568172d65a80526608d2436e55237de2e4ab98e874725e0a5555152c73fb067"
+      "sha256": "a532cd69a9afedcd7f53aac9f80066946f0eca9eafb8ab5d5ed73f180383b033"
     },
     {
       "source": "package.json",
       "target": "website_integration/package.json",
-      "sha256": "37c553f81a7bf387e6abac4ba210253be02f7b09faa04f20c8e5e8d6fe0c3bd6"
+      "sha256": "22f65664c313970609935b9e1813c98e24075f570bad1f27c685e5bad3bd1476"
     },
     {
       "source": "api/cargo-admin.js",
@@ -210,12 +210,12 @@
     {
       "source": "package-lock.json",
       "target": "website_integration/vercel_package/package-lock.json",
-      "sha256": "c568172d65a80526608d2436e55237de2e4ab98e874725e0a5555152c73fb067"
+      "sha256": "a532cd69a9afedcd7f53aac9f80066946f0eca9eafb8ab5d5ed73f180383b033"
     },
     {
       "source": "package.json",
       "target": "website_integration/vercel_package/package.json",
-      "sha256": "37c553f81a7bf387e6abac4ba210253be02f7b09faa04f20c8e5e8d6fe0c3bd6"
+      "sha256": "22f65664c313970609935b9e1813c98e24075f570bad1f27c685e5bad3bd1476"
     },
     {
       "source": "lib/cargo-outlook-calendar.js",
@@ -270,22 +270,22 @@
     {
       "source": "internal/index.html",
       "target": "website_integration/vercel_package/internal/index.html",
-      "sha256": "f32514fbdfc159559aee485b23c48365b26675545335875d9e74d355940cbfda"
+      "sha256": "45d080a58935d0a8d0de711fe8004df1eadddb305bd348da790d5498ae5ed5fe"
     },
     {
       "source": "internal/style.css",
       "target": "website_integration/vercel_package/internal/style.css",
-      "sha256": "a07c035fd3db88ae7fc6833335fe075bf058f0054f86fcef47c83067a8d2b3cf"
+      "sha256": "c8de8198bcfe1e34626ef68948e729e9026e27c4282278f20650e66f3431f5a9"
     },
     {
       "source": "internal/ui.js",
       "target": "website_integration/vercel_package/internal/ui.js",
-      "sha256": "5ec818be83894096e489d2dc304ce323f0c0a271f2518bb01b235f6dbfe964b6"
+      "sha256": "e3b57293b694c5d81ad27ae828ef62bc6bc6f107a884988a1b0f23e389acb91e"
     },
     {
       "source": "internal/main.js",
       "target": "website_integration/vercel_package/internal/main.js",
-      "sha256": "2cdc01c2f473a91c4fa3bd41aa3b861037e9946c5b08126fa449adba5eb3eeab"
+      "sha256": "3112c94cd5a7949791dc942dfa67fd6316c17de3afb5cbc4a2f55804b53871a0"
     },
     {
       "source": "internal/sync.mjs",
@@ -303,14 +303,24 @@
       "sha256": "6565ccc37ce47ed6c3d585655ab93e07dc0e4fb7b5674a24cbb8bc89d479c733"
     },
     {
+      "source": "internal/document-search.mjs",
+      "target": "website_integration/vercel_package/internal/document-search.mjs",
+      "sha256": "845febc2e7f67698f94fd0dca0e278bfb8cecfb52395c2b3deee17fcd1e55ec3"
+    },
+    {
+      "source": "supabase/migrations/20260917090000_internal_share_password.sql",
+      "target": "website_integration/vercel_package/supabase/migrations/20260917090000_internal_share_password.sql",
+      "sha256": "2e032a027cb238d39019b64ca8ebaa98e9d9b6ac54ab6e9eacba23d935db35ff"
+    },
+    {
       "source": "internal/app.js",
       "target": "website_integration/vercel_package/internal/app.js",
-      "sha256": "62949c8c7506a31e36cddb9fa77fd60ae32496787d9dad2fe1700e95d8dbfd78"
+      "sha256": "b2804fce0d193214a49dc3f206be24db6be2cc1cbcf70c86c81f5b0da46d8b77"
     },
     {
       "source": "lib/internal-share-server.js",
       "target": "website_integration/vercel_package/lib/internal-share-server.js",
-      "sha256": "bda0c37b8c6631bcd317c6b769a33ea3c62e2dd2aa9f28ee06ac7461518becbb"
+      "sha256": "cdaab802075942645ce54d393f4b3ee39045116f83a8332daeb9dd4deb1f4ca9"
     },
     {
       "source": "lib/internal-share-handler.js",
@@ -325,7 +335,7 @@
     {
       "source": "docs/internal-share-setup.ko.md",
       "target": "website_integration/vercel_package/docs/internal-share-setup.ko.md",
-      "sha256": "a96d721b43cbfd8de7ae33bc3244134fdac0534fb91e3df6c399ece88df2ccc4"
+      "sha256": "181b50fdc61d998f4a2a83b4bb9bf60cf889f473ab5c2687c34521fb5a3708fb"
     },
     {
       "source": "scripts/create-internal-share-secret.cjs",

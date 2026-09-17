@@ -46,7 +46,10 @@ function response() {
 }
 async function run(req, options = {}) {
   const res = response();
-  const handler = createInternalShareHandler({ env: ENV, now: () => NOW, ...options });
+  const handler = createInternalShareHandler({ env: ENV, now: () => NOW, ...options,
+    fetch: (url, init) => url.endsWith('/rpc/internal_share_auth_state')
+      ? Promise.resolve(upstream({ revision: 0, password_hash: null }))
+      : options.fetch(url, init) });
   await handler(req, res);
   return res;
 }

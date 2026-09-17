@@ -72,8 +72,8 @@ a{color:#376b55}
 .view-button.is-active{color:#49613e;background:#fff;box-shadow:0 1px 3px #2939290d;font-weight:600}
 .error-banner{display:flex;align-items:center;justify-content:space-between;gap:16px;background:#fff4ed;border:1px solid #efd6c6;border-radius:7px;padding:12px 14px;margin-bottom:15px;color:#925335;font-size:12px;line-height:1.6}
 .error-banner p{margin:0;overflow-wrap:anywhere}
-.document-surface{border:1px solid #dfe5d8;border-radius:9px;background:var(--paper);box-shadow:0 5px 18px #283a2404;overflow:hidden}
-.document-toolbar{display:flex;align-items:center;justify-content:space-between;min-height:49px;padding:8px 15px;gap:8px;border-bottom:1px solid #eef1e8;background:#fff}
+.document-surface{border:1px solid #dfe5d8;border-radius:9px;background:var(--paper);box-shadow:0 5px 18px #283a2404;overflow:clip}
+.document-toolbar{position:sticky;top:0;z-index:5;display:flex;align-items:center;justify-content:space-between;min-height:49px;padding:8px 15px;gap:8px;border-bottom:1px solid #eef1e8;background:#fff}
 .editing-tools{display:flex;align-items:center;gap:3px}
 .editing-tools button{display:flex;align-items:center;gap:6px;border:0;background:transparent;padding:6px 9px;border-radius:4px;color:#7e8d6f;font-size:11px;line-height:1}
 .editing-tools button:hover{background:#f1f5eb;color:#425f36}
@@ -176,7 +176,22 @@ a{color:#376b55}
 .note-form-status{font-size:11px;line-height:1.7;color:#7f926e;margin:13px 0 0}
 .note-dialog-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:26px}
 .note-dialog-actions .button{min-width:75px}
+.password-change-notice{margin:-8px 0 22px;border:1px solid #e1e7d7;border-radius:7px;padding:11px 13px;background:#f5f8ef;font-size:12px;line-height:1.8;color:#637655}
+.password-dialog .note-dialog-description{margin-bottom:20px}
+.document-toolbar{flex-wrap:wrap}
+.editing-tools{flex:1;flex-wrap:wrap;min-width:0}
+.document-search-control{display:flex;align-items:center;gap:3px;flex:1 1 220px;max-width:340px;min-width:0;margin-left:8px;padding:3px 4px 3px 8px;border:1px solid #e1e7d8;border-radius:5px;background:#fafcf7}
+.document-search-control input{flex:1;width:100%;min-width:0;border:0;background:transparent;padding:4px 2px;font-size:11px;color:#465b3d}
+.document-search-control input::placeholder{color:#9aa58f}
+.document-search-control input::-webkit-search-cancel-button{display:none}
+.search-count{min-width:28px;white-space:nowrap;text-align:center;font-size:10px;color:#8b997f;font-variant-numeric:tabular-nums}
+.editing-tools .document-search-control button{justify-content:center;flex-shrink:0;width:24px;height:25px;padding:2px;font-size:15px;line-height:1;color:#718563}
+.editing-tools .document-search-control button:disabled{cursor:default;opacity:.35}
+.document-search-control input:focus-visible{outline-offset:1px}
+@media(max-width:760px){.editing-tools{flex-basis:100%}.document-search-control{flex-basis:210px;margin-left:3px}.document-toolbar>.sync-status{margin-left:auto}}
+@media(max-width:400px){.document-search-control{max-width:none;margin-left:0}}
 @media(max-width:1080px){.workspace{grid-template-columns:225px minmax(0,1fr)}}
 @media(max-width:760px){.notes-toggle-button{display:flex;align-items:center;gap:8px;margin:15px 18px 0;padding:10px 12px;border:1px solid #dfe6d6;border-radius:6px;background:#f9fbf5;color:#607352;font-size:11px;text-align:left}.notes-toggle-button>span:first-child{font-size:14px}.notes-toggle-button>span:last-child{margin-left:auto;font-size:10px;color:#92a083}.sidebar{order:0;display:none;margin-top:12px;border-top:0;border-bottom:1px solid var(--border);padding:18px 20px 15px}.is-notes-open .sidebar{display:block}.sidebar-top{display:block}.sidebar .eyebrow{display:none}.notes-heading{margin-top:0}.notes-list{max-height:40vh}.sidebar-bottom{margin-top:18px;gap:10px}.outline{max-height:20vh}.outline-heading{padding-top:16px;margin-top:15px}.document-heading{flex-wrap:wrap}.document-heading-copy{flex:1 1 220px}.view-switch{margin-top:4px;margin-left:auto}.note-title-row{gap:6px}.note-edit-button{font-size:9px}.note-category{font-size:9px;margin-bottom:6px}.document-heading p{max-width:none}.note-dialog{padding:26px 22px}.note-dialog h2{font-size:20px}}
 @media(max-width:400px){.notes-toggle-button{margin-left:12px;margin-right:12px}.document-heading-copy{flex-basis:205px}}
 @media print{.notes-toggle-button,.note-edit-button,.note-dialog{display:none!important}.note-category{color:#607352}}
+.login-notice { color: #286447; background: #edf6ef; border-radius: 8px; padding: 12px; line-height: 1.5; }
