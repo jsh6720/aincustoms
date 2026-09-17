@@ -8,7 +8,7 @@ const path = require("node:path");
 const Y = require("yjs");
 const {
   createInternalShareHandler, readConfig, issueSession, readSession, csrfToken, verifyPassword,
-  COOKIE, SESSION_SECONDS, BODY_LIMIT, UPDATE_LIMIT, SYNC_PAGE,
+  COOKIE, SESSION_SECONDS, BODY_LIMIT, UPDATE_LIMIT, SYNC_PAGE, SYNC_BYTES, snapshotKey,
 } = require("../lib/internal-share-server");
 
 const NOW = 1790000000000;
@@ -48,7 +48,7 @@ async function run(req, options = {}) {
   const res = response();
   const handler = createInternalShareHandler({ env: ENV, now: () => NOW, ...options,
     fetch: (url, init) => url.endsWith('/rpc/internal_share_auth_state')
-      ? Promise.resolve(upstream({ revision: 0, password_hash: null }))
+      ? (options.authState ? options.authState() : Promise.resolve(upstream({ revision: 0, password_hash: null })))
       : options.fetch(url, init) });
   await handler(req, res);
   return res;
@@ -106,7 +106,7 @@ test("session requires its own cookie, audience, version, lifetime, and intact s
     assert.deepEqual(res.body, { authenticated: false });
   }
   const res = await run(request("GET", undefined, { headers: { cookie: `${COOKIE}=${valid.token}` } }));
-  assert.deepEqual(res.body, { authenticated: true, csrf: csrfToken(config, valid.data) });
+  assert.deepEqual(res.body, { authenticated: true, csrf: csrfToken(config, valid.data), snapshotKey: snapshotKey(config) });
   assert.equal(readSession(request("GET", undefined, { headers: { cookie: `${COOKIE}=${valid.token}` } }),
     { ...config, secret: `${config.secret}-rotated` }, NOW), null);
   assert.equal(readSession(request("GET", undefined, { headers: { cookie: `${COOKIE}=${valid.token}` } }),
@@ -145,7 +145,93 @@ test("successful login checks durable reservation before scrypt and releases it 
   assert.match(res.headers["cache-control"], /no-store/);
   const session = await run(request("GET", undefined, { headers: { cookie: res.headers["set-cookie"].split(";")[0] } }));
   assert.equal(session.body.csrf, res.body.csrf);
+  assert.equal(session.body.snapshotKey, res.body.snapshotKey);
+  assert.equal(Buffer.from(res.body.snapshotKey, "base64url").length, 32);
   assert.doesNotMatch(JSON.stringify(res.body), /test-only|203\.0\.113/);
+});
+
+test("snapshot keys are stable across authenticated sessions and rotate with every credential component", async () => {
+  const config = readConfig(ENV);
+  const baseKey = snapshotKey(config);
+  assert.match(baseKey, /^[A-Za-z0-9_-]{43}$/);
+  assert.equal(Buffer.from(baseKey, "base64url").length, 32);
+  for (const privateValue of [ENV.INTERNAL_SHARE_PASSWORD_HASH, ENV.INTERNAL_SHARE_SESSION_SECRET,
+    ENV.SUPABASE_SERVICE_ROLE_KEY, config.salt.toString("base64url"), config.key.toString("base64url")]) {
+    assert.notEqual(baseKey, privateValue);
+  }
+  const sessions = await Promise.all([0, 1].map(() => {
+    const auth = authenticated();
+    return run(request("GET", undefined, { headers: { cookie: auth.cookie } }));
+  }));
+  assert.notEqual(sessions[0].body.csrf, sessions[1].body.csrf);
+  for (const session of sessions) {
+    assert.equal(session.statusCode, 200);
+    assert.equal(session.body.snapshotKey, baseKey);
+    assert.match(session.headers["cache-control"], /private.*no-store/);
+  }
+  const rotationKeys = [
+    { ...config, salt: Buffer.alloc(24, 29) },
+    { ...config, key: Buffer.alloc(64, 31) },
+    { ...config, secret: `${config.secret}-rotated` },
+  ].map(rotated => snapshotKey(rotated));
+  assert.equal(new Set([baseKey, ...rotationKeys]).size, 4);
+});
+
+test("fresh credential rotation rejects old cookies before releasing a new snapshot key", async () => {
+  const config = readConfig(ENV), oldAuth = authenticated();
+  const newSalt = Buffer.alloc(24, 29), newKey = Buffer.alloc(64, 31);
+  const changedHash = `scrypt:${newSalt.toString("base64url")}:${newKey.toString("base64url")}`;
+  for (const [env, state, activeConfig] of [
+    [ENV, { revision: 1, password_hash: changedHash }, { ...config, salt: newSalt, key: newKey }],
+    [{ ...ENV, INTERNAL_SHARE_SESSION_SECRET: `${config.secret}-rotated` },
+      { revision: 0, password_hash: null }, { ...config, secret: `${config.secret}-rotated` }],
+  ]) {
+    let authReads = 0;
+    const options = { env, authState: async () => { authReads++; return upstream(state); },
+      fetch: () => assert.fail("session inspection must not read document content") };
+    const stale = await run(request("GET", undefined, { headers: { cookie: oldAuth.cookie } }), options);
+    assert.equal(stale.statusCode, 200);
+    assert.deepEqual(stale.body, { authenticated: false });
+    const freshAuth = authenticated({}, activeConfig);
+    const fresh = await run(request("GET", undefined, { headers: { cookie: freshAuth.cookie } }), options);
+    assert.equal(authReads, 2, "every response rechecks credential state");
+    assert.equal(fresh.statusCode, 200);
+    assert.equal(fresh.body.authenticated, true);
+    assert.equal(fresh.body.snapshotKey, snapshotKey(activeConfig));
+    assert.notEqual(fresh.body.snapshotKey, snapshotKey(config));
+  }
+});
+
+test("snapshot keys stay private when authentication or credential-state reads fail", async () => {
+  const auth = authenticated(), knownKey = snapshotKey(readConfig(ENV));
+  const denied = [
+    await run(request()),
+    await run(request("GET", undefined, { headers: { cookie: authenticated({}, readConfig(ENV), NOW - SESSION_SECONDS * 1000).cookie } })),
+    await run(request("POST", { action: "login", password: "wrong" }), {
+      passwordVerifier: async () => false,
+      fetch: async () => upstream({ allowed: true, attempt_id: ATTEMPT }),
+    }),
+    await run(request("POST", { action: "login", password: PASSWORD }), {
+      passwordVerifier: async () => true,
+      fetch: async url => upstream(url.endsWith("login_guard") ? { allowed: true, attempt_id: ATTEMPT } : false),
+    }),
+  ];
+  for (const authState of [
+    async () => { throw new Error("synthetic credential-state outage"); },
+    async () => upstream({ revision: 1, password_hash: null }),
+    async () => upstream({ message: "synthetic unavailable hash" }, 503),
+  ]) {
+    const res = await run(request("GET", undefined, { headers: { cookie: auth.cookie } }), {
+      authState, fetch: () => assert.fail("auth-state failure must stop content access"),
+    });
+    assert.equal(res.statusCode, 503);
+    denied.push(res);
+  }
+  for (const res of denied) {
+    assert.equal(Object.hasOwn(res.body, "snapshotKey"), false);
+    assert.equal(JSON.stringify(res.body).includes(knownKey), false);
+    assert.equal(res.headers["set-cookie"], undefined);
+  }
 });
 
 test("bad password consumes the reservation and never completes it", async () => {
@@ -294,7 +380,7 @@ test("a valid 120KB Yjs Undo update can be appended and synchronized", async () 
   const synced = await run(request("GET", undefined, {
     headers: { cookie: auth.cookie }, query: { action: "sync", after: "0" },
   }), {
-    fetch: async () => upstream([{ seq: 1, op_id: ID, update_base64: encoded }]),
+    fetch: async () => upstream({ updates: [{ seq: 1, op_id: ID, update_base64: encoded }], cursor: 1, has_more: false }),
   });
   assert.equal(synced.statusCode, 200);
   assert.equal(synced.body.updates[0].update, encoded);
@@ -315,24 +401,21 @@ test("sync query orders committed rows and returns bounded contiguous pages", as
   const res = await run(request("GET", undefined, { headers: { cookie: auth.cookie }, query: { action: "sync", after: "12" } }), {
     fetch: async (url, options) => {
       requested = new URL(url);
-      assert.equal(options.method, undefined);
-      return upstream(Array.from({ length: SYNC_PAGE + 1 }, (_, index) => ({
+      assert.equal(options.method, "POST");
+      assert.deepEqual(JSON.parse(options.body), { p_after: 12 });
+      return upstream({ updates: Array.from({ length: SYNC_PAGE }, (_, index) => ({
         seq: 13 + index, op_id: ID, update_base64: UPDATE,
-      })));
+      })), cursor: 12 + SYNC_PAGE, has_more: true });
     },
   });
-  assert.equal(requested.pathname, "/rest/v1/internal_share_updates");
-  assert.equal(requested.searchParams.get("document_id"), "eq.team");
-  assert.equal(requested.searchParams.get("seq"), "gt.12");
-  assert.equal(requested.searchParams.get("order"), "seq.asc");
-  assert.equal(requested.searchParams.get("limit"), String(SYNC_PAGE + 1));
+  assert.equal(requested.pathname, "/rest/v1/rpc/internal_share_read_page");
   assert.equal(res.statusCode, 200);
   assert.equal(res.body.updates.length, SYNC_PAGE);
   assert.deepEqual(res.body.updates[0], { seq: 13, op_id: ID, update: UPDATE });
   assert.equal(res.body.cursor, 12 + SYNC_PAGE);
   assert.equal(res.body.hasMore, true);
   const empty = await run(request("GET", undefined, { headers: { cookie: auth.cookie }, query: { action: "sync", after: "12" } }), {
-    fetch: async () => upstream([]),
+    fetch: async () => upstream({ updates: [], cursor: 12, has_more: false }),
   });
   assert.deepEqual(empty.body, { updates: [], cursor: 12, hasMore: false });
 });
@@ -348,10 +431,117 @@ test("sync refuses invalid cursors, missing sequences and malformed upstream upd
   for (const rows of [{ secret: "internal" }, [{ seq: 2, op_id: ID, update_base64: UPDATE }],
     [{ seq: 1, op_id: ID, update_base64: "AQ==" }], [{ seq: "1", op_id: ID, update_base64: UPDATE }]]) {
     const res = await run(request("GET", undefined, { headers: { cookie: auth.cookie }, query: { action: "sync", after: "0" } }), {
-      fetch: async () => upstream(rows),
+      fetch: async () => upstream({ updates: rows, cursor: 1, has_more: false }),
     });
     assert.equal(res.statusCode, 503);
     assert.doesNotMatch(JSON.stringify(res.body), /internal|secret/);
+  }
+});
+
+test("read pages accept 256 rows, reject 257 rows, and retain the public response contract", async () => {
+  assert.equal(SYNC_PAGE, 256);
+  const auth = authenticated();
+  for (const count of [256, 257]) {
+    const page = { updates: Array.from({ length: count }, (_, index) => ({
+      seq: index + 1, op_id: ID, update_base64: UPDATE,
+    })), cursor: count, has_more: true };
+    const res = await run(request("GET", undefined, {
+      headers: { cookie: auth.cookie }, query: { action: "sync", after: "0" },
+    }), { fetch: async () => upstream(page) });
+    assert.equal(res.statusCode, count === 256 ? 200 : 503);
+    if (count === 256) {
+      assert.deepEqual(Object.keys(res.body).sort(), ["cursor", "hasMore", "updates"]);
+      assert.equal(res.body.updates.length, 256);
+      assert.deepEqual(res.body.updates.at(-1), { seq: 256, op_id: ID, update: UPDATE });
+    } else {
+      assert.equal(res.body.error, "INVALID_STORAGE_RESPONSE");
+      assert.equal(JSON.stringify(res.body).includes(UPDATE), false);
+    }
+  }
+});
+
+test("read pages reject malformed cursor and continuation metadata without exposing partial content", async () => {
+  const auth = authenticated();
+  const row = { seq: 1, op_id: ID, update_base64: UPDATE };
+  const valid = { updates: [row], cursor: 1, has_more: false };
+  const pages = [null, [], [row], {},
+    ...[undefined, null, "1", -1, 0, 2, 1.5, NaN, Infinity, Number.MAX_SAFE_INTEGER + 1]
+      .map(cursor => ({ ...valid, cursor })),
+    ...[undefined, null, "false", 0, 1].map(has_more => ({ ...valid, has_more })),
+    { updates: [], cursor: 0, has_more: true },
+    { updates: [], cursor: 1, has_more: false },
+    { ...valid, updates: [{ ...row, op_id: "not-a-uuid" }] },
+    { ...valid, updates: [{ ...row, seq: 2 }] },
+    { ...valid, updates: [row, row], cursor: 2 },
+  ];
+  for (const page of pages) {
+    const res = await run(request("GET", undefined, {
+      headers: { cookie: auth.cookie }, query: { action: "sync", after: "0" },
+    }), { fetch: async () => upstream(page) });
+    assert.equal(res.statusCode, 503, JSON.stringify(page));
+    assert.equal(res.body.error, "INVALID_STORAGE_RESPONSE");
+    assert.deepEqual(Object.keys(res.body).sort(), ["error", "message"]);
+    assert.equal(JSON.stringify(res.body).includes(UPDATE), false);
+  }
+});
+
+test("read-page input rejects noncanonical cursors and safely accepts the maximum empty cursor", async () => {
+  const auth = authenticated();
+  for (const after of [0, true, {}, "", " 0", "0 ", "+1", "1e2", "0x10", "Infinity"]) {
+    const res = await run(request("GET", undefined, {
+      headers: { cookie: auth.cookie }, query: { action: "sync", after },
+    }), { fetch: () => assert.fail("invalid cursor reached page RPC") });
+    assert.equal(res.statusCode, 400);
+    assert.equal(res.body.error, "INVALID_CURSOR");
+  }
+  const after = Number.MAX_SAFE_INTEGER;
+  const res = await run(request("GET", undefined, {
+    headers: { cookie: auth.cookie }, query: { action: "sync", after: String(after) },
+  }), { fetch: async (url, init) => {
+    assert.ok(url.endsWith("/rpc/internal_share_read_page"));
+    assert.deepEqual(JSON.parse(init.body), { p_after: after });
+    return upstream({ updates: [], cursor: after, has_more: false });
+  } });
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(res.body, { updates: [], cursor: after, hasMore: false });
+  const overflow = await run(request("GET", undefined, {
+    headers: { cookie: auth.cookie }, query: { action: "sync", after: String(after) },
+  }), { fetch: async () => upstream({
+    updates: [{ seq: after + 1, op_id: ID, update_base64: UPDATE }], cursor: after + 1, has_more: false,
+  }) });
+  assert.equal(overflow.statusCode, 503);
+  assert.equal(overflow.body.error, "INVALID_STORAGE_RESPONSE");
+});
+
+test("read-page cap measures actual serialized JSON independently of row and update limits", async () => {
+  assert.equal(SYNC_BYTES, 3 * 1024 * 1024);
+  const auth = authenticated();
+  for (const [textBytes, expectedStatus] of [[460000, 200], [480000, 503]]) {
+    const encoded = update("x".repeat(textBytes));
+    assert.ok(Buffer.from(encoded, "base64").length <= UPDATE_LIMIT);
+    const page = { updates: Array.from({ length: 5 }, (_, index) => ({
+      seq: index + 1, op_id: ID, update_base64: encoded,
+    })), cursor: 5, has_more: false };
+    const serializedBytes = Buffer.byteLength(JSON.stringify(page));
+    assert.equal(serializedBytes > SYNC_BYTES, expectedStatus === 503);
+    const res = await run(request("GET", undefined, {
+      headers: { cookie: auth.cookie }, query: { action: "sync", after: "0" },
+    }), { fetch: async () => upstream(page) });
+    assert.equal(res.statusCode, expectedStatus);
+    if (expectedStatus === 200) {
+      assert.equal(res.body.updates.length, 5);
+      assert.ok(Buffer.byteLength(JSON.stringify(res.body)) <= SYNC_BYTES);
+    } else assert.equal(res.body.error, "INVALID_STORAGE_RESPONSE");
+  }
+  const page = { updates: [], cursor: 0, has_more: false, extra: "" };
+  const padding = SYNC_BYTES - Buffer.byteLength(JSON.stringify(page));
+  page.extra = "가".repeat(Math.floor(padding / 3)) + "x".repeat(padding % 3);
+  assert.equal(Buffer.byteLength(JSON.stringify(page)), SYNC_BYTES);
+  for (const extra of [page.extra, `${page.extra}x`]) {
+    const res = await run(request("GET", undefined, {
+      headers: { cookie: auth.cookie }, query: { action: "sync", after: "0" },
+    }), { fetch: async () => upstream({ ...page, extra }) });
+    assert.equal(res.statusCode, extra === page.extra ? 200 : 503);
   }
 });
 

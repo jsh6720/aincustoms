@@ -203,7 +203,7 @@ test("rotation clears cookie, invalidates all old sessions and password, and per
   assert.equal(login.body.authenticated, true);
   const session = await h.run(request("GET", undefined,
     { headers: { cookie: login.headers["set-cookie"].split(";")[0] } }));
-  assert.deepEqual(session.body, { authenticated: true, csrf: login.body.csrf });
+  assert.deepEqual(session.body, { authenticated: true, csrf: login.body.csrf, snapshotKey: login.body.snapshotKey });
 });
 
 test("DB credentials override a still-valid old environment hash and its sessions", async () => {

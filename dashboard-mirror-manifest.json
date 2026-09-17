@@ -270,12 +270,12 @@
     {
       "source": "internal/index.html",
       "target": "website_integration/vercel_package/internal/index.html",
-      "sha256": "a6d76a73556fa8f49c1f2698e228837204a903583d1bdb7f0450807e45775092"
+      "sha256": "a14edb1f25de69925ab3517b8e70cc3c2ba0cb0b25181e54e9e5de0a189c33df"
     },
     {
       "source": "internal/style.css",
       "target": "website_integration/vercel_package/internal/style.css",
-      "sha256": "c8de8198bcfe1e34626ef68948e729e9026e27c4282278f20650e66f3431f5a9"
+      "sha256": "f7091bf565a62c2cc8f8292fe733110ffa5f0584557717f3848f31313ebefd12"
     },
     {
       "source": "internal/ui.js",
@@ -285,12 +285,12 @@
     {
       "source": "internal/main.js",
       "target": "website_integration/vercel_package/internal/main.js",
-      "sha256": "3112c94cd5a7949791dc942dfa67fd6316c17de3afb5cbc4a2f55804b53871a0"
+      "sha256": "f2b9ec575ed81921bc6c33a1c840d63b436ffbd518f48d0b772e4a6ed190edb6"
     },
     {
       "source": "internal/sync.mjs",
       "target": "website_integration/vercel_package/internal/sync.mjs",
-      "sha256": "80445e28f66d971bb854468e1ed8a3bf66b95aff4d34d840c36f447512fd5981"
+      "sha256": "bee8eb5adac14a4097ac0e26a8df54696c4484a36873061da97d6a28e5773fd1"
     },
     {
       "source": "internal/notes.mjs",
@@ -313,14 +313,24 @@
       "sha256": "2e032a027cb238d39019b64ca8ebaa98e9d9b6ac54ab6e9eacba23d935db35ff"
     },
     {
+      "source": "internal/snapshot-cache.mjs",
+      "target": "website_integration/vercel_package/internal/snapshot-cache.mjs",
+      "sha256": "13a4ee6b907b68f0cf5d5c8ea1c5cc22dfb324b344c7be1d2aeb6f37b54871c2"
+    },
+    {
+      "source": "supabase/migrations/20260917110000_internal_share_read_page.sql",
+      "target": "website_integration/vercel_package/supabase/migrations/20260917110000_internal_share_read_page.sql",
+      "sha256": "038fbc1d84bb4fcd26ba157d0a7639902862cd2416a61c849f7525f8fd70103c"
+    },
+    {
       "source": "internal/app.js",
       "target": "website_integration/vercel_package/internal/app.js",
-      "sha256": "21b4c072c118ee430aa22f0d86f5289db5aa8114a174c832f04ac679386f3f3a"
+      "sha256": "bbdbd48622aa555eed32add37cbd39af1f3d052ec772e0f2958ead0794adbfa2"
     },
     {
       "source": "lib/internal-share-server.js",
       "target": "website_integration/vercel_package/lib/internal-share-server.js",
-      "sha256": "c004df470d9fecf7822ca29d9889ca3abc855ff5389e788673591e3895f6436a"
+      "sha256": "606a9cac48589cbd1b0abf16e79381f3302b3beab27293a2c93484890b66fb68"
     },
     {
       "source": "lib/internal-share-handler.js",
@@ -335,7 +345,7 @@
     {
       "source": "docs/internal-share-setup.ko.md",
       "target": "website_integration/vercel_package/docs/internal-share-setup.ko.md",
-      "sha256": "116a5caaee1a47db69c355338381834f072ffa3fd1e29f596cfd38b79d705f4a"
+      "sha256": "eb03ff0d548eb5b23ff46136ed45a93cbf4bf0b035bd8781f42add3626fa1216"
     },
     {
       "source": "scripts/create-internal-share-secret.cjs",

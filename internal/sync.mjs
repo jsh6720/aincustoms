@@ -65,14 +65,17 @@ export class SharedDocumentSync {
   }
   async cycle() {
     try {
+      // A completed initial pull also satisfies this cycle's read unless we append.
+      let needsPull = this.ready;
       if (!this.ready) await this.pull();
       for (let sent = 0; !this.closed && this.unsaved && sent < 4; sent++) {
         this.makeBatch();
         const reply = await this.request('append', this.pending[0]);
         if (!Number.isSafeInteger(reply.seq) || reply.seq < 1) throw new Error('저장 확인 응답이 없습니다. 다시 시도합니다.');
         this.pending.shift();
+        needsPull = true;
       }
-      if (!this.closed) await this.pull();
+      if (!this.closed && needsPull) await this.pull();
       this.failures = 0;
       if (!this.closed) this.status({ state: this.unsaved ? 'saving' : 'saved', pending: this.unsaved, message: this.unsaved ? '변경사항 저장 중…' : '모든 변경사항 저장됨 · 약 1초 간격 동기화' });
       return !this.closed;

@@ -62,6 +62,39 @@ test('remote updates never echo and initial documents remain empty', async () =>
   assert.equal(h.rows.length, 1); assert.equal(b.sync.unsaved, 0);
 });
 
+test('initial open reads each page once and later ticks still poll', async () => {
+  const h = await setup(), source = h.make();
+  for (const content of ['', '기존 문서']) {
+    if (content) { source.text.insert(0, content); await source.sync.tick(); }
+    const reads = [];
+    const client = h.make(async (action, data) => {
+      assert.equal(action, 'sync'); reads.push(data.after);
+      return h.api(action, data);
+    });
+    assert.equal(await client.sync.tick(), true);
+    assert.deepEqual(reads, [0]); assert.equal(client.sync.ready, true);
+    assert.equal(client.text.toString(), content); assert.equal(client.sync.unsaved, 0);
+    await client.sync.tick(); assert.deepEqual(reads, [0, h.rows.length]);
+  }
+});
+
+test('initial local changes append then pull unread remote updates before their ACK', async () => {
+  const h = await setup(), source = h.make();
+  source.text.insert(0, 'A'); await source.sync.tick();
+  const calls = [];
+  const client = h.make(async (action, data) => {
+    calls.push({ action, after: data.after });
+    if (action === 'append') { source.text.insert(1, 'C'); await source.sync.tick(); }
+    return h.api(action, data);
+  });
+  client.text.insert(0, 'B');
+  assert.equal(await client.sync.tick(), true);
+  assert.deepEqual(calls, [{ action: 'sync', after: 0 }, { action: 'append', after: undefined }, { action: 'sync', after: 1 }]);
+  assert.equal(client.sync.cursor, 3); assert.equal(client.sync.unsaved, 0);
+  assert.equal(client.text.length, 3);
+  await source.sync.tick(); assert.equal(client.text.toString(), source.text.toString());
+});
+
 test('new input during append waits in a separate queue and survives', async () => {
   const h = await setup(); let release;
   const a = h.make(async (action, data) => {
@@ -77,6 +110,34 @@ test('pagination applies every update before reporting ready', async () => {
   const h = await setup(), a = h.make(); await a.sync.tick();
   for (let i = 0; i < 7; i++) { a.text.insert(i, String(i)); await a.sync.tick(); }
   const b = h.make(); await b.sync.tick(); assert.equal(b.text.toString(), '0123456'); assert.equal(b.sync.cursor, 7);
+});
+
+test('failed initial pagination resumes from its cursor and preserves pending changes', async () => {
+  const h = await setup(), source = h.make();
+  for (let i = 0; i < 5; i++) { source.text.insert(i, String(i)); await source.sync.tick(); }
+  let fail = true; const reads = [], sent = [];
+  const client = h.make(async (action, data) => {
+    if (action === 'sync') {
+      reads.push(data.after);
+      if (fail && data.after === 2) throw new Error('second page unavailable');
+    } else {
+      assert.equal(client.sync.ready, true); sent.push({ ...data });
+    }
+    return h.api(action, data);
+  });
+  client.text.insert(0, '로컬'); client.sync.makeBatch();
+  const pending = { ...client.sync.pending[0] };
+  assert.equal(await client.sync.tick(), false);
+  assert.equal(client.sync.ready, false); assert.equal(client.sync.cursor, 2);
+  assert.equal(client.sync.unsaved, 1); assert.deepEqual(client.sync.pending, [pending]);
+  assert.deepEqual(reads, [0, 2]); assert.deepEqual(sent, []);
+  assert.equal(client.statuses.at(-1).state, 'error');
+  fail = false; assert.equal(await client.sync.resume(), true);
+  assert.deepEqual(reads, [0, 2, 2, 4, 5]); assert.deepEqual(sent, [pending]);
+  assert.equal(client.sync.ready, true); assert.equal(client.sync.cursor, 6);
+  assert.equal(client.sync.unsaved, 0); assert.equal(client.statuses.at(-1).state, 'saved');
+  await source.sync.tick(); assert.equal(client.text.toString(), source.text.toString());
+  assert.match(client.text.toString(), /로컬/); assert.match(client.text.toString(), /01234/);
 });
 
 test('session expiry preserves pending changes and resumes after login', async () => {
@@ -96,7 +157,7 @@ test('a gap or invalid update cannot move the sync cursor or claim saved', async
 test('simultaneous ticks share a request, and close removes the listener', async () => {
   const h = await setup(); let count = 0;
   const a = h.make(async (...args) => { count++; await new Promise(resolve => setImmediate(resolve)); return h.api(...args); });
-  await Promise.all([a.sync.tick(), a.sync.tick(), a.sync.tick()]); assert.equal(count, 2);
+  await Promise.all([a.sync.tick(), a.sync.tick(), a.sync.tick()]); assert.equal(count, 1);
   a.sync.close(); a.text.insert(0, 'closed'); assert.equal(a.sync.unsaved, 0); assert.equal(await a.sync.tick(), false);
 });
 

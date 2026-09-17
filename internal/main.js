@@ -5,7 +5,8 @@ import { defaultKeymap } from '@codemirror/commands';
 import { markdown } from '@codemirror/lang-markdown';
 import { yCollab, yUndoManagerKeymap, ySyncAnnotation } from 'y-codemirror.next';
 import { initUI, setAuthenticated, setStatus, showError } from './ui.js';
-import { SharedDocumentSync, encode } from './sync.mjs';
+import { SharedDocumentSync, encode, decode } from './sync.mjs';
+import { createSnapshotCache } from './snapshot-cache.mjs';
 import { renderPreview } from './preview.mjs';
 import { listNotes, createNote, updateNote, getNoteText } from './notes.mjs';
 import { documentSearchExtension, createDocumentSearchController } from './document-search.mjs';
@@ -14,8 +15,33 @@ let csrf = '', doc = null, sync = null, editor = null, renderTimer, loggingOut =
 let activeNoteId = 'team';
 let editorUndo = null;
 let documentSearch = null;
+let snapshotSecret = '', snapshotSignature = '', showingSnapshot = false;
+let openingTask = null;
+let workspaceEpoch = 0;
+let snapshotStorage;
+try { snapshotStorage = window.localStorage; } catch { /* Server loading works without browser storage. */ }
+const snapshotCache = createSnapshotCache({ storage: snapshotStorage, crypto: window.crypto, origin: location.origin });
 const editAccess = new Compartment();
 const utf8 = new TextEncoder();
+
+function adoptSession(result) {
+  csrf = result.csrf;
+  if (snapshotSecret && snapshotSecret !== result.snapshotKey) snapshotCache.clear();
+  snapshotSecret = typeof result.snapshotKey === 'string' ? result.snapshotKey : '';
+}
+function clearSnapshot() {
+  snapshotCache.clear(); snapshotSecret = ''; snapshotSignature = ''; showingSnapshot = false;
+  document.getElementById('loading-notice').hidden = true;
+}
+function rememberSnapshot() {
+  if (!doc || !sync?.ready || sync.unsaved || sync.paused || loggingOut || changingPassword || ui.appShell.hidden || !snapshotSecret) return;
+  const signature = `${snapshotSecret}:${sync.cursor}`;
+  if (signature === snapshotSignature) return;
+  snapshotSignature = signature;
+  // Capture only fully acknowledged state. No key, text, title or cursor is
+  // persisted outside the encrypted envelope; a quota failure is nonfatal.
+  void snapshotCache.save(snapshotSecret, { cursor: sync.cursor, update: encode(Y.encodeStateAsUpdate(doc)), activeNoteId: 'team' });
+}
 
 async function request(action, data = {}, refreshed = false) {
   const reading = ['session', 'sync'].includes(action);
@@ -31,9 +57,11 @@ async function request(action, data = {}, refreshed = false) {
   // Another tab can renew the shared cookie. Keep this operation's ID/payload,
   // refresh only its CSRF token, and retry at most once.
   if (!reading && action !== 'login' && !refreshed && response.status === 403 && result.error === 'CSRF_REJECTED') {
+    const renewingEpoch = workspaceEpoch;
     const session = await request('session');
+    if (renewingEpoch !== workspaceEpoch) throw new Error('접속 상태가 변경되어 요청을 취소했습니다.');
     if (!session.authenticated) throw Object.assign(new Error('다시 로그인해 주세요.'), { status: 401 });
-    csrf = session.csrf;
+    adoptSession(session);
     return request(action, data, true);
   }
   if (!response.ok) throw Object.assign(new Error(result.message || '문서 서버에 연결할 수 없습니다.'), { status: response.status, code: result.error });
@@ -112,7 +140,7 @@ function createEditor() {
   editor = new EditorView({
     parent: ui.editorHost,
     state: EditorState.create({ doc: text.toString(), extensions: [
-      editAccess.of(accessExtensions(!loggingOut && !changingPassword && !sync.paused)), EditorView.lineWrapping, drawSelection(), markdown(), documentSearchExtension,
+      editAccess.of(accessExtensions(!loggingOut && !changingPassword && sync.ready && !sync.paused)), EditorView.lineWrapping, drawSelection(), markdown(), documentSearchExtension,
       keymap.of([...yUndoManagerKeymap.map(binding => ({ ...binding, run: view => view.state.facet(EditorState.readOnly) ? true : binding.run(view) })), ...defaultKeymap]),
       placeholder('공유할 업무 내용을 입력하세요.\n제목·목록을 사용해 정리하고, URL을 붙여 넣으면 읽기 화면에서 클릭할 수 있습니다.'),
       // y-codemirror also handles native historyUndo/historyRedo beforeinput.
@@ -140,34 +168,85 @@ function createEditor() {
 function onStatus(event) {
   setStatus(event.message, event.state);
   if (event.state === 'locked') {
+    workspaceEpoch++; openingTask = null;
+    clearSnapshot();
     if (sync) { sync.paused = true; clearTimeout(sync.timer); }
     documentSearch?.clear();
     setEditing(false);
     setAuthenticated(false); showError('접속 시간이 만료되었거나 공유 비밀번호가 변경되었습니다. 현재 비밀번호로 다시 로그인하면 이 화면에 남은 변경사항을 이어서 저장합니다.');
   } else if (event.state === 'error') {
+    if (showingSnapshot && !sync?.ready) {
+      document.getElementById('loading-notice').textContent = '마지막 저장본을 표시하고 있습니다. 최신 내용 확인이 끝나면 편집할 수 있습니다.';
+      setEditing(false);
+    }
     showError(event.message + ' 화면을 닫기 전에 문서 또는 복구용 백업을 내려받으세요.');
   } else if (event.state === 'saved') {
+    showingSnapshot = false;
+    document.getElementById('loading-notice').hidden = true;
     showError('');
     // A failed first load may recover on the background retry, not only the button.
     if (!editor && sync?.ready && doc) createEditor();
     if (editor && sync?.ready && !sync.paused && !ui.appShell.hidden) setEditing(!loggingOut && !changingPassword);
+    rememberSnapshot();
   }
 }
 
-async function openDocument() {
+function openDocument() {
+  // Retry and other session refresh paths must share the same cache restore;
+  // never rewind a cursor after a second opener has already begun polling.
+  if (openingTask) return openingTask;
+  const task = loadDocument();
+  openingTask = task;
+  void task.finally(() => { if (openingTask === task) openingTask = null; }).catch(() => {});
+  return task;
+}
+function createSyncDocument() {
+  doc = new Y.Doc();
+  doc.on('update', onDocumentUpdate);
+  sync = new SharedDocumentSync({ doc, request, author: () => ui.nameInput.value.trim().slice(0, 24), status: onStatus, hidden: () => document.hidden });
+  sync.paused = true;
+}
+async function loadDocument() {
   setAuthenticated(true); setStatus('문서 불러오는 중…', 'syncing');
+  setEditing(false);
   if (!doc) {
-    doc = new Y.Doc();
-    doc.on('update', onDocumentUpdate);
-    sync = new SharedDocumentSync({ doc, request, author: () => ui.nameInput.value.trim().slice(0, 24), status: onStatus, hidden: () => document.hidden });
+    createSyncDocument();
+    // Fresh authentication must finish before decrypting any cached content.
+    // Pause event-driven polling until its matching cursor has been restored.
+    const openingDoc = doc, openingSync = sync, openingKey = snapshotSecret;
+    let snapshot = await snapshotCache.load(openingKey);
+    if (doc !== openingDoc || sync !== openingSync || openingKey !== snapshotSecret || ui.appShell.hidden) return;
+    if (snapshot) {
+      try { Y.applyUpdate(doc, decode(snapshot.update), sync); }
+      catch {
+        // A validly decoded but unusable snapshot must not strand loading or
+        // leave a partially applied document in the authoritative sync queue.
+        snapshotCache.clear(); snapshotSignature = ''; snapshot = null;
+        sync.close(); doc.off('update', onDocumentUpdate); doc.destroy(); clearTimeout(renderTimer);
+        createSyncDocument();
+      }
+    }
+    if (snapshot) {
+      sync.cursor = snapshot.cursor;
+      showingSnapshot = true;
+      createEditor(); setEditing(false);
+      const notice = document.getElementById('loading-notice');
+      notice.textContent = '마지막 저장본을 먼저 표시했습니다. 최신 변경사항을 확인하는 동안 잠시 읽기 전용입니다.';
+      notice.hidden = false;
+    }
   }
   ui.setNotesBusy(true);
-  const connected = await sync.resume();
+  const connectingSync = sync;
+  const connected = await connectingSync.resume();
+  if (sync !== connectingSync) return;
   if (connected && !editor) createEditor();
-  if (connected && editor) setEditing(!loggingOut && !changingPassword);
+  if (connected && editor && sync?.ready && !sync.paused && !ui.appShell.hidden) setEditing(!loggingOut && !changingPassword);
 }
 
 function closeWorkspace() {
+  workspaceEpoch++;
+  openingTask = null;
+  clearSnapshot();
   csrf = ''; sync?.close(); destroyEditor(); doc?.off('update', onDocumentUpdate); doc?.destroy();
   sync = null; doc = null; clearTimeout(renderTimer); activeNoteId = 'team';
   ui.editorHost.replaceChildren(); ui.previewHost.replaceChildren(); ui.outlineHost.replaceChildren();
@@ -188,8 +267,11 @@ const ui = initUI({
   },
   selectNote,
   async login(password) {
+    const loginEpoch = ++workspaceEpoch;
     document.getElementById('login-notice').hidden = true;
-    const result = await request('login', { password }); csrf = result.csrf;
+    const result = await request('login', { password });
+    if (loginEpoch !== workspaceEpoch) return;
+    adoptSession(result);
     await openDocument();
   },
   async changePassword(fields) {
@@ -226,11 +308,12 @@ const ui = initUI({
       throw error;
     } finally {
       changingPassword = false; logoutButton.disabled = false;
-      if (editor && !sync?.paused && !ui.appShell.hidden) setEditing(true);
+      if (editor && sync?.ready && !sync.paused && !ui.appShell.hidden) setEditing(true);
     }
   },
   async logout() {
     if (loggingOut || changingPassword) return;
+    workspaceEpoch++;
     loggingOut = true;
     const button = document.getElementById('logout-button');
     button.disabled = true; setEditing(false); editor?.contentDOM.blur();
@@ -242,7 +325,7 @@ const ui = initUI({
       await request('logout'); closeWorkspace();
     } finally {
       loggingOut = false; button.disabled = false;
-      if (editor && !sync?.paused && !ui.appShell.hidden) setEditing(true);
+      if (editor && sync?.ready && !sync.paused && !ui.appShell.hidden) setEditing(true);
     }
   },
   download() {
@@ -256,9 +339,11 @@ const ui = initUI({
   },
   async retry() {
     if (loggingOut || changingPassword) return;
+    const retryEpoch = workspaceEpoch;
     const session = await request('session');
+    if (retryEpoch !== workspaceEpoch || loggingOut || changingPassword) return;
     if (!session.authenticated) { onStatus({ state: 'locked', message: '다시 로그인해 주세요.' }); return; }
-    csrf = session.csrf; await openDocument();
+    adoptSession(session); await openDocument();
   },
   insert(kind) {
     if (!editor || !sync?.ready || sync.paused || loggingOut || changingPassword) return;
@@ -272,4 +357,7 @@ window.addEventListener('beforeunload', event => { if (sync?.unsaved) { event.pr
 document.addEventListener('visibilitychange', () => { if (!document.hidden && sync && !sync.paused) sync.tick(); });
 window.addEventListener('online', () => { if (sync && !sync.paused) sync.tick(); });
 setAuthenticated(false);
-request('session').then(async result => { if (result.authenticated) { csrf = result.csrf; await openDocument(); } }).catch(error => showError(error.message));
+const initialEpoch = workspaceEpoch;
+request('session').then(async result => {
+  if (initialEpoch === workspaceEpoch && result.authenticated) { adoptSession(result); await openDocument(); }
+}).catch(error => { if (initialEpoch === workspaceEpoch) showError(error.message); });

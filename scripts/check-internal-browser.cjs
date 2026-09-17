@@ -10,11 +10,24 @@ const password = crypto.randomBytes(20).toString('base64url');
 const salt = crypto.randomBytes(16);
 const key = crypto.scryptSync(password, salt, 64, { N: 16384, r: 8, p: 1 });
 const rows = [], ops = new Map();
+const snapshotStorageKey = 'ain-note-snapshot-v1';
+const pageControls = new WeakMap();
 let blocked = false;
 let credentialState = { revision: 0, password_hash: null };
 let failLogout = false, holdLogout = null, logoutStarted = null, csrfRejections = 0;
 let holdPasswordChange = null, passwordChangeStarted = null, passwordChangeRequests = 0;
 const passwordChangeReplies = [];
+function decryptSnapshot(stored, snapshotKey) {
+  const envelope = JSON.parse(stored);
+  assert.deepEqual(Object.keys(envelope).sort(), ['ciphertext', 'format', 'iv']);
+  assert.equal(envelope.format, snapshotStorageKey);
+  const iv = Buffer.from(envelope.iv, 'base64url'), encrypted = Buffer.from(envelope.ciphertext, 'base64');
+  assert.equal(iv.length, 12); assert.ok(encrypted.length > 16);
+  const decipher = crypto.createDecipheriv('aes-256-gcm', Buffer.from(snapshotKey, 'base64url'), iv);
+  decipher.setAAD(Buffer.from(snapshotStorageKey + ':https://ain.example.test'));
+  decipher.setAuthTag(encrypted.subarray(-16));
+  return JSON.parse(Buffer.concat([decipher.update(encrypted.subarray(0, -16)), decipher.final()]).toString('utf8'));
+}
 const env = { INTERNAL_SHARE_PASSWORD_HASH: `scrypt:${salt.toString('base64url')}:${key.toString('base64url')}`, INTERNAL_SHARE_SESSION_SECRET: crypto.randomBytes(32).toString('hex'), SUPABASE_URL: 'https://storage.example.test', SUPABASE_SERVICE_ROLE_KEY: 'synthetic-only' };
 const handler = createInternalShareHandler({ env, fetch: async (address, options = {}) => {
   const url = new URL(address), body = options.body ? JSON.parse(options.body) : {};
@@ -30,7 +43,17 @@ const handler = createInternalShareHandler({ env, fetch: async (address, options
     let seq = ops.get(body.p_op_id);
     if (!seq) { seq = rows.length + 1; rows.push({ seq, op_id: body.p_op_id, update_base64: body.p_update_base64 }); ops.set(body.p_op_id, seq); }
     data = { seq };
-  } else if (url.pathname.endsWith('/internal_share_updates')) data = rows.filter(r => r.seq > Number(url.searchParams.get('seq').slice(3))).slice(0, Number(url.searchParams.get('limit')));
+  } else if (url.pathname.endsWith('/internal_share_read_page')) {
+    const candidates = rows.filter(r => r.seq > body.p_after);
+    let bytes = 0;
+    const updates = [];
+    for (const row of candidates) {
+      const size = row.update_base64.length + 256;
+      if (updates.length >= 256 || bytes + size > 3 * 1024 * 1024) break;
+      updates.push(row); bytes += size;
+    }
+    data = { updates, cursor: updates.at(-1)?.seq ?? body.p_after, has_more: updates.length < candidates.length };
+  }
   else throw new Error('Unexpected mock storage path');
   return { ok: true, json: async () => data };
 } });
@@ -45,7 +68,13 @@ const handler = createInternalShareHandler({ env, fetch: async (address, options
         const request = route.request(), url = new URL(request.url());
         if (url.origin !== 'https://ain.example.test') return route.fulfill({ status: 200, contentType: 'text/html', body: '<p>External link test</p>' });
         if (url.pathname === '/api/internal-share') {
-          const action = request.postData() ? JSON.parse(request.postData()).action : null;
+          const action = request.postData() ? JSON.parse(request.postData()).action : url.searchParams.get('action') || 'session';
+          const controls = pageControls.get(request.frame().page());
+          if (action === 'sync' && controls) {
+            controls.syncAfter.push(Number(url.searchParams.get('after') || 0));
+            if (controls.syncDelayMs) await new Promise(resolve => setTimeout(resolve, controls.syncDelayMs));
+            if (controls.holdSync) { controls.syncStarted?.(); await controls.holdSync; }
+          }
           if (action === 'change_password') {
             passwordChangeRequests++;
             if (holdPasswordChange) { passwordChangeStarted?.(); await holdPasswordChange; }
@@ -59,6 +88,12 @@ const handler = createInternalShareHandler({ env, fetch: async (address, options
           }
           const reply = { code: 200, headers: {}, setHeader(k,v) { this.headers[k] = v; }, status(code) { this.code = code; return this; }, json(value) { this.body = JSON.stringify(value); return this; } };
           await handler(req, reply);
+          const replyBody = JSON.parse(reply.body);
+          if (controls && replyBody.authenticated && replyBody.snapshotKey) controls.snapshotKeys.push(replyBody.snapshotKey);
+          if (action === 'session' && controls?.holdSessionResponse) {
+            controls.sessionResponseStarted?.(replyBody);
+            await controls.holdSessionResponse;
+          }
           if (action === 'change_password') passwordChangeReplies.push({ status: reply.code, ...JSON.parse(reply.body) });
           if (reply.code === 403 && JSON.parse(reply.body).error === 'CSRF_REJECTED') csrfRejections++;
           return route.fulfill({ status: reply.code, headers: { 'Content-Type': 'application/json', ...reply.headers }, body: reply.body });
@@ -73,6 +108,8 @@ const handler = createInternalShareHandler({ env, fetch: async (address, options
     }
     const aContext = await context({ width: 1440, height: 1000 }), bContext = await context({ width: 1280, height: 900 });
     const a = await aContext.newPage(), b = await bContext.newPage();
+    const aControls = { syncAfter: [], snapshotKeys: [], syncDelayMs: 0, holdSync: null, syncStarted: null };
+    pageControls.set(a, aControls);
     const errors = []; for (const page of [a,b]) page.on('pageerror', error => errors.push(error.message));
     async function login(page, credential = password) {
       await page.goto('https://ain.example.test/note');
@@ -148,7 +185,7 @@ const handler = createInternalShareHandler({ env, fetch: async (address, options
     // Switching editors shares one pending queue, including an offline new note.
     blocked = true;
     await a.locator('.cm-content').click(); await a.keyboard.press('Control+End'); await a.keyboard.insertText(' / 전환전입력');
-    const teamText = await a.locator('.cm-content').innerText();
+    let teamText = await a.locator('.cm-content').innerText();
     await a.locator('#new-note-button').click();
     await a.locator('#note-title-input').fill('통관 업무');
     await a.locator('#note-category-input').fill('업무');
@@ -187,8 +224,55 @@ const handler = createInternalShareHandler({ env, fetch: async (address, options
     await a.waitForFunction(()=>document.querySelector('#note-category')?.textContent==='공동업무');
     assert.equal(await a.locator('#note-heading').textContent(),'서류 진행 (팀)');
     await a.waitForFunction(()=>document.querySelector('#sync-status')?.dataset.kind==='saved');
+    // A cold load and a cached load see the same synthetic sync latency. Only a's
+    // request is held, so b can continue saving remote changes during refresh.
+    await a.evaluate(storageKey => localStorage.removeItem(storageKey), snapshotStorageKey);
+    aControls.syncDelayMs = 600; aControls.syncAfter.length = 0;
+    const coldStarted = performance.now();
     await a.reload(); await a.locator('.cm-content[contenteditable=true]').waitFor();
+    const coldEditableMs = Math.round(performance.now() - coldStarted);
+    assert.equal(aControls.syncAfter[0], 0);
     assert.equal(await a.locator('.cm-content').innerText(),teamText);
+    await a.waitForFunction(storageKey => Boolean(localStorage.getItem(storageKey)), snapshotStorageKey);
+    const encryptedSnapshot = await a.evaluate(storageKey => localStorage.getItem(storageKey), snapshotStorageKey);
+    assert.equal(encryptedSnapshot.includes('오늘 업무'), false);
+    assert.equal(encryptedSnapshot.includes('분리된 업무 내용'), false);
+    assert.equal(encryptedSnapshot.includes('서류 진행 (팀)'), false);
+    assert.ok(aControls.snapshotKeys.length > 0);
+    const savedSnapshot = decryptSnapshot(encryptedSnapshot, aControls.snapshotKeys.at(-1));
+    assert.ok(savedSnapshot.cursor > 0); assert.equal(savedSnapshot.activeNoteId, 'team');
+    const storedValues = await a.evaluate(() => Object.values(localStorage).join('\n'));
+    for (const snapshotKey of aControls.snapshotKeys) assert.equal(storedValues.includes(snapshotKey), false);
+    let releaseCachedSync;
+    aControls.holdSync = new Promise(resolve => { releaseCachedSync = resolve; });
+    const cachedSyncStarted = new Promise(resolve => { aControls.syncStarted = resolve; });
+    aControls.syncAfter.length = 0;
+    const cachedStarted = performance.now();
+    await a.reload(); await a.locator('.cm-content[contenteditable=false]').waitFor();
+    const cachedReadableMs = Math.round(performance.now() - cachedStarted);
+    await a.locator('#loading-notice').waitFor({ state: 'visible' });
+    assert.equal(await a.locator('.cm-content').innerText(), teamText);
+    assert.equal(await a.locator('#new-note-button').isDisabled(), true);
+    assert.equal(await a.locator('#edit-note-button').isDisabled(), true);
+    assert.equal(await a.locator('[data-insert="link"]').isDisabled(), true);
+    await a.locator('.cm-content').click(); await a.keyboard.insertText('캐시 대기 중 입력 금지'); await a.keyboard.press('Control+z');
+    assert.equal(await a.locator('.cm-content').innerText(), teamText);
+    await cachedSyncStarted;
+    assert.ok(aControls.syncAfter[0] > 0, 'Cached reload must request only updates after its saved cursor');
+    assert.equal(aControls.syncAfter[0], savedSnapshot.cursor);
+    await b.locator('#notes-list [data-note-id="team"]').click();
+    await b.locator('.cm-content').click(); await b.keyboard.press('Control+End'); await b.keyboard.insertText(' / 캐시새로고침중원격입력');
+    await b.waitForFunction(() => document.querySelector('#sync-status')?.dataset.kind === 'saved');
+    assert.equal(await a.locator('.cm-content').innerText(), teamText);
+    releaseCachedSync(); aControls.holdSync = null; aControls.syncStarted = null; aControls.syncDelayMs = 0;
+    await a.locator('.cm-content[contenteditable=true]').waitFor();
+    await a.waitForFunction(() => document.querySelector('.cm-content')?.textContent.includes('캐시새로고침중원격입력'));
+    await a.locator('#loading-notice').waitFor({ state: 'hidden' });
+    assert.equal(await a.locator('#new-note-button').isDisabled(), false);
+    assert.equal(await a.locator('#edit-note-button').isDisabled(), false);
+    teamText = await a.locator('.cm-content').innerText();
+    assert.equal(teamText, await b.locator('.cm-content').innerText());
+    const loadTimings = { syntheticSyncDelayMs: 600, coldEditableMs, cachedReadableMs, deltaAfter: aControls.syncAfter[0] };
     await a.locator(`#notes-list [data-note-id="${noteId}"]`).click();
     assert.match(await a.locator('.cm-content').innerText(),/분리된 업무 내용.*다른 구성원/s);
     await a.locator('.cm-content').click(); await a.keyboard.press('Control+End'); await a.keyboard.insertText('\nhttps://example.com/work\n[위험](javascript:alert(1))\n<img src=x onerror="window.__unsafe=1">');
@@ -226,6 +310,14 @@ const handler = createInternalShareHandler({ env, fetch: async (address, options
     await a.locator('#app-error-message').filter({ hasText: 'Logout test failure' }).waitFor();
     assert.equal(await a.locator('.cm-content').getAttribute('contenteditable'), 'true');
     const beforeLogout = await a.locator('.cm-content').innerText();
+    // The retry's successful authentication is captured before logout but only
+    // delivered afterward. It must not reopen the closed workspace or cache.
+    let releaseRetrySession;
+    aControls.holdSessionResponse = new Promise(resolve => { releaseRetrySession = resolve; });
+    const retrySessionStarted = new Promise(resolve => { aControls.sessionResponseStarted = resolve; });
+    const retrySessionResponse = a.waitForResponse(response => new URL(response.url()).searchParams.get('action') === 'session');
+    await a.locator('#retry-button').click();
+    assert.equal((await retrySessionStarted).authenticated, true);
     let releaseLogout;
     holdLogout = new Promise(resolve => { releaseLogout = resolve; });
     const started = new Promise(resolve => { logoutStarted = resolve; });
@@ -236,6 +328,16 @@ const handler = createInternalShareHandler({ env, fetch: async (address, options
     assert.equal(await a.locator('.cm-content').innerText(), beforeLogout);
     releaseLogout(); await a.locator('#login-shell').waitFor({ state: 'visible' });
     assert.equal(await a.locator('#preview-host').textContent(), '');
+    assert.equal(await a.evaluate(storageKey => localStorage.getItem(storageKey), snapshotStorageKey), null);
+    const readsAfterLogout = aControls.syncAfter.length;
+    releaseRetrySession(); aControls.holdSessionResponse = null; aControls.sessionResponseStarted = null;
+    await (await retrySessionResponse).finished();
+    await a.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    assert.equal(await a.locator('#login-shell').isVisible(), true);
+    assert.equal(await a.locator('#app-shell').isVisible(), false);
+    assert.equal(await a.locator('.cm-content').count(), 0);
+    assert.equal(await a.evaluate(storageKey => localStorage.getItem(storageKey), snapshotStorageKey), null);
+    assert.equal(aControls.syncAfter.length, readsAfterLogout);
     const unauthorized = await a.evaluate(async () => (await fetch('/api/internal-share?action=sync&after=0')).status);
     assert.equal(unauthorized, 401);
     holdLogout = null; logoutStarted = null;
@@ -293,6 +395,9 @@ const handler = createInternalShareHandler({ env, fetch: async (address, options
     await b.locator('#notes-list [data-note-id="team"]').click();
     await b.waitForFunction(() => document.querySelector('.cm-content')?.textContent.includes('비밀번호 변경 전 보존검증'));
     assert.equal(await b.locator('.cm-content').innerText(), persistedTeam);
+    await a.waitForFunction(storageKey => Boolean(localStorage.getItem(storageKey)), snapshotStorageKey);
+    const preRotationSnapshot = await a.evaluate(storageKey => localStorage.getItem(storageKey), snapshotStorageKey);
+    const preRotationKey = aControls.snapshotKeys.at(-1);
     let releasePasswordChange;
     holdPasswordChange = new Promise(resolve => { releasePasswordChange = resolve; });
     const changeStarted = new Promise(resolve => { passwordChangeStarted = resolve; });
@@ -311,6 +416,7 @@ const handler = createInternalShareHandler({ env, fetch: async (address, options
     assert.equal(passwordChangeRequests, beforeDuplicate);
     assert.equal(await a.evaluate(secret => Object.values(localStorage).some(value => value.includes(secret)), newPassword), false);
     releasePasswordChange(); await a.locator('#login-shell').waitFor({ state: 'visible' });
+    assert.equal(await a.evaluate(storageKey => localStorage.getItem(storageKey), snapshotStorageKey), null);
     holdPasswordChange = null; passwordChangeStarted = null;
     assert.equal(credentialState.revision, 1);
     assert.equal(passwordChangeReplies.at(-1).status, 200);
@@ -321,11 +427,33 @@ const handler = createInternalShareHandler({ env, fetch: async (address, options
     for (const id of ['password', 'current-password', 'new-password', 'confirm-password']) assert.equal(await a.locator('#' + id).inputValue(), '');
     const siblingUnauthorized = await b.evaluate(async () => (await fetch('/api/internal-share?action=sync&after=0')).status);
     assert.equal(siblingUnauthorized, 401);
+    // Even if an old encrypted snapshot is restored, expired authentication must
+    // not expose its content and the rotated key must not unlock that snapshot.
+    await a.evaluate(({ storageKey, snapshot }) => localStorage.setItem(storageKey, snapshot), { storageKey: snapshotStorageKey, snapshot: preRotationSnapshot });
+    await a.reload(); await a.locator('#login-shell').waitFor({ state: 'visible' });
+    assert.equal(await a.locator('#app-shell').isVisible(), false);
+    assert.equal(await a.locator('.cm-content').count(), 0);
+    assert.equal(await a.locator('#preview-host').textContent(), '');
     await a.locator('#password').fill(password); await a.locator('#login-submit').click();
     await a.locator('#login-error').waitFor({ state: 'visible' });
     assert.equal(await a.locator('#login-shell').isVisible(), true);
     assert.equal(await a.locator('#app-shell').isVisible(), false);
-    await login(a, newPassword);
+    // Put the original ciphertext back after the unauthenticated session check,
+    // then hold the new session's first sync to expose any incorrect reuse.
+    await a.evaluate(({ storageKey, snapshot }) => localStorage.setItem(storageKey, snapshot), { storageKey: snapshotStorageKey, snapshot: preRotationSnapshot });
+    let releaseRotatedSync;
+    aControls.holdSync = new Promise(resolve => { releaseRotatedSync = resolve; });
+    const rotatedSyncStarted = new Promise(resolve => { aControls.syncStarted = resolve; });
+    aControls.syncAfter.length = 0;
+    await a.locator('#password').fill(newPassword); await a.locator('#login-submit').click();
+    await rotatedSyncStarted;
+    assert.notEqual(aControls.snapshotKeys.at(-1), preRotationKey);
+    assert.throws(() => decryptSnapshot(preRotationSnapshot, aControls.snapshotKeys.at(-1)));
+    assert.equal(aControls.syncAfter[0], 0, 'A snapshot encrypted before password rotation must not seed the new session');
+    assert.equal(await a.locator('.cm-content').count(), 0);
+    assert.equal(await a.locator('#preview-host').textContent(), '');
+    releaseRotatedSync(); aControls.holdSync = null; aControls.syncStarted = null;
+    await a.locator('.cm-content[contenteditable=true]').waitFor();
     assert.equal(await a.locator('.cm-content').innerText(), persistedTeam);
     await a.locator(`#notes-list [data-note-id="${noteId}"]`).click();
     assert.equal(await a.locator('.cm-content').innerText(), beforeLogout);
@@ -365,9 +493,56 @@ const handler = createInternalShareHandler({ env, fetch: async (address, options
       await checkLongSearchViewport(a, width, 2);
       await a.screenshot({ path: path.join(artifacts, width === 320 ? 'internal-search-long-mobile.png' : 'internal-search-long-desktop.png'), fullPage: false });
     }
+    // An isolated page delays only WebCrypto decryption to force the narrow
+    // overlap between cache restoration and another opener or logout.
+    const raceContext = await context({ width: 1280, height: 900 }), race = await raceContext.newPage();
+    race.on('pageerror', error => errors.push(error.message));
+    const raceControls = { syncAfter: [], snapshotKeys: [] }; pageControls.set(race, raceControls);
+    await login(race, newPassword);
+    await race.waitForFunction(storageKey => Boolean(localStorage.getItem(storageKey)), snapshotStorageKey);
+    const raceSnapshot = decryptSnapshot(await race.evaluate(storageKey => localStorage.getItem(storageKey), snapshotStorageKey), raceControls.snapshotKeys.at(-1));
+    await race.addInitScript(() => {
+      const decrypt = crypto.subtle.decrypt.bind(crypto.subtle);
+      let release;
+      const gate = new Promise(resolve => { release = resolve; });
+      window.__snapshotDecryptStarted = false;
+      window.__releaseSnapshotDecrypt = release;
+      crypto.subtle.decrypt = async (...args) => {
+        window.__snapshotDecryptStarted = true;
+        await gate;
+        return decrypt(...args);
+      };
+    });
+    raceControls.syncAfter.length = 0;
+    await race.reload(); await race.waitForFunction(() => window.__snapshotDecryptStarted);
+    assert.equal(await race.locator('.cm-content').count(), 0);
+    const duplicateSession = race.waitForResponse(response => new URL(response.url()).searchParams.get('action') === 'session');
+    // Invoke the registered retry control directly while its error banner is
+    // hidden to exercise concurrent openers without altering production code.
+    await race.locator('#retry-button').evaluate(button => button.click());
+    await (await duplicateSession).finished();
+    await race.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    assert.deepEqual(raceControls.syncAfter, [], 'Retry must await the existing cache restore before starting sync');
+    await race.evaluate(() => window.__releaseSnapshotDecrypt());
+    await race.locator('.cm-content[contenteditable=true]').waitFor();
+    assert.deepEqual(raceControls.syncAfter, [raceSnapshot.cursor]);
+    assert.equal(await race.locator('.cm-content').count(), 1);
+    assert.equal(await race.locator('.cm-content').innerText(), persistedTeam);
+    raceControls.syncAfter.length = 0;
+    await race.reload(); await race.waitForFunction(() => window.__snapshotDecryptStarted);
+    await race.locator('#logout-button').click(); await race.locator('#login-shell').waitFor({ state: 'visible' });
+    await race.evaluate(() => window.__releaseSnapshotDecrypt());
+    await race.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    assert.equal(await race.locator('#app-shell').isVisible(), false);
+    assert.equal(await race.locator('.cm-content').count(), 0);
+    assert.equal(await race.evaluate(storageKey => localStorage.getItem(storageKey), snapshotStorageKey), null);
+    assert.deepEqual(raceControls.syncAfter, []);
+    await raceContext.close();
     assert.deepEqual(errors, []);
     console.log('PASS: mobile search input widths ' + JSON.stringify(mobileSearchWidths));
     console.log('PASS: long-note search viewport positions ' + JSON.stringify(longSearchViews));
+    console.log('PASS: encrypted cache, authenticated read-only cached preview, blocked cached editing, remote delta merge, logout clearing and password-rotation rejection; synthetic load timings ' + JSON.stringify(loadTimings));
+    console.log('PASS: delayed retry authentication cannot reopen after logout; overlapping retry awaits one cache restore; logout cancels delayed cache decryption without restoring content or storage.');
     console.log('PASS: password gate, 2-browser concurrent Korean typing, cross-tab CSRF renewal, live Korean search/count/arrows/wrap/keyboard/reset, search preview and mobile layout, note-switch search clearing, multiple notes/categories, offline switch preservation, per-note separation, shared rename, refresh persistence, safe clickable links/new tab, XSS rejection, failed logout recovery, delayed logout input lock, password validation, offline flush guard, delayed credential-change lock, old-session revocation, old-password rejection, new-password login and retained notes. Storage and credentials are synthetic mocks; production DB NOT tested.');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode=1; });
