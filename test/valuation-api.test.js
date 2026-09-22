@@ -193,3 +193,15 @@ test("editor backup copies both spreadsheets and cannot be invoked through web A
   assert.equal(gas.post({ action: "backupValuationSheets", token: master(gas) }).success, false);
   assert.equal(gas.copies.length, 2);
 });
+
+
+test('login does not wait on the write lock, while mutations still require it', () => {
+  const gas=createGas({lockFails:true});
+  const login=gas.login();
+  assert.equal(login.success,true);
+  const result=gas.post({action:'addDutyRecord',token:login.user.token});
+  assert.equal(result.code,'BUSY');
+  assert.equal(gas.writes.length,0);
+  gas.accounts[1][1]='changed-after-login';
+  assert.equal(gas.post({action:'getDutyData',token:login.user.token}).code,'UNAUTHORIZED');
+});

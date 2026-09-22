@@ -20,7 +20,9 @@ function doPost(e) {
     const action = data.action;
     let result;
     if (action === 'login') {
-      result = withLock_(function () { return login_(data); });
+      // Login is read-only, like authorize_ on reads. A concurrent credential
+      // change invalidates the issued fingerprint on the very next request.
+      result = login_(data);
     } else if (action === 'getDutyData' || action === 'getAccountData') {
       const auth = authorize_(data.token);
       result = action === 'getDutyData' ? dutyData_(auth) : accountData_(auth);
@@ -119,8 +121,10 @@ function table_(kind) {
   const tabId = PropertiesService.getScriptProperties().getProperty(prop);
   if (tabId === null || !/^\d+$/.test(tabId)) fail_('NOT_CONFIGURED');
   const sheet = SpreadsheetApp.openById(id).getSheetById(Number(tabId));
-  if (!sheet || sheet.getLastRow() < 1) fail_('NOT_CONFIGURED');
-  const range = sheet.getRange(1, 1, sheet.getLastRow(), isAccount ? 3 : 6);
+  if (!sheet) fail_('NOT_CONFIGURED');
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 1) fail_('NOT_CONFIGURED');
+  const range = sheet.getRange(1, 1, lastRow, isAccount ? 3 : 6);
   // Display text retains declaration leading zeroes; credentials retain exact stored values.
   const values = (isAccount ? range.getValues() : range.getDisplayValues()).map(function (row) {
     return row.map(function (value) { return String(value == null ? '' : value); });

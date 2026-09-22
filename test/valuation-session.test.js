@@ -207,3 +207,47 @@ test('filtering or reloading a duty table ends the replaced edit state instead o
   assert.equal(page.run('editingRowIndex'),-1);
   assert.equal(page.run('editingOriginalData'),null);
 });
+
+
+test('initial management view loads duties without a hidden account-list request', async () => {
+  const page = createPage(); page.login();
+  await page.context.showDutyModal();
+  assert.deepEqual(page.requests.map(r => r.action), ['getDutyData']);
+  await page.context.switchTab('account-management');
+  assert.deepEqual(page.requests.map(r => r.action), ['getDutyData', 'getAccountData']);
+  await page.context.switchTab('account-management');
+  assert.equal(page.requests.length, 2);
+});
+
+test('repeated account-tab clicks share one pending request and logout clears it', async () => {
+  const page = createPage(); page.login();
+  let release; let calls = 0;
+  page.context.fetch = async () => { calls++; return new Promise(resolve => {
+    release = () => resolve({status:200,text:async()=>JSON.stringify({success:false,code:'SERVER_ERROR'})});
+  }); };
+  const first = page.context.switchTab('account-management');
+  const second = page.context.switchTab('account-management');
+  assert.equal(first, second); assert.equal(calls, 1);
+  page.context.closeModal('dutyModal');
+  assert.equal(page.run('accountTabLoad'), null);
+  release(); await first;
+  assert.equal(page.element('accountResultsBody').innerHTML, '');
+});
+
+test('reads and login allow slow responses while writes retain bounded no-retry behavior', async () => {
+  for (const action of ['login','getDutyData','getAccountData','addDutyRecord']) {
+    const page=createPage(); page.login(); page.run("dutyRevision='revision';");
+    let calls=0;
+    page.context.fetch=(_,options)=>{calls++; return new Promise((resolve,reject)=>{
+      options.signal.addEventListener('abort',()=>{const error=new Error();error.name='AbortError';reject(error);});
+    });};
+    const pending=page.context.callAPI(action);
+    const timeout=[...page.timers.values()].find(t=>t.delay===(action==='addDutyRecord'?20000:45000));
+    assert.ok(timeout, action); timeout.callback();
+    const result=await pending;
+    assert.equal(result.success,false); assert.equal(calls,1);
+    if(action==='login') assert.match(result.message,/로그인 서버/);
+    if(action==='addDutyRecord') assert.match(result.message,/처리 여부/);
+    assert.equal(page.timers.size,0);
+  }
+});
