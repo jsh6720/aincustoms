@@ -7,9 +7,11 @@ import { yCollab, yUndoManagerKeymap, ySyncAnnotation } from 'y-codemirror.next'
 import { initUI, setAuthenticated, setStatus, showError } from './ui.js';
 import { SharedDocumentSync, encode, decode } from './sync.mjs';
 import { createSnapshotCache } from './snapshot-cache.mjs';
-import { renderPreview } from './preview.mjs';
+import { renderPreview, clearPreview } from './preview.mjs';
 import { listNotes, createNote, updateNote, getNoteText } from './notes.mjs';
 import { documentSearchExtension, createDocumentSearchController } from './document-search.mjs';
+import { preparePastedImage, noteImageExtension } from './images.mjs';
+import { createImagePasteController } from './image-paste.mjs';
 
 let csrf = '', doc = null, sync = null, editor = null, renderTimer, loggingOut = false, changingPassword = false;
 let activeNoteId = 'team';
@@ -43,14 +45,14 @@ function rememberSnapshot() {
   void snapshotCache.save(snapshotSecret, { cursor: sync.cursor, update: encode(Y.encodeStateAsUpdate(doc)), activeNoteId: 'team' });
 }
 
-async function request(action, data = {}, refreshed = false) {
+async function request(action, data = {}, refreshed = false, signal) {
   const reading = ['session', 'sync'].includes(action);
   const query = reading ? '?' + new URLSearchParams({ action, ...data }) : '';
   const response = await fetch('/api/internal-share' + query, {
     method: reading ? 'GET' : 'POST', credentials: 'same-origin', cache: 'no-store',
     headers: reading ? {} : { 'Content-Type': 'application/json' },
     body: reading ? undefined : JSON.stringify({ action, csrf, ...data }),
-    signal: AbortSignal.timeout(15000),
+    signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(15000)]) : AbortSignal.timeout(15000),
   });
   let result;
   try { result = await response.json(); } catch { throw new Error('서버 응답을 읽을 수 없습니다. 잠시 후 다시 시도해 주세요.'); }
@@ -62,7 +64,7 @@ async function request(action, data = {}, refreshed = false) {
     if (renewingEpoch !== workspaceEpoch) throw new Error('접속 상태가 변경되어 요청을 취소했습니다.');
     if (!session.authenticated) throw Object.assign(new Error('다시 로그인해 주세요.'), { status: 401 });
     adoptSession(session);
-    return request(action, data, true);
+    return request(action, data, true, signal);
   }
   if (!response.ok) throw Object.assign(new Error(result.message || '문서 서버에 연결할 수 없습니다.'), { status: response.status, code: result.error });
   return result;
@@ -80,6 +82,7 @@ function setEditing(enabled) {
   editor?.dispatch({ effects: editAccess.reconfigure(accessExtensions(enabled)) });
   document.querySelectorAll('[data-insert]').forEach(button => { button.disabled = !enabled; });
   ui.setNotesBusy(!enabled);
+  document.getElementById('image-upload-button').disabled = !enabled || imagePaste.busy;
 }
 
 function activeNote() { return listNotes(doc).find(note => note.id === activeNoteId); }
@@ -99,6 +102,7 @@ function selectNote(id) {
   requireEditableNotes();
   if (!listNotes(doc).some(note => note.id === id)) throw new Error('노트를 찾을 수 없습니다.');
   if (activeNoteId !== id) {
+    if (imagePaste.busy) imagePaste.cancel('노트를 바꾸어 이미지 붙여넣기를 취소했습니다. 원하는 노트에서 다시 붙여넣어 주세요.');
     // Every note shares one CRDT sync queue, so switching editors never discards
     // pending changes or assigns them to the newly selected note.
     destroyEditor(); ui.editorHost.replaceChildren();
@@ -140,7 +144,16 @@ function createEditor() {
   editor = new EditorView({
     parent: ui.editorHost,
     state: EditorState.create({ doc: text.toString(), extensions: [
-      editAccess.of(accessExtensions(!loggingOut && !changingPassword && sync.ready && !sync.paused)), EditorView.lineWrapping, drawSelection(), markdown(), documentSearchExtension,
+      editAccess.of(accessExtensions(!loggingOut && !changingPassword && sync.ready && !sync.paused)), EditorView.lineWrapping, drawSelection(), markdown(), documentSearchExtension, noteImageExtension,
+      EditorView.domEventHandlers({ paste(event, view) {
+        let files = Array.from(event.clipboardData?.items || []).filter(item => item.kind === 'file').map(item => item.getAsFile()).filter(Boolean);
+        if (!files.length) files = Array.from(event.clipboardData?.files || []);
+        if (!files.length) return false;
+        event.preventDefault();
+        if (files.length !== 1) showImageStatus('이미지는 한 번에 한 장씩 붙여넣어 주세요.', 'error');
+        else void pasteImage(files[0], view.state.selection.main.from);
+        return true;
+      } }),
       keymap.of([...yUndoManagerKeymap.map(binding => ({ ...binding, run: view => view.state.facet(EditorState.readOnly) ? true : binding.run(view) })), ...defaultKeymap]),
       placeholder('공유할 업무 내용을 입력하세요.\n제목·목록을 사용해 정리하고, URL을 붙여 넣으면 읽기 화면에서 클릭할 수 있습니다.'),
       // y-codemirror also handles native historyUndo/historyRedo beforeinput.
@@ -168,6 +181,7 @@ function createEditor() {
 function onStatus(event) {
   setStatus(event.message, event.state);
   if (event.state === 'locked') {
+    imagePaste.cancel();
     workspaceEpoch++; openingTask = null;
     clearSnapshot();
     if (sync) { sync.paused = true; clearTimeout(sync.timer); }
@@ -244,12 +258,13 @@ async function loadDocument() {
 }
 
 function closeWorkspace() {
+  imagePaste.cancel();
   workspaceEpoch++;
   openingTask = null;
   clearSnapshot();
   csrf = ''; sync?.close(); destroyEditor(); doc?.off('update', onDocumentUpdate); doc?.destroy();
   sync = null; doc = null; clearTimeout(renderTimer); activeNoteId = 'team';
-  ui.editorHost.replaceChildren(); ui.previewHost.replaceChildren(); ui.outlineHost.replaceChildren();
+  ui.editorHost.replaceChildren(); clearPreview(ui.previewHost); ui.outlineHost.replaceChildren();
   ui.renderNotes([], 'team'); ui.setNotesBusy(true); setAuthenticated(false);
 }
 
@@ -276,6 +291,7 @@ const ui = initUI({
   },
   async changePassword(fields) {
     requireEditableNotes();
+    if (imagePaste.busy) throw new Error('이미지 첨부가 끝난 뒤 비밀번호를 변경해 주세요.');
     changingPassword = true;
     const logoutButton = document.getElementById('logout-button');
     logoutButton.disabled = true; setEditing(false); editor?.contentDOM.blur();
@@ -313,6 +329,8 @@ const ui = initUI({
   },
   async logout() {
     if (loggingOut || changingPassword) return;
+    if (imagePaste.busy && !confirm('이미지를 저장하는 중입니다. 이미지 붙여넣기를 취소하고 나갈까요?')) return;
+    imagePaste.cancel();
     workspaceEpoch++;
     loggingOut = true;
     const button = document.getElementById('logout-button');
@@ -335,7 +353,7 @@ const ui = initUI({
   },
   backup() {
     if (!doc || !sync?.ready) return;
-    saveFile(`아인_전체노트_복구본_${stamp()}.json`, JSON.stringify({ format: 'ain-internal-yjs-v2', createdAt: new Date().toISOString(), cursor: sync.cursor, hasUnsavedChanges: Boolean(sync.unsaved), activeNoteId, update: encode(Y.encodeStateAsUpdate(doc)), notes: listNotes(doc).map(note => ({ ...note, text: getNoteText(doc, note.id).toString() })) }, null, 2), 'application/json');
+    saveFile(`아인_전체노트_복구본_${stamp()}.json`, JSON.stringify({ format: 'ain-internal-yjs-v2', createdAt: new Date().toISOString(), cursor: sync.cursor, hasUnsavedChanges: Boolean(sync.unsaved), activeNoteId, imageFilesIncluded: false, imageBackupNote: '이미지는 비공개 서버 저장소에 별도 보관되며 이 파일에는 본문 내 참조 주소만 포함됩니다.', update: encode(Y.encodeStateAsUpdate(doc)), notes: listNotes(doc).map(note => ({ ...note, text: getNoteText(doc, note.id).toString() })) }, null, 2), 'application/json');
   },
   async retry() {
     if (loggingOut || changingPassword) return;
@@ -353,7 +371,29 @@ const ui = initUI({
   },
 });
 
-window.addEventListener('beforeunload', event => { if (sync?.unsaved) { event.preventDefault(); event.returnValue = ''; } });
+function showImageStatus(message, kind = 'idle') {
+  const notice = document.getElementById('image-status');
+  notice.textContent = message; notice.dataset.kind = kind; notice.hidden = !message;
+  document.getElementById('image-upload-button').disabled = kind === 'busy' || !sync?.ready || sync.paused || loggingOut || changingPassword || ui.appShell.hidden;
+}
+const imagePaste = createImagePasteController({
+  context: () => ({ doc, text: doc ? bodyText() : null, noteId: activeNoteId, epoch: workspaceEpoch,
+    canEdit: Boolean(doc && sync?.ready && !sync.paused && !loggingOut && !changingPassword && !ui.appShell.hidden) }),
+  prepare: preparePastedImage,
+  upload: (data, signal) => request('image_upload', data, false, signal),
+  status: showImageStatus,
+  inserted(position) { if (editor) { editor.dispatch({ selection: { anchor: Math.min(position, editor.state.doc.length) }, scrollIntoView: true }); editor.focus(); } },
+});
+async function pasteImage(file, position) {
+  await imagePaste.paste(file, position);
+  document.getElementById('image-upload-button').disabled = imagePaste.busy || !sync?.ready || sync.paused || loggingOut || changingPassword || ui.appShell.hidden;
+}
+document.getElementById('image-upload-button').addEventListener('click', () => document.getElementById('image-file-input').click());
+document.getElementById('image-file-input').addEventListener('change', event => {
+  const file = event.target.files?.[0]; event.target.value = '';
+  if (file) void pasteImage(file, editor?.state.selection.main.from);
+});
+window.addEventListener('beforeunload', event => { if (sync?.unsaved || imagePaste.busy) { event.preventDefault(); event.returnValue = ''; } });
 document.addEventListener('visibilitychange', () => { if (!document.hidden && sync && !sync.paused) sync.tick(); });
 window.addEventListener('online', () => { if (sync && !sync.paused) sync.tick(); });
 setAuthenticated(false);

@@ -231,7 +231,7 @@ export function setView(view) {
   }
   byId('view-hint').textContent = reading
     ? '링크를 선택하면 새 창에서 열립니다. 내용을 바꾸려면 편집을 선택하세요.'
-    : '제목·목록은 위 도구로 추가할 수 있습니다. 링크는 읽기 화면에서 열립니다.';
+    : '캡처 이미지는 Ctrl+V로 붙여넣거나 이미지 버튼으로 첨부하세요. 링크는 읽기 화면에서 열립니다.';
   invoke('viewChanged', currentView);
 }
 

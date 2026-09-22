@@ -270,22 +270,22 @@
     {
       "source": "internal/index.html",
       "target": "website_integration/vercel_package/internal/index.html",
-      "sha256": "a14edb1f25de69925ab3517b8e70cc3c2ba0cb0b25181e54e9e5de0a189c33df"
+      "sha256": "e17e3616b79d52fca5034608d5853e06039fcce200c20fbba87376ab3c13492c"
     },
     {
       "source": "internal/style.css",
       "target": "website_integration/vercel_package/internal/style.css",
-      "sha256": "f7091bf565a62c2cc8f8292fe733110ffa5f0584557717f3848f31313ebefd12"
+      "sha256": "389203cccc4b4b760d53ec212c28518cb9dc108fb9f359e9258837d1d73f744e"
     },
     {
       "source": "internal/ui.js",
       "target": "website_integration/vercel_package/internal/ui.js",
-      "sha256": "189673b54b903402531121e8c38fb24f8f5bf297569e7432b7e87db2b1133a8b"
+      "sha256": "39a70c4dc381da6c4c38731d441d9cbb1bffb3fc97196e1fea6220ea24a75223"
     },
     {
       "source": "internal/main.js",
       "target": "website_integration/vercel_package/internal/main.js",
-      "sha256": "f2b9ec575ed81921bc6c33a1c840d63b436ffbd518f48d0b772e4a6ed190edb6"
+      "sha256": "79124b48117f925121eeec7dd9a368753051ce57cdbcaa8be149764ddab28c7f"
     },
     {
       "source": "internal/sync.mjs",
@@ -300,7 +300,7 @@
     {
       "source": "internal/preview.mjs",
       "target": "website_integration/vercel_package/internal/preview.mjs",
-      "sha256": "6565ccc37ce47ed6c3d585655ab93e07dc0e4fb7b5674a24cbb8bc89d479c733"
+      "sha256": "f6267774d6c6881145420b687c7c6511490fda5b297c2545ae533b83d982d708"
     },
     {
       "source": "internal/document-search.mjs",
@@ -323,14 +323,34 @@
       "sha256": "038fbc1d84bb4fcd26ba157d0a7639902862cd2416a61c849f7525f8fd70103c"
     },
     {
+      "source": "internal/images.mjs",
+      "target": "website_integration/vercel_package/internal/images.mjs",
+      "sha256": "ab7f29038ed2239a39712d39d6f4100fd1dbd668217610a432eac2e2eba5643d"
+    },
+    {
+      "source": "internal/image-paste.mjs",
+      "target": "website_integration/vercel_package/internal/image-paste.mjs",
+      "sha256": "425cdcdf7e23480dd94e27a82bea5338ff95e82253464b3ad16a9520f3f86b8f"
+    },
+    {
+      "source": "lib/internal-share-images.js",
+      "target": "website_integration/vercel_package/lib/internal-share-images.js",
+      "sha256": "d4b7f508fbe929fa52fae0e20a521a98654253b3aebc17291f7b0fbe8a5deff6"
+    },
+    {
+      "source": "supabase/migrations/20260922090000_internal_share_images.sql",
+      "target": "website_integration/vercel_package/supabase/migrations/20260922090000_internal_share_images.sql",
+      "sha256": "157c29e5d0e1925c4ba0a9780e60d84cf1fe103ffde06fc851a1de05e9f5a13f"
+    },
+    {
       "source": "internal/app.js",
       "target": "website_integration/vercel_package/internal/app.js",
-      "sha256": "bbdbd48622aa555eed32add37cbd39af1f3d052ec772e0f2958ead0794adbfa2"
+      "sha256": "d19d147e53987affd465fad13c9a3c55ee0664ba1f0721dc56dbe7ae3a4cfb2e"
     },
     {
       "source": "lib/internal-share-server.js",
       "target": "website_integration/vercel_package/lib/internal-share-server.js",
-      "sha256": "606a9cac48589cbd1b0abf16e79381f3302b3beab27293a2c93484890b66fb68"
+      "sha256": "7325ce1f6f8d16544acf8ed894c1dfc0d407f89581dda75b38f042f98f923753"
     },
     {
       "source": "lib/internal-share-handler.js",
@@ -345,7 +365,7 @@
     {
       "source": "docs/internal-share-setup.ko.md",
       "target": "website_integration/vercel_package/docs/internal-share-setup.ko.md",
-      "sha256": "eb03ff0d548eb5b23ff46136ed45a93cbf4bf0b035bd8781f42add3626fa1216"
+      "sha256": "dfb92fa8fbad2e50750ddbe25ba997a824f077e38c2c79ea9bb2f0c15fd84320"
     },
     {
       "source": "scripts/create-internal-share-secret.cjs",
