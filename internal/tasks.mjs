@@ -97,6 +97,12 @@ export function updateTask(doc, taskId, fields) {
   const patch = cleanPatch(doc, fields), target = map(doc, 'companyTasks', true);
   doc.transact(() => { for (const [key, value] of Object.entries(patch)) target.set(`${taskId}:${key}`, value); }, 'company-task');
 }
+export function assignTask(doc, taskId, assignee) {
+  const task = listTasks(doc).find(task => task.id === id(taskId));
+  if (!task || task.archived) throw new Error('보관 중이거나 없는 업무는 배정할 수 없습니다.');
+  const patch = cleanPatch(doc, { assignee });
+  if (task.assignee !== patch.assignee) updateTask(doc, taskId, patch);
+}
 export function completions(doc) {
   const target = map(doc, 'taskCompletions');
   return target ? [...target.entries()].filter(([key, value]) => UUID.test(key.split('|')[0]) && validDate(key.split('|')[1]) && value?.done === true).map(([key, value]) => ({ taskId: key.split('|')[0], date: key.split('|')[1], ...value })) : [];

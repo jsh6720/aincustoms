@@ -7,8 +7,8 @@ const errors = [], requests = []; let expire = false, rejectAppend = false;
 (async () => {
   const browser = await chromium.launch({ headless: true, channel: 'chrome' });
   try {
-    async function client() {
-      const context = await browser.newContext({ viewport: { width: 1360, height: 1000 } }); let authenticated = false;
+    async function client(mobile = false) {
+      const context = await browser.newContext({ viewport: mobile ? { width: 390, height: 844 } : { width: 1360, height: 1000 }, isMobile: mobile, hasTouch: true }); let authenticated = false;
       await context.route('**/*', async route => {
         const req = route.request(), url = new URL(req.url()); assert.equal(url.origin, 'https://tasks.example.test');
         if (url.pathname === '/api/internal-share') {
@@ -34,7 +34,7 @@ const errors = [], requests = []; let expire = false, rejectAppend = false;
       await page.goto('https://tasks.example.test/note'); await page.locator('#password').fill('synthetic-only'); await page.locator('#login-submit').click(); await page.locator('.cm-content[contenteditable=true]').waitFor();
       return page;
     }
-    const a = await client(), b = await client();
+    const a = await client(), b = await client(true);
     const saved = page => page.waitForFunction(() => document.querySelector('#sync-status').dataset.kind === 'saved');
     await a.locator('.cm-content').fill('기존 노트 보존 확인'); await saved(a);
     for (const page of [a, b]) await page.locator('#tasks-quick-button').click();
@@ -50,6 +50,20 @@ const errors = [], requests = []; let expire = false, rejectAppend = false;
     await b.waitForFunction(() => document.querySelectorAll('.task-card').length === 4);
     assert.equal(await a.locator('#tasks-list img').count(), 0);
     const monthly = page => page.locator('.task-card').filter({ hasText: '월말 정산' });
+    const personBlock = name => a.locator('.task-assignee-block').filter({ hasText: name });
+    await a.locator('.tasks-board-layout').evaluate(e => e.scrollIntoView({ block: 'start' }));
+    await monthly(a).locator('h2').dragTo(personBlock('이담당')); await saved(a);
+    await b.waitForFunction(() => [...document.querySelectorAll('.task-card')].some(e => e.textContent.includes('월말 정산') && e.querySelector('.task-meta').textContent.includes('이담당')));
+    assert.match(await personBlock('이담당').textContent(), /미완료 2건/);
+    await monthly(a).locator('h2').dragTo(personBlock('미배정')); await saved(a);
+    assert.match(await monthly(a).locator('.task-meta').textContent(), /미배정/);
+    await monthly(a).locator('.task-assign-button').click();
+    await personBlock('김아인').press('Enter'); await saved(a);
+    assert.match(await monthly(a).locator('.task-meta').textContent(), /김아인/);
+    await personBlock('이담당').dispatchEvent('drop');
+    assert.match(await monthly(a).locator('.task-meta').textContent(), /김아인/);
+    await personBlock('이담당').click(); assert.equal(await a.locator('.task-card').count(), 1);
+    await a.locator('#task-reset').click();
     await monthly(a).locator('input[type=checkbox]').click(); await saved(a);
     await b.waitForFunction(() => [...document.querySelectorAll('.task-card')].some(e => e.textContent.includes('월말 정산') && e.dataset.date === '2026-02-28'));
     await monthly(a).locator('input[type=checkbox]').click(); await saved(a);
@@ -68,16 +82,41 @@ const errors = [], requests = []; let expire = false, rejectAppend = false;
     const downloadEvent = a.waitForEvent('download'); await a.locator('#backup-button').click(); const download = await downloadEvent; const data = JSON.parse(fs.readFileSync(await download.path(), 'utf8')); assert.equal(data.companyTasks.tasks.length, 4); assert.equal(data.companyTasks.people.length, 2);
     await a.reload(); await a.locator('.cm-content[contenteditable=true]').waitFor(); assert.match(await a.locator('.cm-content').textContent(), /기존 노트 보존/); await a.locator('#tasks-quick-button').click(); assert.equal(await a.locator('.task-card').count(), 4);
     fs.mkdirSync(path.join(root, '.artifacts'), { recursive: true }); await a.screenshot({ path: path.join(root, '.artifacts', 'internal-tasks-desktop.png'), fullPage: true });
-    for (const width of [390, 320]) {
+    for (const width of [430, 390, 320]) {
       await a.setViewportSize({ width, height: 844 });
+      await a.locator('#mobile-notes').tap();
+      await a.locator('#tasks-panel').waitFor({ state: 'hidden' });
+      await a.locator('#read-view-button').tap();
+      assert.match(await a.locator('#preview-host').textContent(), /기존 노트 보존/);
+      await a.locator('#mobile-list').tap();
+      await a.locator('.note-list-button').first().waitFor({ state: 'visible' });
+      await a.locator('.note-list-button').first().tap();
+      assert.equal(await a.locator('#app-shell').evaluate(e => e.classList.contains('is-notes-open')), false);
+      await a.screenshot({ path: path.join(root, '.artifacts', 'internal-notes-mobile-' + width + '.png'), fullPage: true });
+      await a.locator('#mobile-tasks').tap();
+      assert.equal(await a.locator('#mobile-tasks').getAttribute('aria-pressed'), 'true');
+      assert.equal(await a.locator('.task-card').count(), 4);
+      assert.equal(await a.locator('#task-filter-person').isVisible(), false);
+      await a.locator('#task-filters-toggle').tap();
+      await a.locator('#task-filter-person').selectOption({ label: '이담당' });
+      assert.equal(await a.locator('.task-card').count(), 1);
+      await a.locator('#task-filters-toggle').tap();
+      assert.match(await a.locator('#task-filters-toggle').textContent(), /적용 1개/);
+      await a.locator('#task-reset').tap();
+      assert.equal(await a.locator('.task-card').count(), 4);
+      assert.equal(await a.locator('.mobile-navigation button').evaluateAll(buttons => buttons.every(b => { const r = b.getBoundingClientRect(); return r.width >= 44 && r.height >= 44; })), true);
       const overflow = await a.evaluate(() => [...document.querySelectorAll('body *')].filter(e => e.getBoundingClientRect().right > innerWidth + 1 && e.getBoundingClientRect().width > 0).map(e => ({ tag: e.tagName, id: e.id, cls: e.className, right: e.getBoundingClientRect().right })).slice(0, 15));
       assert.equal(await a.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), true, JSON.stringify({ width, overflow }));
       await a.locator('#task-new').click(); assert.equal(await a.evaluate(() => { const b = document.querySelector('#task-dialog').getBoundingClientRect(); return b.left >= 0 && b.right <= innerWidth; }), true); await a.locator('#task-cancel').click();
     }
+    await a.setViewportSize({ width: 390, height: 420 });
+    await a.locator('#task-new').tap(); await a.locator('#task-title').fill('모바일 키보드 입력');
+    await a.locator('#task-cancel').tap(); await a.locator('#task-dialog').waitFor({ state: 'hidden' });
+    await a.setViewportSize({ width: 390, height: 844 });
     await a.screenshot({ path: path.join(root, '.artifacts', 'internal-tasks-mobile.png'), fullPage: true });
     rejectAppend = true; await a.locator('#task-new').click(); await a.locator('#task-title').fill('미저장 복구'); await a.locator('#task-save').click(); await a.waitForFunction(() => document.querySelector('#sync-status').dataset.kind === 'error'); assert.match(await a.locator('#tasks-list').textContent(), /미저장 복구/); rejectAppend = false; await a.locator('#retry-button').click(); await saved(a);
     await a.locator('#task-new').click(); await a.locator('#task-title').fill('비공개 입력 중'); expire = true; await a.locator('#login-shell').waitFor({ state: 'visible' }); assert.equal(await a.locator('#task-dialog').evaluate(e => e.open), false); assert.equal(await a.locator('#task-title').inputValue(), ''); assert.equal(await a.locator('#tasks-list').textContent(), '');
     assert.deepEqual(errors, []);
-    console.log(JSON.stringify({ pass: true, cases: ['shared-people', 'four-recurrences', 'month-end-no-drift', 'completion-undo', 'date-assignee-filters', 'concurrent-edits', 'archive-restore', 'backup', 'reload-note-preservation', 'xss', 'mobile320-390', 'retry-unsaved', 'expiry-scrub'], productionWrites: false }));
+    console.log(JSON.stringify({ pass: true, cases: ['shared-people', 'four-recurrences', 'month-end-no-drift', 'completion-undo', 'date-assignee-filters', 'concurrent-edits', 'archive-restore', 'backup', 'reload-note-preservation', 'xss', 'desktop-drag-assignment', 'assignment-shared-to-mobile', 'unassign', 'keyboard-assignment', 'external-drop-rejected', 'mobile320-430-touch-navigation', 'mobile-note-reading', 'mobile-task-filters', 'short-keyboard-viewport', 'retry-unsaved', 'expiry-scrub'], productionWrites: false }));
   } finally { await browser.close(); }
 })().catch(e => { console.error(e); process.exitCode = 1; });

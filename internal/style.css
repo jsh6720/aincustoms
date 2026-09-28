@@ -201,6 +201,7 @@ a{color:#376b55}
 @media(max-width:400px){.notes-toggle-button{margin-left:12px;margin-right:12px}.document-heading-copy{flex-basis:205px}}
 @media print{.notes-toggle-button,.note-edit-button,.note-dialog{display:none!important}.note-category{color:#607352}}
 .login-notice { color: #286447; background: #edf6ef; border-radius: 8px; padding: 12px; line-height: 1.5; }
+.mobile-navigation,.mobile-filter-toggle{display:none}
 .tasks-nav-button{width:100%;margin:12px 0 20px;text-align:left;background:#eef3e8;border-color:#ccd9bf;color:#365342}
 .tasks-nav-button[aria-pressed=true]{background:#305946;color:#fff}
 .document-topline .button{margin-left:auto}
@@ -228,3 +229,84 @@ a{color:#376b55}
 #tasks-more{margin-top:18px}
 @media(max-width:760px){.task-card-actions{max-width:calc(100% - 30px)}}
 @media(max-width:760px){.tasks-heading{align-items:flex-start;flex-wrap:wrap}.tasks-heading h1{font-size:25px}.tasks-filters{padding:12px;gap:10px}.task-card{padding:14px;gap:10px;flex-wrap:wrap}.task-card-actions{margin-left:30px;width:100%}.task-card-body{flex-basis:calc(100% - 32px)}#tasks-sync-status{width:100%;margin-left:0}.task-date-grid{grid-template-columns:1fr}.tasks-actions .button{flex-grow:1}}
+
+.tasks-board-layout{display:grid;grid-template-columns:minmax(0,1fr) 245px;gap:20px;align-items:start}
+.tasks-main-list{min-width:0}
+.task-assignment-board{position:sticky;top:20px;padding:18px;border:1px solid #dce6d6;border-radius:12px;background:#f8faf5;max-height:calc(100dvh - 40px);overflow:auto}
+.task-assignment-board h2{font-size:17px;margin:0 0 8px}
+.task-assignment-board .tasks-help{font-size:11px;margin:10px 0}
+#task-assignee-blocks{display:grid;gap:10px;margin-top:14px}
+.task-assignee-block{display:flex;flex-direction:column;gap:8px;align-items:flex-start;min-height:84px;width:100%;padding:16px;border:2px dashed #c8d7bf;border-radius:9px;background:white;text-align:left;overflow-wrap:anywhere}
+.task-assignee-block strong{font-size:15px;max-width:100%}.task-assignee-block span{font-size:12px;color:#718268}
+.task-assignee-block:hover,.task-assignee-block.is-drop-over{background:#e4f0dd;border-color:#3a7950}
+.task-assignee-block.is-drop-over{box-shadow:0 0 0 3px #75a66a33}
+.task-card[draggable=true]{cursor:grab}.task-card.is-dragging{opacity:.45}
+.task-card.is-assignment-selected{border-color:#548657;box-shadow:0 0 0 2px #75a66a33}
+.tasks-board-layout .task-card{display:grid;grid-template-columns:24px minmax(0,1fr)}
+.tasks-board-layout .task-card-actions{grid-column:2;margin-left:0}
+#task-assignment-status{font-size:12px;line-height:1.7;overflow-wrap:anywhere;color:#315747}
+.task-assignment-feedback{min-height:100px}
+@media(min-width:761px) and (max-width:1100px){.tasks-board-layout{grid-template-columns:1fr}.task-assignment-board{position:static;max-height:none}#task-assignee-blocks{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:760px){.tasks-board-layout{display:block}.task-assignment-board,.task-assign-button{display:none}.task-card[draggable=true]{cursor:auto}.tasks-board-layout .task-card{grid-template-columns:44px minmax(0,1fr)}}
+@media print{.task-assignment-board,.task-assign-button{display:none!important}.tasks-board-layout{display:block}}
+
+/* Same private workspace and data, with touch-sized mobile views. */
+@media(max-width:760px){
+  html{scroll-padding-bottom:90px}
+  body{padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right)}
+  .app-shell{padding-bottom:calc(76px + env(safe-area-inset-bottom))}
+  .app-header{height:auto;min-height:64px;padding:8px 12px;gap:8px}
+  .app-header .brand{font-size:14px;gap:7px}.header-actions{gap:2px;min-width:0}
+  .name-control input{width:92px;height:44px;font-size:16px;padding:8px 6px}
+  .button,.button-quiet,.view-button{min-height:44px;font-size:14px}
+  .header-actions .button{padding:8px 6px;font-size:13px;min-width:44px}
+  .mobile-navigation{position:fixed;bottom:0;left:0;right:0;z-index:20;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;padding:8px max(12px,env(safe-area-inset-right)) calc(8px + env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left));border-top:1px solid #dce4d6;background:#fffffff5;box-shadow:0 -3px 18px #263f2710}
+  .mobile-navigation button{min-height:48px;border:0;border-radius:9px;background:transparent;font-size:15px;font-weight:600;color:#617557}
+  .mobile-navigation button span{margin-right:5px}.mobile-navigation button[aria-pressed=true]{background:#e8f0e3;color:#254c39}
+  body:has(input:focus,textarea:focus,.cm-content:focus) .mobile-navigation{display:none}
+  .notes-toggle-button{min-height:44px;font-size:14px;margin:12px 12px 0}
+  .notes-toggle-button>span:last-child{font-size:12px}
+  .sidebar{padding:16px 12px}.notes-list{max-height:45dvh}
+  .note-list-button,.outline button,.sidebar-button{min-height:44px;font-size:14px}
+  .notes-search,.note-dialog input,.note-dialog select,.note-dialog textarea,.login-card input{font-size:16px!important;min-height:46px}
+  .document-workspace{padding:16px 12px 24px}.document-topline{margin-bottom:14px}
+  .document-topline>span:first-child{display:none}.document-topline .internal-label{font-size:11px}
+  .document-heading p{font-size:13px;max-width:none}.note-category{font-size:12px}
+  .document-heading{gap:12px}.view-switch{margin-top:0}
+  .note-edit-button{font-size:12px;padding:8px 10px}
+  .editor-host,.preview-panel{padding:18px 12px 28px;min-height:55dvh}
+  .editor-host .cm-editor,.preview-content{font-size:16px;line-height:1.85}
+  .editing-tools{gap:4px}.editing-tools>button{min-width:44px;min-height:44px;justify-content:center}
+  .editing-tools .toolbar-divider{display:none}
+  .document-search-control{display:grid;grid-template-columns:minmax(0,1fr) repeat(3,44px);gap:4px;flex-basis:100%;max-width:none;margin:0;padding:6px}
+  .document-search-control input{grid-column:1/-1;font-size:16px;min-height:44px;padding:8px}
+  .editing-tools .document-search-control button{width:44px;height:44px;font-size:20px}
+  .search-count{font-size:13px;text-align:left;padding-left:8px}
+  .document-toolbar>.sync-status{max-width:none;font-size:11px}
+  .document-footer,.connection-note,.loading-notice{font-size:12px}
+  .note-dialog{width:calc(100vw - 20px);max-width:560px;max-height:calc(100dvh - 20px);padding:22px 16px;overscroll-behavior:contain}
+  .note-dialog label{font-size:14px}.note-dialog label span,.note-field-help{font-size:12px}
+  .note-dialog-actions{position:sticky;bottom:-22px;background:#fff;padding:12px 0 8px;margin-top:16px;z-index:2}
+  .note-dialog-actions .button{min-width:88px}.note-dialog-description{font-size:14px}
+  .tasks-heading{margin:16px 0;gap:10px}.tasks-heading h1{font-size:26px;margin:7px 0}.tasks-heading p{font-size:14px;line-height:1.7;margin:8px 0}
+  .tasks-heading>#tasks-back-button{display:none}
+  .is-task-view .document-topline #tasks-quick-button{display:none}
+  .tasks-actions{gap:8px;margin:16px 0}.tasks-actions .button{flex:1;min-height:48px;font-size:15px}
+  #tasks-sync-status{font-size:12px;line-height:1.6}
+  .mobile-filter-toggle{display:flex;margin-bottom:8px;width:100%;justify-content:space-between}
+  .tasks-filters{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;padding:12px}
+  .tasks-filters label{font-size:13px;min-width:0}.tasks-filters label:first-child{grid-column:1/-1}
+  #tasks-panel:not(.is-filters-open) .tasks-filters label:not(:first-child){display:none}
+  .tasks-filters input,.tasks-filters select{font-size:16px;min-width:0;min-height:46px;padding:9px 6px}
+  .tasks-filters label:last-of-type{grid-column:1/-1}
+  .tasks-help{font-size:12px;line-height:1.75}#tasks-summary{font-size:14px;margin:18px 0 10px}
+  .task-card{display:grid;grid-template-columns:44px minmax(0,1fr);gap:8px;padding:14px 10px}
+  .task-card>input{width:32px;height:32px;margin:3px 6px;cursor:pointer}
+  .task-card-body{min-width:0}.task-card h2{font-size:16px;line-height:1.6}.task-description{font-size:14px}
+  .task-meta{font-size:12px;gap:5px}.task-meta span{padding:4px 7px}
+  .task-card-actions{grid-column:2;margin-left:0;width:auto;max-width:none;gap:8px}
+  .task-card-actions .button{min-height:44px;min-width:64px;font-size:14px}
+  .tasks-empty{padding:28px 16px;font-size:14px}
+  .login-card label,.login-description{font-size:14px}.login-footnote{font-size:12px}
+}
+@media print{.mobile-navigation,.mobile-filter-toggle{display:none!important}}

@@ -69,3 +69,24 @@ test('Yjs backup roundtrip retains notes, tasks, people and completion state', a
   const m = await model, a = new Y.Doc(), b = new Y.Doc(); a.getText('body').insert(0, '보존'); m.addPerson(a, '담당자', PID); m.createTask(a, { ...task('2026-09-28'), assignee: PID }, ID); m.completeTask(a, ID, '2026-09-28', true);
   Y.applyUpdate(b, Y.encodeStateAsUpdate(a)); assert.deepEqual(m.exportTasks(b), m.exportTasks(a)); assert.equal(b.getText('body').toString(), '보존');
 });
+test('assignment changes only assignee, preserves recurrence/history, and rejects stale or unknown targets', async () => {
+  const m = await model, a = new Y.Doc(), b = new Y.Doc();
+  m.addPerson(a, '김아인', PID); m.createTask(a, task('2026-01-31', 'monthly'), ID);
+  m.completeTask(a, ID, '2026-01-31', true, '기존 담당자');
+  const before = m.exportTasks(a); Y.applyUpdate(b, Y.encodeStateAsUpdate(a));
+  m.updateTask(b, ID, { title: '동시 수정 제목', details: '동시 수정 내용' });
+  m.assignTask(a, ID, PID);
+  Y.applyUpdate(a, Y.encodeStateAsUpdate(b)); Y.applyUpdate(b, Y.encodeStateAsUpdate(a));
+  assert.deepEqual(m.exportTasks(a), m.exportTasks(b));
+  assert.equal(m.listTasks(a)[0].assignee, PID); assert.equal(m.listTasks(a)[0].title, '동시 수정 제목');
+  assert.equal(m.listTasks(a)[0].details, '동시 수정 내용');
+  assert.deepEqual(m.listTasks(a)[0].schedule, before.tasks[0].schedule);
+  assert.deepEqual(m.completions(a), before.completions);
+  let updates = 0; a.on('update', () => updates++);
+  m.assignTask(a, ID, PID); assert.equal(updates, 0);
+  assert.throws(() => m.assignTask(a, ID, 'unknown'), /담당자/); assert.equal(updates, 0);
+  m.assignTask(a, ID, ''); assert.equal(m.listTasks(a)[0].assignee, '');
+  m.updateTask(a, ID, { archived: true }); updates = 0;
+  assert.throws(() => m.assignTask(a, ID, PID), /보관/);
+  assert.throws(() => m.assignTask(a, PID, PID), /없는 업무/); assert.equal(updates, 0);
+});

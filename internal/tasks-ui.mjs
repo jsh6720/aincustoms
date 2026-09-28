@@ -1,9 +1,10 @@
-import { REPEATS, listPeople, addPerson, listTasks, createTask, updateTask, completeTask, taskRows, todaySeoul } from './tasks.mjs';
+import { REPEATS, listPeople, addPerson, listTasks, createTask, updateTask, assignTask, completeTask, taskRows, todaySeoul } from './tasks.mjs';
 
 export function initTasks({ getDoc, requireEditable, author, onView }) {
   const $ = id => document.getElementById(id);
   const node = (tag, text, className = '') => { const e = document.createElement(tag); e.textContent = text; e.className = className; return e; };
   let enabled = false, visible = false, original = null, signature = '';
+  let dragging = '', assigning = '';
   const sidebarButton = node('button', '☑ 회사 할 일', 'button tasks-nav-button');
   sidebarButton.id = 'tasks-page-button'; sidebarButton.type = 'button';
   document.querySelector('.notes-heading').before(sidebarButton);
@@ -15,7 +16,8 @@ export function initTasks({ getDoc, requireEditable, author, onView }) {
   panel.innerHTML = `
     <div class="tasks-heading"><div><span class="eyebrow">TEAM TASKS</span><h1>회사 할 일</h1><p>담당자와 날짜를 정하고, 함께 진행 상황을 확인하세요.</p></div><button id="tasks-back-button" class="button" type="button">노트로 돌아가기</button></div>
     <div class="tasks-actions"><button id="task-new" class="button button-primary" type="button" disabled>＋ 할 일 추가</button><button id="task-people-open" class="button" type="button" disabled>담당자 등록</button><span id="tasks-sync-status" role="status">연결 중</span></div>
-    <div class="tasks-filters">
+    <button id="task-filters-toggle" class="button mobile-filter-toggle" type="button" aria-expanded="false" aria-controls="tasks-filters">담당자·날짜 필터 열기</button>
+    <div id="tasks-filters" class="tasks-filters">
       <label>업무 검색<input id="task-search" type="search" placeholder="제목·내용 검색" maxlength="200"></label>
       <label>담당자<select id="task-filter-person"><option value="*">전체 담당자</option><option value="">미배정</option></select></label>
       <label>업무일<input id="task-filter-date" type="date" min="2000-01-01" max="2100-12-31"></label>
@@ -24,7 +26,9 @@ export function initTasks({ getDoc, requireEditable, author, onView }) {
     </div>
     <p class="tasks-help">날짜를 비우면 업무별 가장 이른 미완료 일정을 표시합니다. 날짜를 선택하면 해당 일자의 반복 일정까지 조회합니다. 미처리된 지난 일정은 자동 완료되지 않습니다.</p>
     <p id="tasks-error" class="field-error" role="alert" hidden></p><p id="tasks-summary" role="status"></p>
-    <div id="tasks-list" class="tasks-list"></div><button id="tasks-more" class="button" type="button" hidden>더 보기</button>
+    <div class="tasks-board-layout"><div class="tasks-main-list"><div id="tasks-list" class="tasks-list"></div><button id="tasks-more" class="button" type="button" hidden>더 보기</button></div>
+      <aside class="task-assignment-board" aria-labelledby="task-assignment-heading"><h2 id="task-assignment-heading">담당자별 배정</h2><p class="tasks-help">업무를 담당자 블록으로 끌어 놓으세요. 또는 업무의 ‘배정’을 누른 뒤 담당자를 선택하세요.</p><p class="tasks-help">반복 업무는 전체 일정의 담당자가 바뀝니다. 완료 기록·날짜·내용은 유지됩니다.</p><div id="task-assignee-blocks"></div><div class="task-assignment-feedback"><p id="task-assignment-status" role="status" aria-live="polite"></p><button id="task-assignment-cancel" class="button button-small" type="button" hidden>배정 선택 취소</button></div><p class="tasks-help">숫자는 필터와 무관한 전체 미완료 업무 수입니다. 배정 선택 없이 블록을 누르면 해당 담당자의 업무를 조회합니다.</p></aside>
+    </div>
     <p class="tasks-help">담당자 이름은 업무 배분용이며 별도 로그인 계정이 아닙니다. 같은 공유 비밀번호로 접속한 구성원 모두 수정할 수 있습니다. 메일·알림은 발송하지 않습니다.</p>`;
   document.querySelector('.document-heading').before(panel);
   const dialog = document.createElement('dialog'); dialog.id = 'task-dialog'; dialog.className = 'note-dialog task-dialog';
@@ -45,18 +49,67 @@ export function initTasks({ getDoc, requireEditable, author, onView }) {
   function guard(action, target = 'tasks-error') { try { requireEditable(); action(); error(target); render(); } catch (e) { error(target, e.message); signature = ''; render(); } }
   function show(value) {
     if (value && $('app-shell').hidden) return;
-    visible = value; panel.hidden = !value; document.querySelector('.document-workspace').classList.toggle('is-task-view', value);
+    resetAssignment(); visible = value; panel.hidden = !value; document.querySelector('.document-workspace').classList.toggle('is-task-view', value);
     sidebarButton.setAttribute('aria-pressed', String(value));
+    $('mobile-notes').setAttribute('aria-pressed', String(!value));
+    $('mobile-tasks').setAttribute('aria-pressed', String(value));
     $('app-shell').classList.remove('is-notes-open'); $('notes-toggle-button').setAttribute('aria-expanded', 'false'); $('notes-toggle-label').textContent = '열기';
     onView?.(value); if (value) render();
   }
   sidebarButton.onclick = quick.onclick = () => show(true); $('tasks-back-button').onclick = () => show(false);
+  function mobilePage(value) { show(value); window.scrollTo({ top: 0, behavior: 'instant' }); }
+  $('mobile-notes').onclick = () => mobilePage(false);
+  $('mobile-tasks').onclick = () => mobilePage(true);
+  $('mobile-list').onclick = () => { $('notes-toggle-button').click(); if ($('app-shell').classList.contains('is-notes-open')) $('workspace-sidebar').scrollIntoView({ block: 'start' }); };
+  $('task-filters-toggle').onclick = () => {
+    const open = panel.classList.toggle('is-filters-open');
+    $('task-filters-toggle').setAttribute('aria-expanded', String(open));
+    render();
+  };
   const filters = () => ({ date: $('task-filter-date').value, assignee: $('task-filter-person').value, status: $('task-filter-status').value });
   let limit = 100;
   for (const field of ['task-filter-date', 'task-filter-person', 'task-filter-status', 'task-search']) $(field).addEventListener('input', () => { limit = 100; render(); });
   $('task-today').onclick = () => { $('task-filter-date').value = todaySeoul(); $('task-filter-status').value = 'all'; limit = 100; render(); };
   $('task-reset').onclick = () => { $('task-filter-date').value = ''; $('task-filter-person').value = '*'; $('task-filter-status').value = 'pending'; $('task-search').value = ''; limit = 100; render(); };
   $('tasks-more').onclick = () => { limit += 100; render(); };
+  function resetAssignment() {
+    dragging = ''; assigning = '';
+    $('task-assignment-status').textContent = ''; $('task-assignment-cancel').hidden = true;
+    panel.querySelectorAll('.is-dragging,.is-drop-over,.is-assignment-selected').forEach(e => e.classList.remove('is-dragging', 'is-drop-over', 'is-assignment-selected'));
+  }
+  $('task-assignment-cancel').onclick = resetAssignment;
+  panel.addEventListener('keydown', event => { if (event.key === 'Escape') resetAssignment(); });
+  function assign(taskId, person) {
+    guard(() => {
+      assignTask(getDoc(), taskId, person.id);
+      resetAssignment();
+      $('task-assignment-status').textContent = person.name + ' 배정 반영 · 상단 저장 상태를 확인해 주세요.';
+    });
+  }
+  function renderAssignments(people, pending) {
+    const blocks = $('task-assignee-blocks'); blocks.replaceChildren();
+    for (const person of [{ id: '', name: '미배정' }, ...people]) {
+      const block = node('button', '', 'task-assignee-block'); block.type = 'button'; block.dataset.assigneeId = person.id;
+      const count = pending.filter(task => task.assignee === person.id).length;
+      block.append(node('strong', person.name), node('span', '미완료 ' + count + '건'));
+      block.setAttribute('aria-label', person.name + ' · 미완료 ' + count + '건 · 배정 또는 조회');
+      block.onclick = () => {
+        if (assigning) assign(assigning, person);
+        else { $('task-filter-person').value = person.id; limit = 100; render(); }
+      };
+      block.ondragover = event => {
+        if (!enabled || !dragging) return;
+        event.preventDefault(); event.dataTransfer.dropEffect = 'move'; block.classList.add('is-drop-over');
+      };
+      block.ondragleave = event => { if (!block.contains(event.relatedTarget)) block.classList.remove('is-drop-over'); };
+      block.ondrop = event => {
+        event.preventDefault(); block.classList.remove('is-drop-over');
+        if (!enabled || !dragging) return;
+        const taskId = dragging; dragging = ''; assign(taskId, person);
+      };
+      blocks.append(block);
+    }
+  }
   function options(element, people, includeAll) {
     const previous = element.value, signature = JSON.stringify(people);
     if (element.dataset.people === signature) return;
@@ -103,14 +156,26 @@ export function initTasks({ getDoc, requireEditable, author, onView }) {
     const peopleKey = JSON.stringify(people);
     if ($('task-people-list').dataset.key !== peopleKey) { $('task-people-list').dataset.key = peopleKey; $('task-people-list').replaceChildren(...people.map(person => node('span', person.name, 'task-person-chip'))); }
     const query = $('task-search').value.trim().toLocaleLowerCase('ko');
+    const filterCount = Number(Boolean($('task-filter-date').value)) + Number($('task-filter-person').value !== '*') + Number($('task-filter-status').value !== 'pending');
+    $('task-filters-toggle').textContent = `담당자·날짜 필터 ${panel.classList.contains('is-filters-open') ? '닫기' : '열기'}${filterCount ? ' · 적용 ' + filterCount + '개' : ''}`;
     const rows = taskRows(doc, filters()).filter(row => (row.title + '\n' + row.details).toLocaleLowerCase('ko').includes(query));
-    const today = todaySeoul(), key = JSON.stringify([rows, people, enabled, today, limit]);
+    const pending = taskRows(doc);
+    const today = todaySeoul(), key = JSON.stringify([rows, people, pending, enabled, today, limit]);
     if (key === signature) return; signature = key;
     $('tasks-summary').textContent = `${rows.length}건 · 표시 ${Math.min(limit, rows.length)}건`;
     $('tasks-more').hidden = rows.length <= limit;
+    renderAssignments(people, pending);
     const list = $('tasks-list'); list.replaceChildren();
     for (const row of rows.slice(0, limit)) {
       const card = node('article', '', 'task-card' + (row.completed ? ' is-complete' : '')); card.dataset.taskId = row.id; card.dataset.date = row.date;
+      card.draggable = enabled && !row.archived;
+      if (assigning === row.id) card.classList.add('is-assignment-selected');
+      card.ondragstart = event => {
+        if (!enabled || row.archived || event.target.closest('input,select,textarea,a')) { event.preventDefault(); return; }
+        resetAssignment(); dragging = row.id; card.classList.add('is-dragging');
+        event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('application/x-ain-task', row.id);
+      };
+      card.ondragend = () => { dragging = ''; panel.querySelectorAll('.is-dragging,.is-drop-over').forEach(e => e.classList.remove('is-dragging', 'is-drop-over')); };
       const check = document.createElement('input'); check.type = 'checkbox'; check.checked = Boolean(row.completed); check.disabled = !enabled || row.archived; check.setAttribute('aria-label', row.title + ' · ' + row.date + ' 완료');
       check.onchange = () => guard(() => completeTask(getDoc(), row.id, row.date, check.checked, author()));
       const body = node('div', '', 'task-card-body'); body.append(node('h2', row.title));
@@ -121,6 +186,15 @@ export function initTasks({ getDoc, requireEditable, author, onView }) {
       if (row.details) body.append(node('p', row.details, 'task-description'));
       if (row.completed) body.append(node('p', `완료 ${row.completed.at ? new Date(row.completed.at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }) : ''}${row.completed.by ? ' · ' + row.completed.by : ''}`, 'tasks-help'));
       const actions = node('div', '', 'task-card-actions');
+      if (!row.archived) {
+        const assignButton = node('button', '⠿ 배정', 'button button-small task-assign-button'); assignButton.type = 'button'; assignButton.disabled = !enabled;
+        assignButton.onclick = () => {
+          resetAssignment(); assigning = row.id; card.classList.add('is-assignment-selected');
+          $('task-assignment-status').textContent = '“' + row.title + '” 배정할 담당자를 선택하세요.';
+          $('task-assignment-cancel').hidden = false; $('task-assignee-blocks').querySelector('button')?.focus();
+        };
+        actions.append(assignButton);
+      }
       if (!row.archived) { const edit = node('button', '수정', 'button button-small'); edit.type = 'button'; edit.disabled = !enabled; edit.onclick = () => openTask(listTasks(getDoc()).find(task => task.id === row.id)); actions.append(edit); }
       const archive = node('button', row.archived ? '복원' : '보관', 'button button-small'); archive.type = 'button'; archive.disabled = !enabled;
       archive.onclick = () => guard(() => { if (!row.archived && !window.confirm('이 업무의 전체 반복 일정을 보관할까요? 완료 기록은 유지되며 보관된 업무에서 복원할 수 있습니다.')) return; updateTask(getDoc(), row.id, { archived: !row.archived }); });
@@ -131,12 +205,13 @@ export function initTasks({ getDoc, requireEditable, author, onView }) {
   function setEnabled(value) {
     enabled = value;
     for (const id of ['task-new', 'task-people-open', 'task-save', 'task-person-save']) $(id).disabled = !value;
-    if (!value) { closeTask(); closePeople(); }
+    if (!value) { resetAssignment(); closeTask(); closePeople(); }
     render();
   }
   function clear() {
+    panel.classList.remove('is-filters-open'); $('task-filters-toggle').setAttribute('aria-expanded', 'false');
     closeTask(); closePeople(); show(false); signature = '';
-    $('tasks-list').replaceChildren(); $('task-people-list').replaceChildren(); $('task-people-list').removeAttribute('data-key');
+    $('tasks-list').replaceChildren(); $('task-assignee-blocks').replaceChildren(); $('task-people-list').replaceChildren(); $('task-people-list').removeAttribute('data-key');
     for (const id of ['task-filter-person', 'task-assignee']) { $(id).removeAttribute('data-people'); options($(id), [], id === 'task-filter-person'); }
     $('task-search').value = ''; $('task-filter-date').value = ''; $('task-filter-status').value = 'pending'; $('tasks-summary').textContent = ''; error('tasks-error');
   }

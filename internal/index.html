@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
   <meta name="robots" content="noindex, nofollow, noarchive">
   <meta name="referrer" content="no-referrer">
   <meta name="theme-color" content="#f5f6f3">
@@ -98,6 +98,11 @@
         <p class="connection-note">저장 상태를 확인해 주세요. 연결 실패 시 변경 내용이 서버에 저장되지 않을 수 있습니다.</p>
       </main>
     </div>
+    <nav class="mobile-navigation" aria-label="모바일 업무 메뉴">
+      <button id="mobile-notes" type="button" aria-pressed="true" aria-controls="editor-panel"><span aria-hidden="true">▤</span> 노트</button>
+      <button id="mobile-tasks" type="button" aria-pressed="false" aria-controls="tasks-panel"><span aria-hidden="true">☑</span> 할 일</button>
+      <button id="mobile-list" type="button" aria-controls="workspace-sidebar"><span aria-hidden="true">☰</span> 목록</button>
+    </nav>
   </div>
   <dialog id="note-dialog" class="note-dialog" aria-labelledby="note-dialog-title" aria-describedby="note-dialog-description">
     <form id="note-form">

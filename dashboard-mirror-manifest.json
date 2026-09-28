@@ -5,12 +5,12 @@
     {
       "source": "internal/tasks.mjs",
       "target": "website_integration/vercel_package/internal/tasks.mjs",
-      "sha256": "4385bbf7a02566e71a67ffd5c5ac0ff1c4cd404447c7986344a764317fdbdbdc"
+      "sha256": "d8b0e66a7f8b5f811694587d8e98a69e0610fedfdee93dbc98cbe7f7ed664fb1"
     },
     {
       "source": "internal/tasks-ui.mjs",
       "target": "website_integration/vercel_package/internal/tasks-ui.mjs",
-      "sha256": "67f0a2c0098aa43fb9baa791663382eea3e09ff38bea4b8531517ba030b41671"
+      "sha256": "13cddd4cb19aa253cbfb35e2beec3891c62d17bd3b3973fadc449879ecb45966"
     },
     {
       "source": "cargo-dashboard.html",
@@ -280,12 +280,12 @@
     {
       "source": "internal/index.html",
       "target": "website_integration/vercel_package/internal/index.html",
-      "sha256": "70e6985522ddb836e7801f13ac5c3ce85f3b3c303dd7e5b14dada634bf1f5798"
+      "sha256": "9d0f961bd4659ba31447cc709163a73fd46e1da4f3aab75e294e18ed839cb764"
     },
     {
       "source": "internal/style.css",
       "target": "website_integration/vercel_package/internal/style.css",
-      "sha256": "d252b2480fae94bb9fe13611150a03cec7252d23e3d208731ef626e2d979f082"
+      "sha256": "dab00f8cdc2d81c44ad0fd50429612aea9cb5768924295ab5de521b219c2a7ae"
     },
     {
       "source": "internal/ui.js",
@@ -355,7 +355,7 @@
     {
       "source": "internal/app.js",
       "target": "website_integration/vercel_package/internal/app.js",
-      "sha256": "08d02c101ec10101c7f624ba51e0c8715bae5bc3335a0e4bfc8358b211e8c9a0"
+      "sha256": "7df91887349a1c440c2273570e5f216c14e787ad105c93c7bff779f234d9cb60"
     },
     {
       "source": "lib/internal-share-server.js",
