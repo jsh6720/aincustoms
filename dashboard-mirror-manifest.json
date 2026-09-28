@@ -3,6 +3,16 @@
   "authority": "homepage_aincustoms",
   "files": [
     {
+      "source": "internal/tasks.mjs",
+      "target": "website_integration/vercel_package/internal/tasks.mjs",
+      "sha256": "4385bbf7a02566e71a67ffd5c5ac0ff1c4cd404447c7986344a764317fdbdbdc"
+    },
+    {
+      "source": "internal/tasks-ui.mjs",
+      "target": "website_integration/vercel_package/internal/tasks-ui.mjs",
+      "sha256": "67f0a2c0098aa43fb9baa791663382eea3e09ff38bea4b8531517ba030b41671"
+    },
+    {
       "source": "cargo-dashboard.html",
       "target": "website_integration/cargo-dashboard.html",
       "sha256": "d254453f59c5a50f9dddfce7c60462679d877c5975e0d116a2d380c84698d758"
@@ -270,12 +280,12 @@
     {
       "source": "internal/index.html",
       "target": "website_integration/vercel_package/internal/index.html",
-      "sha256": "e17e3616b79d52fca5034608d5853e06039fcce200c20fbba87376ab3c13492c"
+      "sha256": "70e6985522ddb836e7801f13ac5c3ce85f3b3c303dd7e5b14dada634bf1f5798"
     },
     {
       "source": "internal/style.css",
       "target": "website_integration/vercel_package/internal/style.css",
-      "sha256": "389203cccc4b4b760d53ec212c28518cb9dc108fb9f359e9258837d1d73f744e"
+      "sha256": "d252b2480fae94bb9fe13611150a03cec7252d23e3d208731ef626e2d979f082"
     },
     {
       "source": "internal/ui.js",
@@ -285,7 +295,7 @@
     {
       "source": "internal/main.js",
       "target": "website_integration/vercel_package/internal/main.js",
-      "sha256": "79124b48117f925121eeec7dd9a368753051ce57cdbcaa8be149764ddab28c7f"
+      "sha256": "38a817a2c323ac3328a5d690e3e140d6b05b84a2a08ec23dd3d98b0cbe5f21e4"
     },
     {
       "source": "internal/sync.mjs",
@@ -345,7 +355,7 @@
     {
       "source": "internal/app.js",
       "target": "website_integration/vercel_package/internal/app.js",
-      "sha256": "d19d147e53987affd465fad13c9a3c55ee0664ba1f0721dc56dbe7ae3a4cfb2e"
+      "sha256": "08d02c101ec10101c7f624ba51e0c8715bae5bc3335a0e4bfc8358b211e8c9a0"
     },
     {
       "source": "lib/internal-share-server.js",

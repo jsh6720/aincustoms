@@ -12,6 +12,8 @@ import { listNotes, createNote, updateNote, getNoteText } from './notes.mjs';
 import { documentSearchExtension, createDocumentSearchController } from './document-search.mjs';
 import { preparePastedImage, noteImageExtension } from './images.mjs';
 import { createImagePasteController } from './image-paste.mjs';
+import { initTasks } from './tasks-ui.mjs';
+import { exportTasks } from './tasks.mjs';
 
 let csrf = '', doc = null, sync = null, editor = null, renderTimer, loggingOut = false, changingPassword = false;
 let activeNoteId = 'team';
@@ -79,6 +81,7 @@ const stamp = () => new Date().toISOString().replace(/[:.]/g, '-');
 
 const accessExtensions = enabled => [EditorView.editable.of(enabled), EditorState.readOnly.of(!enabled)];
 function setEditing(enabled) {
+  tasksUI.setEnabled(enabled);
   editor?.dispatch({ effects: editAccess.reconfigure(accessExtensions(enabled)) });
   document.querySelectorAll('[data-insert]').forEach(button => { button.disabled = !enabled; });
   ui.setNotesBusy(!enabled);
@@ -100,6 +103,7 @@ function destroyEditor() {
 }
 function selectNote(id) {
   requireEditableNotes();
+  tasksUI.show(false);
   if (!listNotes(doc).some(note => note.id === id)) throw new Error('노트를 찾을 수 없습니다.');
   if (activeNoteId !== id) {
     if (imagePaste.busy) imagePaste.cancel('노트를 바꾸어 이미지 붙여넣기를 취소했습니다. 원하는 노트에서 다시 붙여넣어 주세요.');
@@ -116,6 +120,7 @@ function onDocumentUpdate() {
 
 function render() {
   if (!doc) return;
+  tasksUI.render();
   ui.renderNotes(listNotes(doc), activeNoteId);
   const text = bodyText().toString();
   renderPreview(ui.previewHost, text);
@@ -180,6 +185,7 @@ function createEditor() {
 
 function onStatus(event) {
   setStatus(event.message, event.state);
+  tasksUI.status(event.message);
   if (event.state === 'locked') {
     imagePaste.cancel();
     workspaceEpoch++; openingTask = null;
@@ -187,6 +193,7 @@ function onStatus(event) {
     if (sync) { sync.paused = true; clearTimeout(sync.timer); }
     documentSearch?.clear();
     setEditing(false);
+    tasksUI.clear();
     setAuthenticated(false); showError('접속 시간이 만료되었거나 공유 비밀번호가 변경되었습니다. 현재 비밀번호로 다시 로그인하면 이 화면에 남은 변경사항을 이어서 저장합니다.');
   } else if (event.state === 'error') {
     if (showingSnapshot && !sync?.ready) {
@@ -258,6 +265,7 @@ async function loadDocument() {
 }
 
 function closeWorkspace() {
+  tasksUI.clear();
   imagePaste.cancel();
   workspaceEpoch++;
   openingTask = null;
@@ -353,7 +361,7 @@ const ui = initUI({
   },
   backup() {
     if (!doc || !sync?.ready) return;
-    saveFile(`아인_전체노트_복구본_${stamp()}.json`, JSON.stringify({ format: 'ain-internal-yjs-v2', createdAt: new Date().toISOString(), cursor: sync.cursor, hasUnsavedChanges: Boolean(sync.unsaved), activeNoteId, imageFilesIncluded: false, imageBackupNote: '이미지는 비공개 서버 저장소에 별도 보관되며 이 파일에는 본문 내 참조 주소만 포함됩니다.', update: encode(Y.encodeStateAsUpdate(doc)), notes: listNotes(doc).map(note => ({ ...note, text: getNoteText(doc, note.id).toString() })) }, null, 2), 'application/json');
+    saveFile(`아인_전체노트_복구본_${stamp()}.json`, JSON.stringify({ format: 'ain-internal-yjs-v2', createdAt: new Date().toISOString(), cursor: sync.cursor, hasUnsavedChanges: Boolean(sync.unsaved), activeNoteId, companyTasks: exportTasks(doc), imageFilesIncluded: false, imageBackupNote: '이미지는 비공개 서버 저장소에 별도 보관되며 이 파일에는 본문 내 참조 주소만 포함됩니다.', update: encode(Y.encodeStateAsUpdate(doc)), notes: listNotes(doc).map(note => ({ ...note, text: getNoteText(doc, note.id).toString() })) }, null, 2), 'application/json');
   },
   async retry() {
     if (loggingOut || changingPassword) return;
@@ -370,6 +378,8 @@ const ui = initUI({
     editor.dispatch({ changes: { from: selection.from, to: selection.to, insert: inserts[kind] || '' } }); editor.focus();
   },
 });
+
+const tasksUI = initTasks({ getDoc: () => doc, requireEditable: requireEditableNotes, author: () => ui.nameInput.value.trim().slice(0, 24), onView(value) { if (value && imagePaste.busy) imagePaste.cancel('할 일 페이지로 이동하여 이미지 붙여넣기를 취소했습니다.'); } });
 
 function showImageStatus(message, kind = 'idle') {
   const notice = document.getElementById('image-status');
