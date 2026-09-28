@@ -43,3 +43,13 @@
 실행 결과: 노트·할 일 단위 검사 125/125, 비밀정보·미러 검사 5/5, 할 일·기존 노트·이미지 브라우저 회귀 검사 모두 통과. 전체 단위 검사 725개 중 721개 통과. 실패 4개는 요건관리의 UI 정리/정적 파일/캐시 버전/배포 파일 목록 검사이며, 수정 전 통합 기준 `e8ce23b`를 별도 폴더로 추출하여 같은 4개 실패를 재현했습니다. 이번 노트 기능에서 요건관리 파일은 수정하지 않았습니다.
 
 통합 기준 롤백 소스: `e8ce23b`. 합성 테스트 화면: `.artifacts/internal-tasks-desktop.png`, `.artifacts/internal-tasks-mobile.png`. 전체 결과: `.artifacts/tasks-full-tests.log`, 기준 비교: `.artifacts/tasks-baseline-tests.log`.
+
+## 배포 차단 상태
+
+기능 커밋 `112b5b6`으로 생성한 후보 배포 `dpl_2FzSPJNibSFsDYbgp7WUVwscBhYj` (`aincustoms-a9pr3zecm-sukhyuns-projects-e670bc23.vercel.app`)는 Vercel API에서 `readyState: BLOCKED`를 반환했습니다. 사유: `The deployment was blocked because the commit author doesn’t have permission to create deployments for this project.` CLI 59.19.0은 이 상태를 UNKNOWN/Building으로 보여 API로 확인했습니다.
+
+운영 도메인 승격은 실행하지 않았고 운영 DB를 읽거나 수정하지 않았습니다. 로컬 코드와 검증 결과만 완료이며 운영 기능 추가는 아직 미완료입니다. CLI 로그인 계정은 jsh6720, 커밋 작성자도 jsh6720이지만 커밋 이메일은 `jsh@aincustoms.com`, Vercel 기본 이메일은 별도로 확인되어 계정 귀속·검증 여부 확인이 필요합니다. 이메일이 다르다는 사실만으로 근본 원인을 확정하지 않습니다. GitHub CLI 로그인도 현재 없습니다.
+
+다음 단계: 사용자가 Vercel Account Settings의 Login Connections에서 GitHub jsh6720 연결을 확인하고, 커밋 이메일의 계정 등록·인증 또는 팀의 작성자 승인을 완료한 뒤 같은 커밋을 정식 재배포합니다. 작성자 위조, Git 메타데이터 제거, 배포 권한 검사 우회는 수행하지 않습니다. 승인 전 candidate를 운영에 연결하지 않습니다.
+
+공식 안내: https://vercel.com/docs/deployments/troubleshoot-project-collaboration
