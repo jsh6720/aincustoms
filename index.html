@@ -1349,6 +1349,7 @@
         let selectedDutyRows = new Set();
         let dutyLoadGeneration = 0;
         let accountLoadGeneration = 0;
+        let accountTabLoad = null;
         let loginAttemptGeneration = 0;
         let valuationSessionGeneration = 0;
         let dutyMutationGeneration = 0;
@@ -1417,7 +1418,11 @@
                 return { success: false, code: 'CONFLICT', message: 'DB 새로고침 후 다시 시도해주세요.' };
             }
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 20000);
+            // Google may take longer than 20 seconds to authenticate/read a sheet.
+            // Keep write timeouts unchanged and never retry mutations automatically.
+            const timeoutMs = isLogin || action === 'getDutyData' || action === 'getAccountData'
+                ? 45000 : 20000;
+            const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
             try {
                 const formData = new FormData();
@@ -1446,7 +1451,11 @@
                 return result;
             } catch (error) {
                 if (error && error.name === 'AbortError') {
-                    return { success: false, message: '서버 응답 시간이 초과되었습니다. DB 새로고침 후 처리 여부를 먼저 확인해주세요.' };
+                    return { success: false, message: isLogin
+                        ? '로그인 서버 응답이 지연되고 있습니다. 잠시 후 다시 로그인해주세요.'
+                        : mutationScope
+                            ? '서버 응답 시간이 초과되었습니다. DB 새로고침 후 처리 여부를 먼저 확인해주세요.'
+                            : '자료 조회 응답이 지연되고 있습니다. 잠시 후 다시 조회해주세요.' };
                 }
 
                 console.error('API call error');
@@ -1487,7 +1496,8 @@
 
         function setLoginLoading(isLoading) {
             const loginButton = document.querySelector('#loginForm button[type="submit"]');
-            document.getElementById('loginButtonText').style.display = isLoading ? 'none' : 'inline';
+            document.getElementById('loginButtonText').style.display = 'inline';
+            document.getElementById('loginButtonText').textContent = isLoading ? '로그인 확인 중…' : '로그인';
             document.getElementById('loginSpinner').style.display = isLoading ? 'inline-block' : 'none';
             loginButton.disabled = isLoading;
         }
@@ -1636,6 +1646,7 @@
                 valuationSessionGeneration += 1;
                 dutyLoadGeneration += 1;
                 accountLoadGeneration += 1;
+                accountTabLoad = null;
                 dutyMutationGeneration += 1;
                 accountMutationGeneration += 1;
                 dutyMutationInFlight = false;
@@ -1730,10 +1741,17 @@
 
             // 데이터 로드 (로딩 완료 후 표시)
             await loadDutyData(sessionGeneration, sessionUser);
-            if (!isValuationSessionCurrent(sessionGeneration, sessionUser)) return;
-            if (sessionUser.isMaster) {
-                await loadAccountData(sessionGeneration, sessionUser);
-            }
+        }
+
+        // Fetch administrator accounts only when their tab is opened.
+        function ensureAccountTabData() {
+            if (!currentUserData || !currentUserData.isMaster || accountRevision) return;
+            if (accountTabLoad) return accountTabLoad;
+            const pending = loadAccountData().finally(() => {
+                if (accountTabLoad === pending) accountTabLoad = null;
+            });
+            accountTabLoad = pending;
+            return pending;
         }
 
         // 탭 전환
@@ -1745,6 +1763,7 @@
             // 선택된 탭 활성화
             if (button) button.classList.add('active');
             document.getElementById(tabName).classList.add('active');
+            if (tabName === 'account-management') return ensureAccountTabData();
         }
 
         function dutyTableColspan() {
@@ -1969,6 +1988,8 @@
                 || !isValuationSessionCurrent(sessionGeneration, requestingUser)) return;
             const loadGeneration = ++accountLoadGeneration;
             accountRevision = '';
+            document.getElementById('accountResultsBody').innerHTML =
+                '<tr><td colspan="3" class="text-center text-gray-500 py-8">계정 목록을 불러오는 중입니다.</td></tr>';
 
             const result = await callAPI('getAccountData');
 
