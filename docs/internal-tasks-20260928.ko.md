@@ -53,3 +53,15 @@
 다음 단계: 사용자가 Vercel Account Settings의 Login Connections에서 GitHub jsh6720 연결을 확인하고, 커밋 이메일의 계정 등록·인증 또는 팀의 작성자 승인을 완료한 뒤 같은 커밋을 정식 재배포합니다. 작성자 위조, Git 메타데이터 제거, 배포 권한 검사 우회는 수행하지 않습니다. 승인 전 candidate를 운영에 연결하지 않습니다.
 
 공식 안내: https://vercel.com/docs/deployments/troubleshoot-project-collaboration
+
+## 배포 해결 및 운영 반영 완료
+
+사용자가 제공한 GitHub 이메일 설정 화면에서 `h3story@gmail.com`이 jsh6720 계정의 Primary/Verified 이메일임을 확인했고, Vercel에도 같은 이메일과 GitHub jsh6720 연결이 확인됐습니다. 이 저장소의 로컬 `user.email`만 인증된 소유자 이메일로 수정했습니다. 전역 설정 및 이전 커밋은 바꾸지 않았으며, 새 확인 커밋 `b083c02`를 작성했습니다. 이메일·작성자 정보를 숨기거나 권한 검사를 해제하지 않았습니다.
+
+- 정상 후보: `dpl_A6MNwuALQ9j6bsHks3kCNhb2qYfF`
+- 배포 URL: https://aincustoms-lo5kgxzd6-sukhyuns-projects-e670bc23.vercel.app
+- 후보의 `/note`, `/internal/app.js`가 검증된 로컬 파일과 일치하고, 비로그인 session=false/sync=401임을 확인한 뒤 Vercel promote 성공.
+- 운영 https://www.aincustoms.com/note 및 정적 JS/CSS가 200이며 검증 파일과 동일함을 재확인. 홈페이지 `/`와 `/requirements/`도 보존된 최신 소스와 동일. `/internal`, `/internal/`, `/note/` 리다이렉트와 기존 보호 배포 접근 제한 검사 통과.
+- 운영 비공개 문서 내용 읽기·테스트 업무 입력·DB 변경 없음. 기능 동작 검사는 앞서 기록한 합성 서버/두 브라우저 검사로 검증.
+
+원격 GitHub main은 여전히 `ba23bdc`이며 이번 브랜치는 아직 push하지 않았습니다. 향후 main 자동 배포가 노트 파일을 다시 누락하지 않도록 GitHub 원본 반영은 사용자 별도 승인 후 진행해야 합니다. 로컬 전체 코드와 복구 기준은 보존되어 있습니다.
