@@ -20,3 +20,13 @@
 - 작업 전 소스: 1cd549f. 롤백 운영 배포: dpl_A6MNwuALQ9j6bsHks3kCNhb2qYfF / https://aincustoms-lo5kgxzd6-sukhyuns-projects-e670bc23.vercel.app
 - 롤백은 소스/배포만 되돌리며 문서·업무 데이터를 삭제하지 않음.
 - GitHub main push는 별도 승인 대기. 기존 홈페이지·과세가격·요건관리 파일은 수정하지 않음.
+
+## 운영 반영 완료
+
+- 기능 커밋: ef39911
+- 배포: dpl_Fn6rdWZnpwoaZt7w16qy3T5PPU8J
+- 후보 URL: https://aincustoms-5g09h0kz4-sukhyuns-projects-e670bc23.vercel.app
+- READY 확인 후 후보 /note HTML, JS, CSS가 검증된 소스와 일치함을 확인. 비로그인 session=false 및 sync=401 확인 후 운영 승격 성공.
+- 운영 https://www.aincustoms.com/note 와 정적 JS/CSS 파일 일치 재확인. 기존 홈페이지 / 및 /requirements/ 파일도 보존됐음을 확인.
+- 리다이렉트, noindex/CSP, 비로그인 접근 차단, 이전 보호 배포 검사 통과.
+- 운영 문서/업무에 테스트 데이터 입력 또는 기존 데이터 수정 없음. GitHub main은 ba23bdc이며 push하지 않음.
