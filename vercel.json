@@ -1,5 +1,6 @@
 {
   "buildCommand": "node scripts/verify-note-release.cjs",
+  "outputDirectory": ".",
   "redirects": [
     { "source": "/internal", "destination": "/note", "permanent": false },
     { "source": "/internal/", "destination": "/note", "permanent": false },

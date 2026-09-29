@@ -8,6 +8,7 @@ const root = path.resolve(__dirname, '..');
 test('release gate verifies workspace assets and is wired into Vercel build', () => {
   assert.equal(verifyNoteRelease(root).files, 9);
   assert.equal(JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'))).buildCommand, 'node scripts/verify-note-release.cjs');
+  assert.equal(JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'))).outputDirectory, '.');
 });
 test('release gate rejects omitted page and API routes before deployment', () => {
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'ain-release-gate-'));

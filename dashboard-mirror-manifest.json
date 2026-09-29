@@ -250,7 +250,7 @@
     {
       "source": "vercel.json",
       "target": "website_integration/vercel_package/vercel.json",
-      "sha256": "e42fdd5eb1b11221eee8fff3500995bdcf71e27caa27b8c9eedc3eeb05b4b88e"
+      "sha256": "ca1621d077ed2460c666b556eb67fb4fc55bc84c34d44d5a19067e5ba4194bae"
     },
     {
       "source": "lib/cargo-doc-mail-batch.js",
