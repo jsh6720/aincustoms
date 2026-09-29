@@ -5,7 +5,7 @@
     {
       "source": "cargo-dashboard.html",
       "target": "website_integration/cargo-dashboard.html",
-      "sha256": "4a073ecd61d8eee0e406ac4f2796862dafa71060fab082a293418a77a1a0461f"
+      "sha256": "5355170efadbe319f4250bc881c729eaf1bb0890d7365a12428de5b4511ec419"
     },
     {
       "source": "cargo-docs-mobile.html",
@@ -70,7 +70,7 @@
     {
       "source": "api/cargo-quota.js",
       "target": "website_integration/vercel_package/api/cargo-quota.js",
-      "sha256": "0c59a0381248f5ba713f6dd7cff6e810daf929a0bbf7185094a9604b02b5fb32"
+      "sha256": "c30e1513ebcbab360341bc5f9731787dda680cf852dfb2c1ca16d53b83a51ad8"
     },
     {
       "source": "api/cargo-release-request.js",
@@ -85,7 +85,7 @@
     {
       "source": "cargo-dashboard.html",
       "target": "website_integration/vercel_package/cargo-dashboard.html",
-      "sha256": "4a073ecd61d8eee0e406ac4f2796862dafa71060fab082a293418a77a1a0461f"
+      "sha256": "5355170efadbe319f4250bc881c729eaf1bb0890d7365a12428de5b4511ec419"
     },
     {
       "source": "cargo-docs-mobile.html",

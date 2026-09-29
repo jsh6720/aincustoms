@@ -2810,7 +2810,7 @@
           }
           return;
         }
-        applyManualFieldsToCard(card, payload, result.input);
+        applyManualFieldsToCard(card, payload, result.input, result.transport_patch);
         closeProgressWarehouseEditor();
         renderProgressStatus();
         renderProgressCalendar();
@@ -2974,8 +2974,24 @@
       if (box) box.outerHTML = manualFieldsHtml(card, currentCards.indexOf(card));
     }
 
-    function applyManualFieldsToCard(card, payload, input) {
+    function applyManualFieldsToCard(card, payload, input, transportPatch) {
       const saved = input || {};
+      const patch = transportPatch ?? { ...payload };
+      const owns = (object, field) => Object.prototype.hasOwnProperty.call(object, field);
+      // A full manual row contains nulls for values supplied by the scanned card.
+      // Only the actual write patch may replace the already merged display values.
+      if (transportPatch == null) {
+        const dependentFields = ["transport_updated_by_role", "transport_updated_by_login", "transport_updated_at"];
+        if (owns(payload, "eta_date") || payload.confirm_field === "eta_date") {
+          dependentFields.push("eta_date_confirmed", "free_time_expiry_date", "free_time_expiry_override");
+        }
+        ["storage_yard", "warehouse_expected_date"].forEach(field => {
+          if (owns(payload, field) || payload.confirm_field === field) dependentFields.push(`${field}_confirmed`);
+        });
+        dependentFields.forEach(field => {
+          if (owns(saved, field)) patch[field] = saved[field];
+        });
+      }
       [
         "delivery_terms",
         "eta_date",
@@ -2991,20 +3007,16 @@
         "transport_updated_by_login",
         "transport_updated_at"
       ].forEach(field => {
-        if (Object.prototype.hasOwnProperty.call(saved, field)) card[field] = saved[field] ?? "";
-        else if (Object.prototype.hasOwnProperty.call(payload, field)) card[field] = payload[field] ?? "";
+        if (!owns(patch, field)) return;
+        card[field] = (transportPatch == null && owns(saved, field) ? saved[field] : patch[field]) ?? "";
       });
-      if (Object.prototype.hasOwnProperty.call(saved, "eta_date_confirmed")) {
-        card.carrier_arrival_date = saved.eta_date_confirmed === true ? (card.eta_date || "") : "";
+      if (owns(patch, "eta_date_confirmed") || owns(patch, "eta_date")) {
+        const carrierConfirmed = owns(patch, "eta_date_confirmed")
+          ? patch.eta_date_confirmed === true : !!card.carrier_arrival_date;
+        card.carrier_arrival_date = carrierConfirmed ? (card.eta_date || "") : "";
       }
-      if (
-        Object.prototype.hasOwnProperty.call(saved, "eta_date")
-        || Object.prototype.hasOwnProperty.call(payload, "eta_date")
-      ) {
-        const etaDate = Object.prototype.hasOwnProperty.call(saved, "eta_date")
-          ? saved.eta_date
-          : payload.eta_date;
-        card.eta_date_user_entered = !!etaDate;
+      if (owns(patch, "eta_date")) {
+        card.eta_date_user_entered = !!patch.eta_date;
       }
     }
 
@@ -3051,7 +3063,7 @@
         alert(result.message || "운송정보 저장에 실패했습니다.");
         return;
       }
-      applyManualFieldsToCard(card, payload, result.input);
+      applyManualFieldsToCard(card, payload, result.input, result.transport_patch);
       renderCardInPlace(card);
     }
 

@@ -152,6 +152,7 @@ test("carrier date preview and save keep Customs original and reset stale expiry
   assert.equal(calls.savedPayload.free_time_expiry_override, null);
   assert.equal(Object.hasOwn(calls.savedPayload, "entry_date"), false);
   assert.equal(Object.hasOwn(calls.savedPayload, "carrier_arrival_date"), false);
+  assert.deepEqual(response.body.transport_patch, calls.savedPayload);
   assert.deepEqual(response.body.changed_fields, ["eta_date"]);
 });
 
@@ -220,10 +221,50 @@ test("sending an already-saved carrier date still uses the duplicate-mail guard"
       await handler({ method: "POST", body: { action: "manual_fields", account_id: "account-1", bl_number: "BL-1", mail_type: "arrival", send_notification: true } }, response);
       assert.equal(response.statusCode, 200);
       assert.equal(response.body.email_sent, i === 0);
+      assert.deepEqual(response.body.transport_patch, {});
     }
   });
   assert.equal(calls.mail.length, 1);
   assert.equal(calls.savedPayload, null);
+});
+
+for (const role of ['admin', 'shipper']) {
+  test(`${role} partial transport response identifies only actual writes, not nullable fallback fields`, async () => {
+    const { handler, calls } = carrierFixture({
+      session: { role, account_id: 'account-1', login_id: 'TEST' },
+      previousInput: { account_id: 'account-1', bl_number: 'BL-1', delivery_terms: null, storage_yard: null,
+        eta_date: '2026-10-01', eta_date_confirmed: true, free_time_days: 3, free_time_expiry_override: null },
+    });
+    const response = createResponse();
+    await handler({ method: 'POST', body: { action: 'manual_fields', account_id: 'account-1', bl_number: 'BL-1',
+      warehouse_expected_date: '2026-10-04', send_notification: false } }, response);
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.input.delivery_terms, null);
+    assert.deepEqual(response.body.transport_patch, calls.savedPayload);
+    assert.equal(response.body.transport_patch.warehouse_expected_date, '2026-10-04');
+    for (const field of ['delivery_terms', 'storage_yard', 'eta_date', 'eta_date_confirmed', 'free_time_days', 'free_time_expiry_override']) {
+      assert.equal(Object.hasOwn(response.body.transport_patch, field), false, field);
+    }
+    assert.equal(calls.mail.length, 0);
+  });
+}
+
+test('clearing an explicit override returns the same source fallback as a page reload', async () => {
+  const { handler, calls } = carrierFixture({
+    cardRows: [{ account_id: 'account-1', bl_number: 'BL-1', delivery_terms: 'CIF',
+      storage_yard: 'Source warehouse', warehouse_expected_date: '2026-10-05' }],
+    previousInput: { account_id: 'account-1', bl_number: 'BL-1', delivery_terms: 'FOB',
+      storage_yard: 'Manual warehouse', warehouse_expected_date: '2026-10-04' },
+  });
+  const response = createResponse();
+  await handler({ method: 'POST', body: { action: 'manual_fields', account_id: 'account-1', bl_number: 'BL-1',
+    delivery_terms: '', storage_yard: '', warehouse_expected_date: '', send_notification: false } }, response);
+  assert.equal(response.statusCode, 200);
+  for (const field of ['delivery_terms', 'storage_yard', 'warehouse_expected_date']) assert.equal(calls.savedPayload[field], null);
+  assert.equal(response.body.transport_patch.delivery_terms, 'CIF');
+  assert.equal(response.body.transport_patch.storage_yard, 'Source warehouse');
+  assert.equal(response.body.transport_patch.warehouse_expected_date, '2026-10-05');
+  assert.equal(calls.mail.length, 0);
 });
 
 function createResponse() {

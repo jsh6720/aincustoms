@@ -129,6 +129,16 @@ function effectiveTransportValues(input, card) {
   };
 }
 
+function transportDisplayPatch(patch, input, card) {
+  const display = { ...patch };
+  const effective = effectiveTransportValues(input, card);
+  // Clearing a manual override restores the same source fallback as cargo-data.
+  for (const field of ["delivery_terms", "storage_yard", "warehouse_expected_date"]) {
+    if (Object.prototype.hasOwnProperty.call(patch, field)) display[field] = effective[field];
+  }
+  return display;
+}
+
 // Keep preview and save identical, without replacing the Customs source date.
 function applyArrivalEdit(input, body, card, isAdmin) {
   const next = { ...input };
@@ -762,6 +772,7 @@ module.exports = async function handler(req, res) {
           return res.status(200).json({
             success: true,
             input: previousInput?.account_id ? previousInput : null,
+            transport_patch: {},
             changed_fields: [],
             email_sent: !!delivery?.sent,
             deduplicated: !!delivery?.deduplicated,
@@ -857,6 +868,7 @@ module.exports = async function handler(req, res) {
           success: true,
           input: rows && rows[0] ? rows[0] : null,
           inputs: rows || [],
+          transport_patch: transportDisplayPatch(nextPayload, nextInput, card),
           changed_fields: changedFields,
           email_sent: emailSent,
           deduplicated: emailDeduplicated,
@@ -922,6 +934,7 @@ module.exports = async function handler(req, res) {
             return res.status(200).json({
               success: true,
               input,
+              transport_patch: transportDisplayPatch(nextPayload, nextInput, card),
               changed_fields: changedFields,
               email_sent: false,
               deduplicated: false,
@@ -976,6 +989,7 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({
         success: true,
         input,
+        transport_patch: transportDisplayPatch(nextPayload, nextInput, card),
         changed_fields: changedFields,
         email_sent: emailSent,
         deduplicated: emailDeduplicated,

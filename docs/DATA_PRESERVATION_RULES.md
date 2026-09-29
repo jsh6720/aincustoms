@@ -286,3 +286,16 @@
   not change the ETA, confirmation flag, expiry override, receipts, or previous mail records.
 - Do not add empty derived source fields to historical manual-mail deduplication payloads.
 - A UI partial response must preserve all fields absent from both the response and patch.
+
+## 2026-09-29 Transport Display Preservation
+
+- A complete manual-input DB row is not a merged display card. Its null fields must never
+  erase unrelated scanned, Customs, or already merged values after a partial save.
+- Manual save responses carry a display patch limited to the actual write scope. Include
+  server-derived confirmation/expiry changes, but never copy untouched fields from the full row.
+- Send-only responses carry an empty patch. Delivery-uncertain responses that retain the
+  save carry the same patch as normal success. Failed saves do not optimistically overwrite cards.
+- For explicitly cleared manual terms/yard/warehouse-date overrides, display the same source
+  fallback as cargo-data without copying the source into the manual table.
+- Regression tests must use realistic full responses containing null fields, not just sparse
+  response fixtures. Verify immediate rendering and reload, including old-API compatibility.

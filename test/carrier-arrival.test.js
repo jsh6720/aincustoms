@@ -108,7 +108,66 @@ test('partial UI save does not clear unrelated flags or dates', () => {
   assert.equal(ctx.card.carrier_arrival_date, '2026-10-01');
   assert.equal(ctx.card.storage_yard, '강동');
   assert.equal(ctx.card.obl_received, true);
-  vm.runInContext('applyManualFieldsToCard(card,{}, {eta_date_confirmed:false})', ctx);
+  vm.runInContext('applyManualFieldsToCard(card,{confirm_field:"eta_date",confirmation_action:"unconfirm"}, {eta_date_confirmed:false})', ctx);
   assert.equal(vm.runInContext('etaText(card)', ctx), '2026-09-29');
   assert.equal(vm.runInContext('progressConfirmedClass(card,"eta_date")', ctx), ' progress-field-confirmed');
+});
+
+for (const withPatch of [true, false]) {
+  test(`arrival edit preserves scanned CIF and other fields with full nullable response (patch=${withPatch})`, () => {
+    const ctx = runtime();
+    ctx.card = { ...card, delivery_terms: 'CIF', storage_yard: 'Existing yard', warehouse_expected_date: '2026-10-04',
+      free_time_days: 7, free_time_expiry_override: '2026-10-08', storage_yard_confirmed: true, obl_received: true };
+    ctx.payload = { eta_date: '2026-10-01' };
+    ctx.patch = { eta_date: '2026-10-01', eta_date_confirmed: true, free_time_expiry_date: null, free_time_expiry_override: null };
+    ctx.saved = { ...ctx.patch, delivery_terms: null, storage_yard: null, warehouse_expected_date: null, free_time_days: 3,
+      storage_yard_confirmed: false, obl_received: false };
+    vm.runInContext(`applyManualFieldsToCard(card,payload,saved,${withPatch ? 'patch' : 'undefined'})`, ctx);
+    assert.equal(ctx.card.delivery_terms, 'CIF');
+    assert.equal(ctx.card.storage_yard, 'Existing yard');
+    assert.equal(ctx.card.warehouse_expected_date, '2026-10-04');
+    assert.equal(ctx.card.free_time_days, 7);
+    assert.equal(ctx.card.storage_yard_confirmed, true);
+    assert.equal(ctx.card.obl_received, true);
+    assert.equal(ctx.card.free_time_expiry_override, '');
+    assert.equal(ctx.card.carrier_arrival_date, '2026-10-01');
+    assert.equal(ctx.card.entry_date, '20260929');
+  });
+
+  test(`warehouse edit preserves carrier date, expiry and CIF (patch=${withPatch})`, () => {
+    const ctx = runtime();
+    ctx.card = { ...card, delivery_terms: 'CIF', carrier_arrival_date: next.eta_date, eta_date: next.eta_date,
+      eta_date_confirmed: true, free_time_expiry_override: '2026-10-09', storage_yard: 'Existing yard' };
+    ctx.payload = { warehouse_expected_date: '2026-10-04' };
+    ctx.patch = { ...ctx.payload, warehouse_expected_date_confirmed: false };
+    ctx.saved = { ...ctx.patch, delivery_terms: null, eta_date: null, eta_date_confirmed: false,
+      storage_yard: null, free_time_expiry_override: null };
+    vm.runInContext(`applyManualFieldsToCard(card,payload,saved,${withPatch ? 'patch' : 'undefined'})`, ctx);
+    assert.equal(ctx.card.warehouse_expected_date, '2026-10-04');
+    assert.equal(ctx.card.warehouse_expected_date_confirmed, false);
+    assert.equal(ctx.card.delivery_terms, 'CIF');
+    assert.equal(ctx.card.carrier_arrival_date, '2026-10-01');
+    assert.equal(ctx.card.eta_date, '2026-10-01');
+    assert.equal(ctx.card.eta_date_confirmed, true);
+    assert.equal(ctx.card.free_time_expiry_override, '2026-10-09');
+    assert.equal(ctx.card.storage_yard, 'Existing yard');
+  });
+}
+
+test('send-only response cannot overwrite effective card fields', () => {
+  const ctx = runtime();
+  ctx.card = { ...card, delivery_terms: 'CIF', carrier_arrival_date: next.eta_date, storage_yard: 'Existing yard' };
+  const before = { ...ctx.card };
+  vm.runInContext('applyManualFieldsToCard(card,{send_notification:true},{delivery_terms:null,eta_date:null,eta_date_confirmed:false,storage_yard:null},{})', ctx);
+  assert.deepEqual(ctx.card, before);
+});
+
+test('explicit edits and clears still apply without altering unrelated fields', () => {
+  const ctx = runtime();
+  ctx.card = { ...card, delivery_terms: 'CIF', warehouse_expected_date: '2026-10-04' };
+  vm.runInContext('applyManualFieldsToCard(card,{delivery_terms:"FOB"},{delivery_terms:"FOB"},{delivery_terms:"FOB"})', ctx);
+  assert.equal(ctx.card.delivery_terms, 'FOB');
+  vm.runInContext('applyManualFieldsToCard(card,{warehouse_expected_date:""},{warehouse_expected_date:null},{warehouse_expected_date:null,warehouse_expected_date_confirmed:false})', ctx);
+  assert.equal(ctx.card.warehouse_expected_date, '');
+  assert.equal(ctx.card.delivery_terms, 'FOB');
 });
