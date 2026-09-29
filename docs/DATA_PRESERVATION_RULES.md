@@ -276,3 +276,26 @@
 ## 2026-09-14 추가: 제목에 B/L 번호 표시
 
 두 묶음 메일 제목에 선택한 모든 B/L 번호를 본문 순서대로 쉼표로 구분하여 표시한다. 기존 수신처 설정 original_doc_receipt 및 obl_carrier_receipt와 추가수신자 및 참조 처리 경로를 유지한다. 관련 시험 40개 통과. 실제 발송 및 운영 배포 없음.
+# 2026-09-29 Arrival Source Invariant
+
+- Never write the carrier correction to `cargo_cards.entry_date`; preserve the Customs source.
+- Store the administrator's carrier date in the existing manual `eta_date` and its explicit
+  `eta_date_confirmed` flag. Do not infer carrier authority from a stale ETA or from the
+  API's merged Customs confirmation flag. `carrier_arrival_date` is response-only.
+- Reuse existing partial-write and linked-account boundaries. A warehouse-only edit must
+  not change the ETA, confirmation flag, expiry override, receipts, or previous mail records.
+- Do not add empty derived source fields to historical manual-mail deduplication payloads.
+- A UI partial response must preserve all fields absent from both the response and patch.
+
+## 2026-09-29 Transport Display Preservation
+
+- A complete manual-input DB row is not a merged display card. Its null fields must never
+  erase unrelated scanned, Customs, or already merged values after a partial save.
+- Manual save responses carry a display patch limited to the actual write scope. Include
+  server-derived confirmation/expiry changes, but never copy untouched fields from the full row.
+- Send-only responses carry an empty patch. Delivery-uncertain responses that retain the
+  save carry the same patch as normal success. Failed saves do not optimistically overwrite cards.
+- For explicitly cleared manual terms/yard/warehouse-date overrides, display the same source
+  fallback as cargo-data without copying the source into the manual table.
+- Regression tests must use realistic full responses containing null fields, not just sparse
+  response fixtures. Verify immediate rendering and reload, including old-API compatibility.

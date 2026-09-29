@@ -290,6 +290,7 @@ function applyUserInputs(cards, inputs, cardRefs = cards, deliveryInputs = input
         food_quarantine: foodCustomsStatus || "",
         free_time_days: 3,
         eta_date_user_entered: false,
+        carrier_arrival_date: "",
       };
     }
     return computeQuotaMessages({
@@ -301,14 +302,18 @@ function applyUserInputs(cards, inputs, cardRefs = cards, deliveryInputs = input
       hidden_at: input.hidden_at || null,
       hidden_by: input.hidden_by || "",
       delivery_terms: input.delivery_terms || card.delivery_terms || "",
-      eta_date: input.eta_date || card.eta_date || "",
+      eta_date: Object.prototype.hasOwnProperty.call(input, "eta_date")
+        ? (input.eta_date || "") : (card.eta_date || ""),
+      // Derived display value only; the existing confirmed manual ETA remains the stored value.
+      carrier_arrival_date: input.eta_date_confirmed === true ? (input.eta_date || "") : "",
       eta_date_user_entered: !!input.eta_date,
       storage_yard: effectiveStorageYard(
         input.storage_yard || card.storage_yard,
         card.shed_name
       ),
       free_time_days: Number(input.free_time_days || 3),
-      free_time_expiry_date: input.free_time_expiry_date || card.free_time_expiry_date || "",
+      free_time_expiry_date: Object.prototype.hasOwnProperty.call(input, "free_time_expiry_date")
+        ? (input.free_time_expiry_date || "") : (card.free_time_expiry_date || ""),
       free_time_expiry_override: input.free_time_expiry_override || "",
       warehouse_expected_date: input.warehouse_expected_date || card.warehouse_expected_date || "",
       eta_date_confirmed: customsArrivalConfirmed(card) || input.eta_date_confirmed === true,

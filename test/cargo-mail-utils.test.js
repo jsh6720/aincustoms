@@ -81,10 +81,10 @@ test("builds a customs-confirmed arrival email with the actual arrival date high
 
   assert.equal(mail.subject, "[입항 확인] 현대_ONEYBNEG04898400 / 캐틀팜");
   assert.match(mail.text, /관세청 전산에서 실제 입항이 확인되어 아래와 같이 안내드립니다\./);
-  assert.match(mail.text, /입항일: 2026-08-18 \(관세청 확인\)/);
+  assert.match(mail.text, /입항일: 2026-08-18 \(관세청 전산\)/);
   assert.match(
     mail.html,
-    /입항일: <strong style="color:#b42318;font-weight:700;">2026-08-18 \(관세청 확인\)<\/strong>/
+    /입항일: <strong style="color:#b42318;font-weight:700;">2026-08-18 \(관세청 전산\)<\/strong>/
   );
 });
 
@@ -339,7 +339,7 @@ test("keeps a customs arrival as plain reference when only warehouse plans chang
   assert.equal(mail.subject, "[\uBC18\uC785\uC608\uC815\uC815\uBCF4 \uBCC0\uACBD] \uD604\uB300\uCF54\uD37C\uB808\uC774\uC158H / AEL2078309");
   assert.match(mail.text, /\uBC18\uC785\uC608\uC815\uC815\uBCF4\uAC00 \uBCC0\uACBD\uB418\uC5B4 \uC544\uB798\uC640 \uAC19\uC774 \uC548\uB0B4\uB4DC\uB9BD\uB2C8\uB2E4\./);
   assert.doesNotMatch(mail.text, /\uC2E4\uC81C \uC785\uD56D\uC774 \uD655\uC778/);
-  assert.match(mail.text, /^\uC785\uD56D\uC77C: 2026-08-21 \(\uAD00\uC138\uCCAD \uD655\uC778\)$/m);
+  assert.match(mail.text, /^입항일: 2026-08-21 \(관세청 전산\)$/m);
   assert.doesNotMatch(
     mail.html,
     /\uC785\uD56D\uC77C: <strong style="color:#b42318;font-weight:700;">/
