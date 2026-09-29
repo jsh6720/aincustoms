@@ -5,7 +5,7 @@
     {
       "source": "cargo-dashboard.html",
       "target": "website_integration/cargo-dashboard.html",
-      "sha256": "d254453f59c5a50f9dddfce7c60462679d877c5975e0d116a2d380c84698d758"
+      "sha256": "4a073ecd61d8eee0e406ac4f2796862dafa71060fab082a293418a77a1a0461f"
     },
     {
       "source": "cargo-docs-mobile.html",
@@ -35,7 +35,7 @@
     {
       "source": "api/cargo-data.js",
       "target": "website_integration/vercel_package/api/cargo-data.js",
-      "sha256": "6044b82fa2cda5a3833dda7fa6df26b7e48dfa1c24e7b2cbc0408f565ed32512"
+      "sha256": "865a923d679edaf4ff23697c3afe084d78b9ef3736c87fbd56663f1a22fc0036"
     },
     {
       "source": "api/cargo-import-request.js",
@@ -70,7 +70,7 @@
     {
       "source": "api/cargo-quota.js",
       "target": "website_integration/vercel_package/api/cargo-quota.js",
-      "sha256": "5a6719758aac56286f99c842f4acb39fcfb218915bbeaa6ad5272cee963f82e3"
+      "sha256": "0c59a0381248f5ba713f6dd7cff6e810daf929a0bbf7185094a9604b02b5fb32"
     },
     {
       "source": "api/cargo-release-request.js",
@@ -85,7 +85,7 @@
     {
       "source": "cargo-dashboard.html",
       "target": "website_integration/vercel_package/cargo-dashboard.html",
-      "sha256": "d254453f59c5a50f9dddfce7c60462679d877c5975e0d116a2d380c84698d758"
+      "sha256": "4a073ecd61d8eee0e406ac4f2796862dafa71060fab082a293418a77a1a0461f"
     },
     {
       "source": "cargo-docs-mobile.html",
@@ -110,7 +110,7 @@
     {
       "source": "lib/cargo-card-merge.js",
       "target": "website_integration/vercel_package/lib/cargo-card-merge.js",
-      "sha256": "a7d75e4a62147197383cb47567858f8e8f5652db816e1169b0d435be0046b0ff"
+      "sha256": "3f1bef600b25bb1943b041bdb1a1b1f7071bb309a3fcff0f441bd5e05af14f59"
     },
     {
       "source": "lib/cargo-date-input.js",
@@ -145,7 +145,7 @@
     {
       "source": "lib/cargo-mail-utils.js",
       "target": "website_integration/vercel_package/lib/cargo-mail-utils.js",
-      "sha256": "7e54aeffab790d8773ef7dd36a72b32e8fe847338f15a97a3859a69326bb1c1a"
+      "sha256": "9ead88a864c6b3fbc5bc865fee3799049a963a7708285fdd581dc32caa4159a0"
     },
     {
       "source": "lib/cargo-missing-quarantine-notification.js",
@@ -175,7 +175,7 @@
     {
       "source": "lib/cargo-progress-utils.js",
       "target": "website_integration/vercel_package/lib/cargo-progress-utils.js",
-      "sha256": "a503876282f8b4649901aca49a031d362ee4669352413644b5939269ccb692d4"
+      "sha256": "c348b704d63d113f8f1510f976818077cf560e3c475c0bbf0431745b15ba65c3"
     },
     {
       "source": "lib/cargo-request-utils.js",

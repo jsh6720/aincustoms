@@ -122,6 +122,110 @@ function loadQuotaHandler({ verifySession, supabaseFetch, sendMail, deliverManua
   }
 }
 
+function carrierFixture(options = {}) {
+  return createQuotaFixture({
+    session: { role: "admin", account_id: "admin-1", login_id: "ADMIN-1" },
+    cardRows: [{ account_id: "account-1", bl_number: "BL-1", entry_date: "20260929", eta_date: "2026-10-02", free_time_expiry_date: "2026-10-04" }],
+    previousInput: { account_id: "account-1", bl_number: "BL-1", eta_date: "2026-10-02", eta_date_confirmed: false, free_time_days: 3, free_time_expiry_date: "2026-10-04" },
+    mailSettings: { arrival_schedule_change: { to_recipients: "shipper@example.com", cc_recipients: "ain@example.com" } },
+    ...options,
+  });
+}
+
+test("carrier date preview and save keep Customs original and reset stale expiry", async () => {
+  const { handler, calls } = carrierFixture();
+  const body = { account_id: "account-1", bl_number: "BL-1", mail_type: "arrival", eta_date: "2026-10-01" };
+  const preview = createResponse();
+  await handler({ method: "POST", body: { ...body, action: "preview_transport_mail" } }, preview);
+  assert.equal(preview.statusCode, 200);
+  assert.match(preview.body.preview.text, /입항일: 2026-09-29 \(관세청 전산\)/);
+  assert.match(preview.body.preview.text, /\*실제 입항일: 2026-10-01 \(선사 전산\)/);
+  assert.match(preview.body.preview.text, /만기일: 2026-10-03/);
+  assert.equal(calls.savedPayload, null);
+  assert.equal(calls.mail.length, 0);
+  const response = createResponse();
+  await handler({ method: "POST", body: { ...body, action: "manual_fields", send_notification: false } }, response);
+  assert.equal(response.statusCode, 200);
+  assert.equal(calls.savedPayload.eta_date, "2026-10-01");
+  assert.equal(calls.savedPayload.eta_date_confirmed, true);
+  assert.equal(calls.savedPayload.free_time_expiry_date, null);
+  assert.equal(calls.savedPayload.free_time_expiry_override, null);
+  assert.equal(Object.hasOwn(calls.savedPayload, "entry_date"), false);
+  assert.equal(Object.hasOwn(calls.savedPayload, "carrier_arrival_date"), false);
+  assert.deepEqual(response.body.changed_fields, ["eta_date"]);
+});
+
+test("explicit ETA clear cannot revive the old synced manual date in mail preview", async () => {
+  const { handler, calls } = carrierFixture({
+    cardRows: [{ account_id: "account-1", bl_number: "BL-1", eta_date: "2026-10-02", entry_date: "" }],
+  });
+  const response = createResponse();
+  await handler({ method: "POST", body: { action: "preview_transport_mail", account_id: "account-1", bl_number: "BL-1", mail_type: "arrival", eta_date: "" } }, response);
+  assert.equal(response.statusCode, 200);
+  assert.match(response.body.preview.text, /입항예정일: 2026-10-02 -> 미입력/);
+  assert.match(response.body.preview.text, /만기일: 미입력/);
+  assert.equal(calls.savedPayload, null);
+});
+
+test("unconfirm returns to Customs without erasing the saved carrier date", async () => {
+  const { handler, calls } = carrierFixture();
+  const response = createResponse();
+  await handler({ method: "POST", body: { action: "manual_fields", account_id: "account-1", bl_number: "BL-1", eta_date: "2026-10-01", confirm_field: "eta_date", confirmation_action: "unconfirm" } }, response);
+  assert.equal(response.statusCode, 200);
+  assert.equal(calls.savedPayload.eta_date_confirmed, false);
+  assert.equal(calls.savedPayload.eta_date, "2026-10-01");
+});
+
+test("warehouse-only save cannot alter the carrier override", async () => {
+  const { handler, calls } = carrierFixture();
+  const response = createResponse();
+  await handler({ method: "POST", body: { action: "manual_fields", account_id: "account-1", bl_number: "BL-1", warehouse_expected_date: "2026-10-04" } }, response);
+  assert.equal(response.statusCode, 200);
+  for (const key of ["eta_date", "eta_date_confirmed", "free_time_expiry_date", "free_time_expiry_override"]) assert.equal(Object.hasOwn(calls.savedPayload, key), false);
+});
+
+for (const action of ["manual_fields", "preview_transport_mail"]) {
+  test(`${action} rejects nonexistent carrier date without writes or mail`, async () => {
+    const { handler, calls } = carrierFixture();
+    const response = createResponse();
+    await handler({ method: "POST", body: { action, account_id: "account-1", bl_number: "BL-1", eta_date: "2026-02-30" } }, response);
+    assert.equal(response.statusCode, 400);
+    assert.equal(calls.savedPayload, null);
+    assert.equal(calls.mail.length, 0);
+  });
+}
+
+test("non-admin cannot silently remove the confirmed carrier date", async () => {
+  const { handler, calls } = carrierFixture({ session: { role: "shipper", account_id: "account-1" } });
+  const response = createResponse();
+  await handler({ method: "POST", body: { action: "manual_fields", bl_number: "BL-1", eta_date: "2026-10-01" } }, response);
+  assert.equal(response.statusCode, 403);
+  assert.equal(calls.savedPayload, null);
+});
+
+test("sending an already-saved carrier date still uses the duplicate-mail guard", async () => {
+  let attempts = 0;
+  const { handler, calls } = carrierFixture({
+    previousInput: { account_id: "account-1", bl_number: "BL-1", eta_date: "2026-10-01", eta_date_confirmed: true, free_time_days: 3, free_time_expiry_date: null },
+    deliverManualMailOnce: async ({ businessPayload, send }) => {
+      assert.match(businessPayload.text, /\*실제 입항일: 2026-10-01 \(선사 전산\)/);
+      if (attempts++) return { sent: false, deduplicated: true };
+      await send();
+      return { sent: true };
+    },
+  });
+  await withEnvironment({ SMTP_HOST: "smtp.example.com", SMTP_USER: "test@example.com", SMTP_PASS: "test" }, async () => {
+    for (let i = 0; i < 2; i++) {
+      const response = createResponse();
+      await handler({ method: "POST", body: { action: "manual_fields", account_id: "account-1", bl_number: "BL-1", mail_type: "arrival", send_notification: true } }, response);
+      assert.equal(response.statusCode, 200);
+      assert.equal(response.body.email_sent, i === 0);
+    }
+  });
+  assert.equal(calls.mail.length, 1);
+  assert.equal(calls.savedPayload, null);
+});
+
 function createResponse() {
   return {
     statusCode: null,
@@ -636,7 +740,7 @@ test("customs compact entry date is used for the actual-arrival mail preview", {
   assert.equal(response.statusCode, 200);
   assert.equal(response.body.preview.subject, "[입항 확인] 현대_ONEYBNEG04898400 / 캐틀팜");
   assert.match(response.body.preview.text, /관세청 전산에서 실제 입항이 확인/);
-  assert.match(response.body.preview.text, /입항일: 2026-08-18 \(관세청 확인\)/);
+  assert.match(response.body.preview.text, /입항일: 2026-08-18 \(관세청 전산\)/);
   assert.doesNotMatch(response.body.preview.text, /입항예정일: 미입력/);
 });
 

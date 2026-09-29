@@ -253,6 +253,7 @@
     .progress-table td.progress-date { text-align:center; }
     .progress-edit-btn:hover { background:#edf4f8; text-decoration:underline; }
     .progress-field-confirmed { border:1px solid #dc2626; background:#fff1f2; box-shadow:inset 0 0 0 1px rgba(220,38,38,.08); color:#991b1b; }
+    .progress-field-carrier { border:1px solid #2563eb; background:#eff6ff; box-shadow:none; color:#1d4ed8; font-weight:700; }
     .progress-edit-btn.progress-shipper-input { background:#eaf4ff; box-shadow:inset 2px 0 #7fb2dd; }
     .progress-edit-btn.progress-destination-input { background:#edf8f1; box-shadow:inset 2px 0 #75b88d; }
     .progress-edit-btn.progress-admin-input { background:#f1f3f5; box-shadow:inset 2px 0 #9aa4af; }
@@ -671,7 +672,8 @@
       <h2 id="progressWarehouseModalTitle">운송/반입예정정보</h2>
       <div id="progressWarehouseModalCard" class="modal-card"></div>
       <div id="progressWarehouseEtaGroup" class="modal-field">
-        <label for="progressWarehouseEta">입항예정일</label>
+        <label id="progressWarehouseEtaLabel" for="progressWarehouseEta">입항예정일</label>
+        <div id="progressCustomsArrival" class="field-hint"></div>
         <input id="progressWarehouseEta" type="date">
       </div>
       <div id="progressFreeTimeExpiryGroup" class="modal-field">
@@ -1321,7 +1323,8 @@
       return `${y}-${m}-${d}`;
     }
     function freeTimeBaseDate(card, values) {
-      return calendarDate(card.entry_date)
+      return calendarDate(card.carrier_arrival_date)
+        || calendarDate(card.entry_date)
         || values.eta_date
         || manualValue(card, "first_arrival_date")
         || "";
@@ -1363,7 +1366,7 @@
       const freeTimeText = freeTimeDisplay(card, values);
       const pills = [
         values.delivery_terms ? `<span class="manual-pill">인도 ${esc(values.delivery_terms)}</span>` : "",
-        values.eta_date ? `<span class="manual-pill">입항예정 ${esc(values.eta_date)}</span>` : "",
+        etaText(card) !== "-" ? `<span class="manual-pill${progressConfirmedClass(card, "eta_date")}" title="${esc(etaDisplayTitle(card))}">입항 ${esc(etaDisplayText(card))}</span>` : "",
         values.storage_yard ? `<span class="manual-pill">장치장 ${esc(values.storage_yard)}</span>` : "",
         freeTimeText ? `<span class="manual-pill">프리타임 ${esc(freeTimeText)}</span>` : "",
         values.warehouse_expected_date ? `<span class="manual-pill">입고(예정)일 ${esc(values.warehouse_expected_date)}</span>` : "",
@@ -1377,7 +1380,7 @@
           <div class="manual-summary">${pills || '<span class="manual-empty">수기 입력 없음</span>'}</div>
           ${open ? `<div class="manual-edit">
             <label>인도조건<input id="manualDelivery-${esc(bl)}" value="${esc(values.delivery_terms)}" placeholder="예: CIF, FOB"></label>
-            <label>입항예정일<input id="manualEta-${esc(bl)}" type="date" value="${esc(values.eta_date)}"></label>
+            <label>${calendarDate(card.entry_date) ? "입항일 (선사 전산)" : "입항예정일"}<input id="manualEta-${esc(bl)}" type="date" value="${esc(editableEtaText(card))}" ${currentUserRole !== "admin" && calendarDate(card.entry_date) ? "readonly" : ""}></label>
             <label>장치장<input id="manualYard-${esc(bl)}" value="${esc(values.storage_yard)}" placeholder="예: 부산신항"></label>
              <label>프리타임 일수<input id="manualFree-${esc(bl)}" type="number" min="1" step="1" value="${esc(values.free_time_days)}" placeholder="기본 3"></label>
             <label>입고(예정)일<input id="manualWh-${esc(bl)}" type="date" value="${esc(values.warehouse_expected_date)}"></label>
@@ -1536,7 +1539,8 @@
       return card.product_name || "-";
     }
     function etaText(card) {
-      return calendarDate(card.entry_date)
+      return calendarDate(card.carrier_arrival_date)
+        || calendarDate(card.entry_date)
         || calendarDate(card.eta_date)
         || calendarDate(card.first_arrival_date)
         || "-";
@@ -1545,14 +1549,18 @@
       return displayDate(etaText(card));
     }
     function etaDisplayTitle(card) {
+      if (calendarDate(card.carrier_arrival_date)) {
+        return `선사 전산: ${calendarDate(card.carrier_arrival_date)}\n관세청 전산: ${calendarDate(card.entry_date) || "미조회"}`;
+      }
       return calendarDate(card.entry_date)
-        ? "관세청 실제입항일 · 자동 확정"
+        ? `관세청 전산: ${calendarDate(card.entry_date)} · 자동 확정`
         : transportProvenanceTitle(card);
     }
     function editableEtaText(card) {
-      return calendarDate(card.eta_date)
-        || calendarDate(card.first_arrival_date)
+      return calendarDate(card.carrier_arrival_date)
         || calendarDate(card.entry_date)
+        || calendarDate(card.eta_date)
+        || calendarDate(card.first_arrival_date)
         || "";
     }
     function yardText(card) {
@@ -1589,7 +1597,7 @@
           <span class="compact-main" title="${esc(card.bl_number || "-")}">${esc(card.bl_number || "-")}</span>
           <span class="compact-cell compact-dest" title="${esc(destinationWithTerm(card))}"><span class="compact-label">납품처_인도조건</span><span class="compact-value">${esc(destinationWithTerm(card))}</span></span>
           <span class="compact-cell compact-meat"><span class="compact-label">육종</span><span class="compact-value">${esc(meatType(card))}</span></span>
-          <span class="compact-cell compact-eta"><span class="compact-label">입항예정</span><span class="compact-value">${esc(etaDisplayText(card))}</span></span>
+          <span class="compact-cell compact-eta"><span class="compact-label">입항예정</span><span class="compact-value${progressConfirmedClass(card, "eta_date")}" title="${esc(etaDisplayTitle(card))}">${esc(etaDisplayText(card))}</span></span>
           <span class="compact-cell compact-yard" title="${esc(yardText(card))}"><span class="compact-label">반입장소</span><span class="compact-value">${esc(yardText(card))}</span></span>
           <span class="compact-cell compact-status" title="${esc(progressStateText(card))}"><span class="compact-label">진행상태</span><span class="compact-status-value">${esc(progressStateText(card))}</span></span>
           <span class="compact-arrow">›</span>
@@ -1834,6 +1842,7 @@
       return card?.[`${field}_confirmed`] === true;
     }
     function progressConfirmedClass(card, field) {
+      if (field === "eta_date" && calendarDate(card.carrier_arrival_date)) return " progress-field-carrier";
       return progressFieldConfirmed(card, field) ? " progress-field-confirmed" : "";
     }
     function progressConfirmAttribute(card, field) {
@@ -2600,6 +2609,11 @@
         <div class="modal-row"><b>B/L</b><span>${esc(progressWarehouseCard.bl_number || "-")}</span></div>
       `;
       document.getElementById("progressWarehouseEta").value = editableEtaText(progressWarehouseCard);
+      document.getElementById("progressWarehouseEta").readOnly = currentUserRole !== "admin" && !!calendarDate(progressWarehouseCard.entry_date);
+      document.getElementById("progressWarehouseEtaLabel").textContent = calendarDate(progressWarehouseCard.entry_date)
+        ? "입항일 (선사 전산)" : "입항예정일";
+      document.getElementById("progressCustomsArrival").textContent = calendarDate(progressWarehouseCard.entry_date)
+        ? `관세청 전산: ${calendarDate(progressWarehouseCard.entry_date)}` : "";
       document.getElementById("progressFreeTimeExpiry").value = calendarDate(freeTimeExpiryText(progressWarehouseCard));
       document.getElementById("progressFreeTimeExpiry").readOnly = progressWarehouseFocusField === "eta_date";
       document.getElementById("progressWarehouseEta").oninput = progressWarehouseFocusField === "eta_date"
@@ -2630,7 +2644,10 @@
       const confirmation_action = progressWarehouseFocusField
         ? (progressFieldConfirmed(progressWarehouseCard, progressWarehouseFocusField) ? "unconfirm" : "confirm")
         : "";
-      const confirmationButtons = currentUserRole === "admin" && progressWarehouseFocusField
+      const confirmationButtons = currentUserRole === "admin" && progressWarehouseFocusField === "eta_date" && calendarDate(progressWarehouseCard.entry_date)
+        ? (progressWarehouseCard.carrier_arrival_date
+          ? `<button class="btn gray" onclick="saveProgressWarehouseEditor(false, 'unconfirm')">관세청 전산 기준</button>` : "")
+        : currentUserRole === "admin" && progressWarehouseFocusField
         ? `
           ${confirmation_action === "unconfirm"
             ? `<button class="btn gray" onclick="saveProgressWarehouseEditor(false, 'unconfirm')">확정취소</button>`
@@ -2974,10 +2991,12 @@
         "transport_updated_by_login",
         "transport_updated_at"
       ].forEach(field => {
-        card[field] = Object.prototype.hasOwnProperty.call(saved, field)
-          ? (saved[field] ?? "")
-          : (payload[field] ?? "");
+        if (Object.prototype.hasOwnProperty.call(saved, field)) card[field] = saved[field] ?? "";
+        else if (Object.prototype.hasOwnProperty.call(payload, field)) card[field] = payload[field] ?? "";
       });
+      if (Object.prototype.hasOwnProperty.call(saved, "eta_date_confirmed")) {
+        card.carrier_arrival_date = saved.eta_date_confirmed === true ? (card.eta_date || "") : "";
+      }
       if (
         Object.prototype.hasOwnProperty.call(saved, "eta_date")
         || Object.prototype.hasOwnProperty.call(payload, "eta_date")
@@ -3003,6 +3022,9 @@
 
     async function saveManualFields(event, accountId, blNumber) {
       stopCardControlEvent(event);
+      const card = currentCards.find(item => item.account_id === accountId && item.bl_number === blNumber)
+        || currentCards.find(item => item.bl_number === blNumber);
+      if (!card) return;
       expandedCardKeys.add(cardStateKey({account_id: accountId, bl_number: blNumber}));
       manualEditOpen[blNumber] = true;
       const payload = {
@@ -3016,6 +3038,9 @@
         free_time_expiry_override: "",
         warehouse_expected_date: document.getElementById(`manualWh-${blNumber}`)?.value || "",
       };
+      if (payload.eta_date === editableEtaText(card) || (currentUserRole !== "admin" && calendarDate(card.entry_date))) {
+        delete payload.eta_date;
+      }
       const response = await fetch("/api/cargo-quota", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -3026,9 +3051,6 @@
         alert(result.message || "운송정보 저장에 실패했습니다.");
         return;
       }
-      const card = currentCards.find(item => item.account_id === accountId && item.bl_number === blNumber)
-        || currentCards.find(item => item.bl_number === blNumber);
-      if (!card) return;
       applyManualFieldsToCard(card, payload, result.input);
       renderCardInPlace(card);
     }

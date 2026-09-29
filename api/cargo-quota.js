@@ -26,7 +26,9 @@ const CONFIRMABLE_FIELDS = {
 
 function isValidDate(value) {
   if (!value) return true;
-  return /^\d{4}-\d{2}-\d{2}$/.test(value);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
 }
 
 function normalizeCargoDate(value) {
@@ -100,11 +102,15 @@ async function linkedCardTargets(card) {
 
 function effectiveTransportValues(input, card) {
   const customsArrivalDate = normalizeCargoDate(card?.entry_date);
+  const carrierArrivalDate = input?.eta_date_confirmed === true
+    ? normalizeCargoDate(input?.eta_date) : "";
   return {
     delivery_terms: String(input?.delivery_terms || card?.delivery_terms || "").trim(),
-    eta_date: customsArrivalDate
+    carrier_arrival_date: carrierArrivalDate,
+    customs_arrival_date: customsArrivalDate,
+    eta_date: carrierArrivalDate || customsArrivalDate
       || normalizeCargoDate(input?.eta_date)
-      || normalizeCargoDate(card?.eta_date)
+      || (Object.prototype.hasOwnProperty.call(input || {}, "eta_date") ? "" : normalizeCargoDate(card?.eta_date))
       || normalizeCargoDate(card?.first_arrival_date),
     arrival_confirmed_by_customs: !!customsArrivalDate,
     storage_yard: effectiveStorageYard(
@@ -113,13 +119,33 @@ function effectiveTransportValues(input, card) {
     ),
     free_time_days: Number.parseInt(input?.free_time_days ?? card?.free_time_days, 10) || 3,
     free_time_expiry_date: String(
-      input?.free_time_expiry_date || card?.free_time_expiry_date || ""
+      Object.prototype.hasOwnProperty.call(input || {}, "free_time_expiry_date")
+        ? (input.free_time_expiry_date || "") : (card?.free_time_expiry_date || "")
     ).trim(),
     free_time_expiry_override: String(
       input?.free_time_expiry_override || card?.free_time_expiry_override || ""
     ).trim(),
     warehouse_expected_date: String(input?.warehouse_expected_date || card?.warehouse_expected_date || "").trim(),
   };
+}
+
+// Keep preview and save identical, without replacing the Customs source date.
+function applyArrivalEdit(input, body, card, isAdmin) {
+  const next = { ...input };
+  const editingEta = Object.prototype.hasOwnProperty.call(body, "eta_date");
+  const confirmingEta = body.confirm_field === "eta_date";
+  if (editingEta) next.eta_date_confirmed = false;
+  if (isAdmin && editingEta && normalizeCargoDate(card?.entry_date)) {
+    next.eta_date_confirmed = !!String(next.eta_date || "").trim();
+  }
+  if (isAdmin && confirmingEta) {
+    next.eta_date_confirmed = body.confirmation_action === "confirm";
+  }
+  if (editingEta || confirmingEta) {
+    next.free_time_expiry_date = null;
+    next.free_time_expiry_override = null;
+  }
+  return next;
 }
 
 function effectiveWarehouseValues(input, card) {
@@ -175,6 +201,23 @@ async function prepareWarehouseChangeMail(
   return { recipients, mail };
 }
 
+function transportMailPayload(previous, next, recipients, mail) {
+  const normalize = (values) => {
+    const result = { ...values };
+    // Source metadata must not change historical dedupe keys for unchanged legacy mail.
+    if (!previous.carrier_arrival_date && !next.carrier_arrival_date) {
+      delete result.carrier_arrival_date;
+      delete result.customs_arrival_date;
+    }
+    return result;
+  };
+  const text = !previous.carrier_arrival_date && !next.carrier_arrival_date
+    ? mail.text.replace(/^(입항일: \d{4}-\d{2}-\d{2}) \(관세청 전산\)$/gm, "$1 (관세청 확인)")
+    : mail.text;
+  // Carrier notices show the effective schedule, so save+send and send-after-save share a key.
+  return { previous: normalize(next.carrier_arrival_date ? next : previous), next: normalize(next), recipients, subject: mail.subject, text };
+}
+
 async function sendWarehouseChangeMail(
   card,
   session,
@@ -208,7 +251,7 @@ async function sendWarehouseChangeMail(
     mailType: "warehouse_change",
     accountId: card.account_id,
     blNumber: card.bl_number,
-    businessPayload: { previous, next, recipients, subject: mail.subject, text: mail.text },
+    businessPayload: transportMailPayload(previous, next, recipients, mail),
     cardSnapshot: card,
     send: () => transporter.sendMail({
       from: process.env.MAIL_FROM || user,
@@ -274,7 +317,7 @@ async function sendArrivalScheduleChangeMail(
     mailType: "arrival_schedule_change",
     accountId: card.account_id,
     blNumber: card.bl_number,
-    businessPayload: { previous, next, recipients, subject: mail.subject, text: mail.text },
+    businessPayload: transportMailPayload(previous, next, recipients, mail),
     cardSnapshot: card,
     send: () => transporter.sendMail({
       from: process.env.MAIL_FROM || user,
@@ -545,8 +588,14 @@ module.exports = async function handler(req, res) {
 
     if (action === "preview_transport_mail") {
       const previousInput = await findManualInput(targetAccountId, blNumber);
+      if (!isAdmin && Object.prototype.hasOwnProperty.call(body, "eta_date") && normalizeCargoDate(card.entry_date)) {
+        return res.status(403).json({ success: false, message: "관세청 입항일 이후의 선사 일정 수정은 관리자만 가능합니다." });
+      }
+      if (Object.prototype.hasOwnProperty.call(body, "eta_date") && !isValidDate(String(body.eta_date || "").trim())) {
+        return res.status(400).json({ success: false, message: "날짜 형식이 올바르지 않습니다." });
+      }
       const merged = mergeManualFields(previousInput, body);
-      const nextInput = { ...previousInput, ...merged };
+      const nextInput = applyArrivalEdit({ ...previousInput, ...merged }, body, card, isAdmin);
       const recipientOverride = (
         Object.prototype.hasOwnProperty.call(body, "notification_to")
         || Object.prototype.hasOwnProperty.call(body, "notification_cc")
@@ -584,6 +633,9 @@ module.exports = async function handler(req, res) {
 
     if (action === "manual_fields") {
       const previousInput = await findManualInput(targetAccountId, blNumber);
+      if (!isAdmin && Object.prototype.hasOwnProperty.call(body, "eta_date") && normalizeCargoDate(card.entry_date)) {
+        return res.status(403).json({ success: false, message: "관세청 입항일 이후의 선사 일정 수정은 관리자만 가능합니다." });
+      }
       const sendNotification = body.send_notification === true;
       const requestedMailType = String(body.mail_type || "").trim();
       const canSendWithoutSave = sendNotification
@@ -663,12 +715,13 @@ module.exports = async function handler(req, res) {
       if (!hasTransportFieldsToSave && !canSendWithoutSave) {
         return res.status(400).json({ success: false, message: "저장할 운송정보가 없습니다." });
       }
+      Object.assign(nextPayload, applyArrivalEdit(nextPayload, body, card, isAdmin));
       const nextInput = { ...previousInput, ...nextPayload };
       const nextTransport = effectiveTransportValues(nextInput, card);
       const nextWarehouse = effectiveWarehouseValues(nextInput, card);
       const nextEta = nextTransport.eta_date;
-      const etaChanged = Object.prototype.hasOwnProperty.call(body, "eta_date")
-        && previousEta !== nextEta;
+      const etaChanged = (Object.prototype.hasOwnProperty.call(body, "eta_date") || confirmField === "eta_date")
+        && (previousEta !== nextEta || previousTransport.carrier_arrival_date !== nextTransport.carrier_arrival_date);
       const warehouseChangedFields = warehouseChanges(previousWarehouse, nextWarehouse);
       const changedFields = [
         ...(etaChanged ? ["eta_date"] : []),

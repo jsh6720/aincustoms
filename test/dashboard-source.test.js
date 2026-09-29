@@ -146,11 +146,11 @@ test("Customs arrival uses compact text and a source tooltip while manual ETA re
   );
   assert.equal(
     vm.runInContext("etaDisplayTitle(__testCards[0])", context),
-    "\uAD00\uC138\uCCAD \uC2E4\uC81C\uC785\uD56D\uC77C \u00B7 \uC790\uB3D9 \uD655\uC815"
+    "관세청 전산: 2026-08-01 · 자동 확정"
   );
   assert.equal(
     vm.runInContext("editableEtaText(__testCards[0])", context),
-    "2026-07-31"
+    "2026-08-01"
   );
   assert.equal(
     vm.runInContext("progressFieldConfirmed(__testCards[0], 'eta_date')", context),
@@ -164,7 +164,7 @@ test("Customs arrival uses compact text and a source tooltip while manual ETA re
       });
       editableEtaText(__testCards[0]);
     `, context),
-    "2026-07-30"
+    "2026-08-01"
   );
   assert.equal(vm.runInContext("etaText(__testCards[0])", context), "2026-08-01");
   assert.equal(context.__testCards[0].entry_date, "20260801");
