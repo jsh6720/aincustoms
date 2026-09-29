@@ -64,7 +64,7 @@ export function listTasks(doc) {
     const taskId = key.slice(0, -6);
     try {
       id(taskId);
-      tasks.push({ id: taskId, title: label(target.get(key), 200), details: label(target.get(`${taskId}:details`) || '', 2000, false), assignee: target.get(`${taskId}:assignee`) || '', schedule: schedule(target.get(`${taskId}:schedule`)), archived: target.get(`${taskId}:archived`) === true, createdAt: target.get(`${taskId}:createdAt`) || '' });
+      tasks.push({ id: taskId, title: label(target.get(key), 200), details: label(target.get(`${taskId}:details`) || '', 2000, false), dueDate: validDate(target.get(`${taskId}:dueDate`)) ? target.get(`${taskId}:dueDate`) : '', assignee: target.get(`${taskId}:assignee`) || '', schedule: schedule(target.get(`${taskId}:schedule`)), archived: target.get(`${taskId}:archived`) === true, createdAt: target.get(`${taskId}:createdAt`) || '' });
     } catch { /* Ignore malformed metadata without altering the underlying data. */ }
   }
   return tasks.sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id));
@@ -74,6 +74,10 @@ function cleanPatch(doc, patch) {
   if (Object.hasOwn(patch, 'title')) result.title = label(patch.title, 200);
   if (Object.hasOwn(patch, 'details')) result.details = label(patch.details, 2000, false);
   if (Object.hasOwn(patch, 'schedule')) result.schedule = schedule(patch.schedule);
+  if (Object.hasOwn(patch, 'dueDate')) {
+    if (patch.dueDate !== '' && !validDate(patch.dueDate)) throw new Error('업무 기한 날짜를 확인해 주세요.');
+    result.dueDate = patch.dueDate;
+  }
   if (Object.hasOwn(patch, 'assignee')) {
     if (patch.assignee !== '' && !listPeople(doc).some(person => person.id === patch.assignee)) throw new Error('등록된 담당자를 선택해 주세요.');
     result.assignee = patch.assignee;
@@ -83,7 +87,8 @@ function cleanPatch(doc, patch) {
 }
 export function createTask(doc, fields, taskId = crypto.randomUUID()) {
   id(taskId);
-  const patch = cleanPatch(doc, { title: fields.title, details: fields.details || '', assignee: fields.assignee || '', schedule: fields.schedule, archived: false });
+  const patch = cleanPatch(doc, { title: fields.title, details: fields.details || '', dueDate: fields.dueDate || '', assignee: fields.assignee || '', schedule: fields.schedule, archived: false });
+  if (patch.dueDate && patch.dueDate < patch.schedule.start) throw new Error('업무 기한은 시작일 이후로 입력해 주세요.');
   const tasks = listTasks(doc);
   if (tasks.length >= 2000) throw new Error('업무는 최대 2,000개까지 등록할 수 있습니다.');
   const target = map(doc, 'companyTasks', true);
@@ -95,6 +100,8 @@ export function updateTask(doc, taskId, fields) {
   id(taskId);
   if (!listTasks(doc).some(task => task.id === taskId)) throw new Error('업무를 찾을 수 없습니다.');
   const patch = cleanPatch(doc, fields), target = map(doc, 'companyTasks', true);
+  const current = listTasks(doc).find(task => task.id === taskId), next = { ...current, ...patch };
+  if (next.dueDate && next.dueDate < next.schedule.start) throw new Error('업무 기한은 시작일 이후로 입력해 주세요.');
   doc.transact(() => { for (const [key, value] of Object.entries(patch)) target.set(`${taskId}:${key}`, value); }, 'company-task');
 }
 export function assignTask(doc, taskId, assignee) {
@@ -115,12 +122,17 @@ export function completeTask(doc, taskId, date, done, author = '') {
   // One stable date key: simultaneous completions cannot create duplicate successors.
   map(doc, 'taskCompletions', true).set(`${taskId}|${date}`, { done, at: new Date().toISOString(), by: label(author, 40, false) });
 }
+export function occurrenceDueDate(task, date) {
+  if (!task.dueDate) return '';
+  const shifted = new Date(Date.parse(task.dueDate) + Date.parse(date) - Date.parse(task.schedule.start)).toISOString().slice(0, 10);
+  return validDate(shifted) ? shifted : '';
+}
 export function taskRows(doc, { date = '', assignee = '*', status = 'pending' } = {}) {
   const done = completions(doc), doneMap = new Map(done.map(item => [`${item.taskId}|${item.date}`, item]));
   const rows = [];
   for (const task of listTasks(doc)) {
     if ((status === 'archived') !== task.archived || (assignee !== '*' && task.assignee !== assignee)) continue;
-    const add = date => { const completed = doneMap.get(`${task.id}|${date}`); rows.push({ ...task, date, completed: completed || null }); };
+    const add = date => { const completed = doneMap.get(`${task.id}|${date}`); rows.push({ ...task, date, deadline: occurrenceDueDate(task, date), completed: completed || null }); };
     if (status === 'archived') { add(task.schedule.start); continue; }
     if (date) {
       if (isOccurrence(task.schedule, date) || doneMap.has(`${task.id}|${date}`)) {

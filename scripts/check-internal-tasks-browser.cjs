@@ -43,7 +43,17 @@ const errors = [], requests = []; let expire = false, rejectAppend = false;
     async function create(title, date, repeat, assignee = '김아인') {
       await a.locator('#task-new').click(); await a.locator('#task-title').fill(title); await a.locator('#task-details').fill('업무 상세 및 전달 사항'); await a.locator('#task-start').fill(date); await a.locator('#task-repeat').selectOption(repeat); await a.locator('#task-assignee').selectOption({ label: assignee }); await a.locator('#task-save').click(); await a.locator('#task-dialog').waitFor({ state: 'hidden' }); await saved(a);
     }
+    await a.locator('#task-search').fill('일치하지 않는 검색어');
+    await a.locator('#task-filter-date').fill('2025-01-01');
+    await a.locator('#task-filter-person').selectOption({ label: '이담당' });
+    await a.locator('#task-filter-status').selectOption('archived');
     await create('월말 정산', '2026-01-31', 'monthly');
+    assert.equal(await a.locator('.task-card').count(), 1);
+    assert.equal(await a.locator('#task-search').inputValue(), '');
+    await a.locator('.task-card').getByRole('button', { name: '수정', exact: true }).click();
+    await a.locator('#task-due').fill('2026-02-02'); await a.locator('#task-save').click(); await saved(a);
+    assert.match(await a.locator('.task-card .task-deadline').textContent(), /2026-02-02/);
+    assert.match(await a.locator('.task-assignee-preview').first().textContent(), /업무 상세 및 전달 사항/);
     await create('15일 보고', '2026-09-28', 'fortnight', '이담당');
     await create('매일 확인', '2026-09-28', 'daily');
     await create('<img src=x onerror=alert(1)> 일회 업무', '2026-09-28', 'none');

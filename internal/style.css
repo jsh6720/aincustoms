@@ -246,6 +246,13 @@ a{color:#376b55}
 .tasks-board-layout .task-card-actions{grid-column:2;margin-left:0}
 #task-assignment-status{font-size:12px;line-height:1.7;overflow-wrap:anywhere;color:#315747}
 .task-assignment-feedback{min-height:100px}
+.task-assignee-group{min-width:0;border:1px solid #dce6d6;border-radius:10px;background:#fff;overflow:hidden}
+.task-assignee-group .task-assignee-block{border-radius:9px 9px 0 0}
+.task-assignee-previews{display:grid;gap:8px;padding:10px}
+.task-assignee-preview{display:grid;gap:6px;width:100%;min-width:0;text-align:left;border:1px solid #e2e8dc;border-radius:6px;background:#f8faf5;padding:10px;overflow-wrap:anywhere}
+.task-assignee-preview strong{font-size:13px}.task-preview-due{font-size:11px;color:#315747}
+.task-preview-details{font-size:12px;color:#687960;white-space:pre-wrap;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.task-card.is-revealed{border-color:#548657;box-shadow:0 0 0 2px #75a66a33}
 @media(min-width:761px) and (max-width:1100px){.tasks-board-layout{grid-template-columns:1fr}.task-assignment-board{position:static;max-height:none}#task-assignee-blocks{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:760px){.tasks-board-layout{display:block}.task-assignment-board,.task-assign-button{display:none}.task-card[draggable=true]{cursor:auto}.tasks-board-layout .task-card{grid-template-columns:44px minmax(0,1fr)}}
 @media print{.task-assignment-board,.task-assign-button{display:none!important}.tasks-board-layout{display:block}}

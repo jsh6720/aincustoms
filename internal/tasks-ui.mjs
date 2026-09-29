@@ -5,6 +5,7 @@ export function initTasks({ getDoc, requireEditable, author, onView }) {
   const node = (tag, text, className = '') => { const e = document.createElement(tag); e.textContent = text; e.className = className; return e; };
   let enabled = false, visible = false, original = null, signature = '';
   let dragging = '', assigning = '';
+  let revealed = '';
   const sidebarButton = node('button', '☑ 회사 할 일', 'button tasks-nav-button');
   sidebarButton.id = 'tasks-page-button'; sidebarButton.type = 'button';
   document.querySelector('.notes-heading').before(sidebarButton);
@@ -35,10 +36,12 @@ export function initTasks({ getDoc, requireEditable, author, onView }) {
   dialog.setAttribute('aria-labelledby', 'task-dialog-heading');
   dialog.innerHTML = `<form id="task-form"><span class="eyebrow">TEAM TASKS</span><h2 id="task-dialog-heading">할 일 추가</h2>
     <label for="task-title">할 일 <span>필수 · 최대 200자</span></label><input id="task-title" required maxlength="200" autocomplete="off">
-    <label for="task-details">업무 내용</label><textarea id="task-details" maxlength="2000" rows="3"></textarea>
+    <label for="task-details">업무 내용 <span>목록과 담당자 블록에 표시</span></label><textarea id="task-details" maxlength="2000" rows="4" placeholder="진행할 내용, 전달 사항, 확인할 자료 등을 입력하세요."></textarea>
     <label for="task-assignee">담당자</label><select id="task-assignee"><option value="">미배정</option></select>
     <div class="task-date-grid"><div><label for="task-start">업무일 / 반복 시작일</label><input id="task-start" type="date" required min="2000-01-01" max="2100-12-31"></div><div><label for="task-repeat">반복 주기</label><select id="task-repeat"><option value="none">반복 없음</option><option value="daily">매일</option><option value="fortnight">15일마다</option><option value="monthly">매월</option></select></div></div>
-    <label for="task-until">반복 종료일 <span>선택 · 해당 일자 포함</span></label><input id="task-until" type="date" min="2000-01-01" max="2100-12-31">
+    <label for="task-due">업무 기한 <span>선택 · 완료해야 하는 날짜</span></label><input id="task-due" type="date" min="2000-01-01" max="2100-12-31">
+    <p class="tasks-help">반복 업무는 첫 업무의 기한을 입력하세요. 다음 업무에도 시작일부터 기한까지의 일수가 동일하게 적용됩니다. 기한을 비우면 ‘기한 미설정’으로 표시합니다.</p>
+    <label for="task-until">반복 종료일 <span>기한과 별개 · 선택</span></label><input id="task-until" type="date" min="2000-01-01" max="2100-12-31">
     <p class="tasks-help">매일은 주말 포함, 15일마다는 시작일부터 15일 간격입니다. 매월은 시작일과 같은 날짜이며 없는 날짜는 말일로 표시합니다. 일정·담당자 수정은 이 업무 전체에 적용되며 기존 완료 일자는 유지됩니다.</p>
     <p id="task-form-error" class="field-error" role="alert" hidden></p><div class="note-dialog-actions"><button id="task-cancel" class="button" type="button">취소</button><button id="task-save" class="button button-primary" type="submit">저장</button></div></form>`;
   document.body.append(dialog);
@@ -72,6 +75,15 @@ export function initTasks({ getDoc, requireEditable, author, onView }) {
   $('task-today').onclick = () => { $('task-filter-date').value = todaySeoul(); $('task-filter-status').value = 'all'; limit = 100; render(); };
   $('task-reset').onclick = () => { $('task-filter-date').value = ''; $('task-filter-person').value = '*'; $('task-filter-status').value = 'pending'; $('task-search').value = ''; limit = 100; render(); };
   $('tasks-more').onclick = () => { limit += 100; render(); };
+  function revealTask(taskId, assignee = '*') {
+    $('task-search').value = ''; $('task-filter-date').value = ''; $('task-filter-person').value = assignee;
+    $('task-filter-status').value = taskRows(getDoc()).some(row => row.id === taskId) ? 'pending' : 'all';
+    const rows = taskRows(getDoc(), filters());
+    limit = Math.max(100, rows.findIndex(row => row.id === taskId) + 1);
+    revealed = taskId; signature = ''; render();
+    const card = [...$('tasks-list').children].find(card => card.dataset.taskId === taskId);
+    if (card) { card.tabIndex = -1; card.focus({ preventScroll: true }); card.scrollIntoView({ block: 'center', behavior: 'auto' }); }
+  }
   function resetAssignment() {
     dragging = ''; assigning = '';
     $('task-assignment-status').textContent = ''; $('task-assignment-cancel').hidden = true;
@@ -83,19 +95,21 @@ export function initTasks({ getDoc, requireEditable, author, onView }) {
     guard(() => {
       assignTask(getDoc(), taskId, person.id);
       resetAssignment();
+      revealTask(taskId, person.id);
       $('task-assignment-status').textContent = person.name + ' 배정 반영 · 상단 저장 상태를 확인해 주세요.';
     });
   }
   function renderAssignments(people, pending) {
     const blocks = $('task-assignee-blocks'); blocks.replaceChildren();
     for (const person of [{ id: '', name: '미배정' }, ...people]) {
+      const group = node('section', '', 'task-assignee-group');
       const block = node('button', '', 'task-assignee-block'); block.type = 'button'; block.dataset.assigneeId = person.id;
-      const count = pending.filter(task => task.assignee === person.id).length;
+      const assigned = pending.filter(task => task.assignee === person.id), count = assigned.length;
       block.append(node('strong', person.name), node('span', '미완료 ' + count + '건'));
       block.setAttribute('aria-label', person.name + ' · 미완료 ' + count + '건 · 배정 또는 조회');
       block.onclick = () => {
         if (assigning) assign(assigning, person);
-        else { $('task-filter-person').value = person.id; limit = 100; render(); }
+        else { $('task-search').value = ''; $('task-filter-date').value = ''; $('task-filter-status').value = 'pending'; $('task-filter-person').value = person.id; limit = 100; render(); }
       };
       block.ondragover = event => {
         if (!enabled || !dragging) return;
@@ -107,7 +121,20 @@ export function initTasks({ getDoc, requireEditable, author, onView }) {
         if (!enabled || !dragging) return;
         const taskId = dragging; dragging = ''; assign(taskId, person);
       };
-      blocks.append(block);
+      group.append(block);
+      const previews = node('div', '', 'task-assignee-previews');
+      for (const task of assigned.slice(0, 5)) {
+        const preview = node('button', '', 'task-assignee-preview'); preview.type = 'button'; preview.dataset.taskId = task.id;
+        preview.append(node('strong', task.title), node('span', task.deadline ? '기한 ' + task.deadline : '기한 미설정', 'task-preview-due'), node('span', task.details || '업무 내용 미입력 · 수정에서 추가하세요.', 'task-preview-details'));
+        preview.onclick = () => revealTask(task.id, person.id);
+        previews.append(preview);
+      }
+      if (!count) previews.append(node('p', '배정된 미완료 업무가 없습니다.', 'tasks-help'));
+      if (count > 5) previews.append(node('p', '외 ' + (count - 5) + '건 · 담당자 이름을 눌러 전체 조회', 'tasks-help'));
+      // Dropping onto a preview also assigns to this group, never edits its content.
+      group.ondragover = block.ondragover; group.ondragleave = block.ondragleave; group.ondrop = block.ondrop;
+      block.ondragover = null; block.ondragleave = null; block.ondrop = null;
+      group.append(previews); blocks.append(group);
     }
   }
   function options(element, people, includeAll) {
@@ -127,6 +154,7 @@ export function initTasks({ getDoc, requireEditable, author, onView }) {
       $('task-dialog-heading').textContent = task ? '할 일 수정' : '할 일 추가';
       $('task-title').value = task?.title || ''; $('task-details').value = task?.details || ''; $('task-assignee').value = task?.assignee || '';
       $('task-start').value = task?.schedule.start || todaySeoul(); $('task-repeat').value = task?.schedule.repeat || 'none'; $('task-until').value = task?.schedule.until || '';
+      $('task-due').value = task?.dueDate || '';
       dialog.showModal(); $('task-title').focus();
     });
   }
@@ -135,14 +163,15 @@ export function initTasks({ getDoc, requireEditable, author, onView }) {
   $('task-cancel').onclick = closeTask; dialog.addEventListener('cancel', e => { e.preventDefault(); closeTask(); });
   $('task-form').onsubmit = event => {
     event.preventDefault(); guard(() => {
-      const fields = { title: $('task-title').value, details: $('task-details').value, assignee: $('task-assignee').value, schedule: { start: $('task-start').value, repeat: $('task-repeat').value, until: $('task-repeat').value === 'none' ? '' : $('task-until').value } };
+      const fields = { title: $('task-title').value, details: $('task-details').value, dueDate: $('task-due').value, assignee: $('task-assignee').value, schedule: { start: $('task-start').value, repeat: $('task-repeat').value, until: $('task-repeat').value === 'none' ? '' : $('task-until').value } };
+      let taskId = original?.id;
       if (original) {
         if (!listTasks(getDoc()).some(task => task.id === original.id && !task.archived)) throw new Error('다른 구성원이 이 업무를 보관했습니다. 다시 확인해 주세요.');
         // Only changed fields: do not overwrite concurrent changes in untouched fields.
         const patch = Object.fromEntries(Object.entries(fields).filter(([key, value]) => JSON.stringify(value) !== JSON.stringify(original[key])));
         updateTask(getDoc(), original.id, patch);
-      } else createTask(getDoc(), fields);
-      closeTask();
+      } else taskId = createTask(getDoc(), fields);
+      closeTask(); revealTask(taskId);
     }, 'task-form-error');
   };
   $('task-people-open').onclick = () => guard(() => { $('task-people-form').reset(); error('task-people-error'); peopleDialog.showModal(); $('task-person-name').focus(); });
@@ -168,6 +197,7 @@ export function initTasks({ getDoc, requireEditable, author, onView }) {
     const list = $('tasks-list'); list.replaceChildren();
     for (const row of rows.slice(0, limit)) {
       const card = node('article', '', 'task-card' + (row.completed ? ' is-complete' : '')); card.dataset.taskId = row.id; card.dataset.date = row.date;
+      if (row.id === revealed) card.classList.add('is-revealed');
       card.draggable = enabled && !row.archived;
       if (assigning === row.id) card.classList.add('is-assignment-selected');
       card.ondragstart = event => {
@@ -180,10 +210,11 @@ export function initTasks({ getDoc, requireEditable, author, onView }) {
       check.onchange = () => guard(() => completeTask(getDoc(), row.id, row.date, check.checked, author()));
       const body = node('div', '', 'task-card-body'); body.append(node('h2', row.title));
       const meta = node('div', '', 'task-meta'); meta.append(node('span', row.date), node('span', names.get(row.assignee) || '미배정'), node('span', REPEATS[row.schedule.repeat]));
-      if (!row.archived && !row.completed && row.date < today) meta.append(node('span', '기한 지남', 'task-overdue'));
+      meta.append(node('span', row.deadline ? '업무 기한 ' + row.deadline : '기한 미설정', 'task-deadline'));
+      if (!row.archived && !row.completed && row.deadline && row.deadline < today) meta.append(node('span', '기한 지남', 'task-overdue'));
       if (row.schedule.until) meta.append(node('span', row.schedule.until + '까지'));
       body.append(meta);
-      if (row.details) body.append(node('p', row.details, 'task-description'));
+      body.append(node('p', row.details || '업무 내용 미입력 · 수정에서 내용을 추가하세요.', 'task-description'));
       if (row.completed) body.append(node('p', `완료 ${row.completed.at ? new Date(row.completed.at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }) : ''}${row.completed.by ? ' · ' + row.completed.by : ''}`, 'tasks-help'));
       const actions = node('div', '', 'task-card-actions');
       if (!row.archived) {
@@ -210,7 +241,7 @@ export function initTasks({ getDoc, requireEditable, author, onView }) {
   }
   function clear() {
     panel.classList.remove('is-filters-open'); $('task-filters-toggle').setAttribute('aria-expanded', 'false');
-    closeTask(); closePeople(); show(false); signature = '';
+    closeTask(); closePeople(); show(false); signature = ''; revealed = '';
     $('tasks-list').replaceChildren(); $('task-assignee-blocks').replaceChildren(); $('task-people-list').replaceChildren(); $('task-people-list').removeAttribute('data-key');
     for (const id of ['task-filter-person', 'task-assignee']) { $(id).removeAttribute('data-people'); options($(id), [], id === 'task-filter-person'); }
     $('task-search').value = ''; $('task-filter-date').value = ''; $('task-filter-status').value = 'pending'; $('tasks-summary').textContent = ''; error('tasks-error');

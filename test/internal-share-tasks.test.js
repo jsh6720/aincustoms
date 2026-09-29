@@ -4,6 +4,22 @@ const Y = require('yjs');
 const model = import('../internal/tasks.mjs');
 const ID = '11111111-1111-4111-8111-111111111111';
 const PID = '22222222-2222-4222-8222-222222222222';
+test('optional deadlines survive reload, validate atomically, and move with repeating occurrences', async () => {
+  const m = await model, doc = new Y.Doc();
+  m.createTask(doc, { title: '기한 업무', details: '보존 내용', schedule: { start: '2026-01-31', repeat: 'monthly' }, dueDate: '2026-02-02' }, ID);
+  assert.equal(m.taskRows(doc)[0].deadline, '2026-02-02');
+  m.completeTask(doc, ID, '2026-01-31', true);
+  assert.equal(m.taskRows(doc)[0].deadline, '2026-03-02');
+  const copy = new Y.Doc(); Y.applyUpdate(copy, Y.encodeStateAsUpdate(doc));
+  assert.equal(m.listTasks(copy)[0].dueDate, '2026-02-02');
+  const before = m.exportTasks(doc);
+  assert.throws(() => m.updateTask(doc, ID, { title: '잘못된 변경', dueDate: '2026-01-30' }), /기한/);
+  assert.throws(() => m.updateTask(doc, ID, { dueDate: '2026-02-30' }), /기한/);
+  assert.deepEqual(m.exportTasks(doc), before);
+  m.updateTask(doc, ID, { dueDate: '' }); assert.equal(m.taskRows(doc)[0].deadline, '');
+  doc.getMap('companyTasks').delete(ID + ':dueDate');
+  assert.equal(m.listTasks(doc).length, 1); assert.equal(m.listTasks(doc)[0].details, '보존 내용');
+});
 const task = (start, repeat = 'none', until = '') => ({ title: '요건 확인', schedule: { start, repeat, until } });
 test('empty task reads do not mutate or register roots in legacy note', async () => {
   const m = await model, doc = new Y.Doc(); doc.getText('body').insert(0, '기존 노트');

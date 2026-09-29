@@ -5,12 +5,12 @@
     {
       "source": "internal/tasks.mjs",
       "target": "website_integration/vercel_package/internal/tasks.mjs",
-      "sha256": "d8b0e66a7f8b5f811694587d8e98a69e0610fedfdee93dbc98cbe7f7ed664fb1"
+      "sha256": "e9bf2ddd12b9ea6f5f0ad2aef59ca47e1888cfe374a721c6b444fbd95c0620ab"
     },
     {
       "source": "internal/tasks-ui.mjs",
       "target": "website_integration/vercel_package/internal/tasks-ui.mjs",
-      "sha256": "13cddd4cb19aa253cbfb35e2beec3891c62d17bd3b3973fadc449879ecb45966"
+      "sha256": "8a25708235ee251319a195e3c511e99c88c8bab869889e0d02490999de8ca987"
     },
     {
       "source": "cargo-dashboard.html",
@@ -285,7 +285,7 @@
     {
       "source": "internal/style.css",
       "target": "website_integration/vercel_package/internal/style.css",
-      "sha256": "dab00f8cdc2d81c44ad0fd50429612aea9cb5768924295ab5de521b219c2a7ae"
+      "sha256": "b9b19f42bf2385dce26a06f84071a29c18a3793252c4c2502104fd85011b757a"
     },
     {
       "source": "internal/ui.js",
@@ -355,7 +355,7 @@
     {
       "source": "internal/app.js",
       "target": "website_integration/vercel_package/internal/app.js",
-      "sha256": "7df91887349a1c440c2273570e5f216c14e787ad105c93c7bff779f234d9cb60"
+      "sha256": "32ecef6daddf5f283ab8d2fa300b9f24cfa5cdc101f2bfa96904c2b14317ed7e"
     },
     {
       "source": "lib/internal-share-server.js",
