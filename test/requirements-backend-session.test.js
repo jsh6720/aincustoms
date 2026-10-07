@@ -6,6 +6,16 @@ const vm = require('node:vm');
 const crypto = require('node:crypto');
 const source = fs.readFileSync(path.join(__dirname, '../requirements/apps-script/Code.gs'), 'utf8');
 const NOW = 1780000000000;
+
+test('ContentService redirect back to exec without POST body is transport failure, not rejected session', () => {
+  const {context}=harness();
+  const bounced=context.doGet({parameter:{_ainRequest:'synthetic-request-id'}});
+  assert.equal(bounced.success,false);
+  assert.equal(bounced.error_code,'REQUEST_INCOMPLETE');
+  assert.equal('data' in bounced,false);
+  const unauthorized=context.doPost({postData:{contents:JSON.stringify({action:'getData',tableName:'chemical_confirmation'})}});
+  assert.equal(unauthorized.error_code,'UNAUTHORIZED','missing token on a complete request still grants no access');
+});
 function harness() {
   const context = {
     Date: {now: () => NOW + 1},

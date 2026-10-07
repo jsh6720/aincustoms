@@ -59,6 +59,7 @@ function mapApiErrorCodeToStatus(errorCode) {
         STALE_REFRESH: 409,
         FORBIDDEN: 403,
         NOT_FOUND: 404,
+        REQUEST_INCOMPLETE: 503,
         SERVICE_UNAVAILABLE: 503
     }[errorCode] || 400;
 }
@@ -235,7 +236,8 @@ async function callApi(action, params = {}, { anonymous = false, sessionToken, d
 }
 
 function isRetryableReadFailure(result) {
-    return result?.error_code === 'INTERNAL_ERROR' ||
+    return result?.error_code === 'REQUEST_INCOMPLETE' ||
+        result?.error_code === 'INTERNAL_ERROR' ||
         result?.error_code === 'NETWORK_ERROR' ||
         result?.error_code === 'UPSTREAM_ERROR' ||
         result?.status === 429 ||

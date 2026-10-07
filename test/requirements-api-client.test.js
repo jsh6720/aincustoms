@@ -160,6 +160,27 @@ test("invalid successful JSON never becomes a cached empty table", async () => {
   assert.equal(calls.length, 3);
 });
 
+test('bodyless redirect response retries original authenticated read without logout', async () => {
+  const {context,calls,storage,events}=harness([
+    {success:false,error_code:'REQUEST_INCOMPLETE'},
+    {success:true,data:[{spec_no:'STD72110-01'}]}
+  ]);
+  const result=await context.API.getData('chemical_confirmation');
+  assert.equal(result.data?.[0]?.spec_no,'STD72110-01');
+  assert.equal(calls.length,2);
+  assert.ok(calls.every(call=>call.body.token==='signed-token'&&call.body.action==='getData'&&call.body.tableName==='chemical_confirmation'));
+  assert.equal(storage.has('ainRequirementsSession'),true);
+  assert.equal(events.length,0);
+});
+
+test('bodyless redirect on a write never duplicates a write or clears login', async () => {
+  const {context,calls,storage}=harness({success:false,error_code:'REQUEST_INCOMPLETE'});
+  const result=await context.API.addData('chemical_confirmation',{spec_no:'synthetic'});
+  assert.equal(result.success,false);
+  assert.equal(calls.length,1);
+  assert.equal(storage.has('ainRequirementsSession'),true);
+});
+
 test("requests use the runtime-configured Apps Script endpoint", async () => {
   const { context, calls } = harness({ success: true, data: [] });
   await context.API.getData("msds");

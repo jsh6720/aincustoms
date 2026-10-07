@@ -29,7 +29,15 @@
 - Google 로그인 완료 후 수정본 저장을 별도 편집기 탭에서 다시 읽어 검증했다. 저장본 SHA-256은 0f2434a9984d3ab9e3c970612d7da773a07ad2da273507c06f78ac44eaae36b4로 로컬 수정본과 일치한다. 기존 활성 배포 ID와 버전 7을 확인했으며, 서명키/계정/DB/배포 권한은 변경하지 않았다.
 - 2026-10-07 18:03 KST 동일한 Apps Script 배포 ID를 버전 8로 업데이트했다. 배포 관리의 완료 문구/버전/ID로 확인했다. 버전 7로 롤백 가능하다. 프런트 배포 및 화학물질·MSDS 대량 읽기, 실제 STD72110-01/72110 검색·세션 유지 검증이 남아 있다.
 
-## 스킬
+## 후속 재현과 확정 원인
+
+- 프런트 275ccdb / Apps Script 버전 8 반영 후에도 화학물질 조회에서 재발했다. 앞의 광범위 catch 수정과 캐시 배제만으로 해결됐다고 판단하지 않는다.
+- 실제 브라우저 요청 이력에서 인증된 POST getData → ContentService echo GET → 원래 /exec로 본문 없는 GET 재전달 → UNAUTHORIZED 응답을 확인했다. 재전달 GET에는 action/token/body가 모두 없었다. 정상 요청의 인증 정보 유실을 잘못된 인증으로 분류한 것이 로그아웃의 직접 원인이다. Google 전달 주소가 다시 /exec로 돌아오는 플랫폼 내부 이유까지 확정한 것은 아니다.
+- action 없는 요청은 데이터 없이 REQUEST_INCOMPLETE를 반환하고, 클라이언트는 읽기에 한해 원래 인증된 요청을 기존 횟수/시간 제한 내에서 재시도한다. 완전한 getData 요청의 토큰 누락·만료·변조는 계속 차단하며 쓰기는 자동 재시도하지 않는다.
+- 2개 실패 시험을 먼저 확인하고 수정 후 전체 790개 시험 및 note 릴리스 보존 검사 통과. 별도 리뷰에서 34개 관련 시험 재실행 통과, Critical/Important 없음. 운영 성공 여부는 아래 실제 검증 결과로 별도 판단한다.
+- 저장 후 다시 읽은 Apps Script 소스 SHA-256: c0dea25e356b312bc6afa3ac919cc724064c77a34649d33c57c7e4bc828220f0. 후속 수정 롤백 지점은 275ccdb / Apps Script 버전 8이다.
+
+## 적용 스킬
 
 - import-requirement-review, Obsidian 이전 지식 확인, UI/UX, Playwright 지침 적용.
 - 최초 점검 당시 지정된 Superpowers 경로와 Ponytail 설치가 없었으나, 이후 설치 목록 갱신으로 canonical 개인 스킬을 사용할 수 있게 됐다. 현재 using-superpowers, systematic-debugging, ponytail, test-driven-development, verification-before-completion, requesting-code-review 지침을 읽고 적용했다. 최소 원인 수정과 별도 코드 리뷰, 느린 정상 응답 재현 시험을 수행했다.

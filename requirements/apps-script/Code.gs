@@ -442,6 +442,11 @@ function handleRequest(e) {
   }
   try {
     var requestData = parseRequest(e);
+    // ContentService can redirect its download URL back to /exec as a bodyless GET.
+    // That is a lost request, not proof that the original signed session is invalid.
+    if (!requestData || typeof requestData.action !== "string" || !requestData.action) {
+      return createResponse({ success: false, error_code: "REQUEST_INCOMPLETE" });
+    }
     if (requestData.action === "login") {
       return createResponse(handleLogin(requestData.username, requestData.password));
     }
