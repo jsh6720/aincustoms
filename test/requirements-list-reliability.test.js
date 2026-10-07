@@ -73,6 +73,35 @@ const loaderCases = [
   ["electrical", "loadElectricalData"], ["medical", "loadMedicalData"], ["non_target", "loadNonTargetData"],
   ["review_needed", "loadReviewNeededData"],
 ];
+
+test("STD72110-01 results appear before a slow menu finishes", async () => {
+  let release;
+  const slow = new Promise(resolve => { release = resolve; });
+  const { context, elements } = harness(async url => {
+    if (url.includes('review_needed')) await slow;
+    return { ok: true, status: 200, json: async () => ({ data: url.includes('chemical_confirmation') ? [{ spec_no: 'STD 72110-01', company: 'TEST' }] : [] }) };
+  });
+  elements.get('unifiedSearch').value = 'STD72110-01';
+  const search = context.__performUnifiedSearch();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.match(elements.get('unifiedSearchResult').innerHTML, /총 1건/);
+  assert.match(elements.get('unifiedSearchResult').innerHTML, /조회 중/);
+  release();
+  await search;
+  assert.doesNotMatch(elements.get('unifiedSearchResult').innerHTML, /조회 중/);
+});
+
+for (const status of [409, 503]) {
+  test(`search ${status} ends loading with retry, never false no-results`, async () => {
+    const { context, elements } = harness(async () => ({ ok: false, status }));
+    elements.get('unifiedSearch').value = 'STD72110-01';
+    await context.__performUnifiedSearch();
+    const html = elements.get('unifiedSearchResult').innerHTML;
+    assert.doesNotMatch(html, /fa-spin|검색 결과가 없습니다/);
+    assert.match(html, /다시 조회/);
+    assert.match(html, /조회 실패/);
+  });
+}
 for (const [section, loader] of loaderCases) {
   test("selecting " + section + " retries a previously failed list load", async () => {
     const { context, menuBySection } = harness();

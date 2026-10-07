@@ -69,6 +69,7 @@ async function performUnifiedSearch() {
     const searchValue = searchInput.value.trim();
 
     if (!searchValue) {
+        clearUnifiedSearch();
         alert('규격정제 또는 인증번호를 입력해주세요.');
         return;
     }
@@ -78,27 +79,26 @@ async function performUnifiedSearch() {
     resultDiv.innerHTML = '<div class="unified-result-empty"><i class="fas fa-spinner fa-spin"></i> 검색 중... (처음 검색은 데이터 로딩으로 다소 걸릴 수 있습니다)</div>';
 
     try {
-        const results = await Promise.all([
-            searchInTable('chemical_confirmation', searchValue),
-            searchInTable('msds', searchValue),
-            searchInTable('radio_law', searchValue),
-            searchInTable('electrical_law', searchValue),
-            searchInTable('medical_device', searchValue),
-            searchInTable('non_target', searchValue),
-            searchInTable('review_needed', searchValue)
-        ]);
-        if (!isCurrentRequirementsViewRequest(viewRequest) || results.some(result => result === null)) return;
-
-        const [chemicalData, msdsData, radioData, electricalData, medicalData, nonTargetData, reviewNeededData] = results;
-        displayUnifiedSearchResult({
-            chemical: chemicalData,
-            msds: msdsData,
-            radio: radioData,
-            electrical: electricalData,
-            medical: medicalData,
-            nonTarget: nonTargetData,
-            reviewNeeded: reviewNeededData
-        }, searchValue);
+        const tables = {
+            chemical: 'chemical_confirmation', msds: 'msds', radio: 'radio_law',
+            electrical: 'electrical_law', medical: 'medical_device',
+            nonTarget: 'non_target', reviewNeeded: 'review_needed'
+        };
+        const results = Object.fromEntries(Object.keys(tables).map(key => [key, []]));
+        const states = Object.fromEntries(Object.keys(tables).map(key => [key, 'pending']));
+        const render = () => {
+            if (isCurrentRequirementsViewRequest(viewRequest)) displayUnifiedSearchResult(results, searchValue, states);
+        };
+        render();
+        await Promise.all(Object.entries(tables).map(async ([key, table]) => {
+            try {
+                results[key] = await searchInTable(table, searchValue);
+                states[key] = 'ready';
+            } catch (error) {
+                states[key] = 'failed';
+            }
+            render();
+        }));
     } catch (error) {
         if (!isCurrentRequirementsViewRequest(viewRequest)) return;
         console.error('통합 검색 오류');
@@ -133,11 +133,11 @@ const UNIFIED_SEARCH_FIELDS = {
 async function searchInTable(tableName, searchValue) {
     try {
         const response = await fetch(`tables/${tableName}?limit=1000`);
-        if (response.status === 409) return null;
-        if (!response.ok) return [];
+        if (!response.ok) throw new Error('TABLE_READ_FAILED');
 
         const result = await response.json();
         const data = Array.isArray(result) ? result : (result.data || []);
+        if (!Array.isArray(data)) throw new Error('INVALID_TABLE_RESPONSE');
         const searchNorm = normalizeForSearch(searchValue);
         const fields = UNIFIED_SEARCH_FIELDS[tableName] || ['spec_no'];
         return data.filter(item =>
@@ -145,25 +145,30 @@ async function searchInTable(tableName, searchValue) {
         );
     } catch (error) {
         console.error(`${tableName} 검색 오류`);
-        return [];
+        throw error;
     }
 }
 
 // 통합 검색 결과 표시
-function displayUnifiedSearchResult(results, searchValue) {
+function displayUnifiedSearchResult(results, searchValue, states = null) {
     const resultDiv = document.getElementById('unifiedSearchResult');
     resultDiv.dataset.renderedQuery = String(searchValue || '');
+    const pending = states ? Object.values(states).filter(state => state === 'pending').length : 0;
+    const failed = states ? Object.values(states).filter(state => state === 'failed').length : 0;
+    const stateKeys = { non_target: 'nonTarget', review_needed: 'reviewNeeded' };
+    const resultItem = (...args) => generateResultItem(...args, states?.[stateKeys[args[4]] || args[4]]);
+    const safeQuery = escAttr(searchValue);
 
     const totalCount = results.chemical.length + results.msds.length +
                       results.radio.length + results.electrical.length + results.medical.length +
                       (results.nonTarget ? results.nonTarget.length : 0) +
                       (results.reviewNeeded ? results.reviewNeeded.length : 0);
 
-    if (totalCount === 0) {
+    if (totalCount === 0 && !pending && !failed) {
         resultDiv.innerHTML = `
             <div class="unified-result-empty">
                 <i class="fas fa-search"></i>
-                <p>"${searchValue}"에 대한 검색 결과가 없습니다.</p>
+                <p>"${safeQuery}"에 대한 검색 결과가 없습니다.</p>
             </div>
         `;
         return;
@@ -172,13 +177,17 @@ function displayUnifiedSearchResult(results, searchValue) {
     let html = `
         <div class="unified-result-card">
             <div class="unified-result-header">
-                <i class="fas fa-list-check"></i> "${searchValue}" 검색 결과 (총 ${totalCount}건)
+                <i class="fas fa-list-check"></i> "${safeQuery}" 검색 결과 (총 ${totalCount}건)${pending || failed ? ' · 확인된 결과' : ''}
+            </div>
+            <div role="status" aria-live="polite">
+                ${pending ? `조회 완료 ${7 - pending - failed}/7 · 나머지 ${pending}개 메뉴 조회 중…` : ''}
+                ${failed ? `${failed}개 메뉴 조회 실패 — 아래 결과는 일부입니다. ${!pending ? '<button type="button" class="btn btn-primary" onclick="performUnifiedSearch()">다시 조회</button>' : ''}` : ''}
             </div>
             <div class="unified-result-grid">
     `;
 
     // 화학물질확인
-    html += generateResultItem(
+    html += resultItem(
         '화학물질확인',
         'fas fa-flask',
         results.chemical.length > 0,
@@ -190,7 +199,7 @@ function displayUnifiedSearchResult(results, searchValue) {
     );
 
     // MSDS
-    html += generateResultItem(
+    html += resultItem(
         'MSDS 등록/신고',
         'fas fa-file-medical',
         results.msds.length > 0,
@@ -202,7 +211,7 @@ function displayUnifiedSearchResult(results, searchValue) {
     );
 
     // 전파법
-    html += generateResultItem(
+    html += resultItem(
         '전파법',
         'fas fa-broadcast-tower',
         results.radio.length > 0,
@@ -215,7 +224,7 @@ function displayUnifiedSearchResult(results, searchValue) {
     );
 
     // 전안법
-    html += generateResultItem(
+    html += resultItem(
         '전안법',
         'fas fa-plug',
         results.electrical.length > 0,
@@ -230,7 +239,7 @@ function displayUnifiedSearchResult(results, searchValue) {
     );
 
     // 의료기기/원안법 등
-    html += generateResultItem(
+    html += resultItem(
         '의료기기/원안법 등',
         'fas fa-notes-medical',
         results.medical.length > 0,
@@ -245,7 +254,7 @@ function displayUnifiedSearchResult(results, searchValue) {
     );
 
     // 비대상
-    html += generateResultItem(
+    html += resultItem(
         '비대상',
         'fas fa-times-circle',
         results.nonTarget && results.nonTarget.length > 0,
@@ -261,7 +270,7 @@ function displayUnifiedSearchResult(results, searchValue) {
     );
 
     // 확인 필요 List
-    html += generateResultItem(
+    html += resultItem(
         '확인 필요 List',
         'fas fa-exclamation-triangle',
         results.reviewNeeded && results.reviewNeeded.length > 0,
@@ -328,7 +337,10 @@ function summarizeWithTitle(values) {
     return full === text ? text : `<span title="${escAttr(full)}">${text}</span>`;
 }
 
-function generateResultItem(title, icon, hasData, details, dataType) {
+function generateResultItem(title, icon, hasData, details, dataType, state) {
+    if (state === 'pending' || state === 'failed') {
+        return `<div class="result-item"><div class="result-item-header"><div class="result-item-title"><i class="${icon}" aria-hidden="true"></i> ${title}</div></div><p>${state === 'pending' ? '조회 중…' : '조회 실패 (미확인)'}</p></div>`;
+    }
     const clickableClass = hasData ? 'clickable' : '';
     const sectionAttr = hasData ? `data-section="${dataType}"` : '';
 

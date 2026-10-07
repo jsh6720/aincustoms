@@ -149,7 +149,7 @@ test("explicit database refresh clears cache before reloading both views", async
   context.loadCurrentSection = async () => events.push("section");
 
   await context.reloadForTest();
-  assert.deepEqual(events, ["clear", "dashboard", "section"]);
+  assert.deepEqual(events, ["clear", "section", "dashboard"]);
 });
 
 test("auth and production scripts do not log credentials or contain Genspark runtime references", () => {
@@ -351,6 +351,7 @@ function sessionDomHarness() {
     promptImpl: () => null,
     prompt: (...args) => context.promptImpl(...args),
     showLoading() {}, hideLoading() {},
+    renderPagedRows: (_key, tbody, records, renderRow) => { tbody.innerHTML = records.map(renderRow).join(''); },
     formatDate: (value) => value, isDateField: () => false,
     performance: { now: () => 0 },
     delayImpl: (...args) => setTimeout(...args),

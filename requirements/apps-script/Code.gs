@@ -174,17 +174,22 @@ function validTokenPayload_(payload, nowMs) {
 }
 
 function verifySessionToken(token, nowMs) {
+  var parts = String(token || "").split(".");
+  if (parts.length !== 2 || parts.some(function(part) {
+    var unpadded = part.replace(/=+$/, "");
+    return !/^[A-Za-z0-9_-]+={0,2}$/.test(part) || unpadded.length % 4 === 1 ||
+      (unpadded.length !== part.length && part.length % 4 !== 0);
+  })) return unauthorized_();
+
+  // Provider/service failures are not evidence that the user's token is invalid.
+  // Let handleRequest return INTERNAL_ERROR so clients can retry without logout.
+  var secret = requireScriptProperty("TOKEN_SIGNING_SECRET");
+  var expectedSignature = Utilities.computeHmacSha256Signature(parts[0], secret);
+  var suppliedSignature = Utilities.base64DecodeWebSafe(parts[1]);
+  if (!constantTimeEqualBytes_(expectedSignature, suppliedSignature)) return unauthorized_();
+  var payloadBytes = Utilities.base64DecodeWebSafe(parts[0]);
   var payload;
   try {
-    var parts = String(token || "").split(".");
-    if (parts.length !== 2 || !parts[0] || !parts[1]) return unauthorized_();
-
-    var secret = requireScriptProperty("TOKEN_SIGNING_SECRET");
-    var expectedSignature = Utilities.computeHmacSha256Signature(parts[0], secret);
-    var suppliedSignature = Utilities.base64DecodeWebSafe(parts[1]);
-    if (!constantTimeEqualBytes_(expectedSignature, suppliedSignature)) return unauthorized_();
-
-    var payloadBytes = Utilities.base64DecodeWebSafe(parts[0]);
     payload = JSON.parse(utf8BytesToString_(payloadBytes));
     var checkedAt = Number(nowMs || Date.now());
     if (!validTokenPayload_(payload, checkedAt)) return unauthorized_();

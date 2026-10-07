@@ -103,14 +103,86 @@ test("authenticated requests send token but not client authority", async () => {
   assert.equal("username" in calls[0].body, false);
 });
 
+test("seven hanging reads including queue and body settle within one total budget", async () => {
+  const { context, storage, calls } = harness([], async () => ({ ok: true, status: 200, text: () => new Promise(() => {}) }));
+  let now = 0, nextId = 0;
+  const timers = new Map();
+  context.Date = { now: () => now };
+  context.setTimeout = (fn, delay) => { const id = ++nextId; timers.set(id, { fn, at: now + delay }); return id; };
+  context.clearTimeout = id => timers.delete(id);
+  let settled = false;
+  const pending = Promise.all(['chemical_confirmation', 'msds', 'radio_law', 'electrical_law', 'medical_device', 'non_target', 'review_needed'].map(table => context.API.getData(table))).then(results => { settled = true; return results; });
+  for (let step = 1; step <= 5; step++) {
+    now = step * 20000;
+    for (const [id, timer] of [...timers]) {
+      if (timer.at <= now && timers.has(id)) { timers.delete(id); timer.fn(); }
+    }
+    await new Promise(resolve => setImmediate(resolve));
+  }
+  assert.equal(settled, true, 'must not leave queued or active reads pending');
+  assert.ok((await pending).every(result => result.success === false));
+  assert.equal(storage.has('ainRequirementsSession'), true);
+  assert.ok(calls.length <= 6, 'bounded traffic even when abort is ignored');
+  assert.equal(timers.size, 0);
+});
+
+for (const [count, responseMs] of [[1, 25000], [7, 16000]]) {
+  test(`${count} healthy reads taking ${responseMs}ms complete without repeated premature aborts`, async () => {
+    let now = 0, nextId = 0;
+    const timers = new Map();
+    const schedule = (fn, delay) => { const id = ++nextId; timers.set(id, {fn, at:now+delay}); return id; };
+    const {context, calls} = harness([], () => new Promise(resolve => {
+      schedule(() => resolve(jsonResponse({success:true,data:[{spec_no:'STD72110-01'}]})),responseMs);
+    }));
+    context.Date = {now:()=>now};
+    context.setTimeout = schedule;
+    context.clearTimeout = id => timers.delete(id);
+    let results;
+    const pending = Promise.all(Array.from({length:count},(_,i)=>context.API.getData(`table${i}`))).then(value=>{results=value;});
+    for (let turn=0; turn<30 && !results; turn++) {
+      await new Promise(resolve=>setImmediate(resolve));
+      if (!timers.size) break;
+      now = Math.min(...Array.from(timers.values(),timer=>timer.at));
+      for (const [id,timer] of [...timers]) {
+        if (timer.at<=now && timers.has(id)) {timers.delete(id);timer.fn();}
+      }
+    }
+    await pending;
+    assert.ok(results.every(result=>result.data?.[0]?.spec_no==='STD72110-01'));
+    assert.equal(calls.length,count,'successful slow reads must not be duplicated');
+  });
+}
+
+test("invalid successful JSON never becomes a cached empty table", async () => {
+  const { context, calls } = harness([{}, { success: true, data: {} }, { success: true, data: [{ spec_no: 'STD72110-01' }] }]);
+  const result = await context.API.getData('chemical_confirmation');
+  assert.equal(result.data[0].spec_no, 'STD72110-01');
+  assert.equal(calls.length, 3);
+});
+
 test("requests use the runtime-configured Apps Script endpoint", async () => {
   const { context, calls } = harness({ success: true, data: [] });
   await context.API.getData("msds");
 
   assert.equal(
-    calls[0].url,
+    calls[0].url.split('?')[0],
     "https://script.google.com/macros/s/test/exec"
   );
+});
+
+test("every API attempt has a fresh URL and disables redirect response caching", async () => {
+  const { context, calls } = harness([
+    {success:false,error_code:'INTERNAL_ERROR'}, {success:true,data:[]},
+    {success:true,token:'new',user:{username:'tester'}}
+  ]);
+  await context.API.getData('msds');
+  await context.API.login('tester','secret');
+  assert.equal(new Set(calls.map(call => call.url)).size, 3);
+  for (const call of calls) {
+    assert.match(call.url, /\/exec\?_ainRequest=[a-z0-9-]+$/);
+    assert.equal(call.options.cache, 'no-store');
+    assert.equal(call.url.includes('signed-token'), false);
+  }
 });
 
 test("login is anonymous and sends only the entered credentials", async () => {
@@ -359,10 +431,10 @@ test("current-token authorization failure expires one visible session", async ()
   assert.deepEqual(events, ["ain-requirements-session-expired"]);
 });
 
-test("HTTP 401 and 403 responses canonicalize auth failures without upstream bodies", async () => {
+test("only explicit application auth rejection expires a session, not upstream HTTP errors", async () => {
   const cases = [
-    [jsonResponse({ success: false, error: "upstream detail" }, { status: 401 }), "UNAUTHORIZED", 401, true],
-    [jsonResponse("upstream detail", { status: 401 }), "UNAUTHORIZED", 401, true],
+    [jsonResponse({ success: false, error_code: "UNAUTHORIZED" }, { status: 401 }), "UNAUTHORIZED", 401, true],
+    [jsonResponse("upstream detail", { status: 401 }), "SERVICE_UNAVAILABLE", 503, false],
     [jsonResponse({ success: false, error: "upstream detail" }, { status: 403 }), "FORBIDDEN", 403, false],
     [jsonResponse("upstream detail", { status: 403 }), "FORBIDDEN", 403, false],
   ];

@@ -190,8 +190,13 @@ async function activateRequirementsSection(section, searchQuery = null) {
 
 async function clearAndReloadFromDatabase() {
     GoogleSheetsAPI.clearAllCache();
-    await loadDashboard();
-    await loadCurrentSection();
+    const query = document.getElementById('unifiedSearch')?.value.trim();
+    const sectionInput = REQUIREMENTS_SECTION_SEARCH_INPUTS[currentSection];
+    const currentQuery = sectionInput ? document.getElementById(sectionInput)?.value.trim() || '' : '';
+    // Restart the current search immediately; dashboard warming must not block it.
+    const currentView = currentSection === 'unified' && query && typeof performUnifiedSearch === 'function'
+        ? performUnifiedSearch() : loadCurrentSection(currentQuery);
+    await Promise.all([loadDashboard(), currentView]);
 }
 
 document.getElementById('databaseRefreshBtn')?.addEventListener('click', async (event) => {

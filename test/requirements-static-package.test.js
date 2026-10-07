@@ -33,11 +33,13 @@ test("requirements page resolves every shipped local asset in dependency order",
     "js/runtime-config.js",
     "js/google-sheets-api.js",
     "js/date-formatter.js",
+    "js/pagination.js",
     "js/auth.js",
     "js/parser.js",
     "js/file-handler.js",
     "js/unified-search.js",
     "js/review-needed.js",
+    "js/radio-exemption.js",
     "js/selection-delete.js",
     "js/duplicate-checker.js",
     "js/edit-request.js",
@@ -60,14 +62,16 @@ test("root navigation opens the local requirements application", () => {
 test("requirements scripts use their current cache epochs", () => {
   const html = fs.readFileSync(path.join(appRoot, "index.html"), "utf8");
   const expectedVersions = {
-    "google-sheets-api": "6.0.2",
-    auth: "6.0.2",
-    "file-handler": "6.0.2",
-    "unified-search": "6.0.7",
-    "review-needed": "6.0.6",
+    "google-sheets-api": "6.1.5",
+    auth: "6.0.3",
+    "file-handler": "6.1.2",
+    "unified-search": "6.1.5",
+    "review-needed": "6.1.2",
+    pagination: "6.1.2",
+    "radio-exemption": "6.1.3",
     "selection-delete": "6.0.2",
     "duplicate-checker": "6.0.4",
-    app: "6.0.8",
+    app: "6.1.5",
   };
 
   for (const [script, version] of Object.entries(expectedVersions)) {
@@ -104,17 +108,21 @@ test("requirements package excludes source, runtime, and secret-bearing artifact
     "js/runtime-config.js",
     "js/google-sheets-api.js",
     "js/date-formatter.js",
+    "js/pagination.js",
     "js/auth.js",
     "js/parser.js",
     "js/file-handler.js",
     "js/unified-search.js",
     "js/review-needed.js",
+    "js/radio-exemption.js",
     "js/selection-delete.js",
     "js/duplicate-checker.js",
     "js/edit-request.js",
     "js/app.js",
   ]);
-  const files = packageFiles(appRoot);
+  const ignore = fs.readFileSync(path.join(root, '.vercelignore'), 'utf8');
+  assert.match(ignore, /^requirements\/apps-script\s*$/m, 'backend sources must not ship as public assets');
+  const files = packageFiles(appRoot).filter(file => !file.startsWith('apps-script/'));
   assert.deepEqual(new Set(files), allowed);
 
   for (const file of files) {

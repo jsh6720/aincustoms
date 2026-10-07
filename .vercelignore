@@ -2,8 +2,10 @@
 .vercel
 node_modules
 .artifacts
+.playwright-cli
 .env
 .env.*
 .superpowers
 .worktrees
 supabase/.temp
+requirements/apps-script

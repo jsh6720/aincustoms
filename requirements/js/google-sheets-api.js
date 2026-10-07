@@ -68,10 +68,19 @@ const pendingTableReads = new Map();
 let readCacheEpoch = 0;
 const MAX_CONCURRENT_READS = 2;
 const MAX_READ_ATTEMPTS = 3;
-const READ_TIMEOUT_MS = 90000;
+const READ_TIMEOUT_MS = 60000;
+const READ_BUDGET_MS = 90000; // Includes queueing and all retries, not per attempt.
 let activeReadCount = 0;
 const queuedReads = [];
 const activeReadControllers = new Set();
+let apiRequestSequence = 0;
+
+function freshApiUrl() {
+    // ContentService redirects must never replay an older request's response.
+    const nonce = `${Date.now().toString(36)}-${++apiRequestSequence}-${Math.random().toString(36).slice(2)}`;
+    const url = AIN_REQUIREMENTS_CONFIG.apiUrl;
+    return `${url}${url.includes('?') ? '&' : '?'}_ainRequest=${nonce}`;
+}
 
 function activeSessionToken() {
     return currentSession()?.token || '';
@@ -126,15 +135,25 @@ function drainReadQueue() {
     }
 }
 
-function runQueuedRead(task, epoch) {
+function runQueuedRead(task, epoch, deadline) {
     if (epoch !== readCacheEpoch) return Promise.resolve(staleRefreshResult());
+    if (Date.now() >= deadline) return Promise.resolve(unavailableResult());
     return new Promise((resolve, reject) => {
-        queuedReads.push({ task, epoch, resolve, reject });
+        const entry = { task, epoch,
+            resolve: value => { clearTimeout(timer); resolve(value); },
+            reject: error => { clearTimeout(timer); reject(error); }
+        };
+        const timer = setTimeout(() => {
+            const index = queuedReads.indexOf(entry);
+            if (index >= 0) queuedReads.splice(index, 1);
+            resolve(unavailableResult());
+        }, Math.max(1, deadline - Date.now()));
+        queuedReads.push(entry);
         drainReadQueue();
     });
 }
 
-async function callApi(action, params = {}, { anonymous = false, sessionToken, deferUnauthorized = false, readEpoch } = {}) {
+async function callApi(action, params = {}, { anonymous = false, sessionToken, deferUnauthorized = false, readEpoch, timeoutMs } = {}) {
     const token = anonymous ? '' : (sessionToken ?? activeSessionToken());
     if (readEpoch !== undefined && readEpoch !== readCacheEpoch) return staleRefreshResult();
     const body = { action, ...params };
@@ -143,20 +162,35 @@ async function callApi(action, params = {}, { anonymous = false, sessionToken, d
     const controller = typeof AbortController === 'function' ? new AbortController() : null;
     const activeRead = controller && readEpoch !== undefined ? { controller, epoch: readEpoch } : null;
     if (activeRead) activeReadControllers.add(activeRead);
-    const timeout = controller ? setTimeout(() => controller.abort(), READ_TIMEOUT_MS) : null;
+    let timeout;
+    let abortListener;
     try {
         if (readEpoch !== undefined && readEpoch !== readCacheEpoch) return staleRefreshResult();
-        const response = await originalFetch(AIN_REQUIREMENTS_CONFIG.apiUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'text/plain' },
-            body: JSON.stringify(body),
-            ...(controller ? { signal: controller.signal } : {})
+        // Bound both headers and body, even when a fetch implementation ignores abort.
+        const cancelled = new Promise((_, reject) => {
+            abortListener = () => reject(new Error('REQUEST_CANCELLED'));
+            controller?.signal.addEventListener('abort', abortListener, { once: true });
+            timeout = setTimeout(() => {
+                controller?.abort();
+                reject(new Error('REQUEST_TIMEOUT'));
+            }, timeoutMs ?? (action === 'getData' ? READ_TIMEOUT_MS : 90000));
         });
+        const request = (async () => {
+            const response = await originalFetch(freshApiUrl(), {
+                method: 'POST',
+                cache: 'no-store',
+                headers: { 'Content-Type': 'text/plain' },
+                body: JSON.stringify(body),
+                ...(controller ? { signal: controller.signal } : {})
+            });
+            return { response, text: await response.text() };
+        })();
+        const { response, text } = await Promise.race([request, cancelled]);
         if (readEpoch !== undefined && readEpoch !== readCacheEpoch) return staleRefreshResult();
         const status = Number(response?.status) || 0;
         let parsed;
         try {
-            parsed = JSON.parse(await response.text());
+            parsed = JSON.parse(text);
         } catch (error) {
             parsed = null;
         }
@@ -164,7 +198,9 @@ async function callApi(action, params = {}, { anonymous = false, sessionToken, d
         if (status === 401 || status === 403) {
             const result = {
                 success: false,
-                error_code: status === 401 ? 'UNAUTHORIZED' : 'FORBIDDEN',
+                error_code: status === 401
+                    ? (parsed?.success === false && parsed.error_code === 'UNAUTHORIZED' ? 'UNAUTHORIZED' : 'SERVICE_UNAVAILABLE')
+                    : 'FORBIDDEN',
                 status
             };
             if (result.error_code === 'UNAUTHORIZED' && !deferUnauthorized) {
@@ -193,6 +229,7 @@ async function callApi(action, params = {}, { anonymous = false, sessionToken, d
         return { success: false, error_code: 'NETWORK_ERROR' };
     } finally {
         if (timeout) clearTimeout(timeout);
+        if (abortListener) controller?.signal.removeEventListener('abort', abortListener);
         if (activeRead) activeReadControllers.delete(activeRead);
     }
 }
@@ -200,26 +237,33 @@ async function callApi(action, params = {}, { anonymous = false, sessionToken, d
 function isRetryableReadFailure(result) {
     return result?.error_code === 'INTERNAL_ERROR' ||
         result?.error_code === 'NETWORK_ERROR' ||
+        result?.error_code === 'UPSTREAM_ERROR' ||
         result?.status === 429 ||
         result?.status >= 500;
 }
 
 async function readDataWithRetries(mappedTable, token, epoch) {
+    const deadline = Date.now() + READ_BUDGET_MS;
     let result;
     for (let attempt = 0; attempt < MAX_READ_ATTEMPTS; attempt += 1) {
         if (epoch !== readCacheEpoch) return staleRefreshResult();
         if (!isCurrentSessionToken(token)) return staleSessionResult();
+        if (Date.now() >= deadline) return unavailableResult();
         result = await runQueuedRead(() => {
             if (epoch !== readCacheEpoch) return staleRefreshResult();
             if (!isCurrentSessionToken(token)) return staleSessionResult();
             return callApi('getData', { tableName: mappedTable }, {
                 sessionToken: token,
                 deferUnauthorized: true,
-                readEpoch: epoch
+                readEpoch: epoch,
+                timeoutMs: Math.max(1, Math.min(READ_TIMEOUT_MS, deadline - Date.now()))
             });
-        }, epoch);
+        }, epoch, deadline);
         if (epoch !== readCacheEpoch) return staleRefreshResult();
         if (!isCurrentSessionToken(token)) return staleSessionResult();
+        if (result?.success !== false && (result?.success !== true || !Array.isArray(result.data))) {
+            result = { success: false, error_code: 'UPSTREAM_ERROR' };
+        }
         if (!isRetryableReadFailure(result)) return result;
     }
     return epoch === readCacheEpoch ? unavailableResult() : staleRefreshResult();

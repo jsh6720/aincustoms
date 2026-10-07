@@ -2,6 +2,22 @@
 
 // 현재 로그인한 사용자 정보
 let currentUser = null;
+let loginSubmissionPending = false;
+
+function loginFailureMessage(result) {
+    switch (result?.error_code) {
+        case 'UNAUTHORIZED':
+            return '아이디 또는 비밀번호가 올바르지 않습니다. 계속 실패하면 관리자에게 계정 상태 확인을 요청해 주세요.';
+        case 'RATE_LIMITED':
+            return '로그인 시도가 많아 일시적으로 잠겼습니다. 15분 후 다시 시도해 주세요.';
+        case 'NETWORK_ERROR':
+            return '네트워크 연결 또는 응답 시간이 초과되었습니다. 연결 상태를 확인한 후 다시 시도해 주세요.';
+        case 'FORBIDDEN':
+            return '로그인 서버 접근 권한을 확인할 수 없습니다. 관리자에게 문의해 주세요.';
+        default:
+            return '로그인 서버에서 정상 응답을 받지 못했습니다. 잠시 후 다시 시도하거나 관리자에게 문의해 주세요.';
+    }
+}
 
 function sanitizeSessionUser(user) {
     return {
@@ -28,7 +44,8 @@ async function login(username, password) {
         // Google Sheets API로 로그인
         const result = await GoogleSheetsAPI.login(username, password);
 
-        if (result.success) {
+        if (result?.success === true && typeof result.token === 'string' && result.token &&
+            typeof result.user?.username === 'string' && result.user.username) {
             // 로그인 성공 전 이전 세션의 화면 데이터를 제거한다.
             if (typeof resetRequirementsSessionUI === 'function') resetRequirementsSessionUI();
             GoogleSheetsAPI.clearAllCache();
@@ -37,10 +54,9 @@ async function login(username, password) {
             sessionStorage.setItem('ainRequirementsSession', JSON.stringify(session));
             return { success: true, user: currentUser };
         } else {
-            return { success: false, message: result.error || '아이디 또는 비밀번호가 올바르지 않습니다.' };
+            return { success: false, message: loginFailureMessage(result) };
         }
     } catch (error) {
-        console.error('Login error:', error);
         return { success: false, message: '로그인 중 오류가 발생했습니다.' };
     }
 }
@@ -179,22 +195,29 @@ function updateUserInfo() {
 // 로그인 폼 이벤트 리스너
 document.getElementById('loginForm')?.addEventListener('submit', async (e) => {
     e.preventDefault();
+    if (loginSubmissionPending) return;
 
     const username = document.getElementById('username').value;
     const password = document.getElementById('password').value;
     const errorEl = document.getElementById('loginError');
+    const submitButton = document.getElementById('loginForm').querySelector('button[type="submit"]');
+    loginSubmissionPending = true;
+    if (submitButton) submitButton.disabled = true;
+    errorEl.textContent = '로그인 확인 중입니다…';
+    errorEl.classList.add('show');
 
-    // 로그인 시도
-    const result = await login(username, password);
-
-    if (result.success) {
-        // 로그인 성공
-        errorEl.classList.remove('show');
-        showScreen('dashboard');
-    } else {
-        // 로그인 실패
-        errorEl.textContent = result.message;
-        errorEl.classList.add('show');
+    try {
+        const result = await login(username, password);
+        if (result.success) {
+            errorEl.classList.remove('show');
+            showScreen('dashboard');
+        } else {
+            errorEl.textContent = result.message;
+            errorEl.classList.add('show');
+        }
+    } finally {
+        loginSubmissionPending = false;
+        if (submitButton) submitButton.disabled = false;
     }
 });
 

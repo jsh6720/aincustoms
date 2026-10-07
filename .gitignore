@@ -3,6 +3,7 @@
 .codex-mail-test.log
 node_modules/
 .artifacts/
+.playwright-cli/
 .env
 .env.*
 
