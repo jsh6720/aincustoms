@@ -644,3 +644,22 @@ test("unified search falls back to table reads when the backend lacks search", a
   await context.__performUnifiedSearch();
   assert.match(elements.get("unifiedSearchResult").innerHTML, /총 1건/);
 });
+
+test("dashboard shows server counts without downloading any table", async () => {
+  let tableReads = 0;
+  const { context, elements } = harness(async () => { tableReads += 1; return { ok: true, status: 200, json: async () => ({ data: [] }) }; });
+  context.GoogleSheetsAPI = { stats: async () => ({ success: true, counts: {
+    chemical_confirmation: 6024, msds: 12685, radio_law: 1110, electrical_law: 537, medical_device: 271, non_target: null } }) };
+  await context.__reliability.loadDashboard();
+  assert.equal(tableReads, 0);
+  assert.equal(elements.get("statMsds").textContent, 12685);
+  assert.equal(elements.get("statRadio").textContent, 1110);
+  assert.equal(elements.get("statNonTarget").textContent, "-");
+});
+
+test("dashboard falls back to table reads when the backend lacks stats", async () => {
+  const { context, elements } = harness(async () => ({ ok: true, status: 200, json: async () => ({ data: [{ id: "a" }, { id: "b" }] }) }));
+  context.GoogleSheetsAPI = { stats: async () => ({ success: false, error_code: "UNKNOWN_ACTION" }) };
+  await context.__reliability.loadDashboard();
+  assert.equal(elements.get("statRadio").textContent, 2);
+});

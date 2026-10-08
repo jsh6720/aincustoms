@@ -220,6 +220,25 @@ document.getElementById('databaseRefreshBtn')?.addEventListener('click', async (
 async function loadDashboard() {
     const viewRequest = beginRequirementsViewRequest('dashboard');
     try {
+        // 서버 건수 조회 1건으로 대신한다. 시트 전체(약 9MB)를 받던 방식은 접속 직후
+        // 다른 조회와 겹쳐 REQUEST_INCOMPLETE·지연을 일으켰다. 구버전 백엔드일 때만 아래로 내려간다.
+        const stats = typeof GoogleSheetsAPI !== 'undefined' && typeof GoogleSheetsAPI.stats === 'function'
+            ? await GoogleSheetsAPI.stats()
+            : { success: false, error_code: 'UNKNOWN_ACTION' };
+        if (!isCurrentRequirementsViewRequest(viewRequest)) return;
+        if (stats.error_code !== 'UNKNOWN_ACTION') {
+            if (stats.error_code === 'STALE_SESSION' || stats.error_code === 'STALE_REFRESH') return;
+            const statIds = {
+                chemical_confirmation: 'statChemical', msds: 'statMsds', radio_law: 'statRadio',
+                electrical_law: 'statElectrical', medical_device: 'statMedical', non_target: 'statNonTarget'
+            };
+            for (const [table, id] of Object.entries(statIds)) {
+                const count = stats.success ? stats.counts[table] : null;
+                document.getElementById(id).textContent = Number.isFinite(count) ? count : '-';
+            }
+            return;
+        }
+
         // 각 테이블을 개별적으로 로드하여 일부 실패해도 계속 진행
         const loadTableSafely = async (url, defaultValue = { data: [] }) => {
             try {

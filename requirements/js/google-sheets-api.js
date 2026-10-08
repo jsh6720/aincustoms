@@ -247,6 +247,7 @@ function isRetryableReadFailure(result) {
 async function readWithRetries(action, params, token, epoch, isValid) {
     const deadline = Date.now() + READ_BUDGET_MS;
     let result;
+    let authRejected = false;
     for (let attempt = 0; attempt < MAX_READ_ATTEMPTS; attempt += 1) {
         if (epoch !== readCacheEpoch) return staleRefreshResult();
         if (!isCurrentSessionToken(token)) return staleSessionResult();
@@ -265,6 +266,12 @@ async function readWithRetries(action, params, token, epoch, isValid) {
         if (!isCurrentSessionToken(token)) return staleSessionResult();
         if (result?.success !== false && (result?.success !== true || !isValid(result))) {
             result = { success: false, error_code: 'UPSTREAM_ERROR' };
+        }
+        // Apps Script has rejected valid tokens once and accepted them on the next call.
+        // A genuinely invalid token is rejected again, so one re-check avoids a false logout.
+        if (result?.error_code === 'UNAUTHORIZED' && !authRejected) {
+            authRejected = true;
+            continue;
         }
         if (!isRetryableReadFailure(result)) return result;
     }
@@ -327,6 +334,15 @@ const GoogleSheetsAPI = {
         const token = activeSessionToken();
         const result = await readWithRetries('search', { query }, token, readCacheEpoch,
             read => Boolean(read.results) && typeof read.results === 'object' && Array.isArray(read.failed));
+        if (result.error_code === 'UNAUTHORIZED') expireSessionForToken(token);
+        return result;
+    },
+
+    // Dashboard counts only; avoids downloading every sheet on page load.
+    async stats() {
+        const token = activeSessionToken();
+        const result = await readWithRetries('stats', {}, token, readCacheEpoch,
+            read => Boolean(read.counts) && typeof read.counts === 'object');
         if (result.error_code === 'UNAUTHORIZED') expireSessionForToken(token);
         return result;
     },

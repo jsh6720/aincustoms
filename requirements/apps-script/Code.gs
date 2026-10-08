@@ -110,7 +110,9 @@ function normalizeUsername_(username) {
   return String(username || "").trim().toLowerCase();
 }
 
-function unauthorized_() {
+function unauthorized_(reason) {
+  // 정상 토큰이 간헐적으로 거절되는 원인을 실행 로그로 가리기 위해 어느 검사에서 막혔는지만 남긴다.
+  if (reason) Logger.log("UNAUTHORIZED " + reason);
   return { ok: false, success: false, error_code: "UNAUTHORIZED" };
 }
 
@@ -179,31 +181,33 @@ function verifySessionToken(token, nowMs) {
     var unpadded = part.replace(/=+$/, "");
     return !/^[A-Za-z0-9_-]+={0,2}$/.test(part) || unpadded.length % 4 === 1 ||
       (unpadded.length !== part.length && part.length % 4 !== 0);
-  })) return unauthorized_();
+  })) return unauthorized_("token_format");
 
   // Provider/service failures are not evidence that the user's token is invalid.
   // Let handleRequest return INTERNAL_ERROR so clients can retry without logout.
   var secret = requireScriptProperty("TOKEN_SIGNING_SECRET");
   var expectedSignature = Utilities.computeHmacSha256Signature(parts[0], secret);
   var suppliedSignature = Utilities.base64DecodeWebSafe(parts[1]);
-  if (!constantTimeEqualBytes_(expectedSignature, suppliedSignature)) return unauthorized_();
+  if (!constantTimeEqualBytes_(expectedSignature, suppliedSignature)) return unauthorized_("signature");
   var payloadBytes = Utilities.base64DecodeWebSafe(parts[0]);
   var payload;
   try {
     payload = JSON.parse(utf8BytesToString_(payloadBytes));
     var checkedAt = Number(nowMs || Date.now());
-    if (!validTokenPayload_(payload, checkedAt)) return unauthorized_();
+    if (!validTokenPayload_(payload, checkedAt)) return unauthorized_("payload_or_expired");
   } catch (error) {
-    return unauthorized_();
+    return unauthorized_("payload_parse");
   }
 
   var user = loadAuthoritativeUser(payload.sub);
-  if (!user || !user.active || Number(user.auth_version) !== payload.av) return unauthorized_();
+  if (!user) return unauthorized_("user_missing");
+  if (!user.active) return unauthorized_("user_inactive");
+  if (Number(user.auth_version) !== payload.av) return unauthorized_("auth_version");
   return { ok: true, username: user.username, user: user };
 }
 
 function authenticateRequest(requestData, nowMs) {
-  if (!requestData || typeof requestData.token !== "string") return unauthorized_();
+  if (!requestData || typeof requestData.token !== "string") return unauthorized_("token_missing");
   return verifySessionToken(requestData.token, nowMs);
 }
 
@@ -460,6 +464,8 @@ function handleRequest(e) {
         return createResponse(handleGetData(user, requestData.tableName));
       case "search":
         return createResponse(handleSearch(user, requestData.query));
+      case "stats":
+        return createResponse(handleStats(user));
       case "addData":
         return createResponse(handleAddData(user, requestData.tableName, requestData.data));
       case "updateData":
@@ -632,6 +638,33 @@ function handleSearch(user, query) {
     }
   });
   return { success: true, results: results, failed: failed };
+}
+
+// 대시보드 건수: 시트 전체를 내려보내면 접속 직후 수 MB 요청 6건이 겹쳐 다른 조회가 유실된다.
+var DASHBOARD_STAT_TABLES = [
+  "chemical_confirmation", "msds", "radio_law", "electrical_law", "medical_device", "non_target",
+];
+
+function handleStats(user) {
+  var counts = {};
+  DASHBOARD_STAT_TABLES.forEach(function(tableName) {
+    try {
+      var table = tableState_(tableName);
+      if (table.error) {
+        counts[tableName] = null;
+        return;
+      }
+      var count = 0;
+      for (var row = 1; row < table.values.length; row += 1) {
+        if (authorizeRecord(user, rowRecord_(table.headers, table.values[row]))) count += 1;
+      }
+      counts[tableName] = count;
+    } catch (error) {
+      Logger.log("Stats failed: " + tableName);
+      counts[tableName] = null;
+    }
+  });
+  return { success: true, counts: counts };
 }
 
 function cloneAllowedData_(data) {

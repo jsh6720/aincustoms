@@ -229,11 +229,8 @@ test("Apps Script error codes map to browser status", () => {
 });
 
 test("table fetch maps auth errors to a Response status and expires unauthorized sessions", async () => {
-  const unauthorized = harness({
-    success: false,
-    error_code: "UNAUTHORIZED",
-    error: "Session expired",
-  });
+  const rejected = { success: false, error_code: "UNAUTHORIZED", error: "Session expired" };
+  const unauthorized = harness([rejected, rejected]);
   const unauthorizedResponse = await unauthorized.context.fetch("tables/msds");
   assert.equal(unauthorizedResponse.status, 401);
   assert.equal(unauthorized.storage.has("ainRequirementsSession"), false);
@@ -289,6 +286,7 @@ test("missing session never serves cached table data", async () => {
   const { context, calls, storage } = harness([
     { success: true, data: [{ id: "prior-user-row" }] },
     { success: false, error_code: "UNAUTHORIZED", error: "Login required" },
+    { success: false, error_code: "UNAUTHORIZED", error: "Login required" },
   ]);
 
   await context.API.getData("msds");
@@ -296,7 +294,7 @@ test("missing session never serves cached table data", async () => {
 
   const response = await context.fetch("tables/msds");
   assert.equal(response.status, 401);
-  assert.equal(calls.length, 2);
+  assert.equal(calls.length, 3);
   assert.equal(calls[1].body.token, "");
 });
 
@@ -407,7 +405,7 @@ test("read retry exhaustion returns a safe synthetic 503 result", async () => {
   assert.equal("error" in result, false);
 });
 
-test("authorization, validation, and write operations are never retried", async () => {
+test("reads re-check UNAUTHORIZED once; validation and write operations are never retried", async () => {
   const cases = [
     (api) => api.getData("msds"),
     (api) => api.getData("msds"),
@@ -419,9 +417,10 @@ test("authorization, validation, and write operations are never retried", async 
   const failures = ["UNAUTHORIZED", "VALIDATION_ERROR", "INTERNAL_ERROR", "INTERNAL_ERROR", "INTERNAL_ERROR", "INTERNAL_ERROR"];
 
   for (let index = 0; index < cases.length; index += 1) {
-    const { context, calls } = harness({ success: false, error_code: failures[index] });
+    const failure = { success: false, error_code: failures[index] };
+    const { context, calls } = harness([failure, failure]);
     await cases[index](context.API);
-    assert.equal(calls.length, 1);
+    assert.equal(calls.length, index === 0 ? 2 : 1);
   }
 });
 
@@ -442,10 +441,8 @@ test("old-token authorization failures leave a replacement session and cache int
 });
 
 test("current-token authorization failure expires one visible session", async () => {
-  const { context, events, storage } = harness({
-    success: false,
-    error_code: "UNAUTHORIZED",
-  });
+  const rejected = { success: false, error_code: "UNAUTHORIZED" };
+  const { context, events, storage } = harness([rejected, rejected]);
 
   await context.API.getData("msds");
   assert.equal(storage.has("ainRequirementsSession"), false);
@@ -454,7 +451,7 @@ test("current-token authorization failure expires one visible session", async ()
 
 test("only explicit application auth rejection expires a session, not upstream HTTP errors", async () => {
   const cases = [
-    [jsonResponse({ success: false, error_code: "UNAUTHORIZED" }, { status: 401 }), "UNAUTHORIZED", 401, true],
+    [[jsonResponse({ success: false, error_code: "UNAUTHORIZED" }, { status: 401 }), jsonResponse({ success: false, error_code: "UNAUTHORIZED" }, { status: 401 })], "UNAUTHORIZED", 401, true],
     [jsonResponse("upstream detail", { status: 401 }), "SERVICE_UNAVAILABLE", 503, false],
     [jsonResponse({ success: false, error: "upstream detail" }, { status: 403 }), "FORBIDDEN", 403, false],
     [jsonResponse("upstream detail", { status: 403 }), "FORBIDDEN", 403, false],
@@ -468,7 +465,7 @@ test("only explicit application auth rejection expires a session, not upstream H
     assert.equal(response.status, status);
     assert.equal(result.error_code, errorCode);
     assert.equal("error" in result, false);
-    assert.equal(calls.length, 1);
+    assert.equal(calls.length, expires ? 2 : 1);
     assert.equal(storage.has("ainRequirementsSession"), !expires);
     assert.equal(events.length, expires ? 1 : 0);
   }
@@ -625,4 +622,25 @@ test("search on an old backend reports UNKNOWN_ACTION without retrying", async (
   const result = await context.API.search("72110");
   assert.equal(result.error_code, "UNKNOWN_ACTION");
   assert.equal(calls.length, 1);
+});
+
+test("a single spurious UNAUTHORIZED on a read is re-checked and keeps the session", async () => {
+  const { context, calls, events, storage } = harness([
+    { success: false, error_code: "UNAUTHORIZED" },
+    { success: true, data: [{ id: "row" }] },
+  ]);
+  const result = await context.API.getData("msds");
+  assert.equal(result.data[0].id, "row");
+  assert.equal(calls.length, 2);
+  assert.equal(storage.has("ainRequirementsSession"), true);
+  assert.deepEqual(events, []);
+});
+
+test("stats sends one authenticated stats request", async () => {
+  const { context, calls } = harness({ success: true, counts: { msds: 3 } });
+  const result = await context.API.stats();
+  assert.equal(result.counts.msds, 3);
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].body.action, "stats");
+  assert.equal(calls[0].body.token, "signed-token");
 });

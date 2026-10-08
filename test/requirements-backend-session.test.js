@@ -84,3 +84,34 @@ test('search returns only matching rows per table, authorized and normalized lik
   assert.equal(context.handleRequest({postData:{contents:JSON.stringify({action:'search',query:' - ',token})}}).error_code,'INVALID_QUERY');
   assert.equal(context.handleRequest({postData:{contents:JSON.stringify({action:'search',query:'72110'})}}).error_code,'UNAUTHORIZED');
 });
+
+test('rejected tokens log only which check failed, never the token', () => {
+  const {context,token} = harness();
+  const logs = [];
+  context.Logger.log = line => logs.push(line);
+  context.loadAuthoritativeUser = () => ({username:'qa',active:true,auth_version:2});
+  assert.equal(context.verifySessionToken(token,NOW+1).error_code,'UNAUTHORIZED');
+  assert.equal(context.verifySessionToken(token.slice(0,-2)+'XX',NOW+1).error_code,'UNAUTHORIZED');
+  assert.deepEqual(logs,['UNAUTHORIZED auth_version','UNAUTHORIZED signature']);
+  assert.ok(logs.every(line => !line.includes(token.split('.')[0])));
+});
+
+test('stats returns per-table authorized counts and isolates sheet failures', () => {
+  const {context,token} = harness();
+  const property = context.requireScriptProperty;
+  context.requireScriptProperty = name => name === "ACTIVE_SPREADSHEET_ID" ? "sheet-id" : property(name);
+  context.SpreadsheetApp = {openById: () => ({getSheetByName: name => {
+    if (name === 'AIN_MSDS') throw new Error('quota');
+    const values = name === 'AIN_Radio_Law'
+      ? [['id','consignee'],['1','영인에스티(주)'],['2','타사'],['3','영인과학(주)']]
+      : [['id','importer']];
+    return {getDataRange: () => ({getValues: () => values})};
+  }})};
+  context.loadAuthoritativeUser = () => ({username:'qa',active:true,auth_version:1,role:'user',company_name:'영인에스티'});
+  const response = context.handleRequest({postData:{contents:JSON.stringify({action:'stats',token})}});
+  assert.equal(response.success,true);
+  assert.equal(response.counts.radio_law,2);
+  assert.equal(response.counts.msds,null);
+  assert.equal(response.counts.chemical_confirmation,0);
+  assert.equal('data' in response,false);
+});
