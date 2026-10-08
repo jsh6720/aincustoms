@@ -59,3 +59,12 @@
 - 원인 확정(16:36~16:50 KST): 브라우저·쿠키·사이트 코드 없이 curl 로 잘못된 토큰 POST 30회 → 정상(UNAUTHORIZED) 17, REQUEST_INCOMPLETE 5, Google Drive "페이지를 찾을 수 없음" HTML 8. 실패 시 echo URL(script.googleusercontent.com)이 저장된 결과를 주지 않고 302로 `/exec`(쿼리 없음)에 되돌려 보내 본문 없는 GET 이 새로 실행되거나, echo 결과 자체를 찾지 못한다. 요청당 약 19초로 평소(약 1초)보다 크게 느렸다. Apps Script 웹앱 결과 전달 계층의 장애이며 사이트 코드로는 재시도·요청 수 축소로 완화만 가능하다.
 - v11 측정 중 UNAUTHORIZED 는 같은 시각(16:31:16) 해당 브라우저에서 재로그인이 있어 세션 교체 영향과 구분되지 않는다. 실행 화면에는 사유 로그가 보이지 않아 확인하지 못했다(Cloud Logging 연결 필요).
 - 근본 대안: 읽기 경로를 Apps Script 웹앱 대신 Vercel 서버리스(api/) → Google Sheets API(서비스 계정)로 옮기면 echo 리다이렉트 계층이 사라진다. 서비스 계정 키·시트 공유·토큰 서명키 이관이 필요하다.
+
+## 2026-10-09 조회 경로 전환 (Apps Script 웹앱 → Vercel + Sheets API)
+
+- 구조: 조회(getData·search·stats)는 `/api/requirements`(vercel.json 리라이트 → `api/cargo-admin.js?workspace=requirements` → `lib/requirements-read-handler.js`). Hobby 플랜 함수 12개 한도 때문에 새 함수 파일을 만들지 않았다. 로그인·저장·수정·삭제는 기존 Apps Script 그대로.
+- 안전장치: 브라우저는 새 경로가 성공(success:true)일 때만 그 결과를 쓰고, 그 외(UNAUTHORIZED 포함)는 모두 기존 Apps Script로 재조회한다. 새 경로 오류만으로 로그아웃·조회 불가가 생기지 않는다.
+- 권한: 서비스 계정 `ain-requirements-reader@skilled-tangent-467500-b5.iam.gserviceaccount.com`(시트 뷰어, 쓰기 403 확인). Vercel Production 환경변수 `REQUIREMENTS_SHEETS_KEY`·`REQUIREMENTS_SPREADSHEET_ID`·`REQUIREMENTS_TOKEN_SECRET`(sensitive). 토큰 서명키는 Apps Script `TOKEN_SIGNING_SECRET`과 같아야 하며, 바꿀 때는 둘을 함께 바꾼다.
+- 검증: 운영 시트 11개 28,850행 전 셀이 Apps Script 응답과 동일(날짜·숫자·오류값·권한 포함), 실제 세션 토큰 검증 일치. 배포 후 실제 화면에서 대시보드 건수 정상, 72110 통합검색 2.7초, 동시 10건 10/10 성공, Apps Script 우회 0건.
+- 한도: Sheets API 읽기 할당량(계정당 분당 약 60회) — 동시 30건 시험에서 429 발생 → 429/5xx 2회 재시도와 동시 동일 조회 합치기 적용(fd67bf7). 무료 범위.
+- 롤백: ① Vercel Deployments에서 0331628 배포 Promote(즉시) ② `git revert fd67bf7 7fbc629` 후 main 푸시 ③ 새 경로만 끄려면 `requirements/js/runtime-config.js`의 `readApiUrl` 줄 삭제 후 배포(전부 Apps Script로 조회). 시트 데이터·Apps Script는 이번 전환에서 변경 없음.
