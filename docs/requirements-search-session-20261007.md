@@ -49,3 +49,13 @@
 - Apps Script에 `search` 액션 추가: 요청 1건으로 7개 시트를 서버에서 같은 필드·정규화로 걸러 권한 통과 행만 반환, 시트별 실패는 `failed`로 구분. 프런트는 이를 우선 사용하고 `UNKNOWN_ACTION`(구버전 백엔드)일 때만 기존 시트별 조회로 대신한다.
 - 배포: 프런트 e7ec2a7 main 푸시(Vercel Production). Apps Script는 편집기 소스가 98a0f7b(CRLF)와 SHA c0dea25e…로 일치함을 확인한 뒤 새 소스(SHA 0ee49668…)로 교체·저장하고 같은 배포 ID를 버전 10으로 업데이트했다. 롤백은 버전 9.
 - 운영 확인: `search` 단독 8.4초, 실제 통합검색 UI 10~11초에 7개 메뉴 모두 응답, `72110`·`STD72110-01` 모두 확인 필요 List O(영인에스티, VEOLIA)로 표시. 이전 방식은 시트별 순차 측정 합계 약 80초에 2개 메뉴 실패.
+
+## 2026-10-08 간헐 실패 (REQUEST_INCOMPLETE·UNAUTHORIZED) 개선
+
+- 재현: 페이지 접속 직후(대시보드가 시트 6개 전체 약 9MB를 받는 구간)에 다른 조회를 겹치면, 평소 2~7초인 요청이 13~38초 걸린 뒤 REQUEST_INCOMPLETE 또는 JSON이 아닌 응답으로 끝났다. 접속 후 안정된 상태에서는 같은 요청이 모두 성공. 같은 구간에서 정상 토큰이 UNAUTHORIZED로 2회 거절되고 다음 요청은 성공한 사례도 관측(클라이언트 토큰 변경 없음 확인).
+- 판단: 접속 직후 대용량 동시 실행이 Apps Script 응답 전달(echo 리다이렉트) 유실을 유발한다. UNAUTHORIZED는 서버 측 일시 거절로 보이나 어느 검사인지 미확정.
+- 조치: 대시보드는 `stats` 액션 1건으로 건수만 받는다(시트 전체 다운로드 제거, 구버전 백엔드에선 기존 방식). 읽기 요청은 UNAUTHORIZED를 1회 재확인 후에만 로그아웃한다(진짜 만료·변조 토큰은 재확인에서도 거절되어 기존대로 차단). 서버는 토큰을 남기지 않고 어느 검사에서 거절했는지만 실행 로그에 남긴다(`UNAUTHORIZED signature|auth_version|user_missing…`). 다음 재발 시 Apps Script 실행 로그에서 원인 검사를 확인할 것.
+- 배포: 9883e0a main 푸시, Apps Script 편집기 소스가 버전 10(SHA 0ee49668…)과 일치함을 확인 후 교체(SHA 6fe6a2db…), 같은 배포 ID 버전 11. 롤백은 버전 10.
+- 원인 확정(16:36~16:50 KST): 브라우저·쿠키·사이트 코드 없이 curl 로 잘못된 토큰 POST 30회 → 정상(UNAUTHORIZED) 17, REQUEST_INCOMPLETE 5, Google Drive "페이지를 찾을 수 없음" HTML 8. 실패 시 echo URL(script.googleusercontent.com)이 저장된 결과를 주지 않고 302로 `/exec`(쿼리 없음)에 되돌려 보내 본문 없는 GET 이 새로 실행되거나, echo 결과 자체를 찾지 못한다. 요청당 약 19초로 평소(약 1초)보다 크게 느렸다. Apps Script 웹앱 결과 전달 계층의 장애이며 사이트 코드로는 재시도·요청 수 축소로 완화만 가능하다.
+- v11 측정 중 UNAUTHORIZED 는 같은 시각(16:31:16) 해당 브라우저에서 재로그인이 있어 세션 교체 영향과 구분되지 않는다. 실행 화면에는 사유 로그가 보이지 않아 확인하지 못했다(Cloud Logging 연결 필요).
+- 근본 대안: 읽기 경로를 Apps Script 웹앱 대신 Vercel 서버리스(api/) → Google Sheets API(서비스 계정)로 옮기면 echo 리다이렉트 계층이 사라진다. 서비스 계정 키·시트 공유·토큰 서명키 이관이 필요하다.
