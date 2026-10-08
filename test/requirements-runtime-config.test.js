@@ -22,7 +22,8 @@ test("requirements config exposes only the new Apps Script v2 endpoint", () => {
 
   const config = sandbox.window.AIN_REQUIREMENTS_CONFIG;
   assert.ok(config, "runtime config must be exported on window");
-  assert.deepEqual(Reflect.ownKeys(config), ["apiUrl"]);
+  assert.deepEqual(Reflect.ownKeys(config), ["apiUrl", "readApiUrl"]);
+  assert.equal(config.readApiUrl, "/api/requirements");
   assert.equal(typeof config.apiUrl, "string");
   assert.match(config.apiUrl, APPS_SCRIPT_EXEC_URL);
   assert.notEqual(config.apiUrl, LEGACY_DEPLOYMENT_URL);

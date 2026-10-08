@@ -235,6 +235,37 @@ async function callApi(action, params = {}, { anonymous = false, sessionToken, d
     }
 }
 
+// Reads go to the same-origin Sheets API path first. Apps Script stays the fallback for
+// anything short of success (including UNAUTHORIZED, which Apps Script then confirms),
+// so a misconfigured or failing read path can never log anyone out on its own.
+const DIRECT_READ_TIMEOUT_MS = 20000;
+async function callDirectRead(action, params, token, timeoutMs) {
+    const url = AIN_REQUIREMENTS_CONFIG.readApiUrl;
+    if (!url || !token) return null;
+    const controller = typeof AbortController === 'function' ? new AbortController() : null;
+    let timer;
+    try {
+        const timeout = new Promise(resolve => {
+            timer = setTimeout(() => { controller?.abort(); resolve(null); }, Math.min(timeoutMs, DIRECT_READ_TIMEOUT_MS));
+        });
+        const request = (async () => {
+            const response = await originalFetch(url, {
+                method: 'POST',
+                cache: 'no-store',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action, ...params, token }),
+                ...(controller ? { signal: controller.signal } : {})
+            });
+            if (!response?.ok) return null;
+            const parsed = JSON.parse(await response.text());
+            return parsed?.success === true ? parsed : null;
+        })().catch(() => null);
+        return await Promise.race([request, timeout]);
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
 function isRetryableReadFailure(result) {
     return result?.error_code === 'REQUEST_INCOMPLETE' ||
         result?.error_code === 'INTERNAL_ERROR' ||
@@ -255,12 +286,19 @@ async function readWithRetries(action, params, token, epoch, isValid) {
         result = await runQueuedRead(() => {
             if (epoch !== readCacheEpoch) return staleRefreshResult();
             if (!isCurrentSessionToken(token)) return staleSessionResult();
-            return callApi(action, params, {
-                sessionToken: token,
-                deferUnauthorized: true,
-                readEpoch: epoch,
-                timeoutMs: Math.max(1, Math.min(READ_TIMEOUT_MS, deadline - Date.now()))
-            });
+            const viaAppsScript = () => {
+                if (epoch !== readCacheEpoch) return staleRefreshResult();
+                if (!isCurrentSessionToken(token)) return staleSessionResult();
+                return callApi(action, params, {
+                    sessionToken: token,
+                    deferUnauthorized: true,
+                    readEpoch: epoch,
+                    timeoutMs: Math.max(1, Math.min(READ_TIMEOUT_MS, deadline - Date.now()))
+                });
+            };
+            if (!AIN_REQUIREMENTS_CONFIG.readApiUrl) return viaAppsScript();
+            return callDirectRead(action, params, token, Math.max(1, deadline - Date.now()))
+                .then(direct => direct || viaAppsScript());
         }, epoch, deadline);
         if (epoch !== readCacheEpoch) return staleRefreshResult();
         if (!isCurrentSessionToken(token)) return staleSessionResult();

@@ -35,7 +35,7 @@
     {
       "source": "api/cargo-admin.js",
       "target": "website_integration/vercel_package/api/cargo-admin.js",
-      "sha256": "a5470199f9883c93159e1158187798c7adcd00c00a5e55f10424a45537d221cf"
+      "sha256": "b773610d1d3253b860661754e473aaad6f17c5cae94d7a2409df792cd88feea0"
     },
     {
       "source": "api/cargo-card-visibility.js",
@@ -250,7 +250,7 @@
     {
       "source": "vercel.json",
       "target": "website_integration/vercel_package/vercel.json",
-      "sha256": "ca1621d077ed2460c666b556eb67fb4fc55bc84c34d44d5a19067e5ba4194bae"
+      "sha256": "a2b2b67c7956cd1126a050290d7a69ec04c187c7c802e30251816fadac10b98f"
     },
     {
       "source": "lib/cargo-doc-mail-batch.js",
@@ -381,6 +381,16 @@
       "source": "scripts/create-internal-share-secret.cjs",
       "target": "website_integration/vercel_package/scripts/create-internal-share-secret.cjs",
       "sha256": "1b91d907fcccc97a9eb04386a5330b106cc34b96ae878269b5de456d99449600"
+    },
+    {
+      "source": "lib/requirements-read.js",
+      "target": "website_integration/vercel_package/lib/requirements-read.js",
+      "sha256": "8241dcb7cece33b1d3f2857db74d4ca61ed8df952c35c5ae4d2f4d7345edd009"
+    },
+    {
+      "source": "lib/requirements-read-handler.js",
+      "target": "website_integration/vercel_package/lib/requirements-read-handler.js",
+      "sha256": "156ccb074386b693f5dc97d91117eaf5e57197c1da081d54adbaeb4524d18e46"
     }
   ]
 }

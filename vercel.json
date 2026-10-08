@@ -11,6 +11,10 @@
     {
       "source": "/api/internal-share",
       "destination": "/api/cargo-admin?workspace=internal"
+    },
+    {
+      "source": "/api/requirements",
+      "destination": "/api/cargo-admin?workspace=requirements"
     }
   ],
   "headers": [

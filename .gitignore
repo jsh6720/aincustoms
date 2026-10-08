@@ -10,3 +10,4 @@ node_modules/
 .vercel
 .env*
 supabase/.temp/
+.playwright-mcp/

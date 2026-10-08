@@ -644,3 +644,51 @@ test("stats sends one authenticated stats request", async () => {
   assert.equal(calls[0].body.action, "stats");
   assert.equal(calls[0].body.token, "signed-token");
 });
+
+function directHarness(directResponse, appsScriptResults) {
+  const appsScript = [...appsScriptResults];
+  const h = harness([], async (url) => {
+    if (url === "/api/requirements") {
+      if (directResponse instanceof Error) throw directResponse;
+      return directResponse;
+    }
+    const next = appsScript.shift();
+    return jsonResponse(next);
+  });
+  h.context.AIN_REQUIREMENTS_CONFIG.readApiUrl = "/api/requirements";
+  return h;
+}
+
+test("reads use the same-origin Sheets path and skip Apps Script when it succeeds", async () => {
+  const { context, calls } = directHarness(jsonResponse({ success: true, data: [{ id: "direct" }] }), []);
+  const result = await context.API.getData("msds");
+  assert.equal(result.data[0].id, "direct");
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].url, "/api/requirements");
+  assert.deepEqual(calls[0].body, { action: "getData", tableName: "msds", token: "signed-token" });
+});
+
+for (const [label, direct] of [
+  ["503 not configured", jsonResponse({ success: false, error_code: "NOT_CONFIGURED" }, { status: 503 })],
+  ["network error", new Error("offline")],
+  ["non-JSON body", jsonResponse("<html>", { status: 200 })],
+]) {
+  test(`direct read ${label} falls back to Apps Script`, async () => {
+    const { context, calls } = directHarness(direct, [{ success: true, data: [{ id: "apps-script" }] }]);
+    const result = await context.API.getData("msds");
+    assert.equal(result.data[0].id, "apps-script");
+    assert.equal(calls.length, 2);
+    assert.match(calls[1].url, /script\.google\.com/);
+  });
+}
+
+test("a direct-path UNAUTHORIZED is confirmed by Apps Script before anyone is logged out", async () => {
+  const { context, storage, events } = directHarness(
+    jsonResponse({ ok: false, success: false, error_code: "UNAUTHORIZED" }),
+    [{ success: true, counts: { msds: 1 } }]
+  );
+  const result = await context.API.stats();
+  assert.equal(result.counts.msds, 1);
+  assert.equal(storage.has("ainRequirementsSession"), true);
+  assert.deepEqual(events, []);
+});
