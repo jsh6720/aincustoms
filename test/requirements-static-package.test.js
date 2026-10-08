@@ -62,10 +62,10 @@ test("root navigation opens the local requirements application", () => {
 test("requirements scripts use their current cache epochs", () => {
   const html = fs.readFileSync(path.join(appRoot, "index.html"), "utf8");
   const expectedVersions = {
-    "google-sheets-api": "6.1.6",
+    "google-sheets-api": "6.1.7",
     auth: "6.0.3",
     "file-handler": "6.1.2",
-    "unified-search": "6.1.5",
+    "unified-search": "6.1.6",
     "review-needed": "6.1.2",
     pagination: "6.1.2",
     "radio-exemption": "6.1.3",

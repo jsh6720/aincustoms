@@ -61,3 +61,26 @@ for (const stage of ['property','signature','decode','user lookup']) {
     assert.equal(response.success,false);
   });
 }
+
+test('search returns only matching rows per table, authorized and normalized like the client', () => {
+  const {context,token} = harness();
+  const sheets = {
+    AIN_Review_Needed: [['id','spec_no','description','importer'],['1','STD72110-01','SOLEIL STANDARD','영인에스티(주)'],['2','OTHER-1','x','영인에스티(주)'],['3','STD 72110-02','y','타사']],
+    AIN_Chemical_Confirmation: [['id','spec_no','company'],['9','ABC','영인에스티(주)']],
+  };
+  const property = context.requireScriptProperty;
+  context.requireScriptProperty = name => name === "ACTIVE_SPREADSHEET_ID" ? "sheet-id" : property(name);
+  context.SpreadsheetApp = {openById: () => ({getSheetByName: name => {
+    if (name === 'AIN_MSDS') throw new Error('quota');
+    const values = sheets[name] || [['id','spec_no']];
+    return {getDataRange: () => ({getValues: () => values})};
+  }})};
+  context.loadAuthoritativeUser = () => ({username:'qa',active:true,auth_version:1,role:'user',company_name:'영인에스티'});
+  const response = context.handleRequest({postData:{contents:JSON.stringify({action:'search',query:'72110',token})}});
+  assert.equal(response.success,true);
+  assert.deepEqual(response.results.review_needed.map(r => r.spec_no),['STD72110-01']);
+  assert.deepEqual(response.results.chemical_confirmation,[]);
+  assert.deepEqual(Array.from(response.failed),['msds']);
+  assert.equal(context.handleRequest({postData:{contents:JSON.stringify({action:'search',query:' - ',token})}}).error_code,'INVALID_QUERY');
+  assert.equal(context.handleRequest({postData:{contents:JSON.stringify({action:'search',query:'72110'})}}).error_code,'UNAUTHORIZED');
+});

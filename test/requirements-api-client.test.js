@@ -605,3 +605,24 @@ test("clearAllCache aborts active old reads and skips queued and retry wire call
   assert.equal(calls.filter((call) => call.body.tableName === "radio_law").length, 1);
   assert.equal(calls.some((call) => call.body.tableName === "electrical_law"), false);
 });
+
+test("search sends one authenticated search request and retries transient read failures", async () => {
+  const { context, calls } = harness([
+    { success: false, error_code: "REQUEST_INCOMPLETE" },
+    { success: true, results: { review_needed: [{ spec_no: "STD72110-01" }] }, failed: [] },
+  ]);
+  const result = await context.API.search("72110");
+  assert.equal(result.success, true);
+  assert.equal(result.results.review_needed[0].spec_no, "STD72110-01");
+  assert.equal(calls.length, 2);
+  assert.equal(calls[1].body.action, "search");
+  assert.equal(calls[1].body.query, "72110");
+  assert.equal(calls[1].body.token, "signed-token");
+});
+
+test("search on an old backend reports UNKNOWN_ACTION without retrying", async () => {
+  const { context, calls } = harness([{ success: false, error_code: "UNKNOWN_ACTION" }]);
+  const result = await context.API.search("72110");
+  assert.equal(result.error_code, "UNKNOWN_ACTION");
+  assert.equal(calls.length, 1);
+});

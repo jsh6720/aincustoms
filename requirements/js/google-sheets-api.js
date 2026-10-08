@@ -244,7 +244,7 @@ function isRetryableReadFailure(result) {
         result?.status >= 500;
 }
 
-async function readDataWithRetries(mappedTable, token, epoch) {
+async function readWithRetries(action, params, token, epoch, isValid) {
     const deadline = Date.now() + READ_BUDGET_MS;
     let result;
     for (let attempt = 0; attempt < MAX_READ_ATTEMPTS; attempt += 1) {
@@ -254,7 +254,7 @@ async function readDataWithRetries(mappedTable, token, epoch) {
         result = await runQueuedRead(() => {
             if (epoch !== readCacheEpoch) return staleRefreshResult();
             if (!isCurrentSessionToken(token)) return staleSessionResult();
-            return callApi('getData', { tableName: mappedTable }, {
+            return callApi(action, params, {
                 sessionToken: token,
                 deferUnauthorized: true,
                 readEpoch: epoch,
@@ -263,7 +263,7 @@ async function readDataWithRetries(mappedTable, token, epoch) {
         }, epoch, deadline);
         if (epoch !== readCacheEpoch) return staleRefreshResult();
         if (!isCurrentSessionToken(token)) return staleSessionResult();
-        if (result?.success !== false && (result?.success !== true || !Array.isArray(result.data))) {
+        if (result?.success !== false && (result?.success !== true || !isValid(result))) {
             result = { success: false, error_code: 'UPSTREAM_ERROR' };
         }
         if (!isRetryableReadFailure(result)) return result;
@@ -295,7 +295,8 @@ const GoogleSheetsAPI = {
         if (existing) return existing;
 
         const pending = (async () => {
-            const result = await readDataWithRetries(mappedTable, token, epoch);
+            const result = await readWithRetries('getData', { tableName: mappedTable }, token, epoch,
+                read => Array.isArray(read.data));
             if (epoch !== readCacheEpoch) return staleRefreshResult();
             if (!isCurrentSessionToken(token)) return staleSessionResult();
             if (!result.success) {
@@ -321,6 +322,15 @@ const GoogleSheetsAPI = {
             pendingTableReads.delete(pendingKey);
         }
     },
+    // Server-side unified search: one request returns only matching rows of every table.
+    async search(query) {
+        const token = activeSessionToken();
+        const result = await readWithRetries('search', { query }, token, readCacheEpoch,
+            read => Boolean(read.results) && typeof read.results === 'object' && Array.isArray(read.failed));
+        if (result.error_code === 'UNAUTHORIZED') expireSessionForToken(token);
+        return result;
+    },
+
     async addData(tableName, data) {
         const mappedTable = TABLE_NAME_MAP[tableName] || tableName;
         const result = await this.call('addData', { tableName: mappedTable, data });

@@ -41,3 +41,9 @@
 
 - import-requirement-review, Obsidian 이전 지식 확인, UI/UX, Playwright 지침 적용.
 - 최초 점검 당시 지정된 Superpowers 경로와 Ponytail 설치가 없었으나, 이후 설치 목록 갱신으로 canonical 개인 스킬을 사용할 수 있게 됐다. 현재 using-superpowers, systematic-debugging, ponytail, test-driven-development, verification-before-completion, requesting-code-review 지침을 읽고 적용했다. 최소 원인 수정과 별도 코드 리뷰, 느린 정상 응답 재현 시험을 수행했다.
+
+## 2026-10-08 서버 통합검색
+
+- 운영(98a0f7b) 실측: 통합검색이 7개 시트 전체를 각각 내려받음 — 화학물질 6,024행/약 4MB, MSDS 12,685행/약 3.2MB, 시트당 2.5~28초. 동시 2개 제한과 대기열 포함 90초 예산 때문에 마지막 순서인 확인필요 List가 "조회 실패 (미확인)"로 표시됐다. 같은 측정에서 radio_law UPSTREAM_ERROR, non_target REQUEST_INCOMPLETE 간헐 실패도 재현.
+- 72110은 AIN_Review_Needed `STD72110-01`(영인에스티, 화관법·화평법 확인필요)로 존재하며 클라이언트 필터 자체는 정상 매칭된다. 미조회는 데이터 전송 실패 때문이다.
+- Apps Script에 `search` 액션 추가: 요청 1건으로 7개 시트를 서버에서 같은 필드·정규화로 걸러 권한 통과 행만 반환, 시트별 실패는 `failed`로 구분. 프런트는 이를 우선 사용하고 `UNKNOWN_ACTION`(구버전 백엔드)일 때만 기존 시트별 조회로 대신한다.

@@ -458,6 +458,8 @@ function handleRequest(e) {
     switch (requestData.action) {
       case "getData":
         return createResponse(handleGetData(user, requestData.tableName));
+      case "search":
+        return createResponse(handleSearch(user, requestData.query));
       case "addData":
         return createResponse(handleAddData(user, requestData.tableName, requestData.data));
       case "updateData":
@@ -575,6 +577,61 @@ function handleGetData(user, tableName) {
     records.push(tableName === "users" ? sanitizePublicUserRecord(record) : record);
   }
   return { success: true, data: records, total: records.length };
+}
+
+// 통합검색: 시트 전체(수 MB)를 내려보내지 않고 서버에서 걸러 일치 행만 돌려준다.
+// 필드·정규화는 requirements/js/unified-search.js 와 같아야 화면별 검색과 결과가 맞는다.
+var UNIFIED_SEARCH_FIELDS = {
+  chemical_confirmation: ["spec_no", "product_name", "model_spec", "company"],
+  msds: ["spec_no", "substance", "importer"],
+  radio_law: ["spec_no", "model_name", "derived_model_name", "certification_no", "consignee", "manufacturer", "item_name"],
+  electrical_law: ["spec_no", "model_name", "derived_model_name", "certification_no", "consignee", "manufacturer", "item_name"],
+  medical_device: ["spec_no", "importer", "model_name", "permit_no", "item_name_eng"],
+  non_target: ["spec_no", "law", "importer", "exporter", "non_target_reason"],
+  review_needed: ["spec_no", "description", "importer", "exporter"],
+};
+
+function normalizeSearchText_(value) {
+  return String(value == null ? "" : value)
+    .toLowerCase()
+    .replace(/　/g, "")
+    .replace(/[\s\-\_\/.,()·・~]/g, "");
+}
+
+function handleSearch(user, query) {
+  var needle = normalizeSearchText_(query);
+  if (typeof query !== "string" || query.length > 100 || !needle) {
+    return { success: false, error_code: "INVALID_QUERY", error: "Invalid query" };
+  }
+  var results = {};
+  var failed = [];
+  Object.keys(UNIFIED_SEARCH_FIELDS).forEach(function(tableName) {
+    try {
+      var table = tableState_(tableName);
+      if (table.error) {
+        failed.push(tableName);
+        return;
+      }
+      var columns = UNIFIED_SEARCH_FIELDS[tableName]
+        .map(function(field) { return table.headers.indexOf(field); })
+        .filter(function(index) { return index !== -1; });
+      var matches = [];
+      for (var row = 1; row < table.values.length; row += 1) {
+        var values = table.values[row];
+        var hit = columns.some(function(index) {
+          return normalizeSearchText_(values[index]).indexOf(needle) !== -1;
+        });
+        if (!hit) continue;
+        var record = rowRecord_(table.headers, values);
+        if (authorizeRecord(user, record)) matches.push(record);
+      }
+      results[tableName] = matches;
+    } catch (error) {
+      Logger.log("Search failed: " + tableName);
+      failed.push(tableName);
+    }
+  });
+  return { success: true, results: results, failed: failed };
 }
 
 function cloneAllowedData_(data) {

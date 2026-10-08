@@ -621,3 +621,26 @@ test("a stale unified-search 409 cannot replace newer results", async () => {
   assert.match(elements.get("unifiedSearchResult").innerHTML, /NEW-QUERY/);
   assert.doesNotMatch(elements.get("unifiedSearchResult").innerHTML, /OLD-QUERY|검색 중 오류/);
 });
+
+test("unified search uses one server search and shows the review-needed hit without table reads", async () => {
+  let tableReads = 0;
+  const { context, elements } = harness(async () => { tableReads += 1; return { ok: true, status: 200, json: async () => ({ data: [] }) }; });
+  context.GoogleSheetsAPI = { search: async () => ({ success: true, failed: ["msds"], results: {
+    chemical_confirmation: [], radio_law: [], electrical_law: [], medical_device: [], non_target: [],
+    review_needed: [{ spec_no: "STD72110-01", importer: "영인에스티(주)", exporter: "VEOLIA" }] } }) };
+  elements.get("unifiedSearch").value = "72110";
+  await context.__performUnifiedSearch();
+  const html = elements.get("unifiedSearchResult").innerHTML;
+  assert.equal(tableReads, 0);
+  assert.match(html, /총 1건/);
+  assert.match(html, /영인에스티/);
+  assert.match(html, /1개 메뉴 조회 실패/);
+});
+
+test("unified search falls back to table reads when the backend lacks search", async () => {
+  const { context, elements } = harness(async (url) => ({ ok: true, status: 200, json: async () => ({ data: url.includes("review_needed") ? [{ spec_no: "STD72110-01" }] : [] }) }));
+  context.GoogleSheetsAPI = { search: async () => ({ success: false, error_code: "UNKNOWN_ACTION" }) };
+  elements.get("unifiedSearch").value = "72110";
+  await context.__performUnifiedSearch();
+  assert.match(elements.get("unifiedSearchResult").innerHTML, /총 1건/);
+});

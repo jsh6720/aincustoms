@@ -90,6 +90,27 @@ async function performUnifiedSearch() {
             if (isCurrentRequirementsViewRequest(viewRequest)) displayUnifiedSearchResult(results, searchValue, states);
         };
         render();
+
+        // 서버 검색: 요청 1건으로 7개 시트의 일치 행만 받는다 (시트 전체 수 MB 전송·대기열 지연 제거)
+        const searched = typeof GoogleSheetsAPI !== 'undefined' && typeof GoogleSheetsAPI.search === 'function'
+            ? await GoogleSheetsAPI.search(searchValue)
+            : { success: false, error_code: 'UNKNOWN_ACTION' };
+        if (!isCurrentRequirementsViewRequest(viewRequest)) return;
+        if (searched.success) {
+            for (const [key, table] of Object.entries(tables)) {
+                const failed = searched.failed.includes(table) || !Array.isArray(searched.results[table]);
+                results[key] = failed ? [] : searched.results[table];
+                states[key] = failed ? 'failed' : 'ready';
+            }
+            render();
+            return;
+        }
+        // 구버전 백엔드(search 미배포)일 때만 시트별 전체 조회로 대신한다
+        if (searched.error_code !== 'UNKNOWN_ACTION' && searched.error_code !== 'INVALID_QUERY') {
+            Object.keys(states).forEach(key => { states[key] = 'failed'; });
+            render();
+            return;
+        }
         await Promise.all(Object.entries(tables).map(async ([key, table]) => {
             try {
                 results[key] = await searchInTable(table, searchValue);
