@@ -170,3 +170,46 @@ test("formula errors read as the bare error text like getValues", () => {
   const values = read.sheetValues([["note"], ["#N/A ()"], ["#REF! (Reference does not exist.)"], ["#hashtag (kept)"]], [["note"], ["#N/A ()"], ["#REF! (Reference does not exist.)"], ["#hashtag (kept)"]], "Asia/Seoul");
   assert.deepEqual(values.slice(1).map(row => row[0]), ["#N/A", "#REF!", "#hashtag (kept)"]);
 });
+
+function sheetsFetch(script) {
+  const calls = [];
+  const fetchImpl = async (url) => {
+    calls.push(url);
+    if (url.includes("oauth2")) return { ok: true, status: 200, json: async () => ({ access_token: "t", expires_in: 3600 }) };
+    if (url.includes("fields=properties.timeZone")) return { ok: true, status: 200, json: async () => ({ properties: { timeZone: "Asia/Seoul" } }) };
+    const status = script.shift() ?? 200;
+    return { ok: status === 200, status, json: async () => ({ valueRanges: [{ values: [["id"], ["1"]] }] }) };
+  };
+  return { calls, fetchImpl };
+}
+
+function testKey() {
+  const { privateKey } = crypto.generateKeyPairSync("rsa", { modulusLength: 2048 });
+  return { client_email: "reader@example.iam.gserviceaccount.com", token_uri: "https://oauth2.example/token", private_key: privateKey.export({ type: "pkcs8", format: "pem" }) };
+}
+
+test("Sheets 429 is retried and then succeeds", async () => {
+  const { calls, fetchImpl } = sheetsFetch([429, 200, 200]);
+  const { createSheetReader } = require("../lib/requirements-read-handler");
+  const reader = createSheetReader({ key: testKey(), spreadsheetId: "s", fetchImpl, retryDelaysMs: [1, 1] });
+  const result = await reader(["AIN_MSDS"]);
+  assert.deepEqual(result.sheets.AIN_MSDS.serial, [["id"], ["1"]]);
+  assert.equal(calls.filter(url => url.includes("batchGet")).length, 3);
+});
+
+test("Sheets 429 that persists is reported, not retried forever", async () => {
+  const { fetchImpl } = sheetsFetch([429, 429, 429, 429, 429, 429]);
+  const { createSheetReader } = require("../lib/requirements-read-handler");
+  const reader = createSheetReader({ key: testKey(), spreadsheetId: "s2", fetchImpl, retryDelaysMs: [1, 1] });
+  await assert.rejects(reader(["AIN_MSDS"]), /Sheets API 429/);
+});
+
+test("simultaneous reads of the same sheets share one Google request", async () => {
+  const { calls, fetchImpl } = sheetsFetch([]);
+  const { createSheetReader } = require("../lib/requirements-read-handler");
+  const reader = createSheetReader({ key: testKey(), spreadsheetId: "s3", fetchImpl, retryDelaysMs: [1, 1] });
+  await Promise.all([reader(["AIN_MSDS"]), reader(["AIN_MSDS"]), reader(["AIN_MSDS"])]);
+  assert.equal(calls.filter(url => url.includes("batchGet")).length, 2);
+  await reader(["AIN_MSDS"]);
+  assert.equal(calls.filter(url => url.includes("batchGet")).length, 4, "no caching once the read has settled");
+});

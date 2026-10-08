@@ -390,7 +390,7 @@
     {
       "source": "lib/requirements-read-handler.js",
       "target": "website_integration/vercel_package/lib/requirements-read-handler.js",
-      "sha256": "156ccb074386b693f5dc97d91117eaf5e57197c1da081d54adbaeb4524d18e46"
+      "sha256": "1fc9533fd998a1188f9e7defa2f99e1e4b03fb03948d15d8a6d59c23aaca48b8"
     }
   ]
 }
