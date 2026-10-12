@@ -3,3 +3,5 @@ naver-blog/cards/
 naver-blog/posts/*/cards.html
 naver-blog/design/preview/
 news-design/preview-*.png
+naver-blog/daily/logs/
+naver-blog/daily/out/

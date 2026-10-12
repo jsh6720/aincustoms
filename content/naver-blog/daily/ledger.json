@@ -1,0 +1,11 @@
+{
+  "items": [
+    { "id": "서울행정법원 2023구합78767", "date": "2026-10-12", "result": "published", "post": "01" },
+    { "id": "조심 2025관0099", "date": "2026-10-12", "result": "published", "post": "02" },
+    { "id": "조심 2026관0002", "date": "2026-10-12", "result": "published", "post": "03" },
+    { "id": "조심 2026관0043", "date": "2026-10-12", "result": "published", "post": "04" },
+    { "id": "조심 2026관0023", "date": "2026-10-12", "result": "covered-in-04", "post": "04" },
+    { "id": "관세법 제42조의2 제1항 제7호 (법률 제21208호)", "date": "2026-10-12", "result": "published", "post": "05" },
+    { "id": "핸드캐리 재수출면세 안내 (관세법 제97조)", "date": "2026-10-12", "result": "published", "post": "06" }
+  ]
+}
