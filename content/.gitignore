@@ -1,0 +1,5 @@
+# Generated from posts/*/post.json by design/render-posts.mjs
+naver-blog/cards/
+naver-blog/posts/*/cards.html
+naver-blog/design/preview/
+news-design/preview-*.png
