@@ -9,3 +9,4 @@ node_modules
 .worktrees
 supabase/.temp
 requirements/apps-script
+content

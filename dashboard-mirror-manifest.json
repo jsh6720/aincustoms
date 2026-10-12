@@ -35,7 +35,7 @@
     {
       "source": "api/cargo-admin.js",
       "target": "website_integration/vercel_package/api/cargo-admin.js",
-      "sha256": "b773610d1d3253b860661754e473aaad6f17c5cae94d7a2409df792cd88feea0"
+      "sha256": "425e070b3d6940afa8fc5656a10150ee6d8995436d2070add71acdc3f880dbaf"
     },
     {
       "source": "api/cargo-card-visibility.js",
@@ -250,7 +250,7 @@
     {
       "source": "vercel.json",
       "target": "website_integration/vercel_package/vercel.json",
-      "sha256": "a2b2b67c7956cd1126a050290d7a69ec04c187c7c802e30251816fadac10b98f"
+      "sha256": "5bb278218c280092fcda56ac03350adecafc1cf8d50209793c398ad0e4a23d74"
     },
     {
       "source": "lib/cargo-doc-mail-batch.js",
@@ -391,6 +391,21 @@
       "source": "lib/requirements-read-handler.js",
       "target": "website_integration/vercel_package/lib/requirements-read-handler.js",
       "sha256": "1fc9533fd998a1188f9e7defa2f99e1e4b03fb03948d15d8a6d59c23aaca48b8"
+    },
+    {
+      "source": "lib/naver-blog-news.js",
+      "target": "website_integration/vercel_package/lib/naver-blog-news.js",
+      "sha256": "e9db74ba3e5d99a354f8f36e529419300bc2ade0f4b7982d62e2735983bbc5c4"
+    },
+    {
+      "source": "lib/naver-blog-news-template.js",
+      "target": "website_integration/vercel_package/lib/naver-blog-news-template.js",
+      "sha256": "57fb59e509b94abfb0d9f3971a95537129ca6f67467e73e2bb767f7ea8bac8c8"
+    },
+    {
+      "source": "lib/news-page-handler.js",
+      "target": "website_integration/vercel_package/lib/news-page-handler.js",
+      "sha256": "75dff681ba09688d4f7682e44ce1e91a1d3f53a6ff7233aeb4e169a772e9176d"
     }
   ]
 }

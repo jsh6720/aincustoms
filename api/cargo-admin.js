@@ -36,6 +36,9 @@ module.exports = async function handler(req, res) {
   if (req.query?.workspace === "requirements") {
     return require("../lib/requirements-read-handler")(req, res);
   }
+  if (req.query?.workspace === "news") {
+    return require("../lib/news-page-handler")(req, res);
+  }
   try {
     if (req.method === "GET" && req.query?.action === "receipt_calendar_cron") {
       if (!authorizedCron(req)) return res.status(401).json({ success: false });

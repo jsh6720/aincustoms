@@ -4,10 +4,12 @@
   "redirects": [
     { "source": "/internal", "destination": "/note", "permanent": false },
     { "source": "/internal/", "destination": "/note", "permanent": false },
-    { "source": "/note/", "destination": "/note", "permanent": false }
+    { "source": "/note/", "destination": "/note", "permanent": false },
+    { "source": "/news/", "destination": "/news", "permanent": true }
   ],
   "rewrites": [
     { "source": "/note", "destination": "/internal/index.html" },
+    { "source": "/news", "destination": "/api/cargo-admin?workspace=news" },
     {
       "source": "/api/internal-share",
       "destination": "/api/cargo-admin?workspace=internal"
