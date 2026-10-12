@@ -1,11 +1,96 @@
 {
   "items": [
-    { "id": "서울행정법원 2023구합78767", "date": "2026-10-12", "result": "published", "post": "01" },
-    { "id": "조심 2025관0099", "date": "2026-10-12", "result": "published", "post": "02" },
-    { "id": "조심 2026관0002", "date": "2026-10-12", "result": "published", "post": "03" },
-    { "id": "조심 2026관0043", "date": "2026-10-12", "result": "published", "post": "04" },
-    { "id": "조심 2026관0023", "date": "2026-10-12", "result": "covered-in-04", "post": "04" },
-    { "id": "관세법 제42조의2 제1항 제7호 (법률 제21208호)", "date": "2026-10-12", "result": "published", "post": "05" },
-    { "id": "핸드캐리 재수출면세 안내 (관세법 제97조)", "date": "2026-10-12", "result": "published", "post": "06" }
+    {
+      "id": "서울행정법원 2023구합78767",
+      "date": "2026-10-12",
+      "result": "published",
+      "post": "01"
+    },
+    {
+      "id": "조심 2025관0099",
+      "date": "2026-10-12",
+      "result": "published",
+      "post": "02"
+    },
+    {
+      "id": "조심 2026관0002",
+      "date": "2026-10-12",
+      "result": "published",
+      "post": "03"
+    },
+    {
+      "id": "조심 2026관0043",
+      "date": "2026-10-12",
+      "result": "published",
+      "post": "04"
+    },
+    {
+      "id": "조심 2026관0023",
+      "date": "2026-10-12",
+      "result": "covered-in-04",
+      "post": "04"
+    },
+    {
+      "id": "관세법 제42조의2 제1항 제7호 (법률 제21208호)",
+      "date": "2026-10-12",
+      "result": "published",
+      "post": "05"
+    },
+    {
+      "id": "핸드캐리 재수출면세 안내 (관세법 제97조)",
+      "date": "2026-10-12",
+      "result": "published",
+      "post": "06"
+    },
+    {
+      "id": "조심 2026관0031",
+      "date": "2026-10-12",
+      "result": "skip",
+      "note": "window-out (의결 2026-08-19); backlog candidate"
+    },
+    {
+      "id": "조심 2026관0017",
+      "date": "2026-10-12",
+      "result": "skip",
+      "note": "window-out (의결 2026-08-19); backlog candidate"
+    },
+    {
+      "id": "특송물품 수입통관 사무처리에 관한 고시 제2026-56호 제26조",
+      "date": "2026-10-12",
+      "result": "skip",
+      "note": "internal procedure, low impact"
+    },
+    {
+      "id": "관세법 제116조의4 제2항 용어 정비 (시행 2026-10-02)",
+      "date": "2026-10-12",
+      "result": "skip",
+      "note": "no substantive change"
+    },
+    {
+      "id": "관세청 보도자료 2026-10-02 원유 수입선 다변화 지원대책",
+      "date": "2026-10-12",
+      "result": "skip",
+      "note": "under review only, narrow scope"
+    },
+    {
+      "id": "조심 2026관0031",
+      "date": "2026-10-12",
+      "result": "draft",
+      "post": "07",
+      "note": "backlog (의결 2026-08-19)"
+    },
+    {
+      "id": "조심 2026관0017",
+      "date": "2026-10-12",
+      "result": "draft",
+      "post": "08",
+      "note": "backlog (의결 2026-08-19)"
+    },
+    {
+      "id": "관세청 전자상거래 전용 통관플랫폼 2026년 10월 개통",
+      "date": "2026-10-12",
+      "result": "skip",
+      "note": "공식 출처로 10월 개통 미확인: 관세청 자료(korea.kr 2026-08-24)는 2026-08-28 시범운영·'연내 정식 개통 예정'만 명시, 개통일 미정. 정식 개통 공지 나오면 재검토"
+    }
   ]
 }
