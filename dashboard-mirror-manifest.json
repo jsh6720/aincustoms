@@ -35,7 +35,7 @@
     {
       "source": "api/cargo-admin.js",
       "target": "website_integration/vercel_package/api/cargo-admin.js",
-      "sha256": "425e070b3d6940afa8fc5656a10150ee6d8995436d2070add71acdc3f880dbaf"
+      "sha256": "f7c5084fbc3843cc18d19897e954f4909bfb43c8332570d7db1443af541efeec"
     },
     {
       "source": "api/cargo-card-visibility.js",
@@ -250,7 +250,7 @@
     {
       "source": "vercel.json",
       "target": "website_integration/vercel_package/vercel.json",
-      "sha256": "ae68d6892dfe7f61eb2509bf5130e04f44e8d69234d77d2f8a937d498f77f85d"
+      "sha256": "cb2906255953667fb7dfcf18ad684e221794d04f378e2968b80ae687038dbff6"
     },
     {
       "source": "lib/cargo-doc-mail-batch.js",
@@ -406,6 +406,11 @@
       "source": "lib/news-page-handler.js",
       "target": "website_integration/vercel_package/lib/news-page-handler.js",
       "sha256": "c99f97f5b10952f38fa52a451bf6169525e3303eaa7981f486b7dac2466fa8ac"
+    },
+    {
+      "source": "lib/contact-handler.js",
+      "target": "website_integration/vercel_package/lib/contact-handler.js",
+      "sha256": "923f946f68429f3e79596e8b3b2f39f046595e01aa01e1bea2f9b9a07f2d8623"
     }
   ]
 }

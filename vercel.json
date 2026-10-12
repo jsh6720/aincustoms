@@ -11,6 +11,7 @@
     { "source": "/note", "destination": "/internal/index.html" },
     { "source": "/news", "destination": "/api/cargo-admin?workspace=news" },
     { "source": "/news.json", "destination": "/api/cargo-admin?workspace=news&format=json" },
+    { "source": "/api/contact", "destination": "/api/cargo-admin?workspace=contact" },
     {
       "source": "/api/internal-share",
       "destination": "/api/cargo-admin?workspace=internal"
