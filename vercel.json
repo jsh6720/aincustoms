@@ -10,6 +10,7 @@
   "rewrites": [
     { "source": "/note", "destination": "/internal/index.html" },
     { "source": "/news", "destination": "/api/cargo-admin?workspace=news" },
+    { "source": "/news.json", "destination": "/api/cargo-admin?workspace=news&format=json" },
     {
       "source": "/api/internal-share",
       "destination": "/api/cargo-admin?workspace=internal"

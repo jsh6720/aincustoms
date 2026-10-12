@@ -250,7 +250,7 @@
     {
       "source": "vercel.json",
       "target": "website_integration/vercel_package/vercel.json",
-      "sha256": "5bb278218c280092fcda56ac03350adecafc1cf8d50209793c398ad0e4a23d74"
+      "sha256": "ae68d6892dfe7f61eb2509bf5130e04f44e8d69234d77d2f8a937d498f77f85d"
     },
     {
       "source": "lib/cargo-doc-mail-batch.js",
@@ -405,7 +405,7 @@
     {
       "source": "lib/news-page-handler.js",
       "target": "website_integration/vercel_package/lib/news-page-handler.js",
-      "sha256": "75dff681ba09688d4f7682e44ce1e91a1d3f53a6ff7233aeb4e169a772e9176d"
+      "sha256": "c99f97f5b10952f38fa52a451bf6169525e3303eaa7981f486b7dac2466fa8ac"
     }
   ]
 }

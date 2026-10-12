@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<!--
+  홈페이지 "관세 인사이트" 섹션 목업 — aincustoms.com index.html 에 추가할 새 섹션.
+
+  레퍼런스 조사 (패턴만 참고, 타 사이트의 자산·문구·코드는 사용하지 않음):
+  1. 김·장(kimchang.com) INSIGHTS: 섹션 제목 + 뉴스레터 5건의 세로 목록. 커버 없음, 카테고리 라벨 + YYYY.MM.DD 날짜. 단정하지만 홈에서 스캔이 느림.
+  2. 태평양(bkl.co.kr) NEWS: 썸네일 + 카테고리 + 헤드라인 + 날짜의 "가로 한 줄 카드 열" (10건). INSIGHTS 는 커버 이미지 그리드. 섹션 단위 '전체보기' 링크가 없어 전체 목록 진입이 약함 → 우리는 헤더에 '전체 보기' 를 둔다.
+  3. Deloitte Korea "Our thinking": 이미지 선행 카드 4건 세로 스택, 카테고리 태그와 읽기 시간. 커버가 크면 홈 세로 길이가 과도해짐 → 4:5 커버는 가로 레일이 맞다.
+  4. McKinsey/컨설팅 인사이트 레일: 아이브로우(소제목) 라벨 + 큰 제목 + 가로 스크롤 레일, 끝에 다음 카드가 살짝 보이도록(peek) 해 스크롤 유도.
+  → 채택: 섹션 헤더(키커 '아인관세 인사이트' + 제목 + 한 줄 소개 + '전체 보기 →' + 데스크톱 좌우 버튼), 커버 선행 카드 6장의 가로 scroll-snap 레일
+    (데스크톱 4장 + peek, 모바일 1.3장 + 16px 거터), 카드엔 카테고리 강조색 라벨 · 날짜 · 2줄 제목만. /news 와 같은 네이비 배경·INSIGHT 워터마크·카테고리 색상 매핑으로 한 가족처럼 보이게 함.
+  → 배치 권장: index.html 의 #specialty(흰 배경) 와 #contact(회색 배경) 사이. 네이비 밴드라 섹션 배경 교대(흰/회색)를 깨지 않고 히어로의 어두운 톤과 호응한다.
+  → 네비: 이미 '관세 주요 뉴스 → /news' 가 있으므로 새 앵커(#insights)는 추가하지 않는 것을 권장(메뉴 10개로 포화). 원하면 모바일 pill 링크를 '#insights' 로 바꾸는 정도.
+
+  운영 연결: GET /news.json → { items:[{title, category, categoryKey, url, summary, image, dateLabel, dateDay}], fetchedAt }
+  index.html 에 넣을 것: (1) <style> 의 .insights-section 블록, (2) <section id="insights"> 마크업, (3) 하단 <script> 의 renderInsights/loadInsights.
+  선택: <head> 에 Pretendard <link> 1줄(없으면 Inter → 시스템 한글 폰트로 자연 폴백).
+-->
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>관세 인사이트 섹션 목업 - 아인합동관세사무소</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- 선택: /news 와 같은 한글 폰트. index.html <head> 에 1줄 추가하면 됨 -->
+    <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+    <style>
+        /* ===== 아래는 index.html 기존 스타일 중 목업 문맥에 필요한 부분 복사 (수정 금지) ===== */
+        * { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
+        .hero-section {
+            background: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url('../../images/hero-background.jpg');
+            background-size: cover; background-position: center; background-repeat: no-repeat;
+            height: 100vh; display: flex; align-items: center; justify-content: center; position: relative;
+        }
+        .navbar {
+            background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08); position: fixed; top: 0; width: 100%; z-index: 1000;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+        }
+        .logo img { height: 40px; width: auto; object-fit: contain; }
+        .scroll-offset { scroll-margin-top: 80px; }
+        .hero-text { text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3); }
+        .btn-primary {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white; padding: 16px 32px; border-radius: 12px;
+            font-weight: 600; font-size: 18px; border: none; cursor: pointer; box-shadow: 0 8px 24px rgba(59, 130, 246, 0.3);
+        }
+        .container { max-width: 1200px; margin: 0 auto; padding-left: 24px; padding-right: 24px; }
+        @media (max-width: 768px) {
+            .hero-section { background-attachment: scroll; padding: 40px 20px; }
+            .container { padding: 0 16px; }
+        }
+        /* 목업 전용: 히어로를 짧게, 앞뒤 섹션은 자리표시 띠로 */
+        .hero-section.is-stub { height: 420px; }
+        .mock-stub { padding: 40px 0; text-align: center; color: #9ca3af; font-size: 14px; letter-spacing: .02em; }
+
+        /* ======================================================================
+           ===== NEW: 관세 인사이트 섹션 — .insights-section 아래로만 스코프 =====
+           index.html <style> 끝에 그대로 붙여 넣는다.
+           ====================================================================== */
+        .insights-section {
+            --ins-navy: #0f172a;
+            --ins-navy-2: #111c33;
+            --ins-blue: #2563eb;
+            --ins-blue-deep: #1d4ed8;
+            --ins-slate-300: #cbd5e1;
+            --ins-slate-400: #94a3b8;
+            --ins-ink-2: #334155;
+            --ins-ink-3: #64748b;
+            --ins-radius: 16px;
+            --ins-gap: 24px;
+            --ins-card: calc((100% - 3 * var(--ins-gap)) / 4 - 14px); /* 4장 + 다음 장 살짝 보이기 */
+            --ins-accent: var(--ins-navy);
+            position: relative;
+            overflow: hidden;
+            padding: 88px 0 96px;
+            background: radial-gradient(120% 90% at 100% 0%, #16254a 0%, var(--ins-navy-2) 45%, var(--ins-navy) 100%);
+            color: #fff;
+            word-break: keep-all;
+        }
+
+        .insights-section * {
+            font-family: 'Pretendard Variable', Pretendard, 'Inter', -apple-system, BlinkMacSystemFont, system-ui, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+            box-sizing: border-box;
+        }
+
+        /* /news 와 같은 카테고리 강조색 (lib/naver-blog-news-template.js 와 동일 키) */
+        .insights-section [data-category="case"]   { --ins-accent: #60a5fa; --ins-accent-ink: #1d4ed8; }
+        .insights-section [data-category="hs"]     { --ins-accent: #2dd4bf; --ins-accent-ink: #0f766e; }
+        .insights-section [data-category="fta"]    { --ins-accent: #a78bfa; --ins-accent-ink: #6d28d9; }
+        .insights-section [data-category="news"]   { --ins-accent: #fbbf24; --ins-accent-ink: #b45309; }
+        .insights-section [data-category="req"]    { --ins-accent: #fb7185; --ins-accent-ink: #be123c; }
+        .insights-section [data-category="guide"]  { --ins-accent: #a3e635; --ins-accent-ink: #4d7c0f; }
+        .insights-section [data-category="interp"] { --ins-accent: #67e8f9; --ins-accent-ink: #0e7490; }
+        .insights-section [data-category="office"] { --ins-accent: #cbd5e1; --ins-accent-ink: #475569; }
+        .insights-section [data-category="etc"]    { --ins-accent: #cbd5e1; --ins-accent-ink: #475569; }
+
+        /* 카드뉴스 표지 / news 헤더의 워터마크 모티프 */
+        .insights-section::before {
+            content: "INSIGHT";
+            position: absolute;
+            right: -0.06em;
+            top: -0.08em;
+            font-size: clamp(120px, 15vw, 210px);
+            font-weight: 900;
+            letter-spacing: -0.04em;
+            line-height: 1;
+            color: transparent;
+            -webkit-text-stroke: 2px rgba(255, 255, 255, 0.10);
+            pointer-events: none;
+            user-select: none;
+        }
+
+        .insights-section .container { position: relative; }
+
+        /* ----- 헤더 ----- */
+        .insights-head {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            gap: 24px;
+            margin-bottom: 36px;
+        }
+
+        .insights-kicker {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            margin: 0 0 14px;
+            font-size: 14px;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            color: var(--ins-slate-300);
+        }
+
+        .insights-kicker::before { content: ""; width: 28px; height: 2px; background: var(--ins-blue); }
+
+        .insights-head h2 {
+            margin: 0 0 14px;
+            font-size: 40px;
+            font-weight: 800;
+            line-height: 1.15;
+            letter-spacing: -0.03em;
+            color: #fff;
+        }
+
+        .insights-head p {
+            margin: 0;
+            max-width: 560px;
+            font-size: 18px;
+            line-height: 1.6;
+            font-weight: 500;
+            color: var(--ins-slate-300);
+        }
+
+        .insights-actions { display: flex; align-items: center; gap: 10px; flex: none; }
+
+        .insights-all {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            height: 46px;
+            padding: 0 20px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.28);
+            color: #fff;
+            font-size: 15px;
+            font-weight: 700;
+            white-space: nowrap;
+            transition: background .2s, border-color .2s;
+        }
+
+        .insights-all:hover { background: rgba(255, 255, 255, 0.08); border-color: rgba(255, 255, 255, 0.5); }
+        .insights-all svg { width: 18px; height: 18px; transition: transform .2s; }
+        .insights-all:hover svg { transform: translateX(3px); }
+
+        .insights-nav {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 46px;
+            height: 46px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            background: rgba(255, 255, 255, 0.04);
+            color: #fff;
+            cursor: pointer;
+            transition: background .2s, opacity .2s;
+        }
+
+        .insights-nav:hover { background: rgba(255, 255, 255, 0.12); }
+        .insights-nav:disabled { opacity: .3; cursor: default; }
+        .insights-nav svg { width: 18px; height: 18px; }
+
+        /* ----- 레일 ----- */
+        .insights-rail {
+            display: flex;
+            gap: var(--ins-gap);
+            overflow-x: auto;
+            overscroll-behavior-x: contain;
+            scroll-snap-type: x mandatory;
+            scroll-behavior: smooth;
+            scrollbar-width: none;
+            -webkit-overflow-scrolling: touch;
+            padding: 6px 0 20px;  /* hover 로 떠오르는 카드의 그림자 여유 */
+            margin: -6px 0 -20px;
+            /* 데스크톱: 오른쪽은 컨테이너를 넘어 화면 끝까지 흘러가게(peek) — 왼쪽 정렬은 컨테이너와 맞춤 */
+            margin-right: min(0px, calc(50% - 50vw));
+            padding-right: max(0px, calc(50vw - 50%));   /* 섹션 overflow:hidden 이 스크롤바 폭 차이를 흡수 */
+        }
+
+        .insights-rail::-webkit-scrollbar { display: none; }
+
+        .insights-card,
+        .insights-skeleton {
+            flex: 0 0 var(--ins-card);
+            min-width: 0;
+            scroll-snap-align: start;
+            display: flex;
+            flex-direction: column;
+            border-radius: var(--ins-radius);
+            background: #fff;
+            overflow: hidden;
+            color: var(--ins-navy);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .insights-card {
+            text-decoration: none;
+            transition: transform .4s cubic-bezier(0.4, 0, 0.2, 1), box-shadow .4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .insights-card:hover { transform: translateY(-6px); box-shadow: 0 20px 48px rgba(0, 0, 0, 0.4); }
+        .insights-card:focus-visible { outline: 3px solid #93c5fd; outline-offset: 3px; }
+
+        .insights-cover {
+            position: relative;
+            aspect-ratio: 4 / 5;
+            background: var(--ins-navy);
+            overflow: hidden;
+        }
+
+        .insights-cover img {
+            display: block;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform .6s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .insights-card:hover .insights-cover img { transform: scale(1.03); }
+
+        .insights-body { display: flex; flex-direction: column; gap: 8px; padding: 16px 18px 18px; }
+
+        .insights-meta {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            font-size: 12.5px;
+            font-weight: 700;
+        }
+
+        .insights-cat {
+            display: inline-flex; align-items: center; gap: 7px;
+            color: var(--ins-accent-ink, var(--ins-ink-2));
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .insights-cat::before { content: ""; flex: none; width: 8px; height: 8px; border-radius: 2px; background: var(--ins-accent-ink, var(--ins-ink-2)); }
+
+        .insights-date { color: var(--ins-ink-3); font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+        .insights-title {
+            margin: 0;
+            font-size: 16.5px;
+            font-weight: 800;
+            line-height: 1.38;
+            letter-spacing: -0.02em;
+            color: var(--ins-navy);
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            min-height: calc(1.38em * 2);
+        }
+
+        .insights-card:hover .insights-title { color: var(--ins-blue-deep); }
+
+        /* ----- 스켈레톤 ----- */
+        .insights-skeleton { pointer-events: none; }
+        .insights-skeleton .insights-cover { background: #1e293b; }
+        .insights-skeleton .insights-cover::after,
+        .insights-skeleton .sk {
+            display: block;
+            background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
+            background-size: 200% 100%;
+            animation: insights-shimmer 1.4s ease-in-out infinite;
+            border-radius: 6px;
+        }
+        .insights-skeleton .insights-cover::after {
+            content: "";
+            position: absolute; inset: 0;
+            background: linear-gradient(90deg, #1e293b 25%, #273449 50%, #1e293b 75%);
+            background-size: 200% 100%;
+            border-radius: 0;
+        }
+        .insights-skeleton .sk-meta { height: 12px; width: 55%; }
+        .insights-skeleton .sk-title { height: 16px; width: 92%; }
+        .insights-skeleton .sk-title-2 { height: 16px; width: 70%; }
+
+        @keyframes insights-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+        /* ----- 상태 전환: data-state = loading | ready | error ----- */
+        .insights-section .insights-skeleton { display: none; }
+        .insights-section[data-state="loading"] .insights-skeleton { display: flex; }
+        .insights-fallback { display: none; }
+        .insights-section[data-state="error"] .insights-fallback { display: flex; }
+        .insights-section[data-state="error"] .insights-rail,
+        .insights-section[data-state="error"] .insights-nav,
+        .insights-section[data-state="error"] .insights-foot { display: none !important; }
+
+        /* JS 없음/실패: 레일 대신 /news 로 안내하는 패널 */
+        .insights-fallback {
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 16px 24px;
+            padding: 28px 32px;
+            border-radius: var(--ins-radius);
+            border: 1px dashed rgba(255, 255, 255, 0.28);
+            background: rgba(255, 255, 255, 0.04);
+            color: var(--ins-slate-300);
+            font-size: 16px;
+            line-height: 1.55;
+        }
+
+        .insights-fallback strong { color: #fff; font-weight: 800; display: block; margin-bottom: 4px; font-size: 18px; }
+
+        .insights-fallback .insights-all { border-color: transparent; background: linear-gradient(135deg, #3b82f6, #1d4ed8); box-shadow: 0 8px 24px rgba(59, 130, 246, 0.3); }
+        .insights-fallback .insights-all:hover { background: linear-gradient(135deg, #3b82f6, #1d4ed8); transform: translateY(-2px); }
+
+        .insights-foot {
+            display: none;
+            margin-top: 28px;
+            justify-content: center;
+        }
+
+        /* ----- 반응형 ----- */
+        @media (max-width: 1024px) {
+            .insights-section { --ins-card: calc((100% - 2 * var(--ins-gap)) / 3 - 16px); }
+        }
+
+        @media (max-width: 768px) {
+            .insights-section { --ins-gap: 14px; --ins-card: min(72vw, 300px); padding: 60px 0 64px; }
+            .insights-section::before { font-size: 104px; -webkit-text-stroke-width: 1.5px; top: -0.06em; right: -0.05em; opacity: .7; }
+            .insights-head { flex-direction: column; align-items: flex-start; gap: 18px; margin-bottom: 24px; }
+            .insights-head h2 { font-size: 30px; margin-bottom: 10px; }
+            .insights-head p { font-size: 15.5px; }
+            .insights-actions { display: none; }               /* 데스크톱 전용 화살표; 전체 보기는 하단으로 */
+            .insights-foot { display: flex; }
+            .insights-foot .insights-all { width: 100%; justify-content: center; }
+            /* 16px 거터: 컨테이너 패딩을 상쇄해 화면 끝까지 스크롤, 페이지 가로 스크롤은 없음 */
+            .insights-rail { margin-left: -16px; margin-right: -16px; padding-left: 16px; padding-right: 16px; scroll-padding-left: 16px; }
+            .insights-rail::after { content: ""; flex: 0 0 2px; }
+            .insights-body { padding: 14px 14px 16px; gap: 6px; }
+            .insights-title { font-size: 15.5px; }
+            .insights-meta { font-size: 12px; }
+            .insights-fallback { padding: 22px 20px; font-size: 15px; }
+            .insights-fallback .insights-all { width: 100%; justify-content: center; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .insights-card, .insights-cover img, .insights-all svg { transition: none; }
+            .insights-card:hover { transform: none; }
+            .insights-rail { scroll-behavior: auto; }
+            .insights-skeleton .sk, .insights-skeleton .insights-cover::after { animation: none; }
+        }
+    </style>
+    <noscript>
+        <style>
+            /* JS 없음: 스켈레톤을 감추고 /news 안내 패널만 보여준다 */
+            .insights-section .insights-rail, .insights-section .insights-nav, .insights-section .insights-foot { display: none !important; }
+            .insights-section .insights-fallback { display: flex !important; }
+        </style>
+    </noscript>
+</head>
+
+<body>
+    <!-- ===== index.html 네비게이션 복사 (문맥용) ===== -->
+    <nav class="navbar">
+        <div class="container flex justify-between items-center py-5">
+            <div class="logo mr-6">
+                <img src="../../images/logo.png" alt="아인합동관세사무소 로고">
+            </div>
+            <div class="hidden md:flex space-x-4 2xl:space-x-8 items-center whitespace-nowrap">
+                <a href="#home" class="text-gray-700 hover:text-blue-600 font-medium text-base transition-colors">홈</a>
+                <a href="#about" class="text-gray-700 hover:text-blue-600 font-medium text-base transition-colors">회사소개</a>
+                <a href="#services" class="text-gray-700 hover:text-blue-600 font-medium text-base transition-colors">전문서비스</a>
+                <a href="#team" class="text-gray-700 hover:text-blue-600 font-medium text-base transition-colors">구성원소개</a>
+                <a href="#specialty" class="text-gray-700 hover:text-blue-600 font-medium text-base transition-colors">AI 통관</a>
+                <a href="/news" class="text-gray-700 hover:text-blue-600 font-medium text-base transition-colors">관세 주요 뉴스</a>
+                <a href="#contact" class="text-gray-700 hover:text-blue-600 font-medium text-base transition-colors">연락처</a>
+                <a href="#" class="text-red-600 hover:text-red-800 font-bold text-base transition-colors">과세가격 일괄제출 관리</a>
+                <a href="/requirements/" class="text-blue-600 hover:text-blue-800 font-bold text-base transition-colors">AIN 요건관리</a>
+                <a href="./cargo-dashboard.html" class="text-green-600 hover:text-green-800 font-bold text-base transition-colors">축산물 통관조회</a>
+            </div>
+            <a href="/news" class="md:hidden inline-flex items-center px-3 py-2 rounded-full border border-gray-200 bg-white text-sm font-semibold text-gray-700 hover:text-blue-600 transition-colors whitespace-nowrap">관세 주요 뉴스</a>
+        </div>
+    </nav>
+
+    <!-- ===== 히어로 스텁 (문맥용, 높이만 줄임) ===== -->
+    <section id="home" class="hero-section is-stub">
+        <div class="text-center text-white hero-text">
+            <h1 class="text-5xl md:text-6xl font-bold mb-6 leading-tight">아인합동관세사무소</h1>
+            <p class="text-xl md:text-2xl mb-4 font-medium">Maximized Efficiency, Minimized Risk</p>
+        </div>
+    </section>
+
+    <div class="mock-stub bg-white">… #about · #services · #team · #specialty (기존 섹션) …</div>
+
+    <!-- =====================================================================
+         ===== NEW: 관세 인사이트 — index.html 의 #specialty 다음, #contact 앞에 삽입 =====
+         ===================================================================== -->
+    <section id="insights" class="insights-section scroll-offset" data-state="loading" aria-labelledby="insights-title">
+        <div class="container">
+            <div class="insights-head">
+                <div>
+                    <p class="insights-kicker">아인관세 인사이트</p>
+                    <h2 id="insights-title">관세 인사이트</h2>
+                    <p>관세사가 최신 판례·유권해석·제도 변경을 한 장씩 넘겨 보는 카드뉴스로 정리합니다.</p>
+                </div>
+                <div class="insights-actions">
+                    <button type="button" class="insights-nav" data-insights-prev aria-label="이전 카드뉴스" disabled>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+                    </button>
+                    <button type="button" class="insights-nav" data-insights-next aria-label="다음 카드뉴스">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+                    </button>
+                    <a class="insights-all" href="/news">
+                        전체 보기
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+                    </a>
+                </div>
+            </div>
+
+            <!-- 레일: 로딩 중엔 스켈레톤 4장, JS 가 카드로 교체 -->
+            <div class="insights-rail" data-insights-rail aria-live="polite" aria-busy="true">
+                <div class="insights-skeleton" aria-hidden="true"><div class="insights-cover"></div><div class="insights-body"><span class="sk sk-meta"></span><span class="sk sk-title"></span><span class="sk sk-title-2"></span></div></div>
+                <div class="insights-skeleton" aria-hidden="true"><div class="insights-cover"></div><div class="insights-body"><span class="sk sk-meta"></span><span class="sk sk-title"></span><span class="sk sk-title-2"></span></div></div>
+                <div class="insights-skeleton" aria-hidden="true"><div class="insights-cover"></div><div class="insights-body"><span class="sk sk-meta"></span><span class="sk sk-title"></span><span class="sk sk-title-2"></span></div></div>
+                <div class="insights-skeleton" aria-hidden="true"><div class="insights-cover"></div><div class="insights-body"><span class="sk sk-meta"></span><span class="sk sk-title"></span><span class="sk sk-title-2"></span></div></div>
+            </div>
+
+            <!-- JS 없음 / 불러오기 실패 -->
+            <div class="insights-fallback" data-insights-fallback>
+                <div>
+                    <strong>최신 카드뉴스를 불러오지 못했습니다</strong>
+                    관세 주요 뉴스 페이지에서 전체 글을 바로 확인하실 수 있습니다.
+                </div>
+                <a class="insights-all" href="/news">
+                    관세 주요 뉴스 보기
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+                </a>
+            </div>
+
+            <!-- 모바일: 전체 보기 (헤더 액션은 숨김) -->
+            <div class="insights-foot">
+                <a class="insights-all" href="/news">
+                    전체 보기
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+                </a>
+            </div>
+        </div>
+    </section>
+    <!-- ===== /NEW ===== -->
+
+    <div class="mock-stub bg-gray-50">… #contact (기존 섹션) …</div>
+
+    <!-- 목업 샘플 데이터: GET /news.json 응답과 같은 형태 (RSS 2026-10-12 기준 6건) -->
+    <script type="application/json" id="insights-sample">
+    {"fetchedAt":"2026-10-12T04:20:00.000Z","items":[
+      {"title":"인천공항 핸드캐리 수입 어떻게?","category":"통관 가이드","categoryKey":"guide","url":"https://blog.naver.com/aincustoms_/224438853014","summary":"출장길에 회사 장비나 샘플을 택배 대신 직접 들고 들어와도(핸드캐리) 여행자 면세가 아니라 정식 수입신고 대상입니다.","image":"https://blogthumb.pstatic.net/MjAyNjEwMTJfMjIg/MDAxNzkxNzczNTE2MDk4.FamxYz8rhoIFnVYiZnY8IpurUAV8ecvXvNh_S26n5LYg.JuqtXZkyK0Nt3500jBsVNuOFMx8BdiXiLIFprx0lzHkg.PNG/card-01.png?type=w2","dateLabel":"2026. 10. 12.","dateDay":"2026-10-12"},
+      {"title":"사전심사 후 수정신고하면 가산세는? (제42조의2)","category":"관세 뉴스","categoryKey":"news","url":"https://blog.naver.com/aincustoms_/224438504266","summary":"2026. 1. 1.부터 품목분류 사전심사 결과 통지일부터 2개월 안에 통지된 분류로 수정신고하면 신고불성실 가산세가 감면됩니다.","image":"https://blogthumb.pstatic.net/MjAyNjEwMTJfMTYx/MDAxNzkxNzczMDcwMDg3.871s6qOdKD_jk37dkupsDj7iUl9vnNZx-zaxzHqsV0kg.DreWEvCQEPuOpIjfOnUeDVC1OVwbvVhbzIhJQfdQGmwg.PNG/card-01.png?type=w2","dateLabel":"2026. 10. 12.","dateDay":"2026-10-12"},
+      {"title":"협정관세 1년 놓치면? (조심 2026관0043)","category":"FTA·원산지","categoryKey":"fta","url":"https://blog.naver.com/aincustoms_/224438503865","summary":"협정관세는 신청해야 적용됩니다. 수입신고 수리일부터 1년 안에 사후적용을 신청하지 않으면 5년 경정청구로도 소급 적용받을 수 없습니다.","image":"https://blogthumb.pstatic.net/MjAyNjEwMTJfMjY2/MDAxNzkxNzcyNTYxMDc4.sqbW7HFbzKkV9k8_dfJH4EM5wKtAY-QUDWIEIRVEACEg.ppe5oxZBo_A6C0N5OBgfsE46XMe3pCzbmob2YZhuJmwg.PNG/card-01.png?type=w2","dateLabel":"2026. 10. 12.","dateDay":"2026-10-12"},
+      {"title":"합판일까 LVL일까? (조심 2026관0002)","category":"품목분류","categoryKey":"hs","url":"https://blog.naver.com/aincustoms_/224438503405","summary":"직교(가로결) 단판이 일부 섞인 적층 목재를 LVL로 보아, 합판 분류에 따른 덤핑방지관세 부과처분이 취소되었습니다.","image":"https://blogthumb.pstatic.net/MjAyNjEwMTJfMTI5/MDAxNzkxNzcyMDU2OTE2.kMyNnfcm5qaBVXjXkB0f5G-iqYFbGwuvtfS3FSnDnyYg.1Q9o4t5T7rKt_-_t-Ksoxykcdjx_nGy2lcXaS2n-6T0g.PNG/card-01.png?type=w2","dateLabel":"2026. 10. 12.","dateDay":"2026-10-12"},
+      {"title":"자가사용 면세, 판매용이면? (조심 2025관0099)","category":"주요 판례","categoryKey":"case","url":"https://blog.naver.com/aincustoms_/224438502929","summary":"건당 한도 안에서 자가사용 면세로 신고했더라도, 구매 횟수·수량 등 실질이 판매용이면 면세가 배제됩니다.","image":"https://blogthumb.pstatic.net/MjAyNjEwMTJfNSAg/MDAxNzkxNzcxMzEyMTM5.hVkHhgwXN0nm34dNkHAfpaL8D4NTRKM-okWjpBpKQVUg.YgZ-khhBpqJQcnYit0dIBxi4GDOCj541At8FsAeYIJsg.PNG/card-01.png?type=w2","dateLabel":"2026. 10. 12.","dateDay":"2026-10-12"},
+      {"title":"관세 추징=법인세 환급? (2023구합78767)","category":"주요 판례","categoryKey":"case","url":"https://blog.naver.com/aincustoms_/224438500030","summary":"특수관계사 수입가격이 관세 경정으로 올라가도 법인세 감액경정이 자동으로 따라오지는 않습니다.","image":"https://blogthumb.pstatic.net/MjAyNjEwMTJfMjIz/MDAxNzkxNzcwNzA2Mzgz.Bx1hhpi6UysYddMjIgmz4pDxYmyuQIe-Bw5YGlPrFjog.zGOImKDBfrVRf1LTq0WoQ6p4pdjEmIz6CNXzP290Jq4g.PNG/card-01.png?type=w2","dateLabel":"2026. 10. 12.","dateDay":"2026-10-12"}
+    ]}
+    </script>
+
+    <script>
+        /* =====================================================================
+           ===== NEW: 관세 인사이트 렌더러 — index.html 하단 <script> 에 추가 =====
+           모든 텍스트는 textContent/속성 API 로만 넣는다 (innerHTML 미사용).
+           ===================================================================== */
+        (function () {
+            var INSIGHTS_JSON = '/news.json';
+            var INSIGHTS_MAX = 6;
+            var ALLOWED_KEYS = { case: 1, hs: 1, fta: 1, news: 1, req: 1, guide: 1, interp: 1, office: 1, etc: 1 };
+
+            function safeHttpUrl(value, hostPattern) {
+                try {
+                    var u = new URL(String(value || ''));
+                    if (u.protocol !== 'https:') return '';
+                    if (hostPattern && !hostPattern.test(u.hostname)) return '';
+                    return u.toString();
+                } catch (e) { return ''; }
+            }
+
+            function el(tag, className, text) {
+                var node = document.createElement(tag);
+                if (className) node.className = className;
+                if (text != null) node.textContent = String(text);
+                return node;
+            }
+
+            function arrowIcon() {
+                var ns = 'http://www.w3.org/2000/svg';
+                var svg = document.createElementNS(ns, 'svg');
+                svg.setAttribute('viewBox', '0 0 24 24'); svg.setAttribute('fill', 'none');
+                svg.setAttribute('stroke', 'currentColor'); svg.setAttribute('stroke-width', '2.5');
+                svg.setAttribute('stroke-linecap', 'round'); svg.setAttribute('stroke-linejoin', 'round');
+                svg.setAttribute('aria-hidden', 'true');
+                var p = document.createElementNS(ns, 'path'); p.setAttribute('d', 'M5 12h14M13 6l6 6-6 6');
+                svg.appendChild(p); return svg;
+            }
+
+            function renderInsightCard(item) {
+                var url = safeHttpUrl(item.url, /^(m\.)?blog\.naver\.com$/i);
+                var title = String(item.title || '').trim();
+                if (!url || !title) return null;
+                var key = ALLOWED_KEYS[item.categoryKey] ? item.categoryKey : 'etc';
+
+                var card = el('a', 'insights-card');
+                card.href = url; card.target = '_blank'; card.rel = 'noopener noreferrer';
+                card.setAttribute('data-category', key);
+
+                var cover = el('div', 'insights-cover');
+                var image = safeHttpUrl(item.image, /(^|\.)pstatic\.net$/i);
+                if (image) {
+                    var img = document.createElement('img');
+                    img.src = image; img.alt = title + ' 카드뉴스 표지';
+                    img.width = 743; img.height = 929;
+                    img.loading = 'lazy'; img.decoding = 'async';
+                    img.referrerPolicy = 'no-referrer';
+                    img.setAttribute('referrerpolicy', 'no-referrer');
+                    cover.appendChild(img);
+                }
+                card.appendChild(cover);
+
+                var body = el('div', 'insights-body');
+                var meta = el('div', 'insights-meta');
+                meta.appendChild(el('span', 'insights-cat', item.category || '기타'));
+                if (item.dateDay && /^\d{4}-\d{2}-\d{2}$/.test(item.dateDay)) {
+                    var time = el('time', 'insights-date', item.dateLabel || item.dateDay);
+                    time.dateTime = item.dateDay;
+                    meta.appendChild(time);
+                }
+                body.appendChild(meta);
+                body.appendChild(el('h3', 'insights-title', title));
+                card.appendChild(body);
+                return card;
+            }
+
+            // data: { items: [...] } → 레일 채우기. 유효 카드가 없으면 false.
+            function renderInsights(section, data) {
+                var rail = section.querySelector('[data-insights-rail]');
+                var items = (data && Array.isArray(data.items)) ? data.items.slice(0, INSIGHTS_MAX) : [];
+                var frag = document.createDocumentFragment();
+                var count = 0;
+                items.forEach(function (item) {
+                    var card = renderInsightCard(item || {});
+                    if (card) { frag.appendChild(card); count++; }
+                });
+                if (!count) return false;
+                while (rail.firstChild) rail.removeChild(rail.firstChild);
+                rail.appendChild(frag);
+                rail.setAttribute('aria-busy', 'false');
+                section.setAttribute('data-state', 'ready');
+                setupRailNav(section, rail);
+                return true;
+            }
+
+            function setupRailNav(section, rail) {
+                var prev = section.querySelector('[data-insights-prev]');
+                var next = section.querySelector('[data-insights-next]');
+                if (!prev || !next) return;
+                function step() {
+                    var card = rail.querySelector('.insights-card');
+                    return card ? card.getBoundingClientRect().width + parseFloat(getComputedStyle(rail).columnGap || getComputedStyle(rail).gap || 24) : rail.clientWidth * 0.8;
+                }
+                function update() {
+                    var max = rail.scrollWidth - rail.clientWidth - 1;
+                    prev.disabled = rail.scrollLeft <= 0;
+                    next.disabled = rail.scrollLeft >= max;
+                }
+                prev.onclick = function () { rail.scrollBy({ left: -step(), behavior: 'smooth' }); };
+                next.onclick = function () { rail.scrollBy({ left: step(), behavior: 'smooth' }); };
+                rail.addEventListener('scroll', update, { passive: true });
+                window.addEventListener('resize', update);
+                update();
+            }
+
+            function loadInsights() {
+                var section = document.getElementById('insights');
+                if (!section) return;
+                var fail = function () { section.setAttribute('data-state', 'error'); };
+
+                // 목업 전용: ?state=loading|error 로 상태 확인, 기본은 샘플 JSON 렌더
+                var mock = document.getElementById('insights-sample');
+                var want = new URLSearchParams(location.search).get('state');
+                if (mock) {
+                    if (want === 'loading') return;
+                    if (want === 'error') return fail();
+                    try { if (!renderInsights(section, JSON.parse(mock.textContent))) fail(); } catch (e) { fail(); }
+                    return;
+                }
+
+                // 운영: /news.json
+                if (!window.fetch) return fail();
+                fetch(INSIGHTS_JSON, { headers: { Accept: 'application/json' } })
+                    .then(function (res) { if (!res.ok) throw new Error(res.status); return res.json(); })
+                    .then(function (data) { if (!renderInsights(section, data)) fail(); })
+                    .catch(fail);
+            }
+
+            if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', loadInsights);
+            else loadInsights();
+        })();
+        /* ===== /NEW ===== */
+    </script>
+</body>
+
+</html>

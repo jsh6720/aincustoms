@@ -189,3 +189,93 @@ test("/news is routed through cargo-admin without adding a Vercel function", asy
   assert.equal(res.headers["cache-control"], "public, s-maxage=1800, stale-while-revalidate=86400");
   assert.match(res.body, /<title>관세 주요 뉴스/);
 });
+
+test("/news.json returns whitelisted items, latest first, with long cache", async () => {
+  const res = fakeRes();
+  await withFetch(async () => new Response(FIXTURE, { status: 200 }), () => handler({ method: "GET", query: { workspace: "news", format: "json" } }, res));
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.headers["content-type"], "application/json; charset=utf-8");
+  assert.equal(res.headers["cache-control"], "public, s-maxage=1800, stale-while-revalidate=86400");
+  const data = JSON.parse(res.body);
+  assert.ok(!Number.isNaN(Date.parse(data.fetchedAt)));
+  assert.equal(data.error, undefined);
+  assert.equal(data.items.length, 6);
+  const fields = ["title", "category", "categoryKey", "url", "summary", "image", "dateLabel", "dateDay"];
+  for (const item of data.items) {
+    assert.deepEqual(Object.keys(item), fields);
+    for (const key of fields) assert.equal(typeof item[key], "string");
+    assert.match(item.url, /^https:\/\/blog\.naver\.com\/aincustoms_\/\d+$/);
+    assert.match(item.image, /^https:\/\/[a-z0-9.-]+\.pstatic\.net\/.+\?type=w2$/);
+    assert.doesNotMatch(item.summary + item.title, /<|>/);
+  }
+  assert.equal(data.items[0].title, "인천공항 핸드캐리 수입 어떻게?");
+  const days = data.items.map(i => i.dateDay);
+  assert.deepEqual([...days].sort().reverse(), days);
+});
+
+test("/news.json sorts by date, caps at 12 and drops hostile hosts and markup", async () => {
+  const items = [];
+  for (let n = 1; n <= 14; n++) {
+    const day = String(n).padStart(2, "0");
+    items.push(`<item><category>품목분류</category><title>[품목분류] post ${n}</title><guid>https://blog.naver.com/aincustoms_/${n}</guid>`
+      + `<description><![CDATA[<img src="https://blogthumb.pstatic.net/a${n}.png?type=s3" /> 3줄 요약 · <b>요약</b> ${n}]]></description>`
+      + `<pubDate>${new Date(Date.UTC(2026, 8, n, 3)).toUTCString()}</pubDate></item>`);
+  }
+  items.push(`<item><title><![CDATA[<img src=x onerror=alert(1)>]]></title><guid>https://evil.example.com/aincustoms_/1</guid></item>`);
+  items.push(`<item><title>bad image</title><guid>https://blog.naver.com/aincustoms_/99</guid><description><![CDATA[<img src="https://evil.example.com/x.png" />]]></description><pubDate>Wed, 30 Sep 2026 03:00:00 GMT</pubDate></item>`);
+  const res = fakeRes();
+  await withFetch(async () => new Response(rssWith(items.join("")), { status: 200 }), () => handler({ method: "GET", query: { format: "json" } }, res));
+  const data = JSON.parse(res.body);
+  assert.equal(data.items.length, 12);
+  assert.equal(data.items[0].title, "bad image");
+  assert.equal(data.items[0].image, "");
+  assert.equal(data.items[1].title, "post 14");
+  assert.equal(data.items[11].title, "post 4");
+  assert.ok(data.items.every(i => i.url.startsWith("https://blog.naver.com/aincustoms_/")));
+  assert.equal(data.items[1].summary, "요약 14");
+  assert.doesNotMatch(res.body, /evil\.example|onerror|<b>/);
+});
+
+test("/news.json fails with 502/503, short cache and an empty list", async () => {
+  const cases = [
+    [async () => { throw new Error("network down"); }, 503],
+    [async () => new Response("oops", { status: 500 }), 502],
+    [async () => new Response(rssWith(""), { status: 200 }), 502],
+  ];
+  for (const [impl, status] of cases) {
+    const res = fakeRes();
+    await withFetch(impl, () => handler({ method: "GET", query: { format: "json" } }, res));
+    assert.equal(res.statusCode, status);
+    assert.equal(res.headers["content-type"], "application/json; charset=utf-8");
+    assert.equal(res.headers["cache-control"], "public, s-maxage=60");
+    const data = JSON.parse(res.body);
+    assert.deepEqual(data.items, []);
+    assert.equal(data.error, true);
+  }
+});
+
+test("/news.json is routed through cargo-admin", async () => {
+  const config = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "vercel.json"), "utf8"));
+  assert.ok(config.rewrites.some(r => r.source === "/news.json" && r.destination === "/api/cargo-admin?workspace=news&format=json"));
+  assert.equal(fs.readdirSync(path.join(__dirname, "..", "api")).filter(f => f.endsWith(".js")).length, 12);
+  const res = fakeRes();
+  await withFetch(async () => new Response(FIXTURE, { status: 200 }), () => adminHandler({ method: "GET", query: { workspace: "news", format: "json" } }, res));
+  assert.equal(JSON.parse(res.body).items.length, 6);
+});
+
+test("homepage insights section fetches /news.json and renders without innerHTML", () => {
+  const html = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
+  const about = html.indexOf('<section id="about"');
+  const insights = html.indexOf('<section id="insights"');
+  const services = html.indexOf('<section id="services"');
+  assert.ok(about > 0 && about < insights && insights < services, "#insights sits between #about and #services");
+  assert.match(html, /class="insights-fallback"[^]*?href="\/news"/);
+  const start = html.indexOf("var INSIGHTS_JSON = '/news.json'");
+  assert.ok(start > 0, "insights script fetches /news.json");
+  const script = html.slice(start, html.indexOf("})();", start));
+  assert.match(script, /fetch\(INSIGHTS_JSON/);
+  assert.match(script, /referrerpolicy', 'no-referrer'/);
+  assert.match(script, /img\.loading = 'lazy'/);
+  assert.match(script, /img\.width = 743; img\.height = 929/);
+  assert.doesNotMatch(script, /innerHTML|outerHTML|insertAdjacentHTML|document\.write/);
+});
