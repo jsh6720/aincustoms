@@ -1,4 +1,4 @@
-﻿# Daily 19:00 card-news run (Windows Task Scheduler). Runs Claude Code headless with DAILY_RUN.md,
+﻿# Daily 07:00 card-news run (Windows Task Scheduler). Runs Claude Code headless with DAILY_RUN.md,
 # logs to daily/logs, and mails jsh@aincustoms.com if the run itself fails.
 $ErrorActionPreference = "Continue"
 $Repo = "C:\Users\jsh\orca\workspaces\homepage_aincustoms\블로그-기능-추가"
