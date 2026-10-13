@@ -410,7 +410,7 @@
     {
       "source": "lib/contact-handler.js",
       "target": "website_integration/vercel_package/lib/contact-handler.js",
-      "sha256": "923f946f68429f3e79596e8b3b2f39f046595e01aa01e1bea2f9b9a07f2d8623"
+      "sha256": "8c607f24d5bc5a47f4f83a164e1029cc8b0cc71f268796bb78948d9c1669d5b2"
     }
   ]
 }

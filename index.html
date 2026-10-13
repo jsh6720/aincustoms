@@ -38,9 +38,22 @@
             border-bottom: 1px solid rgba(0, 0, 0, 0.08);
         }
 
+        /* Keep the logo at its natural size; the long menu must not squeeze it (flex + img max-width:100%). */
+        .navbar .logo {
+            flex-shrink: 0;
+            margin-right: 24px;
+        }
+
+        /* 15px menu text + 12px gaps keep the 11-item menu on one line beside the full-size logo
+           inside the 1200px container; below that it wraps instead of running off-screen. */
+        .navbar .logo + div a {
+            font-size: 15px;
+        }
+
         .logo img {
             height: 40px;
             width: auto;
+            max-width: none;
             object-fit: contain;
         }
 
@@ -961,7 +974,7 @@
             </div>
 
             <!-- 메뉴 -->
-            <div class="hidden md:flex space-x-4 2xl:space-x-8 items-center whitespace-nowrap">
+            <div class="hidden md:flex flex-wrap justify-end items-center gap-x-3 gap-y-2 whitespace-nowrap">
                 <a href="#home" class="text-gray-700 hover:text-blue-600 font-medium text-base transition-colors">홈</a>
                 <a href="#about"
                     class="text-gray-700 hover:text-blue-600 font-medium text-base transition-colors">회사소개</a>
@@ -1382,8 +1395,8 @@
                                     <option>수출입통관</option>
                                     <option>품목분류</option>
                                     <option>FTA·원산지</option>
-                                    <option>수입요건</option>
-                                    <option>관세심사 대응</option>
+                                    <option>수입요건(전파법, 전안법, 수입식품특별법 등)</option>
+                                    <option>조사 대응(관세심사/조사, 외국환검사/조사)</option>
                                     <option>외환 진단</option>
                                     <option>기타</option>
                                 </select>
