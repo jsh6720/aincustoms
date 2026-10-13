@@ -8,7 +8,7 @@
 |---|---|---|---|
 | category | `"case" \| "hs" \| "fta" \| "news" \| "req" \| "guide"` | 필수 | 강조색 선택. case 주요 판례(법원·조세심판) / hs 품목분류 / fta FTA·원산지 / news 관세 뉴스(제도 변경) / req 수입요건 / guide 통관 가이드(절차 안내) |
 | categoryLabel | string | 필수 | 상단 칩 문구. 예: "주요 판례", "품목분류", "FTA·원산지", "관세 뉴스" |
-| series | string | 필수 | 시리즈 마크. 항상 "아인관세 인사이트" |
+| series | string | 필수 | 시리즈 마크. 항상 "Ain 관세 인사이트" |
 | writtenAt | string | 필수 | 작성월. 출처 카드 면책 뒤에 "(작성 2026. 10.)" 로 표기 |
 | cards | Card[] | 필수 | 7~8개. 권장 순서: cover, conclusion, facts, issue, compare, ruling, checklist, source |
 
@@ -109,7 +109,7 @@ type Side = { label: string; title: string; bullets?: string[] };  // title 20�
 
 ```js
 window.POST = {
-  category: "hs", categoryLabel: "품목분류", series: "아인관세 인사이트", writtenAt: "2026. 10.",
+  category: "hs", categoryLabel: "품목분류", series: "Ain 관세 인사이트", writtenAt: "2026. 10.",
   cards: [
     { type: "cover", kicker: "2026. 3. 31. 조세심판원 결정", title: "합판 vs LVL, 가로결 23%가 관세를 갈랐다",
       watermark: "2026관0002", refs: [ { label: "조심", value: "2026관0002" }, { label: "결정", value: "2026. 3. 31. 인용" } ] },

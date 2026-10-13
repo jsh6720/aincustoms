@@ -1,5 +1,5 @@
 // Render skin.html sections to out/<id>.png at exact pixel size.
-// Usage: PLAYWRIGHT_DIR=<dir with node_modules/playwright> node render.mjs
+// Usage: PLAYWRIGHT_DIR=<dir with node_modules/playwright> node render.mjs [skin.html|about.html]
 import { createRequire } from "node:module";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import path from "node:path";
@@ -12,8 +12,9 @@ const out = path.join(here, "out");
 fs.mkdirSync(out, { recursive: true });
 
 const browser = await chromium.launch();
+const src = process.argv[2] || "skin.html";
 const page = await browser.newPage({ viewport: { width: 1200, height: 1000 }, deviceScaleFactor: 1 });
-await page.goto(pathToFileURL(path.join(here, "skin.html")).href, { waitUntil: "networkidle" });
+await page.goto(pathToFileURL(path.join(here, src)).href, { waitUntil: "networkidle" });
 await page.evaluate(() => document.fonts.ready);
 for (const el of await page.locator("section.asset").all()) {
   const id = await el.getAttribute("id");

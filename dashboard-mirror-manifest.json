@@ -395,7 +395,7 @@
     {
       "source": "lib/naver-blog-news.js",
       "target": "website_integration/vercel_package/lib/naver-blog-news.js",
-      "sha256": "e9db74ba3e5d99a354f8f36e529419300bc2ade0f4b7982d62e2735983bbc5c4"
+      "sha256": "bf971a609c37cbf259113ef7f5940361dc7f6c6f7960c1d8def4d3b6fc00e192"
     },
     {
       "source": "lib/naver-blog-news-template.js",

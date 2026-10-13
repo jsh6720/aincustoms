@@ -29,6 +29,6 @@ if (-not (Test-Path $Sent)) {
     "<p>오늘($Stamp) 카드뉴스 자동 작업이 보고 메일을 보내지 못하고 끝났습니다 (exit=$Code).</p><p>로그: $Log</p><pre style='font-size:12px'>$Tail</pre>" |
         Out-File -FilePath $Html -Encoding utf8
     & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $Daily "send-report.ps1") `
-        -Subject "[아인관세 인사이트] $Stamp 자동 작업 실패 알림" -HtmlFile $Html 2>&1 |
+        -Subject "[Ain 관세 인사이트] $Stamp 자동 작업 실패 알림" -HtmlFile $Html 2>&1 |
         Out-File -FilePath $Log -Encoding utf8 -Append
 }
