@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>아인관세 인사이트 — 블로그 스킨 에셋</title>
+<style>
+@import url("../design/pretendard/pretendardvariable-dynamic-subset.css");
+:root {
+  --navy: #0f172a; --navy-2: #1e293b; --blue: #2563eb; --light: #eff6ff;
+  --slate-400: #94a3b8; --slate-300: #cbd5e1; --ink-3: #64748b; --seal: #9a1b1e;
+  --cat-news: #f59e0b; --cat-case: #60a5fa; --cat-int: #67e8f9; --cat-fta: #a78bfa;
+  --cat-hs: #2dd4bf; --cat-req: #fb7185;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #444; font-family: "Pretendard Variable", Pretendard, sans-serif; padding: 40px; display: flex; flex-direction: column; gap: 40px; align-items: flex-start; }
+.asset { position: relative; overflow: hidden; background: var(--navy); color: #fff; word-break: keep-all; }
+/* registration marks: the series signature from the card-news */
+.reg i { position: absolute; width: var(--rm, 18px); height: var(--rm, 18px); border: 0 solid rgba(255,255,255,.38); }
+.reg i:nth-child(1) { top: var(--ri, 18px); left: var(--ri, 18px); border-top-width: 2px; border-left-width: 2px; }
+.reg i:nth-child(2) { top: var(--ri, 18px); right: var(--ri, 18px); border-top-width: 2px; border-right-width: 2px; }
+.reg i:nth-child(3) { bottom: var(--ri, 18px); left: var(--ri, 18px); border-bottom-width: 2px; border-left-width: 2px; }
+.reg i:nth-child(4) { bottom: var(--ri, 18px); right: var(--ri, 18px); border-bottom-width: 2px; border-right-width: 2px; }
+.logo { filter: brightness(0) invert(1); display: block; height: auto; }
+.grid-bg { position: absolute; inset: 0; background-image:
+  linear-gradient(rgba(148,163,184,.07) 1px, transparent 1px),
+  linear-gradient(90deg, rgba(148,163,184,.07) 1px, transparent 1px);
+  background-size: 32px 32px; mask-image: linear-gradient(90deg, transparent 0%, #000 55%, #000 100%); }
+.wm { position: absolute; font-weight: 900; color: transparent; -webkit-text-stroke: 1.5px rgba(255,255,255,.16); letter-spacing: -0.04em; white-space: nowrap; line-height: 1; }
+.chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.chip { font-size: 13px; font-weight: 700; padding: 5px 10px; border-radius: 6px; border: 1px solid rgba(255,255,255,.18); color: #e2e8f0; display: inline-flex; align-items: center; gap: 6px; }
+.chip::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--c); }
+
+/* 1) PC title: 966 x 300 */
+#title { width: 966px; height: 300px; }
+#title .wm { font-size: 190px; right: -30px; top: 40px; }
+#title .in { position: absolute; left: 56px; top: 50px; right: 56px; bottom: 44px; display: flex; flex-direction: column; }
+#title .kicker { font-size: 15px; font-weight: 700; color: var(--slate-400); letter-spacing: .02em; display: flex; align-items: center; gap: 10px; }
+#title .kicker b { color: #fff; background: var(--blue); padding: 3px 9px; border-radius: 5px; font-size: 13px; }
+#title h1 { font-size: 58px; font-weight: 800; letter-spacing: -0.035em; line-height: 1.1; margin-top: 16px; }
+#title h1 span { color: var(--slate-400); font-weight: 600; }
+#title p { font-size: 18px; font-weight: 500; color: var(--slate-300); margin-top: 12px; }
+#title .foot { margin-top: auto; display: flex; justify-content: space-between; align-items: flex-end; }
+#title .logo { width: 150px; opacity: .92; }
+
+/* 2) Profile: 600 x 600 */
+#profile { width: 600px; height: 600px; display: grid; place-items: center; --rm: 40px; --ri: 46px; }
+#profile .grid-bg { mask-image: radial-gradient(circle at 50% 50%, #000 0%, transparent 75%); background-size: 40px 40px; }
+#profile .mark { text-align: center; }
+#profile .mark .k { font-size: 132px; font-weight: 900; letter-spacing: -0.06em; line-height: 1; }
+#profile .mark .k i { font-style: normal; color: var(--seal); filter: brightness(1.5); }
+#profile .mark .s { font-size: 40px; font-weight: 700; color: var(--slate-300); margin-top: 18px; letter-spacing: -0.02em; }
+
+/* 3) Sidebar banners: 170 x 210 */
+.banner { width: 170px; height: 210px; --rm: 10px; --ri: 9px; padding: 22px 18px 18px; display: flex; flex-direction: column; }
+.banner .t { font-size: 12px; font-weight: 700; color: var(--slate-400); }
+.banner h2 { font-size: 22px; font-weight: 800; line-height: 1.28; letter-spacing: -0.03em; margin-top: 8px; }
+.banner .go { margin-top: auto; font-size: 13px; font-weight: 700; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid rgba(255,255,255,.18); padding-top: 10px; }
+.banner .go span { width: 26px; height: 26px; border-radius: 50%; background: var(--blue); display: grid; place-items: center; font-size: 14px; }
+#banner-home h2 em { color: #93c5fd; font-style: normal; }
+#banner-contact { background: var(--light); color: var(--navy); }
+#banner-contact .reg i { border-color: rgba(15,23,42,.3); }
+#banner-contact .t { color: var(--ink-3); }
+#banner-contact .go { border-top-color: rgba(15,23,42,.15); }
+#banner-contact .tel { font-size: 18px; font-weight: 800; margin-top: 10px; letter-spacing: -0.01em; color: var(--blue); }
+
+/* 4) Mobile cover: 1080 x 720 */
+#mcover { width: 1080px; height: 720px; --rm: 34px; --ri: 40px; }
+#mcover .wm { font-size: 300px; right: -60px; top: 70px; }
+#mcover .in { position: absolute; left: 88px; right: 88px; bottom: 96px; }
+#mcover .kicker { font-size: 30px; font-weight: 700; color: var(--slate-400); }
+#mcover h1 { font-size: 104px; font-weight: 800; letter-spacing: -0.04em; line-height: 1.08; margin-top: 18px; }
+#mcover p { font-size: 34px; color: var(--slate-300); margin-top: 22px; font-weight: 500; }
+#mcover .chips { margin-top: 34px; gap: 12px; }
+#mcover .chip { font-size: 24px; padding: 9px 16px; border-radius: 10px; }
+#mcover .chip::before { width: 12px; height: 12px; }
+#mcover .logo { position: absolute; left: 88px; top: 84px; width: 230px; }
+</style>
+</head>
+<body>
+
+<section class="asset" id="title">
+  <div class="grid-bg"></div>
+  <div class="wm">關稅</div>
+  <div class="reg"><i></i><i></i><i></i><i></i></div>
+  <div class="in">
+    <div class="kicker"><b>INSIGHT</b> 아인합동관세사무소 · 관세사가 직접 쓰는 카드뉴스</div>
+    <h1>아인관세 인사이트</h1>
+    <p>판례 · 유권해석 · 제도 변경을 근거와 함께, 한 장씩 정리합니다.</p>
+    <div class="foot">
+      <div class="chips">
+        <span class="chip" style="--c:var(--cat-news)">관세 뉴스</span>
+        <span class="chip" style="--c:var(--cat-case)">주요 판례</span>
+        <span class="chip" style="--c:var(--cat-int)">유권해석·질의회신</span>
+        <span class="chip" style="--c:var(--cat-fta)">FTA·원산지</span>
+        <span class="chip" style="--c:var(--cat-hs)">품목분류</span>
+        <span class="chip" style="--c:var(--cat-req)">수입요건</span>
+      </div>
+      <img class="logo" src="../design/logo.png" alt="">
+    </div>
+  </div>
+</section>
+
+<section class="asset" id="profile">
+  <div class="grid-bg"></div>
+  <div class="reg"><i></i><i></i><i></i><i></i></div>
+  <div class="mark"><div class="k">AIN<i>.</i></div><div class="s">관세 인사이트</div></div>
+</section>
+
+<section class="asset banner" id="banner-home">
+  <div class="reg"><i></i><i></i><i></i><i></i></div>
+  <div class="t">AIN CUSTOMS</div>
+  <h2>통관·FTA·<br>요건 검토,<br><em>사무소 홈페이지</em></h2>
+  <div class="go">aincustoms.com <span>→</span></div>
+</section>
+
+<section class="asset banner" id="banner-contact">
+  <div class="reg"><i></i><i></i><i></i><i></i></div>
+  <div class="t">CONSULTATION</div>
+  <h2>내 물품은<br>어떻게 될까요?</h2>
+  <div class="tel">02-518-5435</div>
+  <div class="go">상담 문의하기 <span style="color:#fff">→</span></div>
+</section>
+
+<section class="asset" id="mcover">
+  <div class="grid-bg"></div>
+  <div class="wm">關稅</div>
+  <div class="reg"><i></i><i></i><i></i><i></i></div>
+  <img class="logo" src="../design/logo.png" alt="">
+  <div class="in">
+    <div class="kicker">아인합동관세사무소 · 관세 카드뉴스</div>
+    <h1>아인관세 인사이트</h1>
+    <p>판례 · 유권해석 · 제도 변경을 근거와 함께</p>
+    <div class="chips">
+      <span class="chip" style="--c:var(--cat-news)">관세 뉴스</span>
+      <span class="chip" style="--c:var(--cat-case)">주요 판례</span>
+      <span class="chip" style="--c:var(--cat-fta)">FTA·원산지</span>
+      <span class="chip" style="--c:var(--cat-hs)">품목분류</span>
+      <span class="chip" style="--c:var(--cat-req)">수입요건</span>
+    </div>
+  </div>
+</section>
+
+</body>
+</html>
