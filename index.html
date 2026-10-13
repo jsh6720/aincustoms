@@ -819,6 +819,14 @@
             overflow: hidden;
         }
 
+        .insights-section .insights-cover-fallback {
+            position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: flex-end; gap: 10px;
+            padding: 22px; color: #fff; text-align: left;
+        }
+        .insights-section .insights-cover-fallback .cf-cat { font-size: 13px; font-weight: 700; color: #93c5fd; }
+        .insights-section .insights-cover-fallback .cf-title { font-size: 19px; font-weight: 800; line-height: 1.35; word-break: keep-all; }
+        .insights-section .insights-cover-fallback .cf-brand { margin-top: 6px; font-size: 12px; color: rgba(255,255,255,.6); }
+
         .insights-cover img {
             display: block;
             width: 100%;
@@ -1947,6 +1955,13 @@
                     img.referrerPolicy = 'no-referrer';
                     img.setAttribute('referrerpolicy', 'no-referrer');
                     cover.appendChild(img);
+                } else {
+                    // No Naver 대표 이미지 → text cover instead of an empty box.
+                    var fb = el('div', 'insights-cover-fallback');
+                    fb.appendChild(el('span', 'cf-cat', String(item.category || '관세 인사이트')));
+                    fb.appendChild(el('span', 'cf-title', title));
+                    fb.appendChild(el('span', 'cf-brand', 'Ain 관세 인사이트'));
+                    cover.appendChild(fb);
                 }
                 card.appendChild(cover);
 

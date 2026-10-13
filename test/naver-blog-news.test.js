@@ -279,3 +279,12 @@ test("homepage insights section fetches /news.json and renders without innerHTML
   assert.match(script, /img\.width = 743; img\.height = 929/);
   assert.doesNotMatch(script, /innerHTML|outerHTML|insertAdjacentHTML|document\.write/);
 });
+
+test("a post without a Naver 대표 이미지 gets an escaped text cover, not an empty box", () => {
+  const { renderNewsPage } = require("../lib/naver-blog-news");
+  const html = renderNewsPage([{ title: "<b>제목</b>", category: "수입요건", categoryKey: "req",
+    url: "https://blog.naver.com/aincustoms_/1", summary: "요약", image: "", dateDay: "2026-10-13", dateLabel: "2026. 10. 13.", tags: [] }], { fetchedAt: new Date() });
+  assert.match(html, /class="cover-fallback"/);
+  assert.match(html, /&lt;b&gt;제목&lt;\/b&gt;/);
+  assert.ok(!html.includes("<b>제목</b>"));
+});

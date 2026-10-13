@@ -395,12 +395,12 @@
     {
       "source": "lib/naver-blog-news.js",
       "target": "website_integration/vercel_package/lib/naver-blog-news.js",
-      "sha256": "bf971a609c37cbf259113ef7f5940361dc7f6c6f7960c1d8def4d3b6fc00e192"
+      "sha256": "5a62e1c625b5a3e046684e455eda10ab75810299ea83533369d83ad62990def3"
     },
     {
       "source": "lib/naver-blog-news-template.js",
       "target": "website_integration/vercel_package/lib/naver-blog-news-template.js",
-      "sha256": "57fb59e509b94abfb0d9f3971a95537129ca6f67467e73e2bb767f7ea8bac8c8"
+      "sha256": "1328de359dfb57feef8aa838bb36337d68e64c1f353516663e6db5489a0f5eee"
     },
     {
       "source": "lib/news-page-handler.js",
