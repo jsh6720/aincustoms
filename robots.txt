@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /note
+Disallow: /internal/
+Disallow: /requirements/
+Disallow: /cargo-dashboard.html
+Disallow: /cargo-docs-mobile.html
+
+Sitemap: https://www.aincustoms.com/sitemap.xml
