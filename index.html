@@ -52,6 +52,16 @@
         .navbar .logo {
             flex-shrink: 0;
             margin-right: 24px;
+            position: relative;
+        }
+
+        /* Hidden entry to the lecture notebook: the final "s" of the logo wordmark. */
+        .logo-note-link {
+            position: absolute;
+            left: 93.6%;
+            top: 44%;
+            width: 5.6%;
+            height: 37%;
         }
 
         /* 15px menu text + 12px gaps keep the 11-item menu on one line beside the full-size logo
@@ -989,6 +999,7 @@
             <!-- 로고 -->
             <div class="logo mr-6">
                 <img src="./images/logo.png" alt="아인합동관세사무소 로고">
+                <a href="/note/lecture" class="logo-note-link" aria-label="강의 노트"></a>
             </div>
 
             <!-- 메뉴 -->
