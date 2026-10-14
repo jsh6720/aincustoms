@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex, nofollow, noarchive">
+  <meta name="referrer" content="no-referrer">
+  <title>강의 노트 · AIN</title>
+  <link rel="stylesheet" href="/lecture-note/style.css">
+  <script type="module" src="/lecture-note/app.js"></script>
+</head>
+<body>
+  <main id="login" class="login" hidden>
+    <form id="login-form" class="login-card">
+      <div class="brand"><span class="mark">a</span>AIN <span class="muted">Lecture Note</span></div>
+      <h1>강의 노트</h1>
+      <label for="login-id">아이디</label>
+      <input id="login-id" autocomplete="username" required>
+      <label for="login-password">비밀번호</label>
+      <input id="login-password" type="password" autocomplete="current-password" required>
+      <p id="login-error" class="error" role="alert" hidden></p>
+      <button class="button primary" type="submit">입장</button>
+    </form>
+  </main>
+  <div id="app" class="app" hidden>
+    <header class="header">
+      <div class="brand"><span class="mark">a</span>AIN <span class="muted">Lecture Note</span></div>
+      <span id="who" class="who"></span>
+      <button id="logout" class="button quiet" type="button">나가기</button>
+    </header>
+    <div class="layout">
+      <nav class="sidebar">
+        <p class="eyebrow">NOTES</p>
+        <ul id="note-list" class="note-list"></ul>
+        <button id="add-note" class="button add" type="button" hidden>+ 새 노트</button>
+      </nav>
+      <section class="content">
+        <div class="toolbar">
+          <input id="title" class="title" readonly aria-label="노트 제목">
+          <span id="status" class="status" role="status"></span>
+          <button id="copy" class="button" type="button">본문 복사</button>
+          <button id="edit" class="button" type="button" hidden>편집</button>
+          <button id="save" class="button primary" type="button" hidden>저장</button>
+          <button id="delete" class="button danger" type="button" hidden>삭제</button>
+        </div>
+        <textarea id="editor" class="editor" spellcheck="false" hidden aria-label="마크다운 편집"></textarea>
+        <article id="view" class="markdown"></article>
+      </section>
+    </div>
+  </div>
+</body>
+</html>

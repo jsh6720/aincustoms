@@ -9,6 +9,8 @@
   ],
   "rewrites": [
     { "source": "/note", "destination": "/internal/index.html" },
+    { "source": "/note/lecture", "destination": "/lecture-note/index.html" },
+    { "source": "/api/lecture-note", "destination": "/api/cargo-admin?workspace=lecture" },
     { "source": "/news", "destination": "/api/cargo-admin?workspace=news" },
     { "source": "/news.json", "destination": "/api/cargo-admin?workspace=news&format=json" },
     { "source": "/api/contact", "destination": "/api/cargo-admin?workspace=contact" },
@@ -22,6 +24,15 @@
     }
   ],
   "headers": [
+    {
+      "source": "/note/lecture",
+      "headers": [
+        { "key": "X-Robots-Tag", "value": "noindex, nofollow, noarchive" },
+        { "key": "Referrer-Policy", "value": "no-referrer" },
+        { "key": "Cache-Control", "value": "private, no-store" },
+        { "key": "Content-Security-Policy", "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'" }
+      ]
+    },
     {
       "source": "/note",
       "headers": [

@@ -39,6 +39,9 @@ module.exports = async function handler(req, res) {
   if (req.query?.workspace === "news") {
     return require("../lib/news-page-handler")(req, res);
   }
+  if (req.query?.workspace === "lecture") {
+    return require("../lib/lecture-note-server").createLectureNoteHandler()(req, res);
+  }
   if (req.query?.workspace === "contact") {
     return require("../lib/contact-handler")(req, res);
   }
