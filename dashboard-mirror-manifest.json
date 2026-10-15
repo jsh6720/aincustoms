@@ -35,7 +35,7 @@
     {
       "source": "api/cargo-admin.js",
       "target": "website_integration/vercel_package/api/cargo-admin.js",
-      "sha256": "f7c5084fbc3843cc18d19897e954f4909bfb43c8332570d7db1443af541efeec"
+      "sha256": "6e41e06e23f49a34277fe2dc9305538ffff3f46f37e6cddbfcd614775d73e9c8"
     },
     {
       "source": "api/cargo-card-visibility.js",
@@ -250,7 +250,7 @@
     {
       "source": "vercel.json",
       "target": "website_integration/vercel_package/vercel.json",
-      "sha256": "cb2906255953667fb7dfcf18ad684e221794d04f378e2968b80ae687038dbff6"
+      "sha256": "4ed3042b4d5e0a33be5d4b14c617ec4140d2e75c0a3bcb6d4ba4bc94a4640e2c"
     },
     {
       "source": "lib/cargo-doc-mail-batch.js",

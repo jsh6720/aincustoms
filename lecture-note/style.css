@@ -1,0 +1,59 @@
+:root{font-family:"Pretendard","Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",sans-serif;color:#29332f;background:#f5f6f3;font-size:15px;--green:#315747;--border:#e1e6de;--muted:#7b847d}
+*{box-sizing:border-box}
+body{margin:0;min-width:320px}
+button,input,textarea{font:inherit;color:inherit}
+[hidden]{display:none!important}
+a{color:#2f6a52}
+.brand{display:flex;align-items:center;gap:10px;font-weight:750;letter-spacing:.03em;white-space:nowrap}
+.mark{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:9px;background:var(--green);color:#fff;font-family:Georgia,serif;font-size:26px;padding-bottom:5px}
+.muted{font-size:12px;font-weight:400;color:#899187}
+.button{border:1px solid var(--border);border-radius:7px;padding:8px 13px;background:#fff;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
+.button:hover{background:#f1f4ee}
+.button.primary{background:var(--green);border-color:var(--green);color:#fff}
+.button.quiet{border-color:transparent;background:transparent;color:var(--muted)}
+.button.danger{color:#a54738}
+.login{min-height:100svh;display:flex;align-items:center;justify-content:center;padding:24px 16px}
+.login-card{width:100%;max-width:380px;background:#fff;border:1px solid var(--border);border-radius:14px;padding:34px 30px;display:flex;flex-direction:column;gap:8px}
+.login-card h1{font-size:24px;margin:22px 0 10px}
+.login-card label{font-size:12px;font-weight:600;color:#5a655c;margin-top:6px}
+.login-card input{height:44px;border:1px solid #dce1d6;border-radius:6px;padding:0 12px}
+.login-card .button{margin-top:14px;height:44px}
+.error{color:#a54738;font-size:13px;margin:4px 0 0}
+.header{height:60px;display:flex;align-items:center;gap:16px;padding:0 24px;background:#fff;border-bottom:1px solid var(--border)}
+.who{margin-left:auto;font-size:12px;color:var(--muted)}
+.layout{display:grid;grid-template-columns:250px minmax(0,1fr);min-height:calc(100svh - 60px)}
+.sidebar{background:#f8f9f5;border-right:1px solid var(--border);padding:24px 14px}
+.eyebrow{font-size:10px;font-weight:700;letter-spacing:.16em;color:#96a08f;margin:0 8px 12px}
+.note-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px}
+.note-list button{width:100%;text-align:left;border:1px solid transparent;background:transparent;border-radius:6px;padding:10px 10px;font-size:13px;color:#5b6858;cursor:pointer;line-height:1.45}
+.note-list button:hover{background:#eef1e9}
+.note-list button.active{background:#e7efe2;border-color:#dbe5d5;color:#2f4f35;font-weight:650}
+.add{width:100%;margin-top:14px;background:transparent;border-style:dashed}
+.content{min-width:0;display:flex;flex-direction:column;background:#fff}
+.toolbar{position:sticky;top:0;z-index:1;display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:14px 28px;border-bottom:1px solid var(--border);background:#fff}
+.title{flex:1 1 220px;min-width:0;border:1px solid transparent;border-radius:6px;padding:6px 8px;font-size:18px;font-weight:700;background:transparent}
+.title:not([readonly]){border-color:var(--border);background:#fafbf8}
+.title[readonly]{outline:none}
+.status{font-size:12px;color:var(--muted)}
+.editor{flex:1;min-height:70vh;border:0;padding:24px 28px;font-family:Consolas,"D2Coding",monospace;font-size:14px;line-height:1.7;resize:vertical;outline:none;background:#fcfdfb}
+.markdown{padding:26px 36px 80px;max-width:980px;line-height:1.8;user-select:text;overflow-wrap:anywhere}
+.markdown h1{font-size:26px;margin:8px 0 18px}
+.markdown h2{font-size:21px;margin:38px 0 12px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+.markdown h3{font-size:17px;margin:28px 0 8px}
+.markdown code{background:#f1f3ee;border-radius:4px;padding:1px 5px;font-size:.9em;font-family:Consolas,"D2Coding",monospace}
+.markdown pre{background:#24302a;color:#e8efe9;border-radius:8px;padding:14px 16px;overflow:auto;line-height:1.55}
+.markdown pre code{background:none;padding:0;color:inherit}
+.markdown table{border-collapse:collapse;width:100%;font-size:13.5px;display:block;overflow-x:auto}
+.markdown th,.markdown td{border:1px solid var(--border);padding:7px 10px;vertical-align:top;text-align:left}
+.markdown th{background:#f3f6f0}
+.markdown blockquote{margin:14px 0;padding:8px 16px;border-left:4px solid #9fbba8;background:#f6f9f4;color:#4b5a4f}
+.empty{color:var(--muted)}
+@media (max-width:760px){
+  .layout{grid-template-columns:1fr}
+  .sidebar{border-right:0;border-bottom:1px solid var(--border);padding:14px 16px}
+  .note-list{flex-direction:row;overflow-x:auto}
+  .note-list button{white-space:nowrap}
+  .header,.toolbar{padding-left:16px;padding-right:16px}
+  .markdown{padding:20px 16px 60px}
+  .editor{padding:16px}
+}
