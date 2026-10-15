@@ -1,0 +1,34 @@
+{
+  "category": "guide",
+  "categoryLabel": "통관 가이드",
+  "series": "Ain 관세 인사이트",
+  "writtenAt": "2026. 10.",
+  "cards": [
+    {
+      "type": "cover",
+      "kicker": "관세청 UNI-PASS 오픈API 따라하기",
+      "watermark": "API001",
+      "title": "내 화물 어디쯤? 관세청 API로 직접 조회하기",
+      "refs": [
+        { "label": "인증키", "value": "신청 즉시 발급" },
+        { "label": "조회", "value": "주소창·엑셀로 가능" }
+      ]
+    },
+    {
+      "type": "source",
+      "tag": "출처",
+      "sources": [
+        { "kind": "자료", "text": "<b>관세청 UNI-PASS OpenAPI 연계가이드 v4.1</b><br>API001 화물통관 진행정보" },
+        { "kind": "화면", "text": "<b>UNI-PASS</b> My메뉴 › 서비스관리 › OpenAPI 사용관리 · <span class='date'>2026. 10. 캡처</span>" },
+        { "kind": "원문", "text": "원문: unipass.customs.go.kr" }
+      ],
+      "caveat": "관세청 화면·서비스는 바뀔 수 있으며<br>인증키는 외부에 공유하지 마세요.",
+      "cta": { "title": "화물 조회 자동화, 막히셨나요?", "sub": "아인합동관세사무소에 문의하세요", "site": "aincustoms.com", "tel": "02-518-5435" }
+    }
+  ],
+  "lawCheck": {
+    "checkedOn": "2026-10-15",
+    "basis": "인용 법령 없음 — 관세청 UNI-PASS OpenAPI 연계가이드 v4.1 원문 대조",
+    "report": "law-check.md"
+  }
+}
