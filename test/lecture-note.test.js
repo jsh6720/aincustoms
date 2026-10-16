@@ -35,8 +35,8 @@ function harness() {
 test("viewer can read but not save; editor saves", async () => {
   const { call } = harness();
   assert.equal((await call("GET")).body.authenticated, false);
-  assert.equal((await call("POST", { action: "login", id: "test", password: "nope" })).statusCode, 401);
-  assert.equal((await call("POST", { action: "login", id: "test", password: "test" })).statusCode, 200);
+  assert.equal((await call("POST", { action: "login", id: "customs", password: "nope" })).statusCode, 401);
+  assert.equal((await call("POST", { action: "login", id: "customs", password: "customs" })).statusCode, 200);
   const viewer = (await call("GET")).body;
   assert.equal(viewer.role, "viewer");
   const denied = await call("POST", { action: "save", csrf: viewer.csrf, baseUpdatedAt: null, notes: [] });
