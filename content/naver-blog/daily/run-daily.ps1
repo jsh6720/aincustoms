@@ -16,7 +16,10 @@ $Prompt = "오늘 날짜: $Stamp (Asia/Seoul). 아래 지침대로 오늘의 카
 "=== START $(Get-Date -Format s)" | Out-File -FilePath $Log -Encoding utf8 -Append
 # Decode claude.exe output as UTF-8 and log as UTF-8 (5.1's *>> writes UTF-16 and mangles Korean).
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-& "C:\Users\jsh\.local\bin\claude.exe" -p $Prompt --model opus --permission-mode bypassPermissions 2>&1 |
+# Pass the prompt on stdin: 5.1 does not escape embedded double quotes in native-command arguments,
+# which truncated the prompt. $OutputEncoding (default ASCII) sets the encoding of piped stdin.
+$OutputEncoding = New-Object System.Text.UTF8Encoding $false
+$Prompt | & "C:\Users\jsh\.local\bin\claude.exe" -p --model opus --permission-mode bypassPermissions 2>&1 |
     Out-File -FilePath $Log -Encoding utf8 -Append
 $Code = $LASTEXITCODE
 "=== END $(Get-Date -Format s) exit=$Code" | Out-File -FilePath $Log -Encoding utf8 -Append
