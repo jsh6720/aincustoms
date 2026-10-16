@@ -200,7 +200,7 @@ test("/news.json returns whitelisted items, latest first, with long cache", asyn
   assert.ok(!Number.isNaN(Date.parse(data.fetchedAt)));
   assert.equal(data.error, undefined);
   assert.equal(data.items.length, 6);
-  const fields = ["title", "category", "categoryKey", "url", "summary", "image", "dateLabel", "dateDay"];
+  const fields = ["title", "category", "categoryKey", "url", "page", "summary", "image", "dateLabel", "dateDay"];
   for (const item of data.items) {
     assert.deepEqual(Object.keys(item), fields);
     for (const key of fields) assert.equal(typeof item[key], "string");
