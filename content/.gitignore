@@ -6,3 +6,6 @@ news-design/preview-*.png
 naver-blog/daily/logs/
 naver-blog/daily/out/
 news-design/home-section-*.png
+# Instagram source photos and news captures: personal/third-party material, keep out of the public repo
+instagram/src/
+instagram/out/act-*.png

@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>사무소 활동 카드</title>
+<!-- Instagram post 3: 사무소 활동 (중진공 간담회 기사·발언 사진, 관세사회 강의 사진). Chrome copied from naver-blog/blog-skin/about.html. -->
+<style>
+@import url("../naver-blog/design/pretendard/pretendardvariable-dynamic-subset.css");
+:root { --navy: #0f172a; --blue: #2563eb; --slate-400: #94a3b8; --slate-300: #cbd5e1; --slate-200: #e2e8f0; --ink-3: #64748b; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #444; padding: 40px; font-family: "Pretendard Variable", Pretendard, sans-serif; display: flex; flex-direction: column; gap: 40px; }
+.asset { position: relative; width: 1080px; height: 1350px; overflow: hidden; word-break: keep-all; padding: 80px; display: flex; flex-direction: column; }
+.reg i { position: absolute; width: 28px; height: 28px; border: 0 solid var(--rc); }
+.reg i:nth-child(1) { top: 36px; left: 36px; border-top-width: 2px; border-left-width: 2px; }
+.reg i:nth-child(2) { top: 36px; right: 36px; border-top-width: 2px; border-right-width: 2px; }
+.reg i:nth-child(3) { bottom: 36px; left: 36px; border-bottom-width: 2px; border-left-width: 2px; }
+.reg i:nth-child(4) { bottom: 36px; right: 36px; border-bottom-width: 2px; border-right-width: 2px; }
+.top { display: flex; justify-content: space-between; align-items: center; height: 48px; font-size: 28px; font-weight: 700; }
+.chip { background: var(--blue); color: #fff; padding: 6px 16px; border-radius: 8px; }
+.series { color: var(--slate-400); }
+.foot { margin-top: auto; display: flex; justify-content: space-between; align-items: center; font-size: 28px; font-weight: 600; }
+.logo { height: 46px; }
+.dark { background: var(--navy); color: #fff; --rc: rgba(255,255,255,.38); }
+.dark .logo { filter: brightness(0) invert(1); }
+.dark .foot { color: var(--slate-400); }
+.light { background: #fff; color: var(--navy); --rc: rgba(15,23,42,.3); }
+.light .series, .light .foot { color: var(--ink-3); }
+.kicker { font-size: 32px; font-weight: 600; color: var(--slate-400); margin-top: 56px; }
+h1 { font-size: 70px; font-weight: 800; line-height: 1.22; letter-spacing: -0.03em; margin-top: 16px; }
+.photo { margin-top: 52px; border-radius: 16px; overflow: hidden; background: #1e293b; }
+.photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cap { font-size: 28px; font-weight: 600; color: var(--slate-300); margin-top: 22px; line-height: 1.5; }
+
+#act-news .src { font-size: 30px; font-weight: 700; color: var(--ink-3); margin-top: 56px; }
+#act-news h1 { font-size: 60px; }
+.paper { margin-top: 44px; border: 2px solid var(--slate-200); border-radius: 16px; padding: 36px 40px; box-shadow: 0 10px 30px rgba(15,23,42,.08); }
+.head { position: relative; width: 100%; aspect-ratio: 1592 / 472; background: url(src/news-head.png) 0 0 / 100% auto no-repeat; }
+.head::after { content: ""; position: absolute; left: 18.6%; right: 0; bottom: 0; height: 45%; background: #fff; } /* hide page buttons */
+.para { position: relative; margin-top: 18px; padding-top: 22px; border-top: 2px dashed var(--slate-200); }
+.para img { width: 100%; display: block; }
+.para mark { position: absolute; left: 15.1%; width: 44.6%; top: calc(22px + 49%); height: 22%; background: rgba(250,204,21,.38); border-radius: 4px; }
+.from { font-size: 24px; color: var(--ink-3); font-weight: 600; margin-top: 22px; }
+</style>
+</head>
+<body>
+
+<section class="asset dark" id="act-cover">
+  <div class="reg"><i></i><i></i><i></i><i></i></div>
+  <div class="top"><span class="chip">사무소 소식</span><span class="series">아인합동관세사무소</span></div>
+  <div class="kicker">2026. 8. 27. 중진공 현장간담회 · 대전</div>
+  <h1>온라인 수출 애로,<br>관세 전문가로 현장에서<br>답했습니다</h1>
+  <div class="photo" style="height:600px"><img src="src/talk.png" alt="" style="object-position:70% 40%"></div>
+  <div class="cap">충청권 온라인수출 중소기업 애로해소 간담회 자문단 · 정석현 대표관세사</div>
+  <div class="foot"><img class="logo" src="../naver-blog/design/logo.png" alt=""><span>1 / 3</span></div>
+</section>
+
+<section class="asset light" id="act-news">
+  <div class="reg"><i></i><i></i><i></i><i></i></div>
+  <div class="top"><span class="chip">언론 보도</span><span class="series">아인합동관세사무소</span></div>
+  <div class="src">아시아경제 · 2026. 8. 27.</div>
+  <h1>중기 옴부즈만·중진공 간담회<br>자문단으로 참여</h1>
+  <div class="paper">
+    <div class="head"></div>
+    <div class="para"><img src="src/news-para.png" alt=""><mark id="hl"></mark></div>
+  </div>
+  <div class="from">출처: 아시아경제 「중기 옴부즈만-중진공, 온라인 수출 애로 현장 의견 청취」 (2026. 8. 27., 김철현 기자) 기사 일부 캡처</div>
+  <div class="foot"><img class="logo" src="../naver-blog/design/logo.png" alt=""><span>2 / 3</span></div>
+</section>
+
+<section class="asset dark" id="act-lecture">
+  <div class="reg"><i></i><i></i><i></i><i></i></div>
+  <div class="top"><span class="chip">강의</span><span class="series">아인합동관세사무소</span></div>
+  <div class="kicker">2026. 10. 15. 한국관세사회 관세사 특별교육</div>
+  <h1>AI를 활용한<br>관세사 업무전략</h1>
+  <div class="photo" style="height:640px"><img src="src/lecture.jpg" alt="" style="object-position:50% 30%"></div>
+  <div class="cap">관세사 대상 LLM 실무 활용 · 리걸테크와 의견서 작성 실습 강의</div>
+  <div class="foot"><img class="logo" src="../naver-blog/design/logo.png" alt=""><span>3 / 3</span></div>
+</section>
+
+</body>
+</html>
