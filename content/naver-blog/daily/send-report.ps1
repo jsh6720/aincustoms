@@ -3,6 +3,7 @@
     [Parameter(Mandatory = $true)][string]$HtmlFile,
     [string[]]$Attachments = @(),
     [string[]]$InlineImages = @(),
+    [string]$InlineFile = "",
     [string]$To = "jsh@aincustoms.com"
 )
 # Sends the daily card-news report through the local Outlook profile (jsh@aincustoms.com).
@@ -10,11 +11,15 @@
 # -InlineImages : "cid=path" items, e.g. "cover-09=C:\...\cards\09\card-01.png". Each is attached,
 #                 given that Content-ID and hidden from the attachment list, so the HTML body can
 #                 show it with <img src="cid:cover-09">.
+# -InlineFile   : text file with one "cid=path" per line (build-report.mjs writes report.inline.txt).
 $ErrorActionPreference = "Stop"
 # Through `powershell -File`, a list like a,b,c arrives as ONE string "a,b,c". Split it back:
 # inline specs at a comma followed by "<cid>=", attachments at a comma followed by a drive path.
 $InlineImages = @($InlineImages | ForEach-Object { $_ -split ',(?=[A-Za-z0-9_.-]+=)' } | Where-Object { $_ })
 $Attachments = @($Attachments | ForEach-Object { $_ -split ',(?=[A-Za-z]:[\\/])' } | Where-Object { $_ })
+if ($InlineFile) {
+    $InlineImages += @([System.IO.File]::ReadAllLines($InlineFile, [System.Text.Encoding]::UTF8) | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+}
 $PR_ATTACH_CONTENT_ID = "http://schemas.microsoft.com/mapi/proptag/0x3712001F"
 $PR_ATTACH_MIME_TAG   = "http://schemas.microsoft.com/mapi/proptag/0x370E001F"
 $PR_ATTACHMENT_HIDDEN = "http://schemas.microsoft.com/mapi/proptag/0x7FFE000B"

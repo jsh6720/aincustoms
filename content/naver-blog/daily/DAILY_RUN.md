@@ -66,15 +66,15 @@
 ## 4. 보고 메일 (반드시 1통) — 고정 형식: 모바일 1단 카드
 관세사는 보고 메일을 **휴대폰 Outlook 앱(다크 모드)**에서 읽는다. HTML을 손으로 쓰지 말고, 반드시 아래 순서대로 **report.json → build-report.mjs → send-report.ps1** 로 만든다.
 1. `daily/out/<오늘날짜>/report.json` 작성. 스키마는 `daily/build-report.mjs` 머리말에 있다 (`date, rangeFrom, rangeTo, status: "drafts"|"none", summary, posts[{no, category, title, source, points[3], lawCheck, review, naver, publishCategory, tags[], cover}], noneReport[], footerNote`). `cover`는 `cards/NN/card-01.png` 절대경로. 값은 빌더가 HTML 이스케이프하므로 태그 없이 평문으로 쓴다.
-2. 빌드: `node content/naver-blog/daily/build-report.mjs <오늘날짜>` → `report.html` 생성. 출력의 `INLINE cover-NN=<경로> ...` 줄을 다음 단계에 그대로 쓴다.
-3. 발송 (표지는 본문 안에 인라인 삽입, 글마다 `-InlineImages "cover-NN=<card-01.png 절대경로>"` 하나씩):
+2. 빌드: `node content/naver-blog/daily/build-report.mjs <오늘날짜>` → `report.html`과 `report.inline.txt` 생성. 빌더가 글마다 `posts/NN/body.md`를 읽어 **본문 전체(카드 8장 포함, 네이버 임시저장본과 같은 순서)**를 메일에 넣는다. 관세사가 메일만 보고 내용을 검수할 수 있어야 하므로 body.md가 최종본인지 확인하고 빌드한다.
+3. 발송 (본문 속 카드 이미지는 `-InlineFile`로 `report.inline.txt`를 넘기면 모두 인라인 삽입된다):
 ```
-powershell -NoProfile -ExecutionPolicy Bypass -File content/naver-blog/daily/send-report.ps1 -Subject "<제목>" -HtmlFile "<report.html 절대경로>" -InlineImages "cover-07=<표지1 절대경로>","cover-08=<표지2 절대경로>"
+powershell -NoProfile -ExecutionPolicy Bypass -File content/naver-blog/daily/send-report.ps1 -Subject "<제목>" -HtmlFile "<report.html 절대경로>" -InlineFile "<report.inline.txt 절대경로>"
 ```
-- 메일 형식 규칙(빌더가 보장하며, 빌더를 고칠 때도 지킨다): 1단(single column)·최대 너비 600px, 글마다 세로로 쌓인 카드(표지 → 카테고리 → 제목 → 라벨/값을 세로로 나열), 모든 스타일 inline, 본문 글자 15px 이상, 배경색에 의미를 싣지 않는다(라이트·다크 모두 읽혀야 함). **여러 열(column)짜리 데이터 표는 절대 넣지 않는다** — 휴대폰에서 열이 한 글자 폭으로 무너져 읽을 수 없다.
-- 초안이 있으면 제목: `[Ain 관세 인사이트] MM/DD 카드뉴스 초안 N건 검수 요청`, `status: "drafts"`. 글별 카드에 카테고리, 제목, 원문 근거(번호·날짜), 핵심 3줄, 법령검증 결과, 검토 판정, 네이버 임시저장 상태, 발행 시 카테고리·태그가 들어간다. "어떻게 발행하나요" 안내와 "NN번 이렇게 고쳐줘" 문구는 빌더가 자동으로 넣는다.
+- 메일 형식 규칙(빌더가 보장하며, 빌더를 고칠 때도 지킨다): 1단(single column)·최대 너비 600px, 글마다 세로로 쌓인 카드(카테고리 → 제목 → 라벨/값을 세로로 나열 → 본문 전체), 모든 스타일 inline, 본문 글자 15px 이상, 배경색에 의미를 싣지 않는다(라이트·다크 모두 읽혀야 함). **여러 열(column)짜리 데이터 표는 절대 넣지 않는다** — 휴대폰에서 열이 한 글자 폭으로 무너져 읽을 수 없다.
+- 초안이 있으면 제목: `[Ain 관세 인사이트] MM/DD 카드뉴스 초안 N건 검수 요청`, `status: "drafts"`. 글별 카드에 카테고리, 제목, 원문 근거(번호·날짜), 핵심 3줄, 법령검증 결과, 검토 판정, 네이버 임시저장 상태, 발행 시 카테고리·태그, 그리고 **본문 전체(카드 이미지 포함)**가 들어간다. "어떻게 발행하나요" 안내와 "NN번 이렇게 고쳐줘" 문구는 빌더가 자동으로 넣는다.
 - 1-1 대체 단계로 만든 글이면 제목 끝에 ` (통관 가이드 대체)`를 붙이고, `summary`에 "최근 14일 내 신규 판례·개정·보도자료 중 기준 통과 항목이 없어 통관 가이드로 대체했습니다"와 확인한 출처를 적는다.
-- 대체 단계까지 했는데도 만들 글이 없으면 제목: `[Ain 관세 인사이트] MM/DD 업데이트 없음 보고`, `status: "none"`, `posts: []`, `noneReport`에 오늘 확인한 출처와 범위, 후보가 있었다면 제외 사유를 5줄 이내로. `-InlineImages`는 생략.
+- 대체 단계까지 했는데도 만들 글이 없으면 제목: `[Ain 관세 인사이트] MM/DD 업데이트 없음 보고`, `status: "none"`, `posts: []`, `noneReport`에 오늘 확인한 출처와 범위, 후보가 있었다면 제외 사유를 5줄 이내로. `-InlineFile`은 생략.
 - 메일 발송 성공 후 `daily/out/<오늘날짜>/REPORT_SENT` 빈 파일을 만든다 (런처가 이 파일로 실패 여부를 판단).
 - `daily/ledger.json`에 오늘 다룬 항목(사건번호/법령/사례 식별자, 날짜, 결과: draft/hold/skip)을 추가한다. 파일이 없으면 `{"items": []}`로 만든다.
 

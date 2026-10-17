@@ -32,8 +32,11 @@
 //
 // Email rules (fixed): single column, max-width 600px, every style inline, table layout only for
 // stacking (never a multi-column data table), no background colour carries meaning, body text >= 15px.
-// Cover images are referenced as <img src="cid:cover-<no>">; send-report.ps1 -InlineImages
-// "cover-<no>=<path>" attaches them with that Content-ID. The builder prints the -InlineImages list.
+// Full draft: for each post the builder reads posts/<no>/body.md and appends "본문 전체" — the
+// draft in Naver order, with every [[IMG card-0N.png]] shown inline as cid:p<no>-card-0N
+// (cards/<no>/card-0N.png). Without body.md it falls back to the cover only (cid:cover-<no>).
+// Every inline image is written to report.inline.txt (one "cid=path" per line) for
+// send-report.ps1 -InlineFile; the builder also prints that path.
 
 import fs from "node:fs";
 import path from "node:path";
@@ -92,6 +95,51 @@ const olPoints = (points) =>
     .join("") +
   `</table>`;
 
+// ---------- full draft from posts/<no>/body.md ----------
+const blogRoot = path.join(here, "..");
+const inlineImages = []; // "cid=path"
+const inlineMd = (t) => esc(t).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>");
+const draftBody = (p) => {
+  const file = path.join(blogRoot, "posts", String(p.no), "body.md");
+  if (!fs.existsSync(file)) return "";
+  const out = [];
+  let para = [];
+  const flush = () => {
+    if (para.length) out.push(`<tr><td style="${BODY}padding:0 0 12px 0;">${para.join("<br>")}</td></tr>`);
+    para = [];
+  };
+  for (const raw of fs.readFileSync(file, "utf8").split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line) { flush(); continue; }
+    if (/^# /.test(line) || /^카테고리:/.test(line)) continue; // title/category are shown above
+    const img = line.match(/^\[\[IMG\s+(.+?)\]\]$/);
+    if (img) {
+      flush();
+      const name = img[1].trim();
+      const cid = `p${p.no}-${name.replace(/\.[^.]+$/, "")}`;
+      const abs = path.join(blogRoot, "cards", String(p.no), name);
+      if (fs.existsSync(abs)) {
+        inlineImages.push(`${cid}=${abs.replace(/\\/g, "/")}`);
+        out.push(`<tr><td align="center" style="padding:4px 0 14px 0;"><img src="cid:${cid}" width="520" alt="${esc(name)}" style="display:block;width:100%;max-width:520px;height:auto;border:1px solid #d9dde3;border-radius:8px;"></td></tr>`);
+      } else {
+        out.push(`<tr><td style="${BODY}padding:0 0 12px 0;">[이미지 없음: ${esc(name)}]</td></tr>`);
+      }
+      continue;
+    }
+    if (/^## /.test(line)) {
+      flush();
+      out.push(`<tr><td style="${FONT}${TEXT}font-size:16px;line-height:1.6;font-weight:bold;padding:10px 0 6px 0;">${inlineMd(line.slice(3))}</td></tr>`);
+      continue;
+    }
+    para.push(/^- /.test(line) ? "· " + inlineMd(line.slice(2)) : inlineMd(line));
+  }
+  flush();
+  return `
+<tr><td style="${RULE}padding:0;">&nbsp;</td></tr>
+<tr><td style="${FONT}${TEXT}font-size:17px;line-height:1.5;font-weight:bold;padding:16px 0 10px 0;">본문 전체 (네이버 임시저장본과 같은 순서)</td></tr>
+<tr><td style="padding:0;"><table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;">${out.join("\n")}</table></td></tr>`;
+};
+
 // ---------- blocks ----------
 const d = md(data.date);
 const from = md(data.rangeFrom);
@@ -112,15 +160,17 @@ ${data.summary ? `<tr><td style="${BODY}padding:0 0 16px 0;">${nl2br(data.summar
 
 const card = (p) => {
   const cid = `cover-${p.no}`;
+  const full = draftBody(p);
+  if (!full && p.cover) inlineImages.push(`${cid}=${p.cover}`);
   const tags = (p.tags || []).map((t) => `<span style="white-space:nowrap;">#${esc(t)}</span>`).join(" ");
   return `
 <tr><td style="padding:0 0 20px 0;">
 <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:separate;border:1px solid #c9ced6;border-radius:10px;">
 <tr><td style="padding:18px 18px 20px 18px;">
 <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;">
-<tr><td align="center" style="padding:0 0 16px 0;">
+${full || !p.cover ? "" : `<tr><td align="center" style="padding:0 0 16px 0;">
 <img src="cid:${cid}" width="280" height="350" alt="${esc(p.no)}번 표지" style="display:block;width:280px;max-width:100%;height:auto;border:1px solid #d9dde3;border-radius:8px;">
-</td></tr>
+</td></tr>`}
 <tr><td style="${FONT}${TEXT}font-size:13px;line-height:1.4;font-weight:bold;padding:0 0 6px 0;">${esc(p.no)}번 · ${esc(p.category)}</td></tr>
 <tr><td style="${FONT}${TEXT}font-size:18px;line-height:1.5;font-weight:bold;padding:0 0 6px 0;word-break:keep-all;overflow-wrap:break-word;">${esc(p.title)}</td></tr>
 <tr><td style="${RULE}padding:0;">&nbsp;</td></tr>
@@ -131,6 +181,7 @@ ${row("검토", nl2br(p.review))}
 ${row("네이버 상태", nl2br(p.naver))}
 ${row("발행 시 카테고리", esc(p.publishCategory))}
 ${row("태그", `<span style="${FONT}${TEXT}font-size:15px;line-height:1.8;">${tags}</span>`)}
+${full}
 </table>
 </td></tr>
 </table>
@@ -143,7 +194,7 @@ const howTo = `
 <tr><td style="${FONT}${TEXT}font-size:17px;line-height:1.5;font-weight:bold;padding:0 0 8px 0;">어떻게 발행하나요</td></tr>
 <tr><td style="${BODY}">
 ${posts.some(p => String(p.naver || "").includes("임시저장 완료")) ? `1. 네이버 블로그 앱 또는 PC에서 <b>글쓰기 → 임시저장 목록</b>을 엽니다.<br>
-2. 위 번호의 글을 열어 본문과 카드 8장을 확인합니다.<br>
+2. 위 번호의 글을 열어 본문과 카드 8장을 확인합니다(이 메일의 "본문 전체"와 같습니다).<br>
 3. 발행 창에서 위의 <b>카테고리와 태그</b>를 넣고 발행합니다.<br>
 4. 수정이 필요하면 Claude에게 "<b>${esc(posts[0]?.no ?? "NN")}번 이렇게 고쳐줘</b>"라고 말씀해 주세요.` : `1. 위 표지와 핵심 내용을 확인합니다.<br>
 2. 올릴 글은 Claude에게 "<b>${esc(posts.map(p => p.no).join("·"))} 발행해</b>"처럼 번호로 말씀해 주세요. 네이버 발행과 홈페이지 반영까지 확인합니다.<br>
@@ -190,6 +241,7 @@ ${footer}
 `;
 
 fs.writeFileSync(htmlFile, html, "utf8");
-const inline = posts.filter((p) => p.cover).map((p) => `cover-${p.no}=${p.cover}`);
+const inlineFile = path.join(outDir, "report.inline.txt");
+fs.writeFileSync(inlineFile, inlineImages.map((l) => l + "\n").join(""), "utf8");
 console.log(`WROTE ${htmlFile} (${isNone ? "none" : n + " posts"})`);
-if (inline.length) console.log(`INLINE ${inline.join(" ")}`);
+console.log(`INLINE ${inlineImages.length} images -> ${inlineFile}`);

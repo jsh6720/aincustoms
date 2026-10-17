@@ -14,6 +14,18 @@ $Prompt = [System.IO.File]::ReadAllText((Join-Path $Daily "DAILY_RUN.md"), [Syst
 $Prompt = "오늘 날짜: $Stamp (Asia/Seoul). 아래 지침대로 오늘의 카드뉴스 작업을 수행하라.`n`n" + $Prompt
 
 "=== START $(Get-Date -Format s)" | Out-File -FilePath $Log -Encoding utf8 -Append
+
+# Open the Aside browser window of account u0 (jsh880531@gmail.com, profile dir "Default", where the
+# Naver login lives). A bare Aside launch opens the empty "Profile 0" window and aside exec then fails
+# with "profile ... is not connected to the daemon" (2026-10-17).
+Start-Process "C:\Program Files\Aside\Application\Aside.exe" -ArgumentList "--profile-directory=Default"
+$Aside = "C:\Users\jsh\AppData\Local\Aside\CLI\current\aside.exe"
+$AsideOk = $false
+foreach ($i in 1..12) {
+    Start-Sleep -Seconds 5
+    if ((& $Aside repl "console.log('ok')" 2>&1 | Out-String) -match "\bok\b" -and $LASTEXITCODE -eq 0) { $AsideOk = $true; break }
+}
+"Aside browser (Default) connected: $AsideOk" | Out-File -FilePath $Log -Encoding utf8 -Append
 # Decode claude.exe output as UTF-8 and log as UTF-8 (5.1's *>> writes UTF-16 and mangles Korean).
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 # Pass the prompt on stdin: 5.1 does not escape embedded double quotes in native-command arguments,
