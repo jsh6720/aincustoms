@@ -18,3 +18,4 @@
    제목에는 사람들이 실제 검색하는 말(예: 핸드캐리 수입, 품목분류 사전심사)을 앞쪽에 둔다.
 7. **게시** — Aside(`aside exec`)로 스마트에디터에 게시. 이미지는 개별 삽입, 해시태그는 태그란, 링크 미리보기 제거. 이미 게시된 글은 새 글을 만들지 않고 **수정**한다. 첫 이미지(card-01)를 반드시 **대표 이미지**로 지정한다(안 하면 RSS·홈페이지·네이버 검색에 썸네일이 빠진다).
 8. **게시 확인** — 비로그인 상태로 모바일 주소(m.blog.naver.com)를 열어 제목·카테고리·이미지 8장을 확인하고 `posts/index.json`에 URL을 기록한다.
+9. **자체 도메인 페이지 갱신 (SEO/GEO)** — 네이버 게시 확인 후 `node scripts/build-news-pages.cjs`를 실행해 `news/{id}.html`·`sitemap.xml`·`feed.xml`·`llms.txt`·`lib/news-local-posts.json`을 다시 만들고 함께 커밋·배포한다. 네이버 블로그는 AI 크롤러(GPTBot·ClaudeBot·PerplexityBot 등)를 막고 있어, AI 검색 인용은 aincustoms.com의 이 페이지로만 가능하다. 네이버 RSS에 올라온 글만 페이지가 생긴다.

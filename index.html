@@ -4,15 +4,72 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>아인합동관세사무소 - 전문 관세 서비스</title>
+    <title>아인합동관세사무소 | 관세사 - 관세심사·품목분류·FTA·수입요건 (서울 강남·인천)</title>
     <meta name="description" content="아인합동관세사무소는 4대 회계법인 출신 관세사가 수출입 통관, 관세심사·조사 대응, 품목분류, FTA·원산지, 수입요건, 외환 진단을 제공하는 관세사 사무소입니다. 서울본사·인천지사.">
     <link rel="canonical" href="https://www.aincustoms.com/">
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="아인합동관세사무소">
-    <meta property="og:title" content="아인합동관세사무소 - 전문 관세 서비스">
+    <meta property="og:title" content="아인합동관세사무소 | 관세사 - 관세심사·품목분류·FTA·수입요건">
     <meta property="og:description" content="수출입 통관, 관세심사·조사 대응, 품목분류, FTA·원산지, 수입요건, 외환 진단 전문 관세사 사무소">
     <meta property="og:url" content="https://www.aincustoms.com/">
     <meta property="og:image" content="https://www.aincustoms.com/images/logo.png">
+    <link rel="alternate" type="application/rss+xml" title="Ain 관세 인사이트" href="https://www.aincustoms.com/feed.xml">
+    <!-- 사무소·관세사 구조화 데이터: 본문(연락처·구성원소개) 내용과 일치시켜 유지할 것 -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "LegalService",
+          "@id": "https://www.aincustoms.com/#organization",
+          "name": "아인합동관세사무소",
+          "alternateName": "Ain Customs",
+          "url": "https://www.aincustoms.com/",
+          "logo": "https://www.aincustoms.com/images/logo.png",
+          "image": "https://www.aincustoms.com/images/logo.png",
+          "description": "4대 회계법인 출신 관세사가 수출입 통관, 관세심사·조사 대응, 품목분류·경정청구, FTA·원산지, 수입요건, AEO, 외국환거래 진단을 제공하는 관세사 사무소",
+          "telephone": "+82-2-518-5435",
+          "faxNumber": "+82-2-518-5436",
+          "email": "jsh@aincustoms.com",
+          "address": {
+            "@type": "PostalAddress",
+            "streetAddress": "학동로 43길 38, 145호",
+            "addressLocality": "강남구",
+            "addressRegion": "서울특별시",
+            "addressCountry": "KR"
+          },
+          "department": {
+            "@type": "LegalService",
+            "name": "아인합동관세사무소 인천지사",
+            "telephone": "+82-32-265-2750",
+            "address": {
+              "@type": "PostalAddress",
+              "streetAddress": "부평대로 337, 325호",
+              "addressLocality": "부평구",
+              "addressRegion": "인천광역시",
+              "addressCountry": "KR"
+            }
+          },
+          "areaServed": "KR",
+          "knowsAbout": ["수출입 통관", "관세심사", "관세조사 대응", "품목분류", "경정청구", "FTA 원산지", "수입요건 세관장확인", "AEO", "외국환거래"],
+          "sameAs": ["https://blog.naver.com/aincustoms_"],
+          "employee": [
+            { "@type": "Person", "@id": "https://www.aincustoms.com/#cho-jaeho", "name": "조재호", "jobTitle": "대표관세사", "email": "jhcho@aincustoms.com", "image": "https://www.aincustoms.com/images/cho-jaeho.jpg", "knowsAbout": ["수출입통관", "관세심사", "외국환", "이전가격"] },
+            { "@type": "Person", "@id": "https://www.aincustoms.com/#jung-seokhyeon", "name": "정석현", "jobTitle": "대표관세사", "email": "jsh@aincustoms.com", "image": "https://www.aincustoms.com/images/jung-seokhyeon.jpg", "knowsAbout": ["수출입요건", "외국환", "관세심사", "품목분류"] },
+            { "@type": "Person", "@id": "https://www.aincustoms.com/#park-jongwook", "name": "박종욱", "jobTitle": "관세사", "image": "https://www.aincustoms.com/images/park-jongwook.jpg", "knowsAbout": ["수출입통관", "품목분류", "외국환거래", "FTA"] }
+          ]
+        },
+        {
+          "@type": "WebSite",
+          "@id": "https://www.aincustoms.com/#website",
+          "name": "아인합동관세사무소",
+          "url": "https://www.aincustoms.com/",
+          "inLanguage": "ko-KR",
+          "publisher": { "@id": "https://www.aincustoms.com/#organization" }
+        }
+      ]
+    }
+    </script>
     <!-- search-engine-verification -->
     <meta name="naver-site-verification" content="3b6a1f50e9634e9c0a18faaaaa01bcf0f9ec98a8" />
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
@@ -1349,7 +1406,7 @@
                         <i class="fas fa-phone text-green-600 text-2xl"></i>
                     </div>
                     <h3 class="text-xl font-semibold mb-4">전화 / 팩스</h3>
-                    <p class="text-gray-600 leading-relaxed">전화: 02-518-5434, 032-265-2750<br>팩스: 02-518-5436</p>
+                    <p class="text-gray-600 leading-relaxed">전화: <a href="tel:02-518-5435" class="hover:text-blue-600">02-518-5435</a>, <a href="tel:032-265-2750" class="hover:text-blue-600">032-265-2750</a><br>팩스: 02-518-5436</p>
                 </div>
 
                 <div class="text-center fade-in">
@@ -1963,7 +2020,10 @@
                 var key = ALLOWED_KEYS[item.categoryKey] ? item.categoryKey : 'etc';
 
                 var card = el('a', 'insights-card');
-                card.href = url; card.target = '_blank'; card.rel = 'noopener noreferrer';
+                // Self-hosted article page when one exists (written by scripts/build-news-pages.cjs).
+                var page = /^\/news\/[0-9]{2,3}$/.test(String(item.page || '')) ? item.page : '';
+                if (page) { card.href = page; }
+                else { card.href = url; card.target = '_blank'; card.rel = 'noopener noreferrer'; }
                 card.setAttribute('data-category', key);
 
                 var cover = el('div', 'insights-cover');

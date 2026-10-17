@@ -12,6 +12,7 @@
     { "source": "/note/lecture", "destination": "/lecture-note/index.html" },
     { "source": "/api/lecture-note", "destination": "/api/cargo-admin?workspace=lecture" },
     { "source": "/news", "destination": "/api/cargo-admin?workspace=news" },
+    { "source": "/news/:id([0-9]{2,3})", "destination": "/news/:id.html" },
     { "source": "/news.json", "destination": "/api/cargo-admin?workspace=news&format=json" },
     { "source": "/api/contact", "destination": "/api/cargo-admin?workspace=contact" },
     {

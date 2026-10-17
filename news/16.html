@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>관세청 API로 화물 조회하는 법, 인증키 발급부터 엑셀 조회까지 (UNI-PASS 오픈API) | 아인합동관세사무소</title>
+    <meta name="description" content="관세청 UNI-PASS에 회원가입·로그인 후 &#39;OpenAPI 사용관리&#39;에서 &#39;화물통관진행정보조회&#39;를 신청하면 인증키가 바로 나옵니다.">
+    <link rel="canonical" href="https://www.aincustoms.com/news/16">
+    <link rel="alternate" type="application/rss+xml" title="Ain 관세 인사이트" href="https://www.aincustoms.com/feed.xml">
+    <meta property="og:type" content="article">
+    <meta property="og:locale" content="ko_KR">
+    <meta property="og:site_name" content="아인합동관세사무소">
+    <meta property="og:title" content="관세청 API로 화물 조회하는 법, 인증키 발급부터 엑셀 조회까지 (UNI-PASS 오픈API)">
+    <meta property="og:description" content="관세청 UNI-PASS에 회원가입·로그인 후 &#39;OpenAPI 사용관리&#39;에서 &#39;화물통관진행정보조회&#39;를 신청하면 인증키가 바로 나옵니다.">
+    <meta property="og:url" content="https://www.aincustoms.com/news/16">
+    <meta property="og:image" content="https://blogthumb.pstatic.net/MjAyNjEwMTVfMTMx/MDAxNzkyMDI4MDc4MTM5.35TfDu6MBxka5gTOhDO7BRnWdkS1LYgT_ouaSnytE7Qg.RFKnPKb3wNgsGMturE2PCxg2c21UBmViFfa2qvDzjdIg.PNG/card-01.png?type=w2">
+    <meta property="article:published_time" content="2026-10-15T10:42:59+09:00">
+    <meta name="twitter:card" content="summary_large_image">
+    <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+    <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"BlogPosting","@id":"https://www.aincustoms.com/news/16#article","mainEntityOfPage":"https://www.aincustoms.com/news/16","url":"https://www.aincustoms.com/news/16","headline":"관세청 API로 화물 조회하는 법, 인증키 발급부터 엑셀 조회까지 (UNI-PASS 오픈API)","description":"관세청 UNI-PASS에 회원가입·로그인 후 'OpenAPI 사용관리'에서 '화물통관진행정보조회'를 신청하면 인증키가 바로 나옵니다.","articleSection":"통관 가이드","datePublished":"2026-10-15T10:42:59+09:00","dateModified":"2026-10-15T10:42:59+09:00","inLanguage":"ko-KR","author":{"@type":"Person","@id":"https://www.aincustoms.com/#jung-seokhyeon","name":"정석현","jobTitle":"대표관세사","worksFor":{"@id":"https://www.aincustoms.com/#organization"}},"publisher":{"@type":"LegalService","@id":"https://www.aincustoms.com/#organization","name":"아인합동관세사무소","url":"https://www.aincustoms.com/"},"isBasedOn":"https://blog.naver.com/aincustoms_/224442318772","sameAs":"https://blog.naver.com/aincustoms_/224442318772","image":"https://blogthumb.pstatic.net/MjAyNjEwMTVfMTMx/MDAxNzkyMDI4MDc4MTM5.35TfDu6MBxka5gTOhDO7BRnWdkS1LYgT_ouaSnytE7Qg.RFKnPKb3wNgsGMturE2PCxg2c21UBmViFfa2qvDzjdIg.PNG/card-01.png?type=w2","keywords":"관세청API, 유니패스, UNIPASS, 화물조회, 화물통관진행정보, 오픈API, 인증키발급, 수입화물조회, BL조회, 엑셀, 관세, 관세사, 수입통관, 아인합동관세사무소, 정석현관세사"},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://www.aincustoms.com/"},{"@type":"ListItem","position":2,"name":"관세 주요 뉴스","item":"https://www.aincustoms.com/news"},{"@type":"ListItem","position":3,"name":"관세청 API로 화물 조회하는 법, 인증키 발급부터 엑셀 조회까지 (UNI-PASS 오픈API)","item":"https://www.aincustoms.com/news/16"}]}]}</script>
+    <style>
+:root {
+    --navy: #0f172a;
+    --blue: #2563eb;
+    --blue-deep: #1d4ed8;
+    --light: #eff6ff;
+    --ink-2: #334155;
+    --ink-3: #64748b;
+    --slate-400: #94a3b8;
+    --slate-300: #cbd5e1;
+    --slate-200: #e2e8f0;
+    --slate-100: #f1f5f9;
+    --bg: #f8fafc;
+    --accent: var(--navy);
+    --radius: 16px;
+    --nav-h: 80px;
+}
+
+/* 카테고리 강조색: 카드와 칩 모두 data-category 로 받는다 */
+[data-category="case"] { --accent: #2563eb; }
+[data-category="hs"] { --accent: #0f766e; }
+[data-category="fta"] { --accent: #6d28d9; }
+[data-category="news"] { --accent: #b45309; }
+[data-category="req"] { --accent: #be123c; }
+[data-category="guide"] { --accent: #4d7c0f; }
+[data-category="etc"] { --accent: #0f172a; }
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+    margin: 0;
+    font-family: 'Pretendard Variable', Pretendard, 'Inter', -apple-system, BlinkMacSystemFont, system-ui, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+    color: var(--navy);
+    background: var(--bg);
+    line-height: 1.5;
+    word-break: keep-all;
+    overflow-x: hidden;
+}
+
+a { color: inherit; text-decoration: none; }
+img { display: block; max-width: 100%; }
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding-left: 24px;
+    padding-right: 24px;
+}
+
+/* ---------- 네비게이션 (index.html 과 동일한 외형) ---------- */
+.navbar {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    position: fixed;
+    top: 0;
+    width: 100%;
+    z-index: 1000;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.navbar .container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 32px;
+    padding-top: 20px;
+    padding-bottom: 20px;
+}
+
+.logo { flex: none; }
+.logo img { height: 40px; width: auto; object-fit: contain; }
+
+.nav-menu {
+    display: none;
+    align-items: center;
+    gap: 20px;
+    white-space: nowrap;
+}
+
+.nav-menu a {
+    color: #374151;
+    font-weight: 500;
+    font-size: 16px;
+    transition: color .2s;
+    position: relative;
+}
+
+.nav-menu a:hover { color: var(--blue); }
+.nav-menu a.is-red { color: #dc2626; font-weight: 700; }
+.nav-menu a.is-red:hover { color: #991b1b; }
+.nav-menu a.is-blue { color: var(--blue); font-weight: 700; }
+.nav-menu a.is-blue:hover { color: var(--blue-deep); }
+.nav-menu a.is-green { color: #16a34a; font-weight: 700; }
+.nav-menu a.is-green:hover { color: #166534; }
+
+/* 현재 페이지 표시 */
+.nav-menu a[aria-current="page"] {
+    color: var(--navy);
+    font-weight: 700;
+}
+
+.nav-menu a[aria-current="page"]::after {
+    content: "";
+    position: absolute;
+    left: 0; right: 0; bottom: -8px;
+    height: 2px;
+    background: var(--blue);
+    border-radius: 2px;
+}
+
+/* 모바일: 홈으로 가는 링크만 */
+.nav-mobile {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #374151;
+    padding: 8px 12px;
+    border: 1px solid var(--slate-200);
+    border-radius: 999px;
+    background: #fff;
+}
+
+/* 메뉴 10개가 로고와 겹치지 않는 너비부터 데스크톱 메뉴 */
+@media (min-width: 1280px) {
+    .nav-menu { display: flex; }
+    .nav-mobile { display: none; }
+}
+
+/* ---------- 페이지 헤더 ---------- */
+.page-header {
+    margin-top: var(--nav-h);
+    background: var(--navy);
+    color: #fff;
+    position: relative;
+    overflow: hidden;
+}
+
+/* 카드뉴스 표지의 워터마크 모티프 (외곽선 글자, 우측으로 흘러나감) */
+.page-header::before {
+    content: "INSIGHT";
+    position: absolute;
+    right: -0.08em;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: clamp(120px, 18vw, 240px);
+    font-weight: 900;
+    letter-spacing: -0.04em;
+    line-height: 1;
+    color: transparent;
+    -webkit-text-stroke: 2px rgba(255, 255, 255, 0.14);
+    pointer-events: none;
+    user-select: none;
+}
+
+.page-header .container {
+    position: relative;
+    padding-top: 72px;
+    padding-bottom: 64px;
+    display: grid;
+    gap: 20px;
+}
+
+.kicker {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: var(--slate-300);
+}
+
+.kicker::before {
+    content: "";
+    width: 28px; height: 2px;
+    background: var(--blue);
+}
+
+.page-header h1 {
+    margin: 0;
+    font-size: clamp(34px, 4.4vw, 52px);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1.2;
+}
+
+.page-header p {
+    margin: 0;
+    max-width: 640px;
+    font-size: 18px;
+    line-height: 1.6;
+    color: var(--slate-300);
+    font-weight: 500;
+}
+
+.header-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+    margin-top: 8px;
+}
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 20px;
+    border-radius: 12px;
+    font-weight: 700;
+    font-size: 15px;
+    transition: all .3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+    color: #fff;
+    box-shadow: 0 8px 24px rgba(59, 130, 246, 0.3);
+}
+
+.btn-primary:hover { transform: translateY(-2px); box-shadow: 0 12px 32px rgba(59, 130, 246, 0.4); }
+
+.btn-ghost {
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.28);
+}
+
+.btn-ghost:hover { background: rgba(255, 255, 255, 0.08); }
+
+.btn svg { width: 18px; height: 18px; flex: none; }
+
+/* ---------- 필터 ---------- */
+.filters-wrap {
+    position: sticky;
+    top: var(--nav-h);
+    z-index: 20;
+    background: rgba(248, 250, 252, 0.92);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--slate-200);
+}
+
+.filters {
+    display: flex;
+    gap: 8px;
+    padding: 14px 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+}
+
+.filters::-webkit-scrollbar { display: none; }
+
+.chip {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 38px;
+    padding: 0 16px;
+    border-radius: 999px;
+    border: 1px solid var(--slate-200);
+    background: #fff;
+    color: var(--ink-2);
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .2s;
+}
+
+.chip::before {
+    content: "";
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+}
+
+.chip[data-category="all"]::before { display: none; }
+
+.chip .count {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--ink-3);
+    background: var(--slate-100);
+    padding: 2px 7px;
+    border-radius: 999px;
+    line-height: 1.2;
+}
+
+.chip:hover { border-color: var(--slate-300); color: var(--navy); }
+
+.chip[aria-pressed="true"] {
+    background: var(--navy);
+    border-color: var(--navy);
+    color: #fff;
+}
+
+.chip[aria-pressed="true"]::before { background: #fff; }
+.chip[aria-pressed="true"] .count { background: rgba(255, 255, 255, 0.16); color: #fff; }
+
+/* ---------- 글 목록 ---------- */
+.news-section { padding: 40px 0 72px; }
+
+.list-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 16px;
+    margin-bottom: 20px;
+    font-size: 14px;
+    color: var(--ink-3);
+}
+
+.list-meta strong { color: var(--navy); font-weight: 700; }
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 28px;
+}
+
+.card {
+    display: flex;
+    flex-direction: column;
+    background: #fff;
+    border-radius: var(--radius);
+    border: 1px solid rgba(15, 23, 42, 0.06);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.06);
+    overflow: hidden;
+    transition: transform .4s cubic-bezier(0.4, 0, 0.2, 1), box-shadow .4s cubic-bezier(0.4, 0, 0.2, 1);
+    min-width: 0;
+}
+
+.card:hover { transform: translateY(-6px); box-shadow: 0 20px 48px rgba(0, 0, 0, 0.12); }
+.card:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
+.card[hidden] { display: none; }
+
+.card-cover {
+    position: relative;
+    aspect-ratio: 4 / 5;
+    background: var(--navy);
+    overflow: hidden;
+}
+
+.card-cover .cover-fallback {
+    position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: flex-end; gap: 12px;
+    padding: 24px; color: #fff; text-align: left;
+}
+.cover-fallback .cf-cat { font-size: 13px; font-weight: 700; color: #93c5fd; }
+.cover-fallback .cf-title { font-size: 20px; font-weight: 800; line-height: 1.35; word-break: keep-all; }
+.cover-fallback .cf-brand { margin-top: 8px; font-size: 12px; color: rgba(255,255,255,.6); }
+
+.card-cover img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 20px 22px 22px;
+    flex: 1;
+}
+
+.card-cat {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--accent);
+    letter-spacing: 0.01em;
+}
+
+.card-cat::before {
+    content: "";
+    width: 8px; height: 8px;
+    border-radius: 2px;
+    background: var(--accent);
+}
+
+.card-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.card-date {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink-3);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.card-title {
+    margin: 0;
+    font-size: 19px;
+    font-weight: 800;
+    line-height: 1.35;
+    letter-spacing: -0.02em;
+    color: var(--navy);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.card:hover .card-title { color: var(--blue-deep); }
+
+.card-summary {
+    margin: 0;
+    font-size: 14.5px;
+    line-height: 1.6;
+    color: var(--ink-2);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.card-more {
+    margin-top: auto;
+    padding-top: 6px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--ink-3);
+}
+
+.card-more svg { width: 14px; height: 14px; }
+.card:hover .card-more { color: var(--blue); }
+
+/* 빈 상태 */
+.empty {
+    display: none;
+    padding: 56px 24px;
+    text-align: center;
+    color: var(--ink-3);
+    border: 1px dashed var(--slate-300);
+    border-radius: var(--radius);
+    background: #fff;
+}
+
+.grid.is-empty + .empty { display: block; }
+
+/* ---------- 푸터 CTA ---------- */
+.cta {
+    background: var(--navy);
+    color: #fff;
+}
+
+.cta .container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 24px;
+    padding-top: 56px;
+    padding-bottom: 56px;
+}
+
+.cta h2 {
+    margin: 0 0 8px;
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+}
+
+.cta p { margin: 0; color: var(--slate-300); font-size: 16px; }
+
+.cta-contact {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+}
+
+.cta-contact a {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 22px;
+    border-radius: 12px;
+    font-weight: 800;
+    font-size: 18px;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+}
+
+.cta-contact .tel { background: #fff; color: var(--navy); }
+.cta-contact .tel:hover { background: var(--light); }
+.cta-contact .site { border: 1px solid rgba(255, 255, 255, 0.28); color: #fff; }
+.cta-contact .site:hover { background: rgba(255, 255, 255, 0.08); }
+.cta-contact svg { width: 20px; height: 20px; }
+
+.site-footer {
+    background: #0b1120;
+    color: var(--slate-400);
+    font-size: 13px;
+}
+
+.site-footer .container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 8px 24px;
+    padding-top: 20px;
+    padding-bottom: 20px;
+}
+
+.site-footer a:hover { color: #fff; }
+
+/* ---------- 반응형 ---------- */
+@media (max-width: 1024px) {
+    .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+}
+
+@media (max-width: 768px) {
+    :root { --nav-h: 72px; }
+    .container { padding-left: 16px; padding-right: 16px; }
+    .navbar .container { padding-top: 16px; padding-bottom: 16px; }
+    .page-header .container { padding-top: 44px; padding-bottom: 48px; gap: 14px; }
+    .page-header p { font-size: 16px; }
+    .page-header::before { font-size: 96px; -webkit-text-stroke-width: 1.5px; opacity: .7; top: auto; bottom: -0.18em; transform: none; }
+    .filters { padding: 12px 0; margin: 0 -16px; padding-left: 16px; padding-right: 16px; }
+    .news-section { padding: 24px 0 48px; }
+    .grid { gap: 16px 12px; }
+    .card { border-radius: 12px; }
+    .card-body { padding: 14px 14px 16px; gap: 8px; }
+    .card-meta { flex-direction: column; align-items: flex-start; gap: 4px; }
+    .card-cat { font-size: 12px; white-space: nowrap; }
+    .card-date { font-size: 12px; }
+    .card-title { font-size: 15.5px; }
+    .card-summary { font-size: 13px; line-height: 1.55; }
+    .card-more { display: none; }
+    .cta .container { padding-top: 40px; padding-bottom: 40px; }
+    .cta h2 { font-size: 22px; }
+    .cta-contact { width: 100%; }
+    .cta-contact a { flex: 1 1 auto; justify-content: center; font-size: 16px; }
+}
+
+@media (max-width: 359px) {
+    .grid { grid-template-columns: 1fr; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .card, .btn { transition: none; }
+    .card:hover { transform: none; }
+}
+
+.article{max-width:760px;margin:var(--nav-h) auto 0;padding:40px 20px 64px;line-height:1.85;font-size:17px;color:#1f2937;word-break:keep-all;overflow-wrap:anywhere}
+.article .crumbs{font-size:14px;color:#6b7280;margin-bottom:16px}.article .crumbs a{color:#2563eb}
+.article h1{font-size:30px;line-height:1.4;margin:6px 0 14px;letter-spacing:-.02em}
+.article .byline{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:14px;color:#6b7280;padding-bottom:20px;border-bottom:1px solid #e5e7eb;margin-bottom:28px}
+.article .cover{width:100%;max-width:420px;height:auto;border-radius:12px;display:block;margin:0 auto 28px;box-shadow:0 6px 24px rgba(15,23,42,.12)}
+.article h2{font-size:22px;margin:40px 0 12px;padding-top:4px}
+.article ul{padding-left:22px}.article li{margin:4px 0}
+.article a{color:#2563eb;text-decoration:underline;text-underline-offset:3px}
+.article blockquote{margin:16px 0;padding:10px 16px;border-left:4px solid #93c5fd;background:#f1f5ff}
+.article table{border-collapse:collapse;width:100%;display:block;overflow-x:auto;font-size:15px}.article th,.article td{border:1px solid #e5e7eb;padding:8px 10px}
+.article .original{margin-top:36px;padding:16px 18px;border:1px solid #e5e7eb;border-radius:12px;background:#f9fafb;font-size:15px}
+.article .tags{margin-top:20px;font-size:14px;color:#6b7280}
+@media (max-width:640px){.article{padding:28px 16px 48px;font-size:16px}.article h1{font-size:24px}}</style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <a class="logo" href="/" aria-label="아인합동관세사무소 홈"><img src="/images/logo.png" alt="아인합동관세사무소 로고"></a>
+            <div class="nav-menu">
+                <a href="/#home">홈</a>
+                <a href="/#about">회사소개</a>
+                <a href="/#services">전문서비스</a>
+                <a href="/#team">구성원소개</a>
+                <a href="/news">관세 주요 뉴스</a>
+                <a href="/#contact">연락처</a>
+            </div>
+            <a class="nav-mobile" href="/news">관세 주요 뉴스</a>
+        </div>
+    </nav>
+    <main>
+        <article class="article">
+            <div class="crumbs"><a href="/">홈</a> › <a href="/news">관세 주요 뉴스</a> › 통관 가이드</div>
+            <h1>관세청 API로 화물 조회하는 법, 인증키 발급부터 엑셀 조회까지 (UNI-PASS 오픈API)</h1>
+            <div class="byline">
+                <span>통관 가이드</span>
+                <time datetime="2026-10-15">2026. 10. 15.</time>
+                <span>작성: 정석현 대표관세사 (아인합동관세사무소)</span>
+            </div>
+            <img class="cover" src="https://blogthumb.pstatic.net/MjAyNjEwMTVfMTMx/MDAxNzkyMDI4MDc4MTM5.35TfDu6MBxka5gTOhDO7BRnWdkS1LYgT_ouaSnytE7Qg.RFKnPKb3wNgsGMturE2PCxg2c21UBmViFfa2qvDzjdIg.PNG/card-01.png?type=w2" alt="관세청 API로 화물 조회하는 법, 인증키 발급부터 엑셀 조회까지 (UNI-PASS 오픈API) 카드뉴스 표지" width="743" height="929" referrerpolicy="no-referrer">
+            <h2>3줄 요약</h2>
+<ul>
+<li>관세청 UNI-PASS에 회원가입·로그인 후 &#39;OpenAPI 사용관리&#39;에서 &#39;화물통관진행정보조회&#39;를 신청하면 인증키가 바로 나옵니다.</li>
+<li>인증키와 B/L 번호·입항년도를 넣은 주소를 브라우저나 엑셀에 넣으면 화물 진행상태를 조회할 수 있습니다.</li>
+<li>근거: 관세청 UNI-PASS OpenAPI 연계가이드 v4.1 (API001 화물통관 진행정보), 원문 파일은 이 글에 첨부했습니다.</li>
+</ul>
+<p>&quot;수입 화물이 지금 어디까지 왔는지, 매번 유니패스에 들어가서 B/L을 하나씩 넣어 봐야 하나요?&quot; 수입 건이 많은 회사 담당자분들이 자주 하시는 질문입니다.</p>
+<p>관세청은 화물 진행정보를 오픈API로 제공합니다. 인증키만 받아 두면 브라우저 주소창이나 엑셀에서 바로 조회할 수 있고, 사내 시스템에 연결해 자동으로 확인할 수도 있습니다. 프로그래밍을 몰라도 따라 할 수 있도록 실제 화면 순서대로 정리했습니다.</p>
+<h2>1단계. UNI-PASS 회원가입·로그인</h2>
+<p>관세청 UNI-PASS(unipass.customs.go.kr)에 접속합니다. 화면 오른쪽 MY CUSTOMS 영역에 &#39;로그인&#39;과 &#39;회원가입&#39;이 있습니다. 오픈API는 UNI-PASS 회원만 신청할 수 있습니다.</p>
+<p>회원가입을 누르면 회원유형 선택 화면이 나옵니다.</p>
+<ul>
+<li>업체 및 대표자: 회사 명의로 처음 가입할 때 선택합니다. 관세청의 사용승인이 필요합니다.</li>
+<li>업체 직원: 회사가 이미 가입되어 있고 직원 아이디를 추가할 때 선택합니다. 대표자의 사용승인이 필요합니다.</li>
+<li>일반(개인) 사용자: 사업자가 아닌 개인으로 가입할 때 선택합니다.</li>
+</ul>
+<p>가입이 끝나면 로그인합니다. 아이디·비밀번호 외에 공동·금융인증서나 정부 통합로그인(Any-ID)으로도 로그인할 수 있습니다.</p>
+<h2>2단계. 인증키 발급 (OpenAPI 사용관리)</h2>
+<p>로그인 후 상단 &#39;My메뉴&#39;를 누르고, 왼쪽에서 &#39;서비스관리&#39; → &#39;OpenAPI 사용관리&#39;로 들어갑니다. 신청기간 &#39;전체&#39;를 누르고 &#39;조회&#39;를 누르면 관세청이 제공하는 오픈API 목록이 모두 나옵니다(현재 55종).</p>
+<p>목록 마지막 페이지에 있는 &#39;화물통관진행정보조회&#39; 왼쪽 칸을 체크하고, 아래 &#39;OPEN API 신청&#39; 버튼을 누릅니다.</p>
+<p>승인은 신청 즉시 이루어집니다. 다시 조회하면 처리상태가 &#39;승인&#39;으로 바뀌어 있고, 서비스명을 누르면 아래 &#39;상세내역&#39;의 &#39;인증키&#39; 칸에 내 인증키가 표시됩니다.</p>
+<ul>
+<li>✔ 인증키는 API마다 따로 발급됩니다. HS부호, 환율 등 다른 API를 쓰려면 각각 신청하세요.</li>
+<li>✔ 인증키는 비밀번호처럼 관리하고, 메일·메신저로 외부에 공유하지 마세요.</li>
+</ul>
+<h2>3단계. 브라우저 주소창으로 조회하기</h2>
+<p>조회 주소는 정해진 주소 뒤에 인증키와 조회할 번호를 붙여 만듭니다.</p>
+<ul>
+<li>B/L 번호로 조회할 때: 인증키(crkyCn) + House B/L(hblNo) 또는 Master B/L(mblNo) + 입항년도(blYy)</li>
+<li>화물관리번호로 조회할 때: 인증키(crkyCn) + 화물관리번호(cargMtNo)</li>
+</ul>
+<p>B/L 번호로 조회할 때는 입항년도를 꼭 넣어야 합니다. 완성한 주소를 크롬이나 엣지 주소창에 붙여 넣고 엔터를 누르면 결과가 태그 형식(XML)으로 나옵니다.</p>
+<p>정상적으로 조회되면 위와 같은 결과가 나옵니다. 이해를 돕기 위해 가상의 B/L 번호(AINH26101501)와 화물 정보로 만든 예시입니다.</p>
+<ul>
+<li>① 진행상태(prgsStts)·통관진행상태(csclPrgsStts): 화물이 지금 어느 단계인지 보여 줍니다. 예시는 수입신고가 수리되고 창고에서 반출까지 끝난 상태입니다.</li>
+<li>② 조회한 B/L 번호가 맞는지 확인합니다.</li>
+<li>③ 입항일자(etprDt)는 &#39;20261008&#39;처럼 연월일 8자리로 나옵니다.</li>
+<li>④ 아래쪽 반복 묶음은 처리 이력입니다. 위가 가장 최근이고, 반입신고 → 수입신고 수리 → 반출신고 순으로 진행됐다는 뜻입니다. 처리일시(prcsDttm)와 장치장(shedNm)도 함께 나옵니다.</li>
+</ul>
+<p>인증키가 틀리면 위처럼 &#39;존재하지 않는 인증키입니다&#39; 메시지와 함께 tCnt(결과 건수)가 -1로 나옵니다. 키를 복사할 때 앞뒤 공백이 들어가지 않았는지 확인하세요.</p>
+<h2>4단계. 엑셀로 조회하기</h2>
+<p>Windows용 엑셀(2013 이상)이라면 함수 두 개로 조회할 수 있습니다.</p>
+<ul>
+<li>WEBSERVICE(주소): 관세청 응답(XML)을 그대로 가져옵니다.</li>
+<li>FILTERXML(응답, &quot;//태그명&quot;): 응답에서 필요한 항목만 뽑습니다.</li>
+</ul>
+<p>B/L 번호를 여러 줄로 적어 두고 수식을 아래로 복사하면 여러 건을 한 번에 확인할 수 있습니다. 다만 Mac용·웹용 엑셀에서는 이 함수가 동작하지 않습니다.</p>
+<h2>5단계. 결과 읽는 법</h2>
+<p>결과에서 먼저 볼 항목은 진행상태(prgsStts)와 통관진행상태(csclPrgsStts)입니다. 반입신고·수입신고수리·반출신고 같은 처리 이력과 화물이 있는 장치장(shedNm)도 함께 나옵니다.</p>
+<ul>
+<li>✔ 메시지가 [N00]으로 시작하면 같은 B/L에 화물이 여러 건이라는 뜻입니다. 목록에 나온 화물관리번호로 다시 조회하세요.</li>
+<li>✔ 관세청 데이터 보관 정책에 따라 최근 3년 이내 화물만 조회됩니다.</li>
+</ul>
+<h2>참고. API 없이 한 건만 볼 때</h2>
+<p>한두 건만 확인할 때는 로그인 없이 UNI-PASS &#39;정보조회 → 통관물류정보 → 수입화물 진행정보&#39; 화면에서 B/L 번호와 년도를 넣고 조회해도 됩니다. 매일 여러 건을 확인해야 한다면 API가 훨씬 편합니다.</p>
+<p>💬 사내 시스템이나 ERP에 화물 조회를 연결하고 싶은데 어디서부터 해야 할지 막막하다면, 아인합동관세사무소로 문의해 주세요. 수입 화물 관리 방식에 맞춰 안내해 드립니다.</p>
+<h2>첨부</h2>
+<ul>
+<li>관세청 「UNI-PASS OpenAPI 연계가이드 v4.1」 원문 (MYC_OpenAPI 연계가이드_v4.1.docx)</li>
+<li>최신판은 UNI-PASS OpenAPI 사용관리 화면의 &#39;연계가이드 다운로드&#39; 버튼으로도 받을 수 있습니다.</li>
+</ul>
+<h2>출처</h2>
+<ul>
+<li>자료: 관세청 UNI-PASS OpenAPI 연계가이드 v4.1, 2.1 서비스 신청 · 3.2.1 화물통관 진행정보(API001)</li>
+<li>화면: 관세청 UNI-PASS (unipass.customs.go.kr), 2026. 10. 캡처. 개인정보와 인증키는 가렸습니다.</li>
+</ul>
+<h2>유의사항</h2>
+<p>관세청 화면 구성과 서비스 내용은 바뀔 수 있습니다. 이 글은 일반 안내이며 개별 시스템 연계는 관세청 기술지원센터 안내를 함께 확인하세요. (작성 2026. 10.)</p>
+<h2>상담 안내</h2>
+<p>화물 조회 자동화나 수입 화물 관리가 궁금하다면 아인합동관세사무소에 문의하세요.</p>
+<ul>
+<li>작성: 정석현 대표관세사</li>
+<li>휴대전화: 010-7906-5432</li>
+<li>이메일: <a href="mailto:jsh@aincustoms.com">jsh@aincustoms.com</a></li>
+<li>사무소: 02-518-5435 · aincustoms.com</li>
+</ul>
+
+            <p class="original">카드뉴스 이미지 전체는 <a href="https://blog.naver.com/aincustoms_/224442318772" target="_blank" rel="noopener noreferrer">네이버 블로그 원문</a>에서 볼 수 있습니다.</p>
+            <p class="tags">#관세청API #유니패스 #UNIPASS #화물조회 #화물통관진행정보 #오픈API #인증키발급 #수입화물조회 #BL조회 #엑셀 #관세 #관세사 #수입통관 #아인합동관세사무소 #정석현관세사</p>
+        </article>
+    </main>
+    <footer class="site-footer">
+        <div class="container">
+            <span>© 아인합동관세사무소 · <a href="tel:02-518-5435">02-518-5435</a></span>
+            <a href="https://blog.naver.com/aincustoms_" target="_blank" rel="noopener noreferrer">Ain 관세 인사이트 (네이버 블로그) ↗</a>
+        </div>
+    </footer>
+</body>
+</html>
